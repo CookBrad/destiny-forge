@@ -1,27 +1,16 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
+mod player;
+use player::{CollisionMap, Player, move_player};
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapPlugin)
         .add_systems(Startup, setup)
-        .add_systems(
-            Update,
-            (
-                move_player,
-                camera_follow,
-                plant_crop,
-                grow_crops,
-                harvest_crop,
-            ),
-        )
+        .add_systems(Update, (move_player, plant_crop, grow_crops, harvest_crop))
         .run();
-}
-
-#[derive(Component)]
-struct Player {
-    speed: f32,
 }
 
 #[derive(Component)]
@@ -37,26 +26,9 @@ enum CropStage {
     Mature,
 }
 
-#[derive(Resource)]
-struct CollisionMap {
-    width: u32,
-    height: u32,
-    data: Vec<bool>,
-}
-
-impl CollisionMap {
-    fn get(&self, pos: IVec2) -> Option<bool> {
-        if pos.x >= 0 && pos.x < self.width as i32 && pos.y >= 0 && pos.y < self.height as i32 {
-            Some(self.data[(pos.y * self.width as i32 + pos.x) as usize])
-        } else {
-            None
-        }
-    }
-}
-
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let tile_texture_handle = asset_server.load("tiles.png");
-    let tile_size: TilemapTileSize = TilemapTileSize { x: 16.0, y: 16.0 };
+    let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = tile_size.into();
     let map_size = TilemapSize { x: 50, y: 50 };
 
@@ -101,7 +73,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             image: player_texture,
             ..default()
         },
-        Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(50.0, 0.0, 0.0)),
+        Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(50.0, 0.0, 1.0)),
         GlobalTransform::default(),
         Visibility::default(),
         Player { speed: 100.0 },
@@ -117,62 +89,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         height: map_size.y,
         data: collision_data,
     });
-}
-
-fn move_player(
-    time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<&mut Transform, With<Player>>,
-    collision_map: Res<CollisionMap>,
-    tilemap_query: Query<&TilemapGridSize>,
-) {
-    let grid_size = tilemap_query.single();
-    let mut player_transform = player_query.single_mut();
-    let speed = 100.0;
-
-    let mut velocity = Vec2::ZERO;
-    if keyboard_input.pressed(KeyCode::KeyW) {
-        velocity.y += 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyS) {
-        velocity.y -= 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        velocity.x -= 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        velocity.x += 1.0;
-    }
-
-    if velocity.length() > 0.0 {
-        velocity = velocity.normalize() * speed;
-    }
-
-    let dt = time.delta_secs();
-    let new_position =
-        player_transform.translation + Vec3::new(velocity.x * dt, velocity.y * dt, 1.0);
-
-    let tile_pos = IVec2::new(
-        (new_position.x / grid_size.x).floor() as i32,
-        (new_position.y / grid_size.y).floor() as i32,
-    );
-
-    if let Some(is_walkable) = collision_map.get(tile_pos) {
-        if is_walkable {
-            player_transform.translation = new_position;
-        }
-    }
-}
-
-fn camera_follow(
-    player_query: Query<&Transform, With<Player>>,
-    mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
-) {
-    if let Ok(player_transform) = player_query.get_single() {
-        for mut camera_transform in camera_query.iter_mut() {
-            camera_transform.translation = player_transform.translation;
-        }
-    }
 }
 
 fn plant_crop(
