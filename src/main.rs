@@ -26,6 +26,9 @@ enum CropStage {
     Mature,
 }
 
+#[derive(Component)]
+pub struct InventoryBarTag;
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let tile_texture_handle = asset_server.load("tiles.png");
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
@@ -89,6 +92,27 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         height: map_size.y,
         data: collision_data,
     });
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Px(50.0),
+                align_self: AlignSelf::FlexEnd,
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            InventoryBarTag,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                ImageNode {
+                    image: asset_server.load("crop.png"),
+                    ..default()
+                },
+                Label,
+            ));
+        });
 }
 
 fn plant_crop(
