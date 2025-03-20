@@ -29,6 +29,9 @@ enum CropStage {
 #[derive(Component)]
 pub struct InventoryBarTag;
 
+#[derive(Component)]
+pub struct SlotTag;
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let tile_texture_handle = asset_server.load("tiles.png");
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
@@ -98,20 +101,42 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Px(50.0),
-                align_self: AlignSelf::FlexEnd,
                 flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(10.0),
                 ..default()
             },
             InventoryBarTag,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                ImageNode {
-                    image: asset_server.load("crop.png"),
-                    ..default()
-                },
-                Label,
-            ));
+            for i in 0..5 {
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(50.0),
+                            height: Val::Px(50.0),
+                            margin: UiRect::all(Val::Px(5.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        SlotTag,
+                    ))
+                    .with_children(|slot| {
+                        slot.spawn((
+                            Text::new(&format!("Empty{}", i)),
+                            TextFont {
+                                font_size: 12.0,
+                                ..default()
+                            },
+                            TextColor::default(),
+                            TextLayout::default(),
+                            Node { ..default() },
+                        ));
+                    });
+            }
         });
 }
 
