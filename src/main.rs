@@ -27,7 +27,7 @@ enum CropStage {
 }
 
 #[derive(Component)]
-pub struct InventoryBarTag;
+pub struct InventoryBar;
 
 #[derive(Component)]
 pub struct SlotTag;
@@ -95,38 +95,54 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         height: map_size.y,
         data: collision_data,
     });
-
+    let background_image = asset_server.load("inventory_bar.png");
     commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(50.0),
-                flex_direction: FlexDirection::Row,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(10.0),
-                ..default()
-            },
-            InventoryBarTag,
-        ))
-        .with_children(|parent| {
+        .spawn(Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(10.0),
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            ..default()
+        })
+        .with_children(|inventory_bar| {
+            inventory_bar.spawn((
+                Node {
+                    width: Val::Px(5.0 * 50.0),
+                    min_width: Val::Px(5.0 * 50.0),
+                    height: Val::Px(50.0),
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position_type: PositionType::Absolute,
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                InventoryBar,
+                BorderColor(Color::BLACK),
+                ImageNode {
+                    image: background_image,
+                    ..default()
+                },
+            ));
+        })
+        .with_children(|inventory_slot| {
             for i in 0..5 {
-                parent
+                inventory_slot
                     .spawn((
                         Node {
                             width: Val::Px(50.0),
                             height: Val::Px(50.0),
-                            margin: UiRect::all(Val::Px(5.0)),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
+                            border: UiRect::all(Val::Px(2.0)),
                             ..default()
                         },
                         SlotTag,
+                        BorderColor(Color::BLACK),
                     ))
                     .with_children(|slot| {
                         slot.spawn((
-                            Text::new(&format!("Empty{}", i)),
+                            Text::new(&format!("Slot {}", i + 1)),
                             TextFont {
                                 font_size: 12.0,
                                 ..default()
