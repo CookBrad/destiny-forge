@@ -4,26 +4,23 @@ use bevy_ecs_tilemap::prelude::*;
 mod player;
 use player::{CollisionMap, Player, move_player};
 
+mod items;
+use items::{DisplayInfo, Item, crops::corn::Corn};
+
+#[derive(Component)]
+struct Inventory {
+    items: Vec<Option<Entity>>,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (move_player, plant_crop, grow_crops, harvest_crop))
+        .add_systems(Startup, add_item_to_inventory.after(setup))
+        .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
+        .add_systems(Update, move_player)
         .run();
-}
-
-#[derive(Component)]
-struct Crop {
-    stage: CropStage,
-    timer: f32,
-}
-
-#[derive(PartialEq)]
-enum CropStage {
-    Seed,
-    Sprout,
-    Mature,
 }
 
 #[derive(Component)]
@@ -83,6 +80,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         GlobalTransform::default(),
         Visibility::default(),
         Player { speed: 100.0 },
+        Inventory {
+            items: vec![None; 5],
+        },
     ));
 
     commands.spawn(Camera2d { ..default() });
@@ -95,7 +95,30 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         height: map_size.y,
         data: collision_data,
     });
-    let background_image = asset_server.load("inventory_bar.png");
+}
+
+fn add_item_to_inventory(
+    mut commands: Commands,
+    mut inventory_query: Query<&mut Inventory, With<Player>>,
+) {
+    if let Ok(mut inventory) = inventory_query.get_single_mut() {
+        for _ in 0..2 {
+            let item_entity = commands.spawn((Corn, Corn.display_info())).id();
+            if let Some(slot) = inventory.items.iter_mut().find(|slot| slot.is_none()) {
+                *slot = Some(item_entity);
+            } else {
+                println!("Inventory full!");
+            }
+        }
+    }
+}
+
+fn setup_inventory_bar(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    inventory_query: Query<&Inventory, With<Player>>,
+    item_display_query: Query<&DisplayInfo>,
+) {
     commands
         .spawn(Node {
             position_type: PositionType::Absolute,
@@ -105,6 +128,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         })
         .with_children(|inventory_bar| {
+            let background_image = asset_server.load("inventory_bar.png");
             inventory_bar.spawn((
                 Node {
                     width: Val::Px(5.0 * 50.0),
@@ -126,147 +150,168 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
         })
         .with_children(|inventory_slot| {
-            for i in 0..5 {
-                inventory_slot
-                    .spawn((
-                        Node {
-                            width: Val::Px(50.0),
-                            height: Val::Px(50.0),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            border: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        SlotTag,
-                        BorderColor(Color::BLACK),
-                    ))
-                    .with_children(|slot| {
-                        slot.spawn((
-                            Text::new(&format!("Slot {}", i + 1)),
-                            TextFont {
-                                font_size: 12.0,
+            if let Ok(inventory) = inventory_query.get_single() {
+                for (item_option) in inventory.items.iter() {
+                    inventory_slot
+                        .spawn((
+                            Node {
+                                width: Val::Px(50.0),
+                                height: Val::Px(50.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                border: UiRect::all(Val::Px(2.0)),
                                 ..default()
                             },
-                            TextColor::default(),
-                            TextLayout::default(),
-                            Node { ..default() },
-                        ));
-                    });
+                            BorderColor(Color::WHITE),
+                            SlotTag,
+                        ))
+                        .with_children(|slot| {
+                            if let Some(item_entity) = item_option {
+                                if let Ok(display_info) = item_display_query.get(*item_entity) {
+                                    let name = display_info.name;
+                                    let image_path = display_info.image_path;
+                                    let item_image: Handle<Image> = asset_server.load(image_path);
+
+                                    // Display the image
+                                    slot.spawn((
+                                        ImageNode {
+                                            image: item_image,
+                                            ..default()
+                                        },
+                                        Node {
+                                            width: Val::Px(50.0),
+                                            height: Val::Px(50.0),
+                                            ..default()
+                                        },
+                                        Text::new(name),
+                                        TextFont {
+                                            font_size: 12.0,
+                                            ..default()
+                                        },
+                                        TextColor::default(),
+                                        TextLayout::default(),
+                                    ));
+                                }
+                            }
+                        });
+                }
+            } else if let Err(e) = inventory_query.get_single() {
+                println!("{e}");
             }
         });
 }
 
-fn plant_crop(
-    mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_query: Query<&Transform, With<Player>>,
-    tilemap_query: Query<(&TilemapGridSize, &TileStorage)>,
-    tile_texture_query: Query<&TileTextureIndex>,
-    crop_query: Query<(&Crop, &Transform)>,
-    asset_server: Res<AssetServer>,
-) {
-    if keyboard_input.just_pressed(KeyCode::KeyE) {
-        let player_transform = player_query.single();
-        let (grid_size, tile_storage) = tilemap_query.single();
+// fn plant_crop(
+//     mut commands: Commands,
+//     keyboard_input: Res<ButtonInput<KeyCode>>,
+//     player_query: Query<&Transform, With<Player>>,
+//     tilemap_query: Query<(&TilemapGridSize, &TileStorage)>,
+//     tile_texture_query: Query<&TileTextureIndex>,
+//     crop_query: Query<(&Crop, &Transform)>,
+//     asset_server: Res<AssetServer>,
+// ) {
+//     if keyboard_input.just_pressed(KeyCode::KeyE) {
+//         let player_transform = player_query.single();
+//         let (grid_size, tile_storage) = tilemap_query.single();
 
-        let tile_pos = IVec2::new(
-            (player_transform.translation.x / grid_size.x).floor() as i32,
-            (player_transform.translation.y / grid_size.y).floor() as i32,
-        );
+//         let tile_pos = IVec2::new(
+//             (player_transform.translation.x / grid_size.x).floor() as i32,
+//             (player_transform.translation.y / grid_size.y).floor() as i32,
+//         );
 
-        let tile_pos_bevy = TilePos {
-            x: tile_pos.x as u32,
-            y: tile_pos.y as u32,
-        };
+//         let tile_pos_bevy = TilePos {
+//             x: tile_pos.x as u32,
+//             y: tile_pos.y as u32,
+//         };
 
-        let tile_world_pos = Vec2::new(
-            tile_pos.x as f32 * grid_size.x,
-            tile_pos.y as f32 * grid_size.y,
-        );
+//         let tile_world_pos = Vec2::new(
+//             tile_pos.x as f32 * grid_size.x,
+//             tile_pos.y as f32 * grid_size.y,
+//         );
 
-        let mut crop_exists = false;
-        for (_, crop_transform) in crop_query.iter() {
-            let crop_pos = crop_transform.translation.truncate();
-            if crop_pos == tile_world_pos {
-                crop_exists = true;
-                break;
-            }
-        }
+//         let mut crop_exists = false;
+//         for (_, crop_transform) in crop_query.iter() {
+//             let crop_pos = crop_transform.translation.truncate();
+//             if crop_pos == tile_world_pos {
+//                 crop_exists = true;
+//                 break;
+//             }
+//         }
 
-        if !crop_exists {
-            if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-                if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-                    if tile_texture.0 == 0 {
-                        let crop_texture = asset_server.load("crop.png");
-                        commands.spawn((
-                            Sprite {
-                                image: crop_texture,
-                                ..Default::default()
-                            },
-                            Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(
-                                tile_world_pos.x,
-                                tile_world_pos.y,
-                                0.5,
-                            )),
-                            Crop {
-                                stage: CropStage::Seed,
-                                timer: 0.0,
-                            },
-                        ));
-                    }
-                }
-            }
-        }
-    }
-}
+//         if !crop_exists {
+//             if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+//                 if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+//                     if tile_texture.0 == 0 {
+//                         let crop_texture = asset_server.load("crop.png");
+//                         commands.spawn((
+//                             Sprite {
+//                                 image: crop_texture,
+//                                 ..Default::default()
+//                             },
+//                             Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(
+//                                 tile_world_pos.x,
+//                                 tile_world_pos.y,
+//                                 0.5,
+//                             )),
+//                             Crop {
+//                                 stage: CropStage::Seed,
+//                                 timer: 0.0,
+//                             },
+//                         ));
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
-fn grow_crops(
-    time: Res<Time>,
-    mut crop_query: Query<(&mut Crop, &mut Sprite)>,
-    asset_server: Res<AssetServer>,
-) {
-    for (mut crop, mut sprite) in crop_query.iter_mut() {
-        crop.timer += time.delta_secs();
-        match crop.stage {
-            CropStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
-                crop.stage = CropStage::Sprout;
-                sprite.image = asset_server.load("crop_sprout.png"); // Fixed: texture -> image
-            }
-            CropStage::Sprout if crop.timer >= 15.0 => {
-                crop.stage = CropStage::Mature;
-                sprite.image = asset_server.load("crop_mature.png"); // Fixed: texture -> image
-            }
-            _ => {}
-        }
-    }
-}
+// fn grow_crops(
+//     time: Res<Time>,
+//     mut crop_query: Query<(&mut Crop, &mut Sprite)>,
+//     asset_server: Res<AssetServer>,
+// ) {
+//     for (mut crop, mut sprite) in crop_query.iter_mut() {
+//         crop.timer += time.delta_secs();
+//         match crop.stage {
+//             CropStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
+//                 crop.stage = CropStage::Sprout;
+//                 sprite.image = asset_server.load("crop_sprout.png"); // Fixed: texture -> image
+//             }
+//             CropStage::Sprout if crop.timer >= 15.0 => {
+//                 crop.stage = CropStage::Mature;
+//                 sprite.image = asset_server.load("crop_mature.png"); // Fixed: texture -> image
+//             }
+//             _ => {}
+//         }
+//     }
+// }
 
-fn harvest_crop(
-    mut commands: Commands,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_query: Query<&Transform, With<Player>>,
-    tilemap_query: Query<&TilemapGridSize>,
-    mut crop_query: Query<(Entity, &Crop, &Transform)>,
-) {
-    if keyboard_input.just_pressed(KeyCode::KeyE) {
-        let player_transform = player_query.single();
-        let grid_size = tilemap_query.single();
+// fn harvest_crop(
+//     mut commands: Commands,
+//     keyboard_input: Res<ButtonInput<KeyCode>>,
+//     player_query: Query<&Transform, With<Player>>,
+//     tilemap_query: Query<&TilemapGridSize>,
+//     mut crop_query: Query<(Entity, &Crop, &Transform)>,
+// ) {
+//     if keyboard_input.just_pressed(KeyCode::KeyE) {
+//         let player_transform = player_query.single();
+//         let grid_size = tilemap_query.single();
 
-        let player_tile_pos = IVec2::new(
-            (player_transform.translation.x / grid_size.x).floor() as i32,
-            (player_transform.translation.y / grid_size.y).floor() as i32,
-        );
+//         let player_tile_pos = IVec2::new(
+//             (player_transform.translation.x / grid_size.x).floor() as i32,
+//             (player_transform.translation.y / grid_size.y).floor() as i32,
+//         );
 
-        for (entity, crop, crop_transform) in crop_query.iter_mut() {
-            let crop_tile_pos = IVec2::new(
-                (crop_transform.translation.x / grid_size.x).floor() as i32,
-                (crop_transform.translation.y / grid_size.y).floor() as i32,
-            );
+//         for (entity, crop, crop_transform) in crop_query.iter_mut() {
+//             let crop_tile_pos = IVec2::new(
+//                 (crop_transform.translation.x / grid_size.x).floor() as i32,
+//                 (crop_transform.translation.y / grid_size.y).floor() as i32,
+//             );
 
-            if player_tile_pos == crop_tile_pos && crop.stage == CropStage::Mature {
-                commands.entity(entity).despawn();
-                println!("Crop harvested!");
-            }
-        }
-    }
-}
+//             if player_tile_pos == crop_tile_pos && crop.stage == CropStage::Mature {
+//                 commands.entity(entity).despawn();
+//                 println!("Crop harvested!");
+//             }
+//         }
+//     }
+// }
