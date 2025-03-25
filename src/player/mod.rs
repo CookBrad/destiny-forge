@@ -17,24 +17,7 @@ impl Default for Player {
 
 #[derive(Component)]
 pub struct Inventory {
-    pub items: Vec<Option<String>>,
-}
-
-impl Inventory {
-    pub fn new(size: usize) -> Self {
-        Self {
-            items: vec![None; size],
-        }
-    }
-
-    pub fn add_item(&mut self, item: String) -> bool {
-        if let Some(slot) = self.items.iter_mut().find(|slot| slot.is_none()) {
-            *slot = Some(item);
-            true
-        } else {
-            false
-        }
-    }
+    pub items: Vec<Option<Entity>>,
 }
 
 #[derive(Resource)]

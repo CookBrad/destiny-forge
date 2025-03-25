@@ -2,15 +2,10 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 mod player;
-use player::{CollisionMap, Player, move_player};
+use player::{CollisionMap, Inventory, Player, move_player};
 
 mod items;
 use items::{DisplayInfo, Item, crops::corn::Corn};
-
-#[derive(Component)]
-struct Inventory {
-    items: Vec<Option<Entity>>,
-}
 
 fn main() {
     App::new()
@@ -151,7 +146,7 @@ fn setup_inventory_bar(
         })
         .with_children(|inventory_slot| {
             if let Ok(inventory) = inventory_query.get_single() {
-                for (item_option) in inventory.items.iter() {
+                for item_option in inventory.items.iter() {
                     inventory_slot
                         .spawn((
                             Node {
