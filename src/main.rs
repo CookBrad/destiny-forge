@@ -5,7 +5,7 @@ mod player;
 use player::{CollisionMap, Inventory, Player, move_player};
 
 mod items;
-use items::{DisplayInfo, Item, crops::corn::Corn};
+use items::{Item, ItemStack, ItemType, crops::corn::Corn};
 
 fn main() {
     App::new()
@@ -92,27 +92,53 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
-fn add_item_to_inventory(
-    mut commands: Commands,
-    mut inventory_query: Query<&mut Inventory, With<Player>>,
-) {
+fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Player>>) {
     if let Ok(mut inventory) = inventory_query.get_single_mut() {
-        for _ in 0..2 {
-            let item_entity = commands.spawn((Corn, Corn.display_info())).id();
-            if let Some(slot) = inventory.items.iter_mut().find(|slot| slot.is_none()) {
-                *slot = Some(item_entity);
-            } else {
-                println!("Inventory full!");
+        let mut stack_count = 0;
+        for _ in 0..66 {
+            let mut found = false;
+            let item_type_to_add = ItemType::Corn(Corn);
+            for stack in &mut inventory.items {
+                if let Some(stack) = stack {
+                    if std::mem::discriminant(&stack.item)
+                        == std::mem::discriminant(&item_type_to_add)
+                    {
+                        if stack.count < stack.max_count {
+                            stack.count += 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !found {
+                let max_count = match &item_type_to_add {
+                    ItemType::Corn(corn) => corn.stack_size(),
+                };
+                let new_stack = ItemStack {
+                    item: item_type_to_add,
+                    count: 1,
+                    max_count,
+                };
+                inventory.items[stack_count] = Some(new_stack);
+                stack_count += 1;
             }
         }
     }
+}
+
+#[derive(Bundle)]
+struct InventorySlotBundle {
+    node: Node,
+    border_color: BorderColor,
+    slot_tag: SlotTag,
 }
 
 fn setup_inventory_bar(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     inventory_query: Query<&Inventory, With<Player>>,
-    item_display_query: Query<&DisplayInfo>,
 ) {
     commands
         .spawn(Node {
@@ -137,65 +163,60 @@ fn setup_inventory_bar(
                     ..default()
                 },
                 InventoryBar,
-                BorderColor(Color::BLACK),
                 ImageNode {
                     image: background_image,
                     ..default()
                 },
+                BorderColor(Color::BLACK),
             ));
         })
         .with_children(|inventory_slot| {
             if let Ok(inventory) = inventory_query.get_single() {
                 for item_option in inventory.items.iter() {
-                    inventory_slot
-                        .spawn((
-                            Node {
-                                width: Val::Px(50.0),
-                                height: Val::Px(50.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                border: UiRect::all(Val::Px(2.0)),
+                    let bundle = InventorySlotBundle {
+                        node: Node {
+                            width: Val::Px(50.0),
+                            height: Val::Px(50.0),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        border_color: BorderColor(Color::WHITE),
+                        slot_tag: SlotTag,
+                    };
+
+                    if let Some(item_entity) = item_option {
+                        let display_info = item_entity.item.as_item().display_info();
+                        println!("Item: {}", display_info.name);
+                        let name = display_info.name;
+                        let image_path = display_info.image_path;
+                        let item_image: Handle<Image> = asset_server.load(image_path);
+
+                        inventory_slot.spawn((
+                            ImageNode {
+                                image: item_image,
                                 ..default()
                             },
-                            BorderColor(Color::WHITE),
-                            SlotTag,
-                        ))
-                        .with_children(|slot| {
-                            if let Some(item_entity) = item_option {
-                                if let Ok(display_info) = item_display_query.get(*item_entity) {
-                                    let name = display_info.name;
-                                    let image_path = display_info.image_path;
-                                    let item_image: Handle<Image> = asset_server.load(image_path);
-
-                                    // Display the image
-                                    slot.spawn((
-                                        ImageNode {
-                                            image: item_image,
-                                            ..default()
-                                        },
-                                        Node {
-                                            width: Val::Px(50.0),
-                                            height: Val::Px(50.0),
-                                            ..default()
-                                        },
-                                        Text::new(name),
-                                        TextFont {
-                                            font_size: 12.0,
-                                            ..default()
-                                        },
-                                        TextColor::default(),
-                                        TextLayout::default(),
-                                    ));
-                                }
-                            }
-                        });
+                            Text::new(format!("{name} {count}", count = item_entity.count)),
+                            TextFont {
+                                font_size: 12.0,
+                                ..default()
+                            },
+                            TextColor::default(),
+                            TextLayout::default(),
+                            bundle,
+                        ));
+                    } else {
+                        println!("Empty slot");
+                        inventory_slot.spawn(bundle);
+                    }
                 }
             } else if let Err(e) = inventory_query.get_single() {
                 println!("{e}");
             }
         });
 }
-
 // fn plant_crop(
 //     mut commands: Commands,
 //     keyboard_input: Res<ButtonInput<KeyCode>>,

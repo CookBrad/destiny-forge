@@ -18,3 +18,24 @@ pub trait Item {
         }
     }
 }
+
+#[derive(Clone)]
+pub enum ItemType {
+    Corn(crops::corn::Corn),
+}
+
+impl ItemType {
+    pub fn as_item(&self) -> &dyn Item {
+        match self {
+            ItemType::Corn(corn) => corn,
+            // Add other variants here as you expand your item system
+        }
+    }
+}
+
+#[derive(Component, Clone)]
+pub struct ItemStack {
+    pub item: ItemType,
+    pub count: usize,
+    pub max_count: usize,
+}

@@ -2,6 +2,8 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
+use super::items::ItemStack;
+
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
@@ -13,11 +15,6 @@ impl Default for Player {
             speed: 100.0, // Default speed set to 100.0
         }
     }
-}
-
-#[derive(Component)]
-pub struct Inventory {
-    pub items: Vec<Option<Entity>>,
 }
 
 #[derive(Resource)]
@@ -78,4 +75,9 @@ pub fn move_player(
             }
         }
     }
+}
+
+#[derive(Component)]
+pub struct Inventory {
+    pub items: Vec<Option<ItemStack>>,
 }
