@@ -19,7 +19,7 @@ pub trait Item {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ItemType {
     Corn(crops::corn::Corn),
 }
@@ -33,7 +33,7 @@ impl ItemType {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub struct ItemStack {
     pub item: ItemType,
     pub count: usize,

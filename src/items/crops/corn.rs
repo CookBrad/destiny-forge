@@ -1,7 +1,7 @@
 pub use super::super::Item;
 use bevy::prelude::Component;
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 pub struct Corn;
 
 impl Item for Corn {

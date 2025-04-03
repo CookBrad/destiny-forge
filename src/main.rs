@@ -7,14 +7,30 @@ use player::{CollisionMap, Inventory, Player, move_player};
 mod items;
 use items::{Item, ItemStack, ItemType, crops::corn::Corn};
 
+#[derive(Component)]
+struct Draggable;
+
+#[derive(Component)]
+struct Dragging {
+    entity: Entity,
+    original_slot: usize,
+}
+
+#[derive(Resource, Default)]
+struct DragState {
+    dragging: Option<Dragging>,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapPlugin)
+        .insert_resource(DragState::default())
         .add_systems(Startup, setup)
         .add_systems(Startup, add_item_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
         .add_systems(Update, move_player)
+        .add_systems(Update, (handle_drag_start, handle_drag, handle_drop))
         .run();
 }
 
@@ -133,6 +149,8 @@ struct InventorySlotBundle {
     node: Node,
     border_color: BorderColor,
     slot_tag: SlotTag,
+    draggable: Draggable,
+    interaction: Interaction,
 }
 
 fn setup_inventory_bar(
@@ -172,7 +190,7 @@ fn setup_inventory_bar(
         })
         .with_children(|inventory_slot| {
             if let Ok(inventory) = inventory_query.get_single() {
-                for item_option in inventory.items.iter() {
+                for (index, item_option) in inventory.items.iter().enumerate() {
                     let bundle = InventorySlotBundle {
                         node: Node {
                             width: Val::Px(50.0),
@@ -184,11 +202,12 @@ fn setup_inventory_bar(
                         },
                         border_color: BorderColor(Color::WHITE),
                         slot_tag: SlotTag,
+                        draggable: Draggable,
+                        interaction: Interaction::default(),
                     };
 
                     if let Some(item_entity) = item_option {
                         let display_info = item_entity.item.as_item().display_info();
-                        println!("Item: {}", display_info.name);
                         let name = display_info.name;
                         let image_path = display_info.image_path;
                         let item_image: Handle<Image> = asset_server.load(image_path);
@@ -208,6 +227,7 @@ fn setup_inventory_bar(
                                 TextLayout::default(),
                                 bundle,
                             ))
+                            .insert(Name::new(format!("Slot_{}", index)))
                             .with_children(|slot| {
                                 slot.spawn((
                                     Node {
@@ -220,14 +240,106 @@ fn setup_inventory_bar(
                                 ));
                             });
                     } else {
-                        println!("Empty slot");
-                        inventory_slot.spawn(bundle);
+                        inventory_slot
+                            .spawn(bundle)
+                            .insert(Name::new(format!("Slot_{}", index)));
                     }
                 }
-            } else if let Err(e) = inventory_query.get_single() {
-                println!("{e}");
             }
         });
+}
+fn handle_drag_start(
+    mut commands: Commands,
+    mut drag_state: ResMut<DragState>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    query: Query<(Entity, &Interaction, &Name), With<Draggable>>,
+) {
+    if mouse.just_pressed(MouseButton::Left) {
+        for (entity, interaction, name) in query.iter() {
+            if *interaction == Interaction::Pressed {
+                if let Some(slot_num) = name.as_str().strip_prefix("Slot_") {
+                    println!("Dragging item from slot: {}", slot_num);
+                    if let Ok(slot_index) = slot_num.parse::<usize>() {
+                        drag_state.dragging = Some(Dragging {
+                            entity,
+                            original_slot: slot_index,
+                        });
+                        commands
+                            .entity(entity)
+                            .insert(Transform::from_xyz(0.0, 0.0, 1.0));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn handle_drag(
+    windows: Query<&Window>,
+    drag_state: Res<DragState>,
+    mut query: Query<&mut Transform, With<Draggable>>,
+    camera_q: Query<(&Camera, &GlobalTransform)>,
+) {
+    if let Some(dragging) = &drag_state.dragging {
+        if let Ok(mut transform) = query.get_mut(dragging.entity) {
+            let window = windows.single();
+            if let Some(cursor_pos) = window.cursor_position() {
+                let (camera, camera_transform) = camera_q.single();
+                if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
+                    transform.translation = Vec3::new(world_pos.x, world_pos.y, 1.0);
+                }
+            }
+        }
+    }
+}
+
+fn handle_drop(
+    mut commands: Commands,
+    mut drag_state: ResMut<DragState>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut inventory_query: Query<&mut Inventory, With<Player>>,
+    query: Query<(Entity, &Interaction, &Name), With<Draggable>>,
+) {
+    if mouse.just_released(MouseButton::Left) {
+        if let Some(dragging) = drag_state.dragging.take() {
+            let mut target_slot = None;
+            println!("released item");
+            // Find which slot we're dropping onto
+            for (entity, interaction, name) in query.iter() {
+                if *interaction == Interaction::Hovered && entity != dragging.entity {
+                    if let Some(slot_num) = name.as_str().strip_prefix("Slot_") {
+                        if let Ok(slot_index) = slot_num.parse::<usize>() {
+                            target_slot = Some(slot_index);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if let Ok(mut inventory) = inventory_query.get_single_mut() {
+                if let Some(target) = target_slot {
+                    // Swap or move items
+                    println!("Dropping item onto slot: {}", target);
+                    if dragging.original_slot != target {
+                        let original_item = inventory.items[dragging.original_slot].take();
+                        let target_item = inventory.items[target].take();
+
+                        inventory.items[target] = original_item;
+                        inventory.items[dragging.original_slot] = target_item;
+                        println!(
+                            "Moved item from slot {} to slot {}",
+                            dragging.original_slot, target
+                        );
+                        println!("{:?}", inventory.items);
+                    }
+                }
+
+                // Reset position
+                commands.entity(dragging.entity).remove::<Transform>();
+            }
+        }
+    }
 }
 // fn plant_crop(
 //     mut commands: Commands,
