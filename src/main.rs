@@ -193,20 +193,32 @@ fn setup_inventory_bar(
                         let image_path = display_info.image_path;
                         let item_image: Handle<Image> = asset_server.load(image_path);
 
-                        inventory_slot.spawn((
-                            ImageNode {
-                                image: item_image,
-                                ..default()
-                            },
-                            Text::new(format!("{name} {count}", count = item_entity.count)),
-                            TextFont {
-                                font_size: 12.0,
-                                ..default()
-                            },
-                            TextColor::default(),
-                            TextLayout::default(),
-                            bundle,
-                        ));
+                        inventory_slot
+                            .spawn((
+                                ImageNode {
+                                    image: item_image,
+                                    ..default()
+                                },
+                                Text::new(format!("{name} {count}", count = item_entity.count)),
+                                TextFont {
+                                    font_size: 12.0,
+                                    ..default()
+                                },
+                                TextColor::default(),
+                                TextLayout::default(),
+                                bundle,
+                            ))
+                            .with_children(|slot| {
+                                slot.spawn((
+                                    Node {
+                                        width: Val::Px(50.0),
+                                        height: Val::Px(50.0),
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    BorderColor(Color::WHITE),
+                                ));
+                            });
                     } else {
                         println!("Empty slot");
                         inventory_slot.spawn(bundle);
