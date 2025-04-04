@@ -12,8 +12,9 @@ struct Draggable;
 
 #[derive(Component)]
 struct Dragging {
-    entity: Entity,
+    original_entity: Entity,
     original_slot: usize,
+    temp_entity: Option<Entity>,
 }
 
 #[derive(Resource, Default)]
@@ -269,26 +270,63 @@ fn setup_inventory_bar(
             }
         });
 }
+
 fn handle_drag_start(
     mut commands: Commands,
     mut drag_state: ResMut<DragState>,
     mouse: Res<ButtonInput<MouseButton>>,
     query: Query<(Entity, &Interaction, &Name), With<Draggable>>,
+    inventory_query: Query<&Inventory, With<Player>>,
+    asset_server: Res<AssetServer>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         for (entity, interaction, name) in query.iter() {
             if *interaction == Interaction::Pressed {
                 if let Some(slot_num) = name.as_str().strip_prefix("Slot_") {
-                    println!("Dragging item from slot: {}", slot_num);
                     if let Ok(slot_index) = slot_num.parse::<usize>() {
-                        drag_state.dragging = Some(Dragging {
-                            entity,
-                            original_slot: slot_index,
-                        });
-                        commands
-                            .entity(entity)
-                            .insert(Transform::from_xyz(0.0, 0.0, 1.0));
-                        break;
+                        if let Ok(inventory) = inventory_query.get_single() {
+                            if let Some(item) = &inventory.items[slot_index] {
+                                // Get item display info
+                                let display_info = item.item.as_item().display_info();
+                                let image_handle = asset_server.load(display_info.image_path);
+                                let text_content = format!("{} {}", display_info.name, item.count);
+
+                                // Spawn a temporary UI entity
+                                let temp_entity = commands
+                                    .spawn((
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            left: Val::Px(0.0),
+                                            top: Val::Px(0.0),
+                                            width: Val::Px(50.0),
+                                            height: Val::Px(50.0),
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
+                                            ..default()
+                                        },
+                                        ImageNode {
+                                            image: image_handle,
+                                            ..default()
+                                        },
+                                        Text::new(text_content),
+                                        TextFont {
+                                            font_size: 12.0,
+                                            ..default()
+                                        },
+                                        TextColor::default(),
+                                        TextLayout::default(),
+                                    ))
+                                    .id();
+
+                                // Update DragState
+                                drag_state.dragging = Some(Dragging {
+                                    original_entity: entity,
+                                    original_slot: slot_index,
+                                    temp_entity: Some(temp_entity),
+                                });
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -296,19 +334,14 @@ fn handle_drag_start(
     }
 }
 
-fn handle_drag(
-    windows: Query<&Window>,
-    drag_state: Res<DragState>,
-    mut query: Query<&mut Transform, With<Draggable>>,
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-) {
+fn handle_drag(windows: Query<&Window>, drag_state: Res<DragState>, mut query: Query<&mut Node>) {
     if let Some(dragging) = &drag_state.dragging {
-        if let Ok(mut transform) = query.get_mut(dragging.entity) {
-            let window = windows.single();
-            if let Some(cursor_pos) = window.cursor_position() {
-                let (camera, camera_transform) = camera_q.single();
-                if let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) {
-                    transform.translation = Vec3::new(world_pos.x, world_pos.y, 1.0);
+        if let Some(temp_entity) = dragging.temp_entity {
+            if let Ok(mut node) = query.get_mut(temp_entity) {
+                let window = windows.single();
+                if let Some(cursor_pos) = window.cursor_position() {
+                    node.left = Val::Px(cursor_pos.x);
+                    node.top = Val::Px(cursor_pos.y);
                 }
             }
         }
@@ -325,12 +358,8 @@ fn handle_drop(
     if mouse.just_released(MouseButton::Left) {
         if let Some(dragging) = drag_state.dragging.take() {
             let mut target_slot = None;
-            println!("released item");
-            commands.send_event(InventoryDropEvent);
-
-            // Find which slot we're dropping onto
             for (entity, interaction, name) in query.iter() {
-                if *interaction == Interaction::Hovered && entity != dragging.entity {
+                if *interaction == Interaction::Hovered && entity != dragging.original_entity {
                     if let Some(slot_num) = name.as_str().strip_prefix("Slot_") {
                         if let Ok(slot_index) = slot_num.parse::<usize>() {
                             target_slot = Some(slot_index);
@@ -342,24 +371,21 @@ fn handle_drop(
 
             if let Ok(mut inventory) = inventory_query.get_single_mut() {
                 if let Some(target) = target_slot {
-                    // Swap or move items
-                    println!("Dropping item onto slot: {}", target);
                     if dragging.original_slot != target {
                         let original_item = inventory.items[dragging.original_slot].take();
                         let target_item = inventory.items[target].take();
-
                         inventory.items[target] = original_item;
                         inventory.items[dragging.original_slot] = target_item;
-                        println!(
-                            "Moved item from slot {} to slot {}",
-                            dragging.original_slot, target
-                        );
-                        println!("{:?}", inventory.items);
                     }
                 }
 
-                // Reset position
-                commands.entity(dragging.entity).remove::<Transform>();
+                // Despawn the temporary entity
+                if let Some(temp_entity) = dragging.temp_entity {
+                    commands.entity(temp_entity).despawn();
+                }
+
+                // Trigger inventory update
+                commands.send_event(InventoryDropEvent);
             }
         }
     }
