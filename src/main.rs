@@ -252,7 +252,18 @@ fn setup_inventory_bar(
                     } else {
                         inventory_slot
                             .spawn(bundle)
-                            .insert(Name::new(format!("Slot_{}", index)));
+                            .insert(Name::new(format!("Slot_{}", index)))
+                            .with_children(|slot| {
+                                slot.spawn((
+                                    Node {
+                                        width: Val::Px(50.0),
+                                        height: Val::Px(50.0),
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    BorderColor(Color::WHITE),
+                                ));
+                            });
                     }
                 }
             }
