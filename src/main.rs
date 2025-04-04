@@ -21,16 +21,24 @@ struct DragState {
     dragging: Option<Dragging>,
 }
 
+#[derive(Event)]
+struct InventoryDropEvent;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapPlugin)
+        .add_event::<InventoryDropEvent>()
         .insert_resource(DragState::default())
         .add_systems(Startup, setup)
         .add_systems(Startup, add_item_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
         .add_systems(Update, move_player)
         .add_systems(Update, (handle_drag_start, handle_drag, handle_drop))
+        .add_systems(
+            Update,
+            update_inventory_bar.run_if(on_event::<InventoryDropEvent>),
+        )
         .run();
 }
 
@@ -305,6 +313,8 @@ fn handle_drop(
         if let Some(dragging) = drag_state.dragging.take() {
             let mut target_slot = None;
             println!("released item");
+            commands.send_event(InventoryDropEvent);
+
             // Find which slot we're dropping onto
             for (entity, interaction, name) in query.iter() {
                 if *interaction == Interaction::Hovered && entity != dragging.entity {
@@ -338,6 +348,63 @@ fn handle_drop(
                 // Reset position
                 commands.entity(dragging.entity).remove::<Transform>();
             }
+        }
+    }
+}
+
+use bevy::hierarchy::Children;
+
+fn update_inventory_bar(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    inventory_query: Query<&Inventory, With<Player>>,
+    bar_query: Query<(Entity, &Children), With<InventoryBar>>,
+    mut image_node_query: Query<&mut ImageNode>,
+    mut text_query: Query<&mut Text>,
+) {
+    if let Ok(inventory) = inventory_query.get_single() {
+        println!("Updating inventory bar");
+        if let Ok((_entity, children)) = bar_query.get_single() {
+            println!("Found {} children", children.len());
+            for (index, child) in children.iter().enumerate() {
+                println!("Updating slot {}", index);
+                if index < inventory.items.len() {
+                    let item_option = &inventory.items[index];
+                    if let Some(item) = item_option {
+                        let display_info = item.item.as_item().display_info();
+                        let image_handle: Handle<Image> =
+                            asset_server.load(display_info.image_path);
+
+                        // Handle ImageNode
+                        if let Ok(mut image_node) = image_node_query.get_mut(*child) {
+                            image_node.image = image_handle;
+                        } else {
+                            commands.entity(*child).insert(ImageNode {
+                                image: image_handle,
+                                ..default()
+                            });
+                        }
+
+                        // Handle Text
+                        let text_content = format!("{} {}", display_info.name, item.count);
+                        if let Ok(mut text) = text_query.get_mut(*child) {
+                            *text = Text::from(text_content);
+                        } else {
+                            commands.entity(*child).insert(Text::new(text_content));
+                        }
+                    } else {
+                        // Clear slot
+                        if image_node_query.get_mut(*child).is_ok() {
+                            commands.entity(*child).remove::<ImageNode>();
+                        }
+                        if text_query.get_mut(*child).is_ok() {
+                            commands.entity(*child).remove::<Text>();
+                        }
+                    }
+                }
+            }
+        } else if let Err(e) = bar_query.get_single() {
+            println!("{e}")
         }
     }
 }
