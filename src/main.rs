@@ -167,13 +167,16 @@ fn setup_inventory_bar(
     inventory_query: Query<&Inventory, With<Player>>,
 ) {
     commands
-        .spawn(Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(10.0),
-            width: Val::Percent(100.0),
-            justify_content: JustifyContent::Center,
-            ..default()
-        })
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(10.0),
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            InventoryBar,
+        ))
         .with_children(|inventory_bar| {
             let background_image = asset_server.load("inventory_bar.png");
             inventory_bar.spawn((
@@ -188,7 +191,6 @@ fn setup_inventory_bar(
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                InventoryBar,
                 ImageNode {
                     image: background_image,
                     ..default()
@@ -358,53 +360,70 @@ fn update_inventory_bar(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     inventory_query: Query<&Inventory, With<Player>>,
-    bar_query: Query<(Entity, &Children), With<InventoryBar>>,
-    mut image_node_query: Query<&mut ImageNode>,
-    mut text_query: Query<&mut Text>,
+    bar_query: Query<&Children, With<InventoryBar>>,
+    slot_query: Query<Entity, With<SlotTag>>,
 ) {
+    // Get the player's inventory
     if let Ok(inventory) = inventory_query.get_single() {
-        println!("Updating inventory bar");
-        if let Ok((_entity, children)) = bar_query.get_single() {
-            println!("Found {} children", children.len());
-            for (index, child) in children.iter().enumerate() {
-                println!("Updating slot {}", index);
-                if index < inventory.items.len() {
-                    let item_option = &inventory.items[index];
-                    if let Some(item) = item_option {
-                        let display_info = item.item.as_item().display_info();
-                        let image_handle: Handle<Image> =
-                            asset_server.load(display_info.image_path);
-
-                        // Handle ImageNode
-                        if let Ok(mut image_node) = image_node_query.get_mut(*child) {
-                            image_node.image = image_handle;
-                        } else {
-                            commands.entity(*child).insert(ImageNode {
-                                image: image_handle,
-                                ..default()
-                            });
-                        }
-
-                        // Handle Text
-                        let text_content = format!("{} {}", display_info.name, item.count);
-                        if let Ok(mut text) = text_query.get_mut(*child) {
-                            *text = Text::from(text_content);
-                        } else {
-                            commands.entity(*child).insert(Text::new(text_content));
-                        }
+        // Get the children of the inventory bar
+        if let Ok(children) = bar_query.get_single() {
+            // Filter children to only include slot entities
+            let slot_entities: Vec<Entity> = children
+                .iter()
+                .filter_map(|&child| {
+                    if slot_query.get(child).is_ok() {
+                        Some(child)
                     } else {
-                        // Clear slot
-                        if image_node_query.get_mut(*child).is_ok() {
-                            commands.entity(*child).remove::<ImageNode>();
+                        None
+                    }
+                })
+                .collect();
+
+            // Update each slot based on the inventory
+            for (index, &slot_entity) in slot_entities.iter().enumerate() {
+                if index < inventory.items.len() {
+                    match &inventory.items[index] {
+                        Some(item) => {
+                            // Get item display information
+                            let display_info = item.item.as_item().display_info();
+                            // Load the image directly using asset_server
+                            let image_handle = asset_server.load(display_info.image_path);
+                            let text_content = format!("{} {}", display_info.name, item.count);
+
+                            // Update the slot with the image and text
+                            commands.entity(slot_entity).insert((
+                                ImageNode {
+                                    image: image_handle,
+                                    ..Default::default()
+                                },
+                                Text::new(text_content),
+                                TextFont {
+                                    font_size: 12.0,
+                                    ..default()
+                                },
+                                TextColor::default(),
+                                TextLayout::default(),
+                            ));
+                            // .with_children(|slot| {
+                            //     slot.spawn((
+                            //         Node {
+                            //             width: Val::Px(50.0),
+                            //             height: Val::Px(50.0),
+                            //             border: UiRect::all(Val::Px(2.0)),
+                            //             ..default()
+                            //         },
+                            //         BorderColor(Color::WHITE),
+                            //     ));
+                            // });
                         }
-                        if text_query.get_mut(*child).is_ok() {
-                            commands.entity(*child).remove::<Text>();
+                        None => {
+                            // Clear the slot if no item exists
+                            commands.entity(slot_entity).insert(Text::new(""));
+                            commands.entity(slot_entity).remove::<ImageNode>();
                         }
                     }
                 }
             }
-        } else if let Err(e) = bar_query.get_single() {
-            println!("{e}")
         }
     }
 }
