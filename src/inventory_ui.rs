@@ -1,6 +1,7 @@
-use crate::items::ItemStack;
 use crate::player::{Inventory, Player};
 use bevy::prelude::*;
+
+use crate::items::{Item, ItemStack, ItemType, crops::corn::Corn};
 
 // Components
 #[derive(Component)]
@@ -356,6 +357,42 @@ pub fn update_inventory_bar(
                     let item_option = inventory.items[index].as_ref();
                     update_slot(&mut commands, &asset_server, slot_entity, item_option);
                 }
+            }
+        }
+    }
+}
+
+pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Player>>) {
+    if let Ok(mut inventory) = inventory_query.get_single_mut() {
+        let mut stack_count = 0;
+        for _ in 0..66 {
+            let mut found = false;
+            let item_type_to_add = ItemType::Corn(Corn);
+            for stack in &mut inventory.items {
+                if let Some(stack) = stack {
+                    if std::mem::discriminant(&stack.item)
+                        == std::mem::discriminant(&item_type_to_add)
+                    {
+                        if stack.count < stack.max_count {
+                            stack.count += 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !found {
+                let max_count = match &item_type_to_add {
+                    ItemType::Corn(corn) => corn.stack_size(),
+                };
+                let new_stack = ItemStack {
+                    item: item_type_to_add,
+                    count: 1,
+                    max_count,
+                };
+                inventory.items[stack_count] = Some(new_stack);
+                stack_count += 1;
             }
         }
     }

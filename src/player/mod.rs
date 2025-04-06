@@ -2,7 +2,7 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
-use super::items::ItemStack;
+use crate::items::ItemStack;
 
 #[derive(Component)]
 pub struct Player {
