@@ -6,11 +6,19 @@ pub struct DisplayInfo {
     pub name: &'static str,
     pub image_path: &'static str,
 }
+
+pub enum ItemCategory {
+    Crop,
+    Tool,
+    Food,
+    Weapon,
+    Armor,
+}
 pub trait Item {
     fn name(&self) -> &'static str;
     fn inventory_image(&self) -> &'static str;
     fn stack_size(&self) -> usize;
-    fn id(&self) -> u32;
+    fn category(&self) -> ItemCategory;
     fn display_info(&self) -> DisplayInfo {
         DisplayInfo {
             name: self.name(),
@@ -30,6 +38,9 @@ impl ItemType {
             ItemType::Corn(corn) => corn,
             // Add other variants here as you expand your item system
         }
+    }
+    pub fn category(&self) -> ItemCategory {
+        self.as_item().category()
     }
 }
 

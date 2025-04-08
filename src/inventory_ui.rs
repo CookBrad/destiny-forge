@@ -1,4 +1,5 @@
 use crate::player::{Inventory, Player};
+use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
 use crate::items::{Item, ItemStack, ItemType, crops::corn::Corn};
@@ -32,6 +33,11 @@ pub struct InventoryDropEvent;
 
 // Plugin
 pub struct InventoryUiPlugin;
+
+#[derive(Resource)]
+pub struct SelectedSlot(pub usize);
+#[derive(Component)]
+pub struct SlotBorderIndex(pub usize);
 
 impl Plugin for InventoryUiPlugin {
     fn build(&self, app: &mut App) {
@@ -105,6 +111,7 @@ fn spawn_slot(
                         ..default()
                     },
                     BorderColor(Color::WHITE),
+                    SlotBorderIndex(index),
                 ));
             });
     } else {
@@ -120,6 +127,7 @@ fn spawn_slot(
                         ..default()
                     },
                     BorderColor(Color::WHITE),
+                    SlotBorderIndex(index),
                 ));
             });
     };
@@ -169,6 +177,7 @@ pub fn setup_inventory_bar(
                 }
             }
         });
+    commands.insert_resource(SelectedSlot(0));
 }
 
 fn create_drag_entity(
@@ -394,6 +403,47 @@ pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
                 inventory.items[stack_count] = Some(new_stack);
                 stack_count += 1;
             }
+        }
+    }
+}
+
+pub fn handle_inventory_scroll(
+    mut selected_slot: ResMut<SelectedSlot>,
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    slot_query: Query<&Interaction, With<SlotTag>>,
+    slots: Query<(), With<SlotTag>>,
+) {
+    let num_slots = slots.iter().count();
+    for event in mouse_wheel_events.read() {
+        if slot_query
+            .iter()
+            .any(|&interaction| interaction == Interaction::Hovered)
+        {
+            let scroll_direction = event.y;
+            if scroll_direction > 0.0 {
+                selected_slot.0 = (selected_slot.0 + 1) % num_slots;
+            } else if scroll_direction < 0.0 {
+                selected_slot.0 = (selected_slot.0 + num_slots - 1) % num_slots;
+            }
+        }
+    }
+}
+
+pub fn update_slot_borders(
+    selected_slot: Res<SelectedSlot>,
+    mut query: Query<(&SlotBorderIndex, &mut BorderColor)>,
+) {
+    for (slot_index, mut border_color) in query.iter_mut() {
+        if slot_index.0 == selected_slot.0 {
+            *border_color = Color::Srgba(Srgba {
+                red: 10.0,
+                green: 0.0,
+                blue: 0.0,
+                alpha: 1.0,
+            })
+            .into();
+        } else {
+            *border_color = Color::WHITE.into();
         }
     }
 }

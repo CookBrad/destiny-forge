@@ -18,8 +18,18 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Startup, add_item_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
+        .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
         .add_systems(Update, move_player)
-        .add_systems(Update, (handle_drag_start, handle_drag, handle_drop))
+        .add_systems(
+            Update,
+            (
+                handle_drag_start,
+                handle_drag,
+                handle_drop,
+                handle_inventory_scroll,
+                update_slot_borders,
+            ),
+        )
         .add_systems(
             Update,
             update_inventory_bar.run_if(on_event::<InventoryDropEvent>),

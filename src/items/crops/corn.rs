@@ -1,4 +1,4 @@
-pub use super::super::Item;
+use crate::items::{Item, ItemCategory};
 use bevy::prelude::Component;
 
 #[derive(Component, Clone, Debug)]
@@ -17,7 +17,7 @@ impl Item for Corn {
         64
     }
 
-    fn id(&self) -> u32 {
-        1
+    fn category(&self) -> ItemCategory {
+        crate::items::ItemCategory::Crop
     }
 }
