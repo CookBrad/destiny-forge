@@ -13,13 +13,13 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TilemapPlugin)
-        .add_event::<InventoryDropEvent>()
+        .add_event::<InventoryUpdateEvent>()
         .insert_resource(DragState::default())
         .add_systems(Startup, setup)
         .add_systems(Startup, add_item_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
         .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
-        .add_systems(Update, move_player)
+        .add_systems(Update, (move_player, player_action))
         .add_systems(
             Update,
             (
@@ -32,7 +32,7 @@ fn main() {
         )
         .add_systems(
             Update,
-            update_inventory_bar.run_if(on_event::<InventoryDropEvent>),
+            update_inventory_bar.run_if(on_event::<InventoryUpdateEvent>),
         )
         .run();
 }
@@ -105,70 +105,103 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
-// fn plant_crop(
-//     mut commands: Commands,
-//     keyboard_input: Res<ButtonInput<KeyCode>>,
-//     player_query: Query<&Transform, With<Player>>,
-//     tilemap_query: Query<(&TilemapGridSize, &TileStorage)>,
-//     tile_texture_query: Query<&TileTextureIndex>,
-//     crop_query: Query<(&Crop, &Transform)>,
-//     asset_server: Res<AssetServer>,
-// ) {
-//     if keyboard_input.just_pressed(KeyCode::KeyE) {
-//         let player_transform = player_query.single();
-//         let (grid_size, tile_storage) = tilemap_query.single();
+fn player_action(
+    mut commands: Commands,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    player_query: Query<&Transform, With<Player>>,
+    tilemap_query: Query<(&TilemapGridSize, &TileStorage, &Transform)>,
+    tile_texture_query: Query<&TileTextureIndex>,
+    mut inventory_query: Query<&mut Inventory>,
+    selected_slot: Res<SelectedSlot>,
+    asset_server: Res<AssetServer>,
+) {
+    if keyboard_input.just_pressed(KeyCode::KeyE) {
+        let player_transform = player_query.single();
+        let (grid_size, tile_storage, tilemap_transform) = tilemap_query.single();
 
-//         let tile_pos = IVec2::new(
-//             (player_transform.translation.x / grid_size.x).floor() as i32,
-//             (player_transform.translation.y / grid_size.y).floor() as i32,
-//         );
+        let world_pos = player_transform.translation;
+        let local_pos = (world_pos - tilemap_transform.translation) / tilemap_transform.scale.x;
 
-//         let tile_pos_bevy = TilePos {
-//             x: tile_pos.x as u32,
-//             y: tile_pos.y as u32,
-//         };
+        // Step 2: Calculate the tile position (for tiles centered in local space)
+        let tile_x = ((local_pos.x + grid_size.x / 2.0) / grid_size.x).floor() as u32;
+        let tile_y = ((local_pos.y + grid_size.y / 2.0) / grid_size.y).floor() as u32;
+        let tile_pos_bevy = TilePos {
+            x: tile_x,
+            y: tile_y,
+        };
 
-//         let tile_world_pos = Vec2::new(
-//             tile_pos.x as f32 * grid_size.x,
-//             tile_pos.y as f32 * grid_size.y,
-//         );
+        // Step 3: Compute the tile's center in local space
+        let tile_local_pos = Vec3::new(
+            tile_pos_bevy.x as f32 * grid_size.x,
+            tile_pos_bevy.y as f32 * grid_size.y,
+            0.0,
+        );
 
-//         let mut crop_exists = false;
-//         for (_, crop_transform) in crop_query.iter() {
-//             let crop_pos = crop_transform.translation.truncate();
-//             if crop_pos == tile_world_pos {
-//                 crop_exists = true;
-//                 break;
-//             }
-//         }
+        // Step 4: Convert the tile's local position to world space
+        let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
 
-//         if !crop_exists {
-//             if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-//                 if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-//                     if tile_texture.0 == 0 {
-//                         let crop_texture = asset_server.load("crop.png");
-//                         commands.spawn((
-//                             Sprite {
-//                                 image: crop_texture,
-//                                 ..Default::default()
-//                             },
-//                             Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(
-//                                 tile_world_pos.x,
-//                                 tile_world_pos.y,
-//                                 0.5,
-//                             )),
-//                             Crop {
-//                                 stage: CropStage::Seed,
-//                                 timer: 0.0,
-//                             },
-//                         ));
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
+        if let Ok(mut inventory) = inventory_query.get_single_mut() {
+            if let Some(item) = &mut inventory.items[selected_slot.0] {
+                if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+                    if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+                        if tile_texture.0 == 0 {
+                            if item.count > 0 {
+                                item.count -= 1;
+                                commands.send_event(InventoryUpdateEvent);
+                            }
+                            println!("Item count: {:?}", item.count);
+                            let crop_texture = asset_server.load("crop.png");
+                            commands.spawn((
+                                Sprite {
+                                    image: crop_texture,
+                                    ..Default::default()
+                                },
+                                Transform {
+                                    translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                                    scale: Vec3::splat(6.0), // Match tilemap scale
+                                    ..Default::default()
+                                },
+                            ));
+                            println!("Placed item: {:?}", item.item.category());
+                        }
+                    }
+                }
+            }
+        } else {
+            println!("No item in selected slot");
+        }
+    };
 
+    // let mut crop_exists = false;
+    // for (_, crop_transform) in crop_query.iter() {
+    //     let crop_pos = crop_transform.translation.truncate();
+    //     if crop_pos == tile_world_pos {
+    //         crop_exists = true;
+    //         break;
+    //     }
+    // }
+
+    // if !crop_exists {
+    //     if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+    //         if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+    //             if tile_texture.0 == 0 {
+    //                 let crop_texture = asset_server.load("crop.png");
+    //                 commands.spawn((
+    //                     Sprite {
+    //                         image: crop_texture,
+    //                         ..Default::default()
+    //                     },
+    //                     Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(
+    //                         tile_world_pos.x,
+    //                         tile_world_pos.y,
+    //                         0.5,
+    //                     )),
+    //                 ));
+    //             }
+    //         }
+    //     }
+    // }
+}
 // fn grow_crops(
 //     time: Res<Time>,
 //     mut crop_query: Query<(&mut Crop, &mut Sprite)>,

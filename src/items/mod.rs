@@ -7,6 +7,7 @@ pub struct DisplayInfo {
     pub image_path: &'static str,
 }
 
+#[derive(Debug)]
 pub enum ItemCategory {
     Crop,
     Tool,

@@ -29,7 +29,7 @@ pub struct Dragging {
 
 // Events
 #[derive(Resource, Default, Event)]
-pub struct InventoryDropEvent;
+pub struct InventoryUpdateEvent;
 
 // Plugin
 pub struct InventoryUiPlugin;
@@ -42,12 +42,12 @@ pub struct SlotBorderIndex(pub usize);
 impl Plugin for InventoryUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DragState>()
-            .add_event::<InventoryDropEvent>()
+            .add_event::<InventoryUpdateEvent>()
             .add_systems(Startup, setup_inventory_bar)
             .add_systems(Update, (handle_drag_start, handle_drag, handle_drop))
             .add_systems(
                 Update,
-                update_inventory_bar.run_if(on_event::<InventoryDropEvent>),
+                update_inventory_bar.run_if(on_event::<InventoryUpdateEvent>),
             );
     }
 }
@@ -305,7 +305,7 @@ pub fn handle_drop(
                 }
 
                 // Trigger inventory update
-                commands.send_event(InventoryDropEvent);
+                commands.send_event(InventoryUpdateEvent);
             }
         }
     }
