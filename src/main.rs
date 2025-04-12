@@ -9,6 +9,8 @@ use inventory_ui::*;
 
 mod items;
 
+const SCALE: f32 = 3.0;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -37,11 +39,23 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<&Window>) {
+    let window = windows.single();
+    let window_width = window.resolution.width();
+    let window_height = window.resolution.height();
+
     let tile_texture_handle = asset_server.load("tiles.png");
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = tile_size.into();
-    let map_size = TilemapSize { x: 50, y: 50 };
+    let map_size = TilemapSize { x: 25, y: 25 };
+
+    let tilemap_width = map_size.x as f32 * tile_size.x; // 50 * 16.0 = 800.0
+    let tilemap_height = map_size.y as f32 * tile_size.y; // 50 * 16.0 = 800.0
+    let scale_x = window_width / tilemap_width;
+    let scale_y = window_height / tilemap_height;
+
+    let tx = -window_width / 2.0 + (tile_size.x / 2.0) * scale_x;
+    let ty = -window_height / 2.0 + (tile_size.y / 2.0) * scale_y;
 
     let tilemap_entity = commands.spawn_empty().id();
     let mut tile_storage = TileStorage::empty(map_size);
@@ -72,8 +86,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         storage: tile_storage,
         texture: TilemapTexture::Single(tile_texture_handle),
         tile_size,
-        transform: Transform::from_scale(Vec3::splat(6.0))
-            .with_translation(Vec3::new(-150.0, -150.0, 0.0)),
+        transform: Transform::from_scale(Vec3::splat(SCALE))
+            .with_translation(Vec3::new(tx, ty, 0.0)),
         ..default()
     };
     commands.entity(tilemap_entity).insert(tilemap_bundle);
@@ -84,7 +98,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             image: player_texture,
             ..default()
         },
-        Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(50.0, 0.0, 1.0)),
+        Transform::from_scale(Vec3::splat(SCALE)).with_translation(Vec3::new(50.0, 0.0, 1.0)),
         GlobalTransform::default(),
         Visibility::default(),
         Player { speed: 100.0 },
@@ -99,8 +113,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let dirt_index = (dirt_pos.y * map_size.x + dirt_pos.x) as usize;
     collision_data[dirt_index] = false;
     commands.insert_resource(CollisionMap {
-        width: map_size.x,
-        height: map_size.y,
+        width: tilemap_width as u32,
+        height: tilemap_height as u32,
         data: collision_data,
     });
 }
@@ -158,7 +172,7 @@ fn player_action(
                                 },
                                 Transform {
                                     translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
-                                    scale: Vec3::splat(6.0), // Match tilemap scale
+                                    scale: Vec3::splat(SCALE), // Match tilemap scale
                                     ..Default::default()
                                 },
                             ));
@@ -191,7 +205,7 @@ fn player_action(
     //                         image: crop_texture,
     //                         ..Default::default()
     //                     },
-    //                     Transform::from_scale(Vec3::splat(6.0)).with_translation(Vec3::new(
+    //                     Transform::from_scale(Vec3::splat(SCALE)).with_translation(Vec3::new(
     //                         tile_world_pos.x,
     //                         tile_world_pos.y,
     //                         0.5,

@@ -35,46 +35,49 @@ impl CollisionMap {
 }
 
 pub fn move_player(
-    time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&mut Transform, &Player)>,
-    collision_map: Res<CollisionMap>,
-    tilemap_query: Query<&TilemapGridSize>,
+    mut player_query: Query<(&Player, &mut Transform)>, // Player query with mutable Transform
+    tilemap_query: Query<(&TilemapSize, &TilemapTileSize, &Transform), Without<Player>>, // Tilemap query excluding Player
 ) {
-    let grid_size = tilemap_query.single();
-    let (mut player_transform, player) = player_query.single_mut();
+    let (_player, mut player_transform) = player_query.single_mut(); // Get the player's Transform
+    let (map_size, tile_size, tilemap_transform) = tilemap_query.single(); // Get the tilemap's Transform
+    let scale = tilemap_transform.scale.x; // e.g., 6.0
 
-    let mut velocity = Vec2::ZERO;
+    // Calculate tilemap world bounds
+    let local_width = map_size.x as f32 * tile_size.x; // e.g., 800.0
+    let local_height = map_size.y as f32 * tile_size.y; // e.g., 800.0
+    let min_x = tilemap_transform.translation.x;
+    let max_x = (tilemap_transform.translation.x + local_width * scale).floor() - 32.0;
+    let min_y = tilemap_transform.translation.y;
+    let max_y = (tilemap_transform.translation.y + local_height * scale).floor() - 10.0;
+    println!(
+        "min_x: {}, max_x: {}, min_y: {}, max_y: {}",
+        min_x, max_x, min_y, max_y
+    );
+
+    // Calculate new position (example movement logic)
+    let speed = 1.0;
+    let mut new_x = player_transform.translation.x;
+    let mut new_y = player_transform.translation.y;
     if keyboard_input.pressed(KeyCode::KeyW) {
-        velocity.y += 1.0;
+        new_y += speed;
     }
     if keyboard_input.pressed(KeyCode::KeyS) {
-        velocity.y -= 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        velocity.x -= 1.0;
+        new_y -= speed;
     }
     if keyboard_input.pressed(KeyCode::KeyD) {
-        velocity.x += 1.0;
+        new_x += speed;
     }
-    if velocity.length() > 0.0 {
-        velocity = velocity.normalize() * player.speed;
-
-        let dt = time.delta_secs();
-        let new_position =
-            player_transform.translation + Vec3::new(velocity.x * dt, velocity.y * dt, 0.0);
-
-        let tile_pos = IVec2::new(
-            (new_position.x / grid_size.x).floor() as i32,
-            (new_position.y / grid_size.y).floor() as i32,
-        );
-
-        if let Some(is_walkable) = collision_map.get(tile_pos) {
-            if is_walkable {
-                player_transform.translation = new_position;
-            }
-        }
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        new_x -= speed;
     }
+
+    // Clamp to tilemap bounds
+    new_x = new_x.clamp(min_x, max_x);
+    new_y = new_y.clamp(min_y, max_y);
+
+    player_transform.translation.x = new_x;
+    player_transform.translation.y = new_y;
 }
 
 #[derive(Component)]
