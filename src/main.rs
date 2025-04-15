@@ -52,12 +52,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
     // **Tilemap Configuration**
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = tile_size.into();
-    let map_size = TilemapSize { x: 25, y: 25 };
+    let map_size = TilemapSize { x: 30, y: 20 };
 
     // Calculate the center offset to position tilemap at world (0, 0)
     let center_x = ((map_size.x - 1) as f32 * tile_size.x) / 2.0; // 192.0
     let center_y = ((map_size.y - 1) as f32 * tile_size.y) / 2.0; // 192.0
-    let translation = Vec3::new(-center_x, -center_y, 0.0);
+    let translation = Vec3::new(-center_x * SCALE, -center_y * SCALE, 0.0);
 
     // **Spawn Tilemap**
     let tilemap_entity = commands.spawn_empty().id();
@@ -88,7 +88,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
         storage: tile_storage,
         texture: TilemapTexture::Single(tile_texture_handle),
         tile_size,
-        transform: Transform::from_translation(translation),
+        transform: Transform::from_translation(translation)
+            .with_scale(Vec3::new(SCALE, SCALE, 1.0)),
         ..default()
     });
 
@@ -100,7 +101,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
             image: player_texture,
             ..default()
         },
-        Transform::from_translation(player_start_pos),
+        Transform::from_translation(player_start_pos).with_scale(Vec3::new(SCALE, SCALE, 1.0)),
         Player { speed: 100.0 },
         Inventory {
             items: vec![None; 5], // 5 slots, initially empty
