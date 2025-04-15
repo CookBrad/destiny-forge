@@ -40,34 +40,40 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<&Window>) {
+    // Get window dimensions (not used for centering here, but included for reference)
     let window = windows.single();
-    let window_width = window.resolution.width();
-    let window_height = window.resolution.height();
+    let _window_width = window.resolution.width();
+    let _window_height = window.resolution.height();
 
+    // **Load Assets**
     let tile_texture_handle = asset_server.load("tiles.png");
+    let player_texture: Handle<Image> = asset_server.load("player.png");
+
+    // **Tilemap Configuration**
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
     let grid_size = tile_size.into();
     let map_size = TilemapSize { x: 25, y: 25 };
 
-    let tilemap_width = map_size.x as f32 * tile_size.x; // 50 * 16.0 = 800.0
-    let tilemap_height = map_size.y as f32 * tile_size.y; // 50 * 16.0 = 800.0
-    let scale_x = window_width / tilemap_width;
-    let scale_y = window_height / tilemap_height;
+    // Calculate the center offset to position tilemap at world (0, 0)
+    let center_x = ((map_size.x - 1) as f32 * tile_size.x) / 2.0; // 192.0
+    let center_y = ((map_size.y - 1) as f32 * tile_size.y) / 2.0; // 192.0
+    let translation = Vec3::new(-center_x, -center_y, 0.0);
 
-    let tx = -window_width / 2.0 + (tile_size.x / 2.0) * scale_x;
-    let ty = -window_height / 2.0 + (tile_size.y / 2.0) * scale_y;
-
+    // **Spawn Tilemap**
     let tilemap_entity = commands.spawn_empty().id();
     let mut tile_storage = TileStorage::empty(map_size);
 
+    // Populate tiles, including the dirt tile at (5, 5)
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
+            // Set texture index 1 for dirt at (5, 5), 0 for others
+            let texture_index = if x == 5 && y == 5 { 1 } else { 0 };
             let tile_entity = commands
                 .spawn(TileBundle {
                     position: tile_pos,
                     tilemap_id: TilemapId(tilemap_entity),
-                    texture_index: TileTextureIndex(0),
+                    texture_index: TileTextureIndex(texture_index),
                     ..default()
                 })
                 .id();
@@ -75,46 +81,44 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
         }
     }
 
-    let dirt_pos = TilePos { x: 5, y: 5 };
-    if let Some(tile_entity) = tile_storage.get(&dirt_pos) {
-        commands.entity(tile_entity).insert(TileTextureIndex(1));
-    }
-
-    let tilemap_bundle = TilemapBundle {
+    // Attach the tilemap components
+    commands.entity(tilemap_entity).insert(TilemapBundle {
         grid_size,
         size: map_size,
         storage: tile_storage,
         texture: TilemapTexture::Single(tile_texture_handle),
         tile_size,
-        transform: Transform::from_scale(Vec3::splat(SCALE))
-            .with_translation(Vec3::new(tx, ty, 0.0)),
+        transform: Transform::from_translation(translation),
         ..default()
-    };
-    commands.entity(tilemap_entity).insert(tilemap_bundle);
+    });
 
-    let player_texture = asset_server.load("player.png");
+    // **Spawn Player**
+    // Place player at the center of the tilemap (world coordinates (0, 0, 1))
+    let player_start_pos = Vec3::new(0.0, 0.0, 1.0);
     commands.spawn((
         Sprite {
             image: player_texture,
             ..default()
         },
-        Transform::from_scale(Vec3::splat(SCALE)).with_translation(Vec3::new(50.0, 0.0, 1.0)),
-        GlobalTransform::default(),
-        Visibility::default(),
+        Transform::from_translation(player_start_pos),
         Player { speed: 100.0 },
         Inventory {
-            items: vec![None; 5],
+            items: vec![None; 5], // 5 slots, initially empty
         },
     ));
 
-    commands.spawn(Camera2d { ..default() });
+    // **Spawn Camera**
+    commands.spawn(Camera2d::default());
 
+    // **Collision Map**
+    // Initialize with all tiles collidable (true)
     let mut collision_data = vec![true; (map_size.x * map_size.y) as usize];
-    let dirt_index = (dirt_pos.y * map_size.x + dirt_pos.x) as usize;
+    // Dirt tile at (5, 5) is not collidable (false)
+    let dirt_index = (5 * map_size.x + 5) as usize; // Row-major indexing
     collision_data[dirt_index] = false;
     commands.insert_resource(CollisionMap {
-        width: tilemap_width as u32,
-        height: tilemap_height as u32,
+        width: map_size.x,
+        height: map_size.y,
         data: collision_data,
     });
 }
