@@ -47,7 +47,7 @@ impl ItemType {
 
 #[derive(Component, Clone, Debug)]
 pub struct ItemStack {
-    pub item: ItemType,
+    pub item_type: ItemType,
     pub count: usize,
     pub max_count: usize,
 }

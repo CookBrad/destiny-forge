@@ -82,7 +82,7 @@ fn spawn_slot(
     };
 
     if let Some(item) = item_option {
-        let display_info = item.item.as_item().display_info();
+        let display_info = item.item_type.as_item().display_info();
         let image_handle = asset_server.load(display_info.image_path);
         let text_content = format!("{} {}", display_info.name, item.count);
 
@@ -185,7 +185,7 @@ fn create_drag_entity(
     asset_server: &AssetServer,
     item: &ItemStack,
 ) -> Entity {
-    let display_info = item.item.as_item().display_info();
+    let display_info = item.item_type.as_item().display_info();
     let image_handle = asset_server.load(display_info.image_path);
     let text_content = format!("{} {}", display_info.name, item.count);
 
@@ -318,7 +318,7 @@ fn update_slot(
     item_option: Option<&ItemStack>,
 ) {
     if let Some(item) = item_option {
-        let display_info = item.item.as_item().display_info();
+        let display_info = item.item_type.as_item().display_info();
         let image_handle = asset_server.load(display_info.image_path);
         let text_content = format!("{} {}", display_info.name, item.count);
 
@@ -379,7 +379,7 @@ pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
             let item_type_to_add = ItemType::CornSeed(CornSeed);
             for stack in &mut inventory.items {
                 if let Some(stack) = stack {
-                    if std::mem::discriminant(&stack.item)
+                    if std::mem::discriminant(&stack.item_type)
                         == std::mem::discriminant(&item_type_to_add)
                     {
                         if stack.count < stack.max_count {
@@ -396,7 +396,7 @@ pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
                     ItemType::CornSeed(corn) => corn.stack_size(),
                 };
                 let new_stack = ItemStack {
-                    item: item_type_to_add,
+                    item_type: item_type_to_add,
                     count: 1,
                     max_count,
                 };

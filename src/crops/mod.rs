@@ -1,6 +1,7 @@
-pub trait Crop {
-    fn grow_time(&self) -> u32;
-    fn growth_stage_image(&self) -> &str;
+pub mod corn;
+use corn::Corn;
+pub struct Crop {
+    pub crop_type: CropType,
 }
 
 pub enum GrowthStage {
@@ -10,4 +11,9 @@ pub enum GrowthStage {
     Fruiting,
 }
 
-pub mod corn;
+pub enum CropType {
+    Corn(Corn),
+    Wheat,
+    Carrot,
+    Tomato,
+}

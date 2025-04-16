@@ -181,7 +181,7 @@ fn player_action(
                                     ..Default::default()
                                 },
                             ));
-                            println!("Placed item: {:?}", item.item.category());
+                            println!("Placed item: {:?}", item.item_type.category());
                         }
                     }
                 }

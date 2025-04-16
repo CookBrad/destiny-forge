@@ -19,10 +19,10 @@ impl Crop for Corn {
 
     fn growth_stage_image(&self) -> &str {
         match self.stage {
-            GrowthStage::Seed => "corn_seed.png",
-            GrowthStage::Sprout => "corn_sprout.png",
-            GrowthStage::Mature => "corn_mature.png",
-            GrowthStage::Fruiting => "corn_fruiting.png",
+            GrowthStage::Seed => "crop.png",
+            GrowthStage::Sprout => "crop_sprout.png",
+            GrowthStage::Mature => "crop_mature.png",
+            GrowthStage::Fruiting => "crop_mature.png",
         }
     }
 }
