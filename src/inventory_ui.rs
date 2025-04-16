@@ -2,7 +2,7 @@ use crate::player::{Inventory, Player};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
-use crate::items::{Item, ItemStack, ItemType, crops::corn::CornSeed};
+use crate::items::{Item, ItemStack, ItemType, seeds::corn::CornSeed};
 
 // Components
 #[derive(Component)]

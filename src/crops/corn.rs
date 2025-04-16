@@ -12,7 +12,7 @@ impl Default for Corn {
     }
 }
 
-impl Crop for Corn {
+impl Corn {
     fn grow_time(&self) -> u32 {
         100
     }

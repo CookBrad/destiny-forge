@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 mod player;
+use items::ItemCategory;
 use player::{CollisionMap, Inventory, Player, move_player};
 
 mod inventory_ui;
@@ -161,29 +162,37 @@ fn player_action(
 
         if let Ok(mut inventory) = inventory_query.get_single_mut() {
             if let Some(item) = &mut inventory.items[selected_slot.0] {
-                if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-                    if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-                        if tile_texture.0 == 0 {
-                            if item.count > 0 {
-                                item.count -= 1;
-                                commands.send_event(InventoryUpdateEvent);
+                match item.item_type.category() {
+                    ItemCategory::Crop => {
+                        if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+                            if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+                                if tile_texture.0 == 0 {
+                                    if item.count > 0 {
+                                        item.count -= 1;
+                                        commands.send_event(InventoryUpdateEvent);
+                                    }
+                                    println!("Item count: {:?}", item.count);
+                                    let crop_texture = asset_server.load("crop.png");
+                                    commands.spawn((
+                                        Sprite {
+                                            image: crop_texture,
+                                            ..Default::default()
+                                        },
+                                        Transform {
+                                            translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                                            scale: Vec3::splat(SCALE), // Match tilemap scale
+                                            ..Default::default()
+                                        },
+                                    ));
+                                    println!("Placed item: {:?}", item.item_type.category());
+                                }
                             }
-                            println!("Item count: {:?}", item.count);
-                            let crop_texture = asset_server.load("crop.png");
-                            commands.spawn((
-                                Sprite {
-                                    image: crop_texture,
-                                    ..Default::default()
-                                },
-                                Transform {
-                                    translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
-                                    scale: Vec3::splat(SCALE), // Match tilemap scale
-                                    ..Default::default()
-                                },
-                            ));
-                            println!("Placed item: {:?}", item.item_type.category());
                         }
                     }
+                    ItemCategory::Food => {}
+                    ItemCategory::Weapon => {}
+                    ItemCategory::Armor => {}
+                    ItemCategory::Tool => {}
                 }
             }
         } else {

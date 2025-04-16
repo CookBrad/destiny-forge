@@ -1,4 +1,4 @@
-pub mod crops;
+pub mod seeds;
 use bevy::prelude::Component;
 
 #[derive(Component)]
@@ -30,7 +30,7 @@ pub trait Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemType {
-    CornSeed(crops::corn::CornSeed),
+    CornSeed(seeds::corn::CornSeed),
 }
 
 impl ItemType {
