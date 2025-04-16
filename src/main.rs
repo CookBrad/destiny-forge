@@ -8,6 +8,9 @@ use player::{CollisionMap, Inventory, Player, move_player};
 mod inventory_ui;
 use inventory_ui::*;
 
+mod crops;
+use crops::{Crop, GrowthStage};
+
 mod items;
 
 const SCALE: f32 = 3.0;
@@ -23,6 +26,7 @@ fn main() {
         .add_systems(Startup, setup_inventory_bar.after(add_item_to_inventory))
         .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
         .add_systems(Update, (move_player, player_action))
+        .add_systems(Update, grow_crops)
         .add_systems(
             Update,
             (
@@ -164,27 +168,35 @@ fn player_action(
             if let Some(item) = &mut inventory.items[selected_slot.0] {
                 match item.item_type.category() {
                     ItemCategory::Crop => {
-                        if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-                            if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-                                if tile_texture.0 == 0 {
-                                    if item.count > 0 {
-                                        item.count -= 1;
-                                        commands.send_event(InventoryUpdateEvent);
+                        if let Some(crop_to_plant) = item.item_type.plant() {
+                            if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+                                if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+                                    if tile_texture.0 == 0 {
+                                        if item.count > 0 {
+                                            item.count -= 1;
+                                            commands.send_event(InventoryUpdateEvent);
+                                        }
+                                        println!("Item count: {:?}", item.count);
+                                        println!("{}", crop_to_plant.growth_stage_image());
+                                        let crop_texture = asset_server.load(format!(
+                                            "{}",
+                                            crop_to_plant.growth_stage_image()
+                                        ));
+                                        commands.spawn((
+                                            Sprite {
+                                                image: crop_texture,
+                                                ..Default::default()
+                                            },
+                                            Transform {
+                                                translation: tile_world_pos
+                                                    + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                                                scale: Vec3::splat(SCALE), // Match tilemap scale
+                                                ..Default::default()
+                                            },
+                                            crop_to_plant,
+                                        ));
+                                        println!("Placed item: {:?}", item.item_type.category());
                                     }
-                                    println!("Item count: {:?}", item.count);
-                                    let crop_texture = asset_server.load("crop.png");
-                                    commands.spawn((
-                                        Sprite {
-                                            image: crop_texture,
-                                            ..Default::default()
-                                        },
-                                        Transform {
-                                            translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
-                                            scale: Vec3::splat(SCALE), // Match tilemap scale
-                                            ..Default::default()
-                                        },
-                                    ));
-                                    println!("Placed item: {:?}", item.item_type.category());
                                 }
                             }
                         }
@@ -199,57 +211,27 @@ fn player_action(
             println!("No item in selected slot");
         }
     };
-
-    // let mut crop_exists = false;
-    // for (_, crop_transform) in crop_query.iter() {
-    //     let crop_pos = crop_transform.translation.truncate();
-    //     if crop_pos == tile_world_pos {
-    //         crop_exists = true;
-    //         break;
-    //     }
-    // }
-
-    // if !crop_exists {
-    //     if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-    //         if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-    //             if tile_texture.0 == 0 {
-    //                 let crop_texture = asset_server.load("crop.png");
-    //                 commands.spawn((
-    //                     Sprite {
-    //                         image: crop_texture,
-    //                         ..Default::default()
-    //                     },
-    //                     Transform::from_scale(Vec3::splat(SCALE)).with_translation(Vec3::new(
-    //                         tile_world_pos.x,
-    //                         tile_world_pos.y,
-    //                         0.5,
-    //                     )),
-    //                 ));
-    //             }
-    //         }
-    //     }
-    // }
 }
-// fn grow_crops(
-//     time: Res<Time>,
-//     mut crop_query: Query<(&mut Crop, &mut Sprite)>,
-//     asset_server: Res<AssetServer>,
-// ) {
-//     for (mut crop, mut sprite) in crop_query.iter_mut() {
-//         crop.timer += time.delta_secs();
-//         match crop.stage {
-//             CropStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
-//                 crop.stage = CropStage::Sprout;
-//                 sprite.image = asset_server.load("crop_sprout.png"); // Fixed: texture -> image
-//             }
-//             CropStage::Sprout if crop.timer >= 15.0 => {
-//                 crop.stage = CropStage::Mature;
-//                 sprite.image = asset_server.load("crop_mature.png"); // Fixed: texture -> image
-//             }
-//             _ => {}
-//         }
-//     }
-// }
+
+fn grow_crops(
+    time: Res<Time>,
+    mut crop_query: Query<(&mut Crop, &mut Sprite)>,
+    asset_server: Res<AssetServer>,
+) {
+    for (mut crop, mut sprite) in crop_query.iter_mut() {
+        crop.timer += time.delta_secs();
+        match crop.get_stage() {
+            GrowthStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
+                crop.set_stage(GrowthStage::Sprout);
+            }
+            GrowthStage::Sprout if crop.timer >= 15.0 => {
+                crop.set_stage(GrowthStage::Mature);
+            }
+            _ => {}
+        }
+        sprite.image = asset_server.load(format!("{}", crop.growth_stage_image()));
+    }
+}
 
 // fn harvest_crop(
 //     mut commands: Commands,

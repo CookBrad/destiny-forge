@@ -1,4 +1,6 @@
 pub mod seeds;
+use super::crops::{Corn, Crop, CropType};
+
 use bevy::prelude::Component;
 
 #[derive(Component)]
@@ -42,6 +44,15 @@ impl ItemType {
     }
     pub fn category(&self) -> ItemCategory {
         self.as_item().category()
+    }
+    pub fn plant(&self) -> Option<Crop> {
+        match self {
+            ItemType::CornSeed(_) => Some(Crop {
+                crop_type: CropType::Corn(Corn::default()),
+                timer: 0.0,
+            }),
+            _ => None,
+        }
     }
 }
 

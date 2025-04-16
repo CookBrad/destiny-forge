@@ -1,4 +1,4 @@
-use super::{Crop, GrowthStage};
+use super::GrowthStage;
 
 pub struct Corn {
     pub stage: GrowthStage,
@@ -17,7 +17,7 @@ impl Corn {
         100
     }
 
-    fn growth_stage_image(&self) -> &str {
+    pub fn growth_stage_image(&self) -> &str {
         match self.stage {
             GrowthStage::Seed => "crop.png",
             GrowthStage::Sprout => "crop_sprout.png",
