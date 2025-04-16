@@ -2,7 +2,7 @@ use crate::player::{Inventory, Player};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
-use crate::items::{Item, ItemStack, ItemType, crops::corn::Corn};
+use crate::items::{Item, ItemStack, ItemType, crops::corn::CornSeed};
 
 // Components
 #[derive(Component)]
@@ -376,7 +376,7 @@ pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
         let mut stack_count = 0;
         for _ in 0..66 {
             let mut found = false;
-            let item_type_to_add = ItemType::Corn(Corn);
+            let item_type_to_add = ItemType::CornSeed(CornSeed);
             for stack in &mut inventory.items {
                 if let Some(stack) = stack {
                     if std::mem::discriminant(&stack.item)
@@ -393,7 +393,7 @@ pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
 
             if !found {
                 let max_count = match &item_type_to_add {
-                    ItemType::Corn(corn) => corn.stack_size(),
+                    ItemType::CornSeed(corn) => corn.stack_size(),
                 };
                 let new_stack = ItemStack {
                     item: item_type_to_add,

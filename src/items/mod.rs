@@ -30,13 +30,13 @@ pub trait Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemType {
-    Corn(crops::corn::Corn),
+    CornSeed(crops::corn::CornSeed),
 }
 
 impl ItemType {
     pub fn as_item(&self) -> &dyn Item {
         match self {
-            ItemType::Corn(corn) => corn,
+            ItemType::CornSeed(corn) => corn,
             // Add other variants here as you expand your item system
         }
     }

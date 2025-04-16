@@ -50,10 +50,6 @@ pub fn move_player(
     let max_x = (tilemap_transform.translation.x + local_width * scale).floor() - 32.0;
     let min_y = tilemap_transform.translation.y;
     let max_y = (tilemap_transform.translation.y + local_height * scale).floor() - 10.0;
-    println!(
-        "min_x: {}, max_x: {}, min_y: {}, max_y: {}",
-        min_x, max_x, min_y, max_y
-    );
 
     // Calculate new position (example movement logic)
     let speed = 1.0;

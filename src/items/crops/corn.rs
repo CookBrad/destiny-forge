@@ -2,9 +2,9 @@ use crate::items::{Item, ItemCategory};
 use bevy::prelude::Component;
 
 #[derive(Component, Clone, Debug)]
-pub struct Corn;
+pub struct CornSeed;
 
-impl Item for Corn {
+impl Item for CornSeed {
     fn name(&self) -> &'static str {
         "Corn"
     }
