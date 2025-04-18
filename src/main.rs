@@ -158,7 +158,6 @@ fn player_action(
     tile_texture_query: Query<&TileTextureIndex>,
     mut inventory_query: Query<&mut Inventory>,
     selected_slot: Res<SelectedSlot>,
-    asset_server: Res<AssetServer>,
     sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyE) {
