@@ -186,6 +186,7 @@ fn player_action(
         let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
 
         if let Ok(mut inventory) = inventory_query.get_single_mut() {
+            let mut is_empty = false;
             if let Some(item) = &mut inventory.items[selected_slot.0] {
                 match item.item_type.category() {
                     ItemCategory::Crop => {
@@ -195,6 +196,7 @@ fn player_action(
                                     if tile_texture.0 == 0 {
                                         if item.count > 0 {
                                             item.count -= 1;
+                                            is_empty = item.count == 0;
                                             commands.send_event(InventoryUpdateEvent);
                                         }
                                         println!("Item count: {:?}", item.count);
@@ -227,6 +229,9 @@ fn player_action(
                     ItemCategory::Armor => {}
                     ItemCategory::Tool => {}
                 }
+            }
+            if is_empty {
+                inventory.items[selected_slot.0] = None;
             }
         } else {
             println!("No item in selected slot");
