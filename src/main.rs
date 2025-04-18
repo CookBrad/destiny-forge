@@ -15,6 +15,12 @@ mod items;
 
 const SCALE: f32 = 3.0;
 
+#[derive(Resource, Clone)]
+struct SpriteSheetLayout {
+    layout: Handle<TextureAtlasLayout>,
+    texture: Handle<Image>,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -44,7 +50,12 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<&Window>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    windows: Query<&Window>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
     // Get window dimensions (not used for centering here, but included for reference)
     let window = windows.single();
     let _window_width = window.resolution.width();
@@ -53,6 +64,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<
     // **Load Assets**
     let tile_texture_handle = asset_server.load("tiles.png");
     let player_texture: Handle<Image> = asset_server.load("player.png");
+    let texture: Handle<Image> = asset_server.load("crops.png");
+
+    let layout = TextureAtlasLayout::from_grid(UVec2 { x: 16, y: 32 }, 16, 26, None, None);
+    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+
+    // Store the handle in a resource
+    commands.insert_resource(SpriteSheetLayout {
+        layout: texture_atlas_layout,
+        texture,
+    });
 
     // **Tilemap Configuration**
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
@@ -138,6 +159,7 @@ fn player_action(
     mut inventory_query: Query<&mut Inventory>,
     selected_slot: Res<SelectedSlot>,
     asset_server: Res<AssetServer>,
+    sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyE) {
         let player_transform = player_query.single();
@@ -178,13 +200,13 @@ fn player_action(
                                         }
                                         println!("Item count: {:?}", item.count);
                                         println!("{}", crop_to_plant.growth_stage_image());
-                                        let crop_texture = asset_server.load(format!(
-                                            "{}",
-                                            crop_to_plant.growth_stage_image()
-                                        ));
                                         commands.spawn((
                                             Sprite {
-                                                image: crop_texture,
+                                                image: sprite_sheet.texture.clone(),
+                                                texture_atlas: Some(TextureAtlas {
+                                                    layout: sprite_sheet.layout.clone(),
+                                                    index: crop_to_plant.growth_stage_image(), // Start with the first sprite
+                                                }),
                                                 ..Default::default()
                                             },
                                             Transform {
@@ -216,7 +238,7 @@ fn player_action(
 fn grow_crops(
     time: Res<Time>,
     mut crop_query: Query<(&mut Crop, &mut Sprite)>,
-    asset_server: Res<AssetServer>,
+    sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     for (mut crop, mut sprite) in crop_query.iter_mut() {
         crop.timer += time.delta_secs();
@@ -224,12 +246,21 @@ fn grow_crops(
             GrowthStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
                 crop.set_stage(GrowthStage::Sprout);
             }
-            GrowthStage::Sprout if crop.timer >= 15.0 => {
+            GrowthStage::Sprout if crop.timer >= 15.0 && crop.timer < 20.0 => {
+                crop.set_stage(GrowthStage::Immature);
+            }
+            GrowthStage::Immature if crop.timer >= 20.0 && crop.timer < 25.0 => {
                 crop.set_stage(GrowthStage::Mature);
+            }
+            GrowthStage::Mature if crop.timer >= 25.0 => {
+                crop.set_stage(GrowthStage::Fruiting);
             }
             _ => {}
         }
-        sprite.image = asset_server.load(format!("{}", crop.growth_stage_image()));
+        sprite.texture_atlas = Some(TextureAtlas {
+            layout: sprite_sheet.layout.clone(),
+            index: crop.growth_stage_image(), // Start with the first sprite
+        });
     }
 }
 

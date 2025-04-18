@@ -17,12 +17,13 @@ impl Corn {
         100
     }
 
-    pub fn growth_stage_image(&self) -> &str {
+    pub fn growth_stage_image(&self) -> usize {
         match self.stage {
-            GrowthStage::Seed => "crop.png",
-            GrowthStage::Sprout => "crop_sprout.png",
-            GrowthStage::Mature => "crop_mature.png",
-            GrowthStage::Fruiting => "crop_mature.png",
+            GrowthStage::Seed => 121,
+            GrowthStage::Sprout => 122,
+            GrowthStage::Immature => 123,
+            GrowthStage::Mature => 125,
+            GrowthStage::Fruiting => 126,
         }
     }
 }

@@ -9,8 +9,8 @@ impl Item for CornSeed {
         "Corn"
     }
 
-    fn inventory_image(&self) -> &'static str {
-        "crop.png"
+    fn inventory_image(&self) -> usize {
+        121
     }
 
     fn stack_size(&self) -> usize {

@@ -11,6 +11,7 @@ pub struct Crop {
 pub enum GrowthStage {
     Seed,
     Sprout,
+    Immature,
     Mature,
     Fruiting,
 }
@@ -23,7 +24,7 @@ pub enum CropType {
 }
 
 impl Crop {
-    pub fn growth_stage_image(&self) -> &str {
+    pub fn growth_stage_image(&self) -> usize {
         match &self.crop_type {
             CropType::Corn(corn) => corn.growth_stage_image(),
         }

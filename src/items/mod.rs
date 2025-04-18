@@ -6,7 +6,7 @@ use bevy::prelude::Component;
 #[derive(Component)]
 pub struct DisplayInfo {
     pub name: &'static str,
-    pub image_path: &'static str,
+    pub image_path: usize,
 }
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub enum ItemCategory {
 }
 pub trait Item {
     fn name(&self) -> &'static str;
-    fn inventory_image(&self) -> &'static str;
+    fn inventory_image(&self) -> usize;
     fn stack_size(&self) -> usize;
     fn category(&self) -> ItemCategory;
     fn display_info(&self) -> DisplayInfo {
@@ -51,7 +51,6 @@ impl ItemType {
                 crop_type: CropType::Corn(Corn::default()),
                 timer: 0.0,
             }),
-            _ => None,
         }
     }
 }

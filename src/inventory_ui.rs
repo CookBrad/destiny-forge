@@ -2,6 +2,7 @@ use crate::player::{Inventory, Player};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
+use crate::SpriteSheetLayout;
 use crate::items::{Item, ItemStack, ItemType, seeds::corn::CornSeed};
 
 // Components
@@ -63,7 +64,8 @@ pub struct InventorySlotBundle {
 
 fn spawn_slot(
     parent: &mut ChildBuilder,
-    asset_server: &AssetServer,
+    // asset_server: &AssetServer,
+    sprite_sheet: &Res<SpriteSheetLayout>,
     item_option: Option<&ItemStack>,
     index: usize,
 ) {
@@ -83,13 +85,18 @@ fn spawn_slot(
 
     if let Some(item) = item_option {
         let display_info = item.item_type.as_item().display_info();
-        let image_handle = asset_server.load(display_info.image_path);
+        // let image_handle = asset_server.load(display_info.image_path);
         let text_content = format!("{} {}", display_info.name, item.count);
 
         parent
             .spawn((
                 ImageNode {
-                    image: image_handle,
+                    color: Color::WHITE,
+                    image: sprite_sheet.texture.clone(),
+                    texture_atlas: Some(TextureAtlas {
+                        layout: sprite_sheet.layout.clone(),
+                        index: display_info.image_path, // Start with the first sprite
+                    }),
                     ..default()
                 },
                 Text::new(text_content),
@@ -136,6 +143,7 @@ fn spawn_slot(
 pub fn setup_inventory_bar(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    sprite_sheet: Res<SpriteSheetLayout>,
     inventory_query: Query<&Inventory, With<Player>>,
 ) {
     commands
@@ -173,7 +181,7 @@ pub fn setup_inventory_bar(
         .with_children(|inventory_bar| {
             if let Ok(inventory) = inventory_query.get_single() {
                 for (index, item_option) in inventory.items.iter().enumerate() {
-                    spawn_slot(inventory_bar, &asset_server, item_option.as_ref(), index);
+                    spawn_slot(inventory_bar, &sprite_sheet, item_option.as_ref(), index);
                 }
             }
         });
@@ -182,11 +190,10 @@ pub fn setup_inventory_bar(
 
 fn create_drag_entity(
     commands: &mut Commands,
-    asset_server: &AssetServer,
     item: &ItemStack,
+    sprite_sheet: &Res<SpriteSheetLayout>,
 ) -> Entity {
     let display_info = item.item_type.as_item().display_info();
-    let image_handle = asset_server.load(display_info.image_path);
     let text_content = format!("{} {}", display_info.name, item.count);
 
     commands
@@ -202,7 +209,12 @@ fn create_drag_entity(
                 ..default()
             },
             ImageNode {
-                image: image_handle,
+                color: Color::WHITE,
+                image: sprite_sheet.texture.clone(),
+                texture_atlas: Some(TextureAtlas {
+                    layout: sprite_sheet.layout.clone(),
+                    index: display_info.image_path, // Start with the first sprite
+                }),
                 ..default()
             },
             Text::new(text_content),
@@ -222,7 +234,7 @@ pub fn handle_drag_start(
     mouse: Res<ButtonInput<MouseButton>>,
     query: Query<(Entity, &Interaction, &Name), With<Draggable>>,
     inventory_query: Query<&Inventory, With<Player>>,
-    asset_server: Res<AssetServer>,
+    sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         for (entity, interaction, name) in query.iter() {
@@ -232,7 +244,7 @@ pub fn handle_drag_start(
                         if let Ok(inventory) = inventory_query.get_single() {
                             if let Some(item) = &inventory.items[slot_index] {
                                 let temp_entity =
-                                    create_drag_entity(&mut commands, &asset_server, item);
+                                    create_drag_entity(&mut commands, item, &sprite_sheet);
 
                                 // Update DragState
                                 drag_state.dragging = Some(Dragging {
@@ -313,18 +325,22 @@ pub fn handle_drop(
 
 fn update_slot(
     commands: &mut Commands,
-    asset_server: &AssetServer,
     slot_entity: Entity,
     item_option: Option<&ItemStack>,
+    sprite_sheet: &Res<SpriteSheetLayout>,
 ) {
     if let Some(item) = item_option {
         let display_info = item.item_type.as_item().display_info();
-        let image_handle = asset_server.load(display_info.image_path);
         let text_content = format!("{} {}", display_info.name, item.count);
 
         commands.entity(slot_entity).insert((
             ImageNode {
-                image: image_handle,
+                color: Color::WHITE,
+                image: sprite_sheet.texture.clone(),
+                texture_atlas: Some(TextureAtlas {
+                    layout: sprite_sheet.layout.clone(),
+                    index: display_info.image_path, // Start with the first sprite
+                }),
                 ..default()
             },
             Text::new(text_content),
@@ -343,10 +359,10 @@ fn update_slot(
 
 pub fn update_inventory_bar(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     inventory_query: Query<&Inventory, With<Player>>,
     bar_query: Query<&Children, With<InventoryBar>>,
     slot_query: Query<Entity, With<SlotTag>>,
+    sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     if let Ok(inventory) = inventory_query.get_single() {
         if let Ok(children) = bar_query.get_single() {
@@ -364,7 +380,7 @@ pub fn update_inventory_bar(
             for (index, &slot_entity) in slot_entities.iter().enumerate() {
                 if index < inventory.items.len() {
                     let item_option = inventory.items[index].as_ref();
-                    update_slot(&mut commands, &asset_server, slot_entity, item_option);
+                    update_slot(&mut commands, slot_entity, item_option, &sprite_sheet);
                 }
             }
         }
