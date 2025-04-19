@@ -39,6 +39,7 @@ fn main() {
         .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
         .add_systems(Update, (move_player, player_action))
         .add_systems(Update, grow_crops)
+        .add_systems(Update, move_harvested_items)
         .add_systems(
             Update,
             (
@@ -227,7 +228,7 @@ fn player_action(
             }
         }
 
-        if let Some((crop, _crop_transform)) = crops_to_harvest.first_mut() {
+        if let Some((crop, crop_transform)) = crops_to_harvest.first_mut() {
             // Harvesting logic
             let harvested_item_stack = crop.crop_type.harvested();
 
@@ -237,18 +238,27 @@ fn player_action(
             }
 
             // Spawn visual effect
-            // commands
-            //     .spawn(SpriteSheetBundle {
-            //         texture_atlas: sprite_sheet_layout.texture_atlas.clone(),
-            //         sprite: TextureAtlasSprite::new(crop.growth_stage_image()), // Fruiting sprite
-            //         transform: Transform::from_translation(crop_transform.translation)
-            //             .with_scale(Vec3::splat(0.5)),
-            //         ..Default::default()
-            //     })
-            //     .insert(HarvestedItemSprite {
-            //         target: player_transform.translation + Vec3::new(0.0, 1.0, 0.0), // Above player
-            //         speed: 2.0,
-            //     });
+            commands
+                .spawn((
+                    Sprite {
+                        image: sprite_sheet.texture.clone(),
+                        texture_atlas: Some(TextureAtlas {
+                            layout: sprite_sheet.layout.clone(),
+                            index: crop.growth_stage_image(), // Start with the first sprite
+                        }),
+                        ..Default::default()
+                    },
+                    Transform::from_translation(Vec3::new(
+                        crop_transform.translation.x,
+                        crop_transform.translation.y + 10.0,
+                        4.0,
+                    ))
+                    .with_scale(Vec3::splat(3.0)),
+                ))
+                .insert(HarvestedItemSprite {
+                    target: player_transform.translation + Vec3::new(0.0, 32.0, 0.0), // Above player
+                    speed: 100.0,
+                });
 
             // Reset crop to Mature stage
             crop.timer = 20.0; // Assuming 20.0 is the start of Mature stage
