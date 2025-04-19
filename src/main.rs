@@ -212,7 +212,17 @@ fn player_action(
             );
             println!("{}", crop_tile == faced_tile);
             println!("{:?} {:?}", crop_tile, faced_tile);
-            if crop_tile == faced_tile && *crop.get_stage() == GrowthStage::Fruiting {
+            let crop_x = crop_tile.0 as i32;
+            let crop_y = crop_tile.1 as i32;
+            let faced_x = faced_tile.0 as i32;
+            let faced_y = faced_tile.1 as i32;
+
+            if faced_x >= crop_x - 8
+                && faced_x <= crop_x + 8
+                && faced_y >= crop_y - 8
+                && faced_y <= crop_y + 8
+                && *crop.get_stage() == GrowthStage::Fruiting
+            {
                 crops_to_harvest.push((crop, crop_transform));
             }
         }
