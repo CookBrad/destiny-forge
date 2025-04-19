@@ -1,5 +1,6 @@
+use crate::items::seeds::corn::CornSeed;
+use crate::items::{ItemStack, ItemType};
 use bevy::prelude::Component;
-
 pub mod corn;
 pub use corn::Corn;
 #[derive(Component)]
@@ -8,6 +9,7 @@ pub struct Crop {
     pub timer: f32,
 }
 
+#[derive(PartialEq)]
 pub enum GrowthStage {
     Seed,
     Sprout,
@@ -21,6 +23,17 @@ pub enum CropType {
     // Wheat,
     // Carrot,
     // Tomato,
+}
+impl CropType {
+    pub fn harvested(&self) -> ItemStack {
+        match self {
+            CropType::Corn(_) => ItemStack {
+                item_type: ItemType::CornSeed(CornSeed),
+                count: 33,
+                max_count: 64,
+            },
+        }
+    }
 }
 
 impl Crop {

@@ -387,7 +387,44 @@ pub fn update_inventory_bar(
     }
 }
 
-pub fn add_item_to_inventory(mut inventory_query: Query<&mut Inventory, With<Player>>) {
+pub fn add_item_to_inventory(
+    commands: &mut Commands,
+    mut inventory: Mut<'_, Inventory>,
+    mut item_stack: ItemStack,
+) {
+    let mut found = false;
+    for current_stack in &mut inventory.items {
+        if let Some(inventory_stack) = current_stack {
+            if std::mem::discriminant(&inventory_stack.item_type)
+                == std::mem::discriminant(&item_stack.item_type)
+            {
+                if inventory_stack.count + item_stack.count <= inventory_stack.max_count {
+                    inventory_stack.count += item_stack.count;
+                    println!("{}", inventory_stack.count);
+                    found = true;
+                    break;
+                }
+                if inventory_stack.count < inventory_stack.max_count {
+                    item_stack.count =
+                        item_stack.count - (inventory_stack.max_count - inventory_stack.count);
+                    inventory_stack.count = inventory_stack.max_count;
+                }
+            }
+        }
+    }
+
+    if !found {
+        if let Some(k) = inventory.items.iter().position(|x| x.is_none()) {
+            inventory.items[k] = Some(item_stack);
+        } else {
+            println!("Inventory full");
+        }
+    }
+
+    commands.send_event(InventoryUpdateEvent);
+}
+
+pub fn add_corn_to_inventory(mut inventory_query: Query<&mut Inventory, With<Player>>) {
     if let Ok(mut inventory) = inventory_query.get_single_mut() {
         let mut stack_count = 0;
         for _ in 0..66 {
