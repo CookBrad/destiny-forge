@@ -25,6 +25,7 @@ struct SpriteSheetLayout {
 struct HarvestedItemSprite {
     target: Vec3, // Target position (above player's head)
     speed: f32,   // Speed of movement
+    timer: f32,
 }
 
 fn main() {
@@ -37,9 +38,9 @@ fn main() {
         .add_systems(Startup, add_corn_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_corn_to_inventory))
         .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
+        .add_systems(Update, move_harvested_items)
         .add_systems(Update, (move_player, player_action))
         .add_systems(Update, grow_crops)
-        .add_systems(Update, move_harvested_items)
         .add_systems(
             Update,
             (
@@ -255,8 +256,9 @@ fn player_action(
                     .with_scale(Vec3::splat(3.0)),
                 ))
                 .insert(HarvestedItemSprite {
-                    target: player_transform.translation + Vec3::new(0.0, 32.0, 0.0), // Above player
+                    target: player_transform.translation + Vec3::new(0.0, 64.0, 0.0), // Above player
                     speed: 100.0,
+                    timer: 0.0,
                 });
 
             // Reset crop to Mature stage
@@ -267,16 +269,20 @@ fn player_action(
                 let is_empty = false;
                 if let Some(item) = &mut inventory.items[selected_slot.0] {
                     match item.item_type.category() {
-                        ItemCategory::Crop => plant_crop(
-                            item,
-                            tile_storage,
-                            tile_texture_query,
-                            tile_pos_bevy,
-                            is_empty,
-                            commands,
-                            sprite_sheet,
-                            tile_world_pos,
-                        ),
+                        ItemCategory::Crop => {
+                            let is_empty = plant_crop(
+                                item,
+                                tile_storage,
+                                tile_texture_query,
+                                tile_pos_bevy,
+                                commands,
+                                sprite_sheet,
+                                tile_world_pos,
+                            );
+                            if is_empty {
+                                inventory.items[selected_slot.0] = None;
+                            }
+                        }
                         ItemCategory::Food => {}
                         ItemCategory::Weapon => {}
                         ItemCategory::Armor => {}
@@ -298,53 +304,60 @@ fn plant_crop(
     tile_storage: &TileStorage,
     tile_texture_query: Query<&TileTextureIndex>,
     tile_pos_bevy: TilePos,
-    mut _is_empty: bool,
     mut commands: Commands,
     sprite_sheet: Res<SpriteSheetLayout>,
     tile_world_pos: Vec3,
-) {
+) -> bool {
+    let mut is_empty = false;
     if let Some(crop_to_plant) = item.item_type.plant() {
         if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
             if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
                 if tile_texture.0 == 0 {
                     if item.count > 0 {
                         item.count -= 1;
-                        _is_empty = item.count == 0;
+                        is_empty = item.count == 0;
+                        println!("{}", is_empty);
                         commands.send_event(InventoryUpdateEvent);
-                    }
 
-                    commands.spawn((
-                        Sprite {
-                            image: sprite_sheet.texture.clone(),
-                            texture_atlas: Some(TextureAtlas {
-                                layout: sprite_sheet.layout.clone(),
-                                index: crop_to_plant.growth_stage_image(), // Start with the first sprite
-                            }),
-                            ..Default::default()
-                        },
-                        Transform {
-                            translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
-                            scale: Vec3::splat(SCALE), // Match tilemap scale
-                            ..Default::default()
-                        },
-                        crop_to_plant,
-                    ));
-                    println!("Placed item: {:?}", item.item_type.category());
+                        commands.spawn((
+                            Sprite {
+                                image: sprite_sheet.texture.clone(),
+                                texture_atlas: Some(TextureAtlas {
+                                    layout: sprite_sheet.layout.clone(),
+                                    index: crop_to_plant.growth_stage_image(), // Start with the first sprite
+                                }),
+                                ..Default::default()
+                            },
+                            Transform {
+                                translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                                scale: Vec3::splat(SCALE), // Match tilemap scale
+                                ..Default::default()
+                            },
+                            crop_to_plant,
+                        ));
+                        println!("Placed item: {:?}", item.item_type.category());
+                        return is_empty;
+                    }
                 }
             }
         }
     }
+    return is_empty;
 }
 
 // System to move harvested item sprites
 fn move_harvested_items(
     time: Res<Time>,
-    mut query: Query<(Entity, &mut Transform, &HarvestedItemSprite)>,
+    mut query: Query<(Entity, &mut Transform, &mut HarvestedItemSprite)>,
     mut commands: Commands,
 ) {
-    for (entity, mut transform, harvested) in query.iter_mut() {
+    for (entity, mut transform, mut harvested) in query.iter_mut() {
         let direction = (harvested.target - transform.translation).normalize_or_zero();
         let distance = transform.translation.distance(harvested.target);
+        harvested.timer += time.delta_secs();
+        if harvested.timer > 1.0 {
+            commands.entity(entity).despawn();
+        }
         if distance > 0.1 {
             let move_amount = direction * harvested.speed * time.delta_secs();
             transform.translation += move_amount;
