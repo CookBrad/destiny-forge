@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 mod player;
-use items::ItemCategory;
+use items::{ItemCategory, ItemStack};
 use player::{CollisionMap, Inventory, Player, move_player};
 
 mod inventory_ui;
@@ -211,8 +211,7 @@ fn player_action(
                     y: tilemap_transform.scale.y,
                 },
             );
-            println!("{}", crop_tile == faced_tile);
-            println!("{:?} {:?}", crop_tile, faced_tile);
+
             let crop_x = crop_tile.0 as i32;
             let crop_y = crop_tile.1 as i32;
             let faced_x = faced_tile.0 as i32;
@@ -244,7 +243,7 @@ fn player_action(
                         image: sprite_sheet.texture.clone(),
                         texture_atlas: Some(TextureAtlas {
                             layout: sprite_sheet.layout.clone(),
-                            index: crop.growth_stage_image(), // Start with the first sprite
+                            index: 102, // Start with the first sprite
                         }),
                         ..Default::default()
                     },
@@ -265,47 +264,19 @@ fn player_action(
             crop.set_stage(GrowthStage::Mature);
         } else {
             if let Ok(mut inventory) = inventory_query.get_single_mut() {
-                let mut is_empty = false;
+                let is_empty = false;
                 if let Some(item) = &mut inventory.items[selected_slot.0] {
                     match item.item_type.category() {
-                        ItemCategory::Crop => {
-                            if let Some(crop_to_plant) = item.item_type.plant() {
-                                if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
-                                    if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
-                                        if tile_texture.0 == 0 {
-                                            if item.count > 0 {
-                                                item.count -= 1;
-                                                is_empty = item.count == 0;
-                                                commands.send_event(InventoryUpdateEvent);
-                                            }
-                                            println!("Item count: {:?}", item.count);
-                                            println!("{}", crop_to_plant.growth_stage_image());
-                                            commands.spawn((
-                                                Sprite {
-                                                    image: sprite_sheet.texture.clone(),
-                                                    texture_atlas: Some(TextureAtlas {
-                                                        layout: sprite_sheet.layout.clone(),
-                                                        index: crop_to_plant.growth_stage_image(), // Start with the first sprite
-                                                    }),
-                                                    ..Default::default()
-                                                },
-                                                Transform {
-                                                    translation: tile_world_pos
-                                                        + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
-                                                    scale: Vec3::splat(SCALE), // Match tilemap scale
-                                                    ..Default::default()
-                                                },
-                                                crop_to_plant,
-                                            ));
-                                            println!(
-                                                "Placed item: {:?}",
-                                                item.item_type.category()
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        ItemCategory::Crop => plant_crop(
+                            item,
+                            tile_storage,
+                            tile_texture_query,
+                            tile_pos_bevy,
+                            is_empty,
+                            commands,
+                            sprite_sheet,
+                            tile_world_pos,
+                        ),
                         ItemCategory::Food => {}
                         ItemCategory::Weapon => {}
                         ItemCategory::Armor => {}
@@ -320,6 +291,49 @@ fn player_action(
             }
         }
     };
+}
+
+fn plant_crop(
+    item: &mut ItemStack,
+    tile_storage: &TileStorage,
+    tile_texture_query: Query<&TileTextureIndex>,
+    tile_pos_bevy: TilePos,
+    mut _is_empty: bool,
+    mut commands: Commands,
+    sprite_sheet: Res<SpriteSheetLayout>,
+    tile_world_pos: Vec3,
+) {
+    if let Some(crop_to_plant) = item.item_type.plant() {
+        if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+            if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
+                if tile_texture.0 == 0 {
+                    if item.count > 0 {
+                        item.count -= 1;
+                        _is_empty = item.count == 0;
+                        commands.send_event(InventoryUpdateEvent);
+                    }
+
+                    commands.spawn((
+                        Sprite {
+                            image: sprite_sheet.texture.clone(),
+                            texture_atlas: Some(TextureAtlas {
+                                layout: sprite_sheet.layout.clone(),
+                                index: crop_to_plant.growth_stage_image(), // Start with the first sprite
+                            }),
+                            ..Default::default()
+                        },
+                        Transform {
+                            translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                            scale: Vec3::splat(SCALE), // Match tilemap scale
+                            ..Default::default()
+                        },
+                        crop_to_plant,
+                    ));
+                    println!("Placed item: {:?}", item.item_type.category());
+                }
+            }
+        }
+    }
 }
 
 // System to move harvested item sprites
@@ -372,13 +386,13 @@ fn grow_crops(
     for (mut crop, mut sprite) in crop_query.iter_mut() {
         crop.timer += time.delta_secs();
         match crop.get_stage() {
-            GrowthStage::Seed if crop.timer >= 5.0 && crop.timer < 15.0 => {
+            GrowthStage::Seed if crop.timer >= 5.0 => {
                 crop.set_stage(GrowthStage::Sprout);
             }
-            GrowthStage::Sprout if crop.timer >= 15.0 && crop.timer < 20.0 => {
+            GrowthStage::Sprout if crop.timer >= 10.0 => {
                 crop.set_stage(GrowthStage::Immature);
             }
-            GrowthStage::Immature if crop.timer >= 20.0 && crop.timer < 25.0 => {
+            GrowthStage::Immature if crop.timer >= 15.0 => {
                 crop.set_stage(GrowthStage::Mature);
             }
             GrowthStage::Mature if crop.timer >= 25.0 => {
@@ -392,33 +406,3 @@ fn grow_crops(
         });
     }
 }
-
-// fn harvest_crop(
-//     mut commands: Commands,
-//     keyboard_input: Res<ButtonInput<KeyCode>>,
-//     player_query: Query<&Transform, With<Player>>,
-//     tilemap_query: Query<&TilemapGridSize>,
-//     mut crop_query: Query<(Entity, &Crop, &Transform)>,
-// ) {
-//     if keyboard_input.just_pressed(KeyCode::KeyE) {
-//         let player_transform = player_query.single();
-//         let grid_size = tilemap_query.single();
-
-//         let player_tile_pos = IVec2::new(
-//             (player_transform.translation.x / grid_size.x).floor() as i32,
-//             (player_transform.translation.y / grid_size.y).floor() as i32,
-//         );
-
-//         for (entity, crop, crop_transform) in crop_query.iter_mut() {
-//             let crop_tile_pos = IVec2::new(
-//                 (crop_transform.translation.x / grid_size.x).floor() as i32,
-//                 (crop_transform.translation.y / grid_size.y).floor() as i32,
-//             );
-
-//             if player_tile_pos == crop_tile_pos && crop.stage == CropStage::Mature {
-//                 commands.entity(entity).despawn();
-//                 println!("Crop harvested!");
-//             }
-//         }
-//     }
-// }
