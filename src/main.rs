@@ -17,8 +17,8 @@ const SCALE: f32 = 3.0;
 
 #[derive(Resource, Clone)]
 struct SpriteSheetLayout {
-    layout: Handle<TextureAtlasLayout>,
-    texture: Handle<Image>,
+    crops_layout: Handle<TextureAtlasLayout>,
+    crops_texture: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -79,8 +79,8 @@ fn setup(
 
     // Store the handle in a resource
     commands.insert_resource(SpriteSheetLayout {
-        layout: texture_atlas_layout,
-        texture,
+        crops_layout: texture_atlas_layout,
+        crops_texture: texture,
     });
 
     // **Tilemap Configuration**
@@ -241,9 +241,9 @@ fn player_action(
             commands
                 .spawn((
                     Sprite {
-                        image: sprite_sheet.texture.clone(),
+                        image: sprite_sheet.crops_texture.clone(),
                         texture_atlas: Some(TextureAtlas {
-                            layout: sprite_sheet.layout.clone(),
+                            layout: sprite_sheet.crops_layout.clone(),
                             index: 102, // Start with the first sprite
                         }),
                         ..Default::default()
@@ -321,9 +321,9 @@ fn plant_crop(
 
                         commands.spawn((
                             Sprite {
-                                image: sprite_sheet.texture.clone(),
+                                image: sprite_sheet.crops_texture.clone(),
                                 texture_atlas: Some(TextureAtlas {
-                                    layout: sprite_sheet.layout.clone(),
+                                    layout: sprite_sheet.crops_layout.clone(),
                                     index: crop_to_plant.growth_stage_image(), // Start with the first sprite
                                 }),
                                 ..Default::default()
@@ -414,7 +414,7 @@ fn grow_crops(
             _ => {}
         }
         sprite.texture_atlas = Some(TextureAtlas {
-            layout: sprite_sheet.layout.clone(),
+            layout: sprite_sheet.crops_layout.clone(),
             index: crop.growth_stage_image(), // Start with the first sprite
         });
     }

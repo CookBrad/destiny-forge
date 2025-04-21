@@ -92,9 +92,9 @@ fn spawn_slot(
             .spawn((
                 ImageNode {
                     color: Color::WHITE,
-                    image: sprite_sheet.texture.clone(),
+                    image: sprite_sheet.crops_texture.clone(),
                     texture_atlas: Some(TextureAtlas {
-                        layout: sprite_sheet.layout.clone(),
+                        layout: sprite_sheet.crops_layout.clone(),
                         index: display_info.image_path, // Start with the first sprite
                     }),
                     ..default()
@@ -210,9 +210,9 @@ fn create_drag_entity(
             },
             ImageNode {
                 color: Color::WHITE,
-                image: sprite_sheet.texture.clone(),
+                image: sprite_sheet.crops_texture.clone(),
                 texture_atlas: Some(TextureAtlas {
-                    layout: sprite_sheet.layout.clone(),
+                    layout: sprite_sheet.crops_layout.clone(),
                     index: display_info.image_path, // Start with the first sprite
                 }),
                 ..default()
@@ -336,9 +336,9 @@ fn update_slot(
         commands.entity(slot_entity).insert((
             ImageNode {
                 color: Color::WHITE,
-                image: sprite_sheet.texture.clone(),
+                image: sprite_sheet.crops_texture.clone(),
                 texture_atlas: Some(TextureAtlas {
-                    layout: sprite_sheet.layout.clone(),
+                    layout: sprite_sheet.crops_layout.clone(),
                     index: display_info.image_path, // Start with the first sprite
                 }),
                 ..default()
