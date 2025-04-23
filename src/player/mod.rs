@@ -1,18 +1,23 @@
 // src/player/mod.rs
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+use std::time::Duration;
 
 use crate::items::ItemStack;
 
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
+    pub position: usize,
+    frame_timer: Timer,
 }
 
 impl Default for Player {
     fn default() -> Self {
         Self {
-            speed: 100.0, // Default speed set to 100.0
+            speed: 3.0,
+            position: 1,
+            frame_timer: Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once),
         }
     }
 }
@@ -35,11 +40,13 @@ impl CollisionMap {
 }
 
 pub fn move_player(
+    time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&Player, &mut Transform)>, // Player query with mutable Transform
-    tilemap_query: Query<(&TilemapSize, &TilemapTileSize, &Transform), Without<Player>>, // Tilemap query excluding Player
+    mut player_query: Query<(&mut Player, &mut Transform)>, // Player query with mutable Transform
+    mut player_sprite: Query<&mut Sprite, With<Player>>,
+    tilemap_query: Query<(&TilemapSize, &TilemapTileSize, &Transform), Without<Player>>,
 ) {
-    let (_player, mut player_transform) = player_query.single_mut(); // Get the player's Transform
+    let (mut player, mut player_transform) = player_query.single_mut(); // Get the player's Transform
     let (map_size, tile_size, tilemap_transform) = tilemap_query.single(); // Get the tilemap's Transform
     let scale = tilemap_transform.scale.x; // e.g., 6.0
 
@@ -52,20 +59,82 @@ pub fn move_player(
     let max_y = (tilemap_transform.translation.y + local_height * scale).floor() - 10.0;
 
     // Calculate new position (example movement logic)
-    let speed = 1.0;
     let mut new_x = player_transform.translation.x;
     let mut new_y = player_transform.translation.y;
-    if keyboard_input.pressed(KeyCode::KeyW) {
-        new_y += speed;
-    }
-    if keyboard_input.pressed(KeyCode::KeyS) {
-        new_y -= speed;
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        new_x += speed;
-    }
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        new_x -= speed;
+    let last_index = 3;
+
+    if let Ok(mut player_sprite) = player_sprite.get_single_mut() {
+        if let Some(ref mut player_sprite_texture_atlas) = player_sprite.texture_atlas {
+            if keyboard_input.just_pressed(KeyCode::KeyW) {
+                player.position = 8;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyA) {
+                player.position = 12;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyD) {
+                player.position = 4;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyS) {
+                player.position = 0;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.pressed(KeyCode::KeyW) {
+                new_y += player.speed;
+
+                player.frame_timer.tick(time.delta());
+                if player.frame_timer.just_finished() {
+                    if player_sprite_texture_atlas.index != last_index + player.position {
+                        player_sprite_texture_atlas.index += 1;
+                    } else {
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    player.frame_timer =
+                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                }
+            }
+            if keyboard_input.pressed(KeyCode::KeyS) {
+                new_y -= player.speed;
+                player.frame_timer.tick(time.delta());
+                if player.frame_timer.just_finished() {
+                    if player_sprite_texture_atlas.index != last_index + player.position {
+                        player_sprite_texture_atlas.index += 1;
+                    } else {
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    player.frame_timer =
+                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                }
+            }
+            if keyboard_input.pressed(KeyCode::KeyD) {
+                new_x += player.speed;
+                player.frame_timer.tick(time.delta());
+                if player.frame_timer.just_finished() {
+                    if player_sprite_texture_atlas.index != last_index + player.position {
+                        player_sprite_texture_atlas.index += 1;
+                    } else {
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    player.frame_timer =
+                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                }
+            }
+            if keyboard_input.pressed(KeyCode::KeyA) {
+                new_x -= player.speed;
+                player.frame_timer.tick(time.delta());
+                if player.frame_timer.just_finished() {
+                    if player_sprite_texture_atlas.index != last_index + player.position {
+                        player_sprite_texture_atlas.index += 1;
+                    } else {
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    player.frame_timer =
+                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                }
+            }
+        }
     }
 
     // Clamp to tilemap bounds

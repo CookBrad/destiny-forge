@@ -19,6 +19,8 @@ const SCALE: f32 = 3.0;
 struct SpriteSheetLayout {
     crops_layout: Handle<TextureAtlasLayout>,
     crops_texture: Handle<Image>,
+    player_layout: Handle<TextureAtlasLayout>,
+    player_texture: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -71,17 +73,14 @@ fn setup(
 
     // **Load Assets**
     let tile_texture_handle = asset_server.load("tiles.png");
-    let player_texture: Handle<Image> = asset_server.load("player.png");
-    let texture: Handle<Image> = asset_server.load("crops.png");
 
-    let layout = TextureAtlasLayout::from_grid(UVec2 { x: 16, y: 32 }, 16, 26, None, None);
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+    let player_texture: Handle<Image> = asset_server.load("willy.png");
+    let player_layout = TextureAtlasLayout::from_grid(UVec2 { x: 16, y: 32 }, 4, 4, None, None);
+    let player_texture_atlas_layout = texture_atlas_layouts.add(player_layout);
 
-    // Store the handle in a resource
-    commands.insert_resource(SpriteSheetLayout {
-        crops_layout: texture_atlas_layout,
-        crops_texture: texture,
-    });
+    let crops_texture: Handle<Image> = asset_server.load("crops.png");
+    let crops_layout = TextureAtlasLayout::from_grid(UVec2 { x: 16, y: 32 }, 16, 26, None, None);
+    let crops_texture_atlas_layout = texture_atlas_layouts.add(crops_layout);
 
     // **Tilemap Configuration**
     let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
@@ -132,15 +131,26 @@ fn setup(
     let player_start_pos = Vec3::new(0.0, 0.0, 1.0);
     commands.spawn((
         Sprite {
-            image: player_texture,
-            ..default()
+            image: player_texture.clone(),
+            texture_atlas: Some(TextureAtlas {
+                layout: player_texture_atlas_layout.clone(),
+                index: 0, // Start with the first sprite
+            }),
+            ..Default::default()
         },
         Transform::from_translation(player_start_pos).with_scale(Vec3::new(SCALE, SCALE, 1.0)),
-        Player { speed: 100.0 },
+        Player::default(),
         Inventory {
             items: vec![None; 5], // 5 slots, initially empty
         },
     ));
+
+    commands.insert_resource(SpriteSheetLayout {
+        crops_layout: crops_texture_atlas_layout,
+        crops_texture,
+        player_layout: player_texture_atlas_layout,
+        player_texture,
+    });
 
     // **Spawn Camera**
     commands.spawn(Camera2d::default());
