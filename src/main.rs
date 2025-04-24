@@ -186,23 +186,24 @@ fn player_action(
         let world_pos = player_transform.translation;
         let local_pos = (world_pos - tilemap_transform.translation) / tilemap_transform.scale.x;
 
-        // Step 2: Calculate the tile position (for tiles centered in local space)
-        let tile_x = ((local_pos.x + grid_size.x / 2.0) / grid_size.x).floor() as u32;
-        let tile_y = ((local_pos.y + grid_size.y / 2.0) / grid_size.y).floor() as u32;
+        // Calculate the tile position at the player's feet
+        let tile_x = (local_pos.x / grid_size.x).floor() as u32;
+        let tile_y = (local_pos.y / grid_size.y).floor() as u32;
         let tile_pos_bevy = TilePos {
             x: tile_x,
             y: tile_y,
         };
 
-        // Step 3: Compute the tile's center in local space
+        // Compute the tile's center in local space
         let tile_local_pos = Vec3::new(
             tile_pos_bevy.x as f32 * grid_size.x,
-            tile_pos_bevy.y as f32 * grid_size.y,
+            tile_pos_bevy.y as f32 * grid_size.y + grid_size.y / 2.0,
             0.0,
         );
 
-        // Step 4: Convert the tile's local position to world space
+        // Convert the tile's local position to world space
         let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
+
         let player_tile = world_to_tile(
             player_transform.translation.truncate(),
             Vec2 {
@@ -211,7 +212,6 @@ fn player_action(
             },
         );
         let delta = get_faced_tile_delta(player_transform);
-
         let faced_tile = (player_tile.0 + delta.0, player_tile.1 + delta.1);
         let mut crops_to_harvest = Vec::new();
         for (crop, crop_transform) in query_crops.iter_mut() {
@@ -242,7 +242,7 @@ fn player_action(
             // Harvesting logic
             let harvested_item_stack = crop.crop_type.harvested();
 
-            // Add harvested item to inventory using existing function
+            // Add harvested item to inventory
             if let Ok(inventory) = inventory_query.get_single_mut() {
                 add_item_to_inventory(&mut commands, inventory, harvested_item_stack);
             }
@@ -254,7 +254,7 @@ fn player_action(
                         image: sprite_sheet.crops_texture.clone(),
                         texture_atlas: Some(TextureAtlas {
                             layout: sprite_sheet.crops_layout.clone(),
-                            index: 102, // Start with the first sprite
+                            index: 102,
                         }),
                         ..Default::default()
                     },
@@ -266,21 +266,22 @@ fn player_action(
                     .with_scale(Vec3::splat(3.0)),
                 ))
                 .insert(HarvestedItemSprite {
-                    target: player_transform.translation + Vec3::new(0.0, 64.0, 0.0), // Above player
+                    target: player_transform.translation + Vec3::new(0.0, 64.0, 0.0),
                     speed: 100.0,
                     timer: 0.0,
                 });
 
             // Reset crop to Mature stage
-            crop.timer = 20.0; // Assuming 20.0 is the start of Mature stage
+            crop.timer = 20.0;
             crop.set_stage(GrowthStage::Mature);
         } else {
+            // Planting logic
             if let Ok(mut inventory) = inventory_query.get_single_mut() {
-                let is_empty = false;
+                let mut is_empty = false;
                 if let Some(item) = &mut inventory.items[selected_slot.0] {
                     match item.item_type.category() {
                         ItemCategory::Crop => {
-                            let is_empty = plant_crop(
+                            is_empty = plant_crop(
                                 item,
                                 tile_storage,
                                 tile_texture_query,
@@ -298,15 +299,15 @@ fn player_action(
                         ItemCategory::Armor => {}
                         ItemCategory::Tool => {}
                     }
+                    if is_empty {
+                        inventory.items[selected_slot.0] = None;
+                    }
+                } else {
+                    println!("No item in selected slot");
                 }
-                if is_empty {
-                    inventory.items[selected_slot.0] = None;
-                }
-            } else {
-                println!("No item in selected slot");
             }
         }
-    };
+    }
 }
 
 fn plant_crop(
