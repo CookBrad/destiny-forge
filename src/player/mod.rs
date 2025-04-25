@@ -42,23 +42,23 @@ impl CollisionMap {
 pub fn move_player(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&mut Player, &mut Transform)>, // Player query with mutable Transform
+    mut player_query: Query<(&mut Player, &mut Transform)>,
     mut player_sprite: Query<&mut Sprite, With<Player>>,
     tilemap_query: Query<(&TilemapSize, &TilemapTileSize, &Transform), Without<Player>>,
 ) {
-    let (mut player, mut player_transform) = player_query.single_mut(); // Get the player's Transform
-    let (map_size, tile_size, tilemap_transform) = tilemap_query.single(); // Get the tilemap's Transform
-    let scale = tilemap_transform.scale.x; // e.g., 6.0
+    let (mut player, mut player_transform) = player_query.single_mut();
+    let (map_size, tile_size, tilemap_transform) = tilemap_query.single();
+    let scale = tilemap_transform.scale.x;
 
     // Calculate tilemap world bounds
-    let local_width = map_size.x as f32 * tile_size.x; // e.g., 800.0
-    let local_height = map_size.y as f32 * tile_size.y; // e.g., 800.0
+    let local_width = map_size.x as f32 * tile_size.x;
+    let local_height = map_size.y as f32 * tile_size.y;
     let min_x = tilemap_transform.translation.x;
     let max_x = (tilemap_transform.translation.x + local_width * scale).floor() - 32.0;
     let min_y = tilemap_transform.translation.y;
     let max_y = (tilemap_transform.translation.y + local_height * scale).floor() - 10.0;
 
-    // Calculate new position (example movement logic)
+    // Calculate new position
     let mut new_x = player_transform.translation.x;
     let mut new_y = player_transform.translation.y;
     let last_index = 3;
@@ -83,7 +83,6 @@ pub fn move_player(
             }
             if keyboard_input.pressed(KeyCode::KeyW) {
                 new_y += player.speed;
-
                 player.frame_timer.tick(time.delta());
                 if player.frame_timer.just_finished() {
                     if player_sprite_texture_atlas.index != last_index + player.position {
@@ -92,7 +91,7 @@ pub fn move_player(
                         player_sprite_texture_atlas.index = player.position;
                     }
                     player.frame_timer =
-                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                        Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once);
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyS) {
@@ -105,7 +104,7 @@ pub fn move_player(
                         player_sprite_texture_atlas.index = player.position;
                     }
                     player.frame_timer =
-                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                        Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once);
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyD) {
@@ -118,7 +117,7 @@ pub fn move_player(
                         player_sprite_texture_atlas.index = player.position;
                     }
                     player.frame_timer =
-                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                        Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once);
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyA) {
@@ -131,7 +130,7 @@ pub fn move_player(
                         player_sprite_texture_atlas.index = player.position;
                     }
                     player.frame_timer =
-                        Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once)
+                        Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once);
                 }
             }
         }
@@ -141,8 +140,8 @@ pub fn move_player(
     new_x = new_x.clamp(min_x, max_x);
     new_y = new_y.clamp(min_y, max_y);
 
-    player_transform.translation.x = new_x;
-    player_transform.translation.y = new_y;
+    // Update position with z = y
+    player_transform.translation = Vec3::new(new_x, new_y, 500.0 - new_y);
 }
 
 #[derive(Component)]

@@ -9,7 +9,7 @@ pub struct Crop {
     pub timer: f32,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum GrowthStage {
     Seed,
     Sprout,

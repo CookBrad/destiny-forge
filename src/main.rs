@@ -90,7 +90,7 @@ fn setup(
     // Calculate the center offset to position tilemap at world (0, 0)
     let center_x = ((map_size.x - 1) as f32 * tile_size.x) / 2.0; // 192.0
     let center_y = ((map_size.y - 1) as f32 * tile_size.y) / 2.0; // 192.0
-    let translation = Vec3::new(-center_x * SCALE, -center_y * SCALE, 0.0);
+    let translation = Vec3::new(-center_x * SCALE, -center_y * SCALE, -900.0);
 
     // **Spawn Tilemap**
     let tilemap_entity = commands.spawn_empty().id();
@@ -128,7 +128,7 @@ fn setup(
 
     // **Spawn Player**
     // Place player at the center of the tilemap (world coordinates (0, 0, 1))
-    let player_start_pos = Vec3::new(0.0, 0.0, 1.0);
+    let player_start_pos = Vec3::new(0.0, 0.0, 500.0);
     commands.spawn((
         Sprite {
             image: player_texture.clone(),
@@ -340,7 +340,7 @@ fn plant_crop(
                                 ..Default::default()
                             },
                             Transform {
-                                translation: tile_world_pos + Vec3::new(0.0, 0.0, 0.5), // z=0.5 to be above tile
+                                translation: Vec3::new(tile_world_pos.x, tile_world_pos.y, -700.),
                                 scale: Vec3::splat(SCALE), // Match tilemap scale
                                 ..Default::default()
                             },
@@ -404,12 +404,13 @@ fn get_faced_tile_delta(transform: &Transform) -> (i32, i32) {
 
 fn grow_crops(
     time: Res<Time>,
-    mut crop_query: Query<(&mut Crop, &mut Sprite)>,
+    mut crop_query: Query<(&mut Crop, &mut Sprite, &mut Transform)>,
     sprite_sheet: Res<SpriteSheetLayout>,
 ) {
-    for (mut crop, mut sprite) in crop_query.iter_mut() {
+    for (mut crop, mut sprite, mut transform) in crop_query.iter_mut() {
         crop.timer += time.delta_secs();
-        match crop.get_stage() {
+        let old_stage = (*crop.get_stage()).clone();
+        match old_stage {
             GrowthStage::Seed if crop.timer >= 5.0 => {
                 crop.set_stage(GrowthStage::Sprout);
             }
@@ -424,9 +425,15 @@ fn grow_crops(
             }
             _ => {}
         }
+        if *crop.get_stage() != old_stage {
+            transform.translation.z = match crop.get_stage() {
+                GrowthStage::Seed => 0.0,
+                _ => 500.0 - transform.translation.y,
+            };
+        }
         sprite.texture_atlas = Some(TextureAtlas {
             layout: sprite_sheet.crops_layout.clone(),
-            index: crop.growth_stage_image(), // Start with the first sprite
+            index: crop.growth_stage_image(),
         });
     }
 }
