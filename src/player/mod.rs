@@ -16,7 +16,7 @@ pub struct Player {
     pub speed: f32,
     pub position: usize,
     pub direction: Direction,
-    last_pressed: KeyCode, // Changed from Keys enum to KeyCode
+    last_pressed: KeyCode,
     frame_timer: Timer,
 }
 
@@ -26,10 +26,31 @@ impl Default for Player {
             speed: 3.0,
             position: 1,
             direction: Direction::Down,
-            last_pressed: KeyCode::KeyS, // Default to KeyCode::KeyS
+            last_pressed: KeyCode::KeyS,
             frame_timer: Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once),
         }
     }
+}
+
+fn update_sprite(
+    player_sprite: &mut Query<&mut Sprite, With<Player>>,
+    position: usize,
+) -> Option<()> {
+    let mut sprite = player_sprite.get_single_mut().ok()?;
+    let texture_atlas = sprite.texture_atlas.as_mut()?;
+    texture_atlas.index = position;
+    Some(())
+}
+
+fn handle_direction_change(
+    player: &mut Player,
+    player_sprite: &mut Query<&mut Sprite, With<Player>>,
+    direction: Direction,
+    position: usize,
+) {
+    player.direction = direction;
+    player.position = position;
+    update_sprite(player_sprite, position);
 }
 
 pub fn move_player(
@@ -61,13 +82,7 @@ pub fn move_player(
     // Handle just_pressed logic
     for &(key_code, direction, position) in &direction_mappings {
         if keyboard_input.just_pressed(key_code) && pressed_directions.len() == 1 {
-            player.direction = direction;
-            player.position = position;
-            if let Ok(mut sprite) = player_sprite.get_single_mut() {
-                if let Some(ref mut texture_atlas) = sprite.texture_atlas {
-                    texture_atlas.index = position;
-                }
-            }
+            handle_direction_change(&mut player, &mut player_sprite, direction, position);
         }
     }
 
@@ -86,13 +101,7 @@ pub fn move_player(
                 .find(|&&mapping| mapping.0 == player.last_pressed)
                 .unwrap();
             let (_, direction, position) = *last_mapping;
-            player.direction = direction;
-            player.position = position;
-            if let Ok(mut sprite) = player_sprite.get_single_mut() {
-                if let Some(ref mut texture_atlas) = sprite.texture_atlas {
-                    texture_atlas.index = position;
-                }
-            }
+            handle_direction_change(&mut player, &mut player_sprite, direction, position);
         }
     }
 
