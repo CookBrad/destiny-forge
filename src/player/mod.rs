@@ -4,12 +4,27 @@ use bevy_ecs_tilemap::prelude::*;
 use std::time::Duration;
 
 use crate::items::ItemStack;
-
+#[derive(PartialEq, Debug)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
     pub position: usize,
+    pub direction: Direction,
+    last_pressed: Keys,
     frame_timer: Timer,
+}
+
+enum Keys {
+    A,
+    W,
+    S,
+    D,
 }
 
 impl Default for Player {
@@ -17,6 +32,8 @@ impl Default for Player {
         Self {
             speed: 3.0,
             position: 1,
+            direction: Direction::Down,
+            last_pressed: Keys::S,
             frame_timer: Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once),
         }
     }
@@ -65,23 +82,150 @@ pub fn move_player(
 
     if let Ok(mut player_sprite) = player_sprite.get_single_mut() {
         if let Some(ref mut player_sprite_texture_atlas) = player_sprite.texture_atlas {
-            if keyboard_input.just_pressed(KeyCode::KeyW) {
+            if keyboard_input.pressed(KeyCode::KeyA) && keyboard_input.pressed(KeyCode::KeyD) {
+                return;
+            }
+            if keyboard_input.pressed(KeyCode::KeyW) && keyboard_input.pressed(KeyCode::KeyS) {
+                return;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyW)
+                && (!keyboard_input.pressed(KeyCode::KeyS)
+                    && !keyboard_input.pressed(KeyCode::KeyA)
+                    && !keyboard_input.pressed(KeyCode::KeyD))
+            {
                 player.position = 8;
+                player.direction = Direction::Up;
                 player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyA)
+                && (!keyboard_input.pressed(KeyCode::KeyS)
+                    && !keyboard_input.pressed(KeyCode::KeyW)
+                    && !keyboard_input.pressed(KeyCode::KeyD))
+            {
+                player.position = 12;
+                player.direction = Direction::Left;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyD)
+                && (!keyboard_input.pressed(KeyCode::KeyS)
+                    && !keyboard_input.pressed(KeyCode::KeyA)
+                    && !keyboard_input.pressed(KeyCode::KeyW))
+            {
+                player.position = 4;
+                player.direction = Direction::Right;
+                player_sprite_texture_atlas.index = player.position;
+            }
+            if keyboard_input.just_pressed(KeyCode::KeyS)
+                && (!keyboard_input.pressed(KeyCode::KeyW)
+                    && !keyboard_input.pressed(KeyCode::KeyA)
+                    && !keyboard_input.pressed(KeyCode::KeyD))
+            {
+                player.position = 0;
+                player.direction = Direction::Down;
+                player_sprite_texture_atlas.index = player.position;
+            }
+
+            if keyboard_input.just_pressed(KeyCode::KeyW) {
+                player.last_pressed = Keys::W;
             }
             if keyboard_input.just_pressed(KeyCode::KeyA) {
-                player.position = 12;
-                player_sprite_texture_atlas.index = player.position;
-            }
-            if keyboard_input.just_pressed(KeyCode::KeyD) {
-                player.position = 4;
-                player_sprite_texture_atlas.index = player.position;
+                player.last_pressed = Keys::A;
             }
             if keyboard_input.just_pressed(KeyCode::KeyS) {
-                player.position = 0;
-                player_sprite_texture_atlas.index = player.position;
+                player.last_pressed = Keys::S;
             }
+            if keyboard_input.just_pressed(KeyCode::KeyD) {
+                player.last_pressed = Keys::D;
+            }
+
+            if keyboard_input.just_released(KeyCode::KeyD) {
+                match player.last_pressed {
+                    Keys::A => {
+                        player.position = 12;
+                        player.direction = Direction::Left;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::S => {
+                        player.position = 0;
+                        player.direction = Direction::Down;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::D => {}
+                    Keys::W => {
+                        player.position = 8;
+                        player.direction = Direction::Up;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                }
+            }
+
+            if keyboard_input.just_released(KeyCode::KeyA) {
+                match player.last_pressed {
+                    Keys::A => {}
+                    Keys::S => {
+                        player.position = 0;
+                        player.direction = Direction::Down;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::D => {
+                        player.position = 4;
+                        player.direction = Direction::Right;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::W => {
+                        player.position = 8;
+                        player.direction = Direction::Up;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                }
+            }
+
+            if keyboard_input.just_released(KeyCode::KeyS) {
+                match player.last_pressed {
+                    Keys::A => {
+                        player.position = 12;
+                        player.direction = Direction::Left;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::S => {}
+                    Keys::D => {
+                        player.position = 4;
+                        player.direction = Direction::Right;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::W => {
+                        player.position = 8;
+                        player.direction = Direction::Up;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                }
+            }
+
+            if keyboard_input.just_released(KeyCode::KeyW) {
+                match player.last_pressed {
+                    Keys::A => {
+                        player.position = 12;
+                        player.direction = Direction::Left;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::S => {
+                        player.position = 0;
+                        player.direction = Direction::Down;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::D => {
+                        player.position = 4;
+                        player.direction = Direction::Right;
+                        player_sprite_texture_atlas.index = player.position;
+                    }
+                    Keys::W => {}
+                }
+            }
+
             if keyboard_input.pressed(KeyCode::KeyW) {
+                if player.direction == Direction::Down {
+                    return;
+                }
                 new_y += player.speed;
                 player.frame_timer.tick(time.delta());
                 if player.frame_timer.just_finished() {
@@ -95,6 +239,9 @@ pub fn move_player(
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyS) {
+                if player.direction == Direction::Up {
+                    return;
+                }
                 new_y -= player.speed;
                 player.frame_timer.tick(time.delta());
                 if player.frame_timer.just_finished() {
@@ -108,6 +255,9 @@ pub fn move_player(
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyD) {
+                if player.direction == Direction::Left {
+                    return;
+                }
                 new_x += player.speed;
                 player.frame_timer.tick(time.delta());
                 if player.frame_timer.just_finished() {
@@ -121,6 +271,9 @@ pub fn move_player(
                 }
             }
             if keyboard_input.pressed(KeyCode::KeyA) {
+                if player.direction == Direction::Right {
+                    return;
+                }
                 new_x -= player.speed;
                 player.frame_timer.tick(time.delta());
                 if player.frame_timer.just_finished() {

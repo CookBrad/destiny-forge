@@ -3,7 +3,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 mod player;
 use items::{ItemCategory, ItemStack};
-use player::{CollisionMap, Inventory, Player, move_player};
+use player::{Direction, Inventory, Player, move_player};
 
 mod inventory_ui;
 use inventory_ui::*;
@@ -154,24 +154,12 @@ fn setup(
 
     // **Spawn Camera**
     commands.spawn(Camera2d::default());
-
-    // **Collision Map**
-    // Initialize with all tiles collidable (true)
-    let mut collision_data = vec![true; (map_size.x * map_size.y) as usize];
-    // Dirt tile at (5, 5) is not collidable (false)
-    let dirt_index = (5 * map_size.x + 5) as usize; // Row-major indexing
-    collision_data[dirt_index] = false;
-    commands.insert_resource(CollisionMap {
-        width: map_size.x,
-        height: map_size.y,
-        data: collision_data,
-    });
 }
 
 fn player_action(
     mut commands: Commands,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_query: Query<&Transform, With<Player>>,
+    player_query: Query<(&Transform, &Player)>,
     tilemap_query: Query<(&TilemapGridSize, &TileStorage, &Transform)>,
     tile_texture_query: Query<&TileTextureIndex>,
     mut inventory_query: Query<&mut Inventory>,
@@ -180,7 +168,7 @@ fn player_action(
     sprite_sheet: Res<SpriteSheetLayout>,
 ) {
     if keyboard_input.just_pressed(KeyCode::KeyE) {
-        let player_transform = player_query.single();
+        let (player_transform, player) = player_query.single();
         let (grid_size, tile_storage, tilemap_transform) = tilemap_query.single();
 
         let world_pos = player_transform.translation;
@@ -195,24 +183,40 @@ fn player_action(
         };
 
         // Compute the tile's center in local space
-        let tile_local_pos = Vec3::new(
+        let mut tile_local_pos = Vec3::new(
             tile_pos_bevy.x as f32 * grid_size.x,
             tile_pos_bevy.y as f32 * grid_size.y + grid_size.y / 2.0,
             0.0,
         );
 
-        // Convert the tile's local position to world space
-        let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
-
         let player_tile = world_to_tile(
-            player_transform.translation.truncate(),
+            world_pos.truncate(),
             Vec2 {
                 x: tilemap_transform.scale.x,
                 y: tilemap_transform.scale.y,
             },
         );
-        let delta = get_faced_tile_delta(player_transform);
-        let faced_tile = (player_tile.0 + delta.0, player_tile.1 + delta.1);
+        match player.direction {
+            Direction::Up => {
+                tile_local_pos.y += grid_size.y;
+            }
+            Direction::Down => {
+                tile_local_pos.y -= grid_size.y;
+            }
+            Direction::Left => {
+                if (player_tile.0 as f32).rem_euclid(grid_size.x) > grid_size.x / 2.0 {
+                    tile_local_pos.x -= grid_size.x;
+                }
+            }
+            Direction::Right => {
+                tile_local_pos.x += grid_size.x;
+            }
+        }
+
+        // Convert the tile's local position to world space
+        let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
+
+        let faced_tile = (player_tile.0, player_tile.1);
         let mut crops_to_harvest = Vec::new();
         for (crop, crop_transform) in query_crops.iter_mut() {
             let crop_tile = world_to_tile(
@@ -302,8 +306,6 @@ fn player_action(
                     if is_empty {
                         inventory.items[selected_slot.0] = None;
                     }
-                } else {
-                    println!("No item in selected slot");
                 }
             }
         }
@@ -327,7 +329,6 @@ fn plant_crop(
                     if item.count > 0 {
                         item.count -= 1;
                         is_empty = item.count == 0;
-                        println!("{}", is_empty);
                         commands.send_event(InventoryUpdateEvent);
 
                         commands.spawn((
@@ -346,7 +347,6 @@ fn plant_crop(
                             },
                             crop_to_plant,
                         ));
-                        println!("Placed item: {:?}", item.item_type.category());
                         return is_empty;
                     }
                 }
@@ -383,23 +383,6 @@ fn world_to_tile(world_pos: Vec2, tile_size: Vec2) -> (i32, i32) {
     let i = (world_pos.x / tile_size.x).floor() as i32;
     let j = (world_pos.y / tile_size.y).floor() as i32;
     (i, j)
-}
-
-// Helper function to determine the faced tile based on player rotation
-fn get_faced_tile_delta(transform: &Transform) -> (i32, i32) {
-    let angle = transform.rotation.to_euler(EulerRot::XYZ).2;
-    let angle_deg = angle.to_degrees();
-    if angle_deg > -45.0 && angle_deg <= 45.0 {
-        (1, 0) // Right
-    } else if angle_deg > 45.0 && angle_deg <= 135.0 {
-        (0, 1) // Up
-    } else if (angle_deg > 135.0 && angle_deg <= 180.0)
-        || (angle_deg >= -180.0 && angle_deg < -135.0)
-    {
-        (-1, 0) // Left
-    } else {
-        (0, -1) // Down
-    }
 }
 
 fn grow_crops(
