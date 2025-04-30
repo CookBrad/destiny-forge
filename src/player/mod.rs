@@ -1,4 +1,3 @@
-// src/player/mod.rs
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use std::time::Duration;
@@ -11,21 +10,14 @@ pub enum Direction {
     Left,
     Right,
 }
+
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
     pub position: usize,
     pub direction: Direction,
-    last_pressed: Keys,
+    last_pressed: KeyCode, // Changed from Keys enum to KeyCode
     frame_timer: Timer,
-}
-
-#[derive(PartialEq, Clone, Copy, Debug)]
-enum Keys {
-    A,
-    W,
-    S,
-    D,
 }
 
 impl Default for Player {
@@ -34,8 +26,8 @@ impl Default for Player {
             speed: 3.0,
             position: 1,
             direction: Direction::Down,
-            last_pressed: Keys::S,
-            frame_timer: Timer::new(Duration::from_secs_f32(1.0 / (8.0)), TimerMode::Once),
+            last_pressed: KeyCode::KeyS, // Default to KeyCode::KeyS
+            frame_timer: Timer::new(Duration::from_secs_f32(1.0 / 8.0), TimerMode::Once),
         }
     }
 }
@@ -51,21 +43,23 @@ pub fn move_player(
     let (map_size, tile_size, tilemap_transform) = tilemap_query.single();
     let scale = tilemap_transform.scale.x;
 
+    // Define direction mappings: (KeyCode, Direction, position)
     let direction_mappings = [
-        (KeyCode::KeyW, Keys::W, Direction::Up, 8),
-        (KeyCode::KeyA, Keys::A, Direction::Left, 12),
-        (KeyCode::KeyS, Keys::S, Direction::Down, 0),
-        (KeyCode::KeyD, Keys::D, Direction::Right, 4),
+        (KeyCode::KeyW, Direction::Up, 8),
+        (KeyCode::KeyA, Direction::Left, 12),
+        (KeyCode::KeyS, Direction::Down, 0),
+        (KeyCode::KeyD, Direction::Right, 4),
     ];
 
     let all_direction_keys = [KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD];
     let pressed_directions: Vec<KeyCode> = all_direction_keys
         .iter()
-        .filter(|&&k| keyboard_input.pressed(k))
+        .filter(|&&key| keyboard_input.pressed(key))
         .cloned()
         .collect();
 
-    for &(key_code, _, direction, position) in &direction_mappings {
+    // Handle just_pressed logic
+    for &(key_code, direction, position) in &direction_mappings {
         if keyboard_input.just_pressed(key_code) && pressed_directions.len() == 1 {
             player.direction = direction;
             player.position = position;
@@ -77,19 +71,21 @@ pub fn move_player(
         }
     }
 
-    for &(key_code, key, _, _) in &direction_mappings {
+    // Set last_pressed when a direction key is just pressed
+    for &(key_code, _, _) in &direction_mappings {
         if keyboard_input.just_pressed(key_code) {
-            player.last_pressed = key;
+            player.last_pressed = key_code;
         }
     }
 
-    for &(key_code, key, _, _) in &direction_mappings {
-        if keyboard_input.just_released(key_code) && player.last_pressed != key {
+    // Handle just_released logic
+    for &(key_code, _, _) in &direction_mappings {
+        if keyboard_input.just_released(key_code) && player.last_pressed != key_code {
             let last_mapping = direction_mappings
                 .iter()
-                .find(|&&mapping| mapping.1 == player.last_pressed)
+                .find(|&&mapping| mapping.0 == player.last_pressed)
                 .unwrap();
-            let (_, _, direction, position) = *last_mapping;
+            let (_, direction, position) = *last_mapping;
             player.direction = direction;
             player.position = position;
             if let Ok(mut sprite) = player_sprite.get_single_mut() {
@@ -100,6 +96,7 @@ pub fn move_player(
         }
     }
 
+    // Early return if opposite directions are pressed
     if keyboard_input.pressed(KeyCode::KeyA) && keyboard_input.pressed(KeyCode::KeyD) {
         return;
     }
@@ -107,6 +104,7 @@ pub fn move_player(
         return;
     }
 
+    // Movement logic
     let mut new_x = player_transform.translation.x;
     let mut new_y = player_transform.translation.y;
     let mut should_animate = false;
@@ -129,6 +127,7 @@ pub fn move_player(
         should_animate = true;
     }
 
+    // Animation update
     if should_animate {
         player.frame_timer.tick(time.delta());
         if player.frame_timer.just_finished() {
@@ -145,6 +144,7 @@ pub fn move_player(
         }
     }
 
+    // Clamp to tilemap bounds
     let local_width = map_size.x as f32 * tile_size.x;
     let local_height = map_size.y as f32 * tile_size.y;
     let min_x = tilemap_transform.translation.x;
@@ -154,6 +154,7 @@ pub fn move_player(
     new_x = new_x.clamp(min_x, max_x);
     new_y = new_y.clamp(min_y, max_y);
 
+    // Update position with z = y
     player_transform.translation = Vec3::new(new_x, new_y, 500.0 - new_y);
 }
 
