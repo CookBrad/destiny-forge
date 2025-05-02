@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{math::vec2, prelude::*};
 use bevy_ecs_tilemap::prelude::*;
 
 mod player;
@@ -171,71 +171,37 @@ fn player_action(
         let (player_transform, player) = player_query.single();
         let (grid_size, tile_storage, tilemap_transform) = tilemap_query.single();
 
-        let world_pos = player_transform.translation;
-        let local_pos = (world_pos - tilemap_transform.translation) / tilemap_transform.scale.x;
+        let world_pos = player_transform.translation.truncate();
 
-        // Calculate the tile position at the player's feet
-        let tile_x = (local_pos.x / grid_size.x).floor() as u32;
-        let tile_y = (local_pos.y / grid_size.y).floor() as u32;
-        let tile_pos_bevy = TilePos {
-            x: tile_x,
-            y: tile_y,
-        };
+        // Player's tile position
+        let player_tile = world_to_tile(world_pos, tilemap_transform, grid_size);
 
-        // Compute the tile's center in local space
-        let mut tile_local_pos = Vec3::new(
-            tile_pos_bevy.x as f32 * grid_size.x,
-            tile_pos_bevy.y as f32 * grid_size.y + grid_size.y / 2.0,
-            0.0,
-        );
-
-        let player_tile = world_to_tile(
-            world_pos.truncate(),
-            Vec2 {
-                x: tilemap_transform.scale.x,
-                y: tilemap_transform.scale.y,
-            },
-        );
+        // Compute the faced tile position
+        let mut player_tile_faced = player_tile;
         match player.direction {
-            Direction::Up => {
-                tile_local_pos.y += grid_size.y;
-            }
-            Direction::Down => {
-                tile_local_pos.y -= grid_size.y;
-            }
-            Direction::Left => {
-                if (player_tile.0 as f32).rem_euclid(grid_size.x) > grid_size.x / 2.0 {
-                    tile_local_pos.x -= grid_size.x;
-                }
-            }
-            Direction::Right => {
-                tile_local_pos.x += grid_size.x;
-            }
+            Direction::Up => player_tile_faced.y = (player_tile_faced.y + 1).min(19), // Cap at map bounds
+            Direction::Down => player_tile_faced.y = player_tile_faced.y.saturating_sub(1),
+            Direction::Left => player_tile_faced.x = player_tile_faced.x.saturating_sub(1),
+            Direction::Right => player_tile_faced.x = player_tile_faced.x + 1,
         }
 
-        // Convert the tile's local position to world space
-        let tile_world_pos = tilemap_transform.transform_point(tile_local_pos);
-
-        let faced_tile = (player_tile.0, player_tile.1);
         let mut crops_to_harvest = Vec::new();
         for (crop, crop_transform) in query_crops.iter_mut() {
             let crop_tile = world_to_tile(
                 crop_transform.translation.truncate(),
-                Vec2 {
-                    x: tilemap_transform.scale.x,
-                    y: tilemap_transform.scale.y,
-                },
+                tilemap_transform,
+                grid_size,
             );
 
-            let crop_x = crop_tile.0 as i32;
-            let crop_y = crop_tile.1 as i32;
-            let faced_x = faced_tile.0 as i32;
-            let faced_y = faced_tile.1 as i32;
+            let crop_x = crop_tile.x as i32;
+            let crop_y = crop_tile.y as i32;
+            let faced_x = player_tile.x as i32; // Use player's tile, not faced tile, per original logic
+            let faced_y = player_tile.y as i32;
 
-            if faced_x >= crop_x - 8
-                && faced_x <= crop_x + 8
-                && faced_y >= crop_y - 8
-                && faced_y <= crop_y + 8
+            if faced_x >= crop_x - 1
+                && faced_x <= crop_x + 1
+                && faced_y >= crop_y - 1
+                && faced_y <= crop_y + 1
                 && *crop.get_stage() == GrowthStage::Fruiting
             {
                 crops_to_harvest.push((crop, crop_transform));
@@ -243,15 +209,11 @@ fn player_action(
         }
 
         if let Some((crop, crop_transform)) = crops_to_harvest.first_mut() {
-            // Harvesting logic
+            // Harvesting logic (unchanged)
             let harvested_item_stack = crop.crop_type.harvested();
-
-            // Add harvested item to inventory
             if let Ok(inventory) = inventory_query.get_single_mut() {
                 add_item_to_inventory(&mut commands, inventory, harvested_item_stack);
             }
-
-            // Spawn visual effect
             commands
                 .spawn((
                     Sprite {
@@ -274,37 +236,58 @@ fn player_action(
                     speed: 100.0,
                     timer: 0.0,
                 });
-
-            // Reset crop to Mature stage
             crop.timer = 20.0;
             crop.set_stage(GrowthStage::Mature);
         } else {
             // Planting logic
             if let Ok(mut inventory) = inventory_query.get_single_mut() {
-                let mut is_empty = false;
                 if let Some(item) = &mut inventory.items[selected_slot.0] {
                     match item.item_type.category() {
                         ItemCategory::Crop => {
-                            is_empty = plant_crop(
-                                item,
-                                tile_storage,
-                                tile_texture_query,
-                                tile_pos_bevy,
-                                commands,
-                                sprite_sheet,
-                                tile_world_pos,
-                            );
-                            if is_empty {
-                                inventory.items[selected_slot.0] = None;
+                            let mut can_plant = true;
+                            for (_, crop_transform) in query_crops.iter() {
+                                let crop_tile = world_to_tile(
+                                    crop_transform.translation.truncate(),
+                                    tilemap_transform,
+                                    grid_size,
+                                );
+
+                                if (TilePos {
+                                    x: crop_tile.x - 1, // 1 offset for center placement
+                                    y: crop_tile.y,
+                                }) == player_tile_faced
+                                {
+                                    // Use player_tile_faced for planting
+                                    can_plant = false;
+                                    break;
+                                }
+                            }
+                            if can_plant {
+                                let tile_local_pos = Vec3::new(
+                                    player_tile_faced.x as f32 * grid_size.x + grid_size.x,
+                                    player_tile_faced.y as f32 * grid_size.y + grid_size.y / 2.0,
+                                    0.0,
+                                );
+                                let tile_world_pos =
+                                    tilemap_transform.transform_point(tile_local_pos);
+                                let is_empty = plant_crop(
+                                    item,
+                                    tile_storage,
+                                    tile_texture_query,
+                                    player_tile_faced,
+                                    commands,
+                                    sprite_sheet,
+                                    tile_world_pos,
+                                );
+                                if is_empty {
+                                    inventory.items[selected_slot.0] = None;
+                                }
                             }
                         }
                         ItemCategory::Food => {}
                         ItemCategory::Weapon => {}
                         ItemCategory::Armor => {}
                         ItemCategory::Tool => {}
-                    }
-                    if is_empty {
-                        inventory.items[selected_slot.0] = None;
                     }
                 }
             }
@@ -316,14 +299,14 @@ fn plant_crop(
     item: &mut ItemStack,
     tile_storage: &TileStorage,
     tile_texture_query: Query<&TileTextureIndex>,
-    tile_pos_bevy: TilePos,
+    target_tile_pos: TilePos,
     mut commands: Commands,
     sprite_sheet: Res<SpriteSheetLayout>,
     tile_world_pos: Vec3,
 ) -> bool {
     let mut is_empty = false;
     if let Some(crop_to_plant) = item.item_type.plant() {
-        if let Some(tile_entity) = tile_storage.get(&tile_pos_bevy) {
+        if let Some(tile_entity) = tile_storage.get(&target_tile_pos) {
             if let Ok(tile_texture) = tile_texture_query.get(tile_entity) {
                 if tile_texture.0 == 0 {
                     if item.count > 0 {
@@ -379,10 +362,21 @@ fn move_harvested_items(
 }
 
 // Helper function to convert world position to tile grid position
-fn world_to_tile(world_pos: Vec2, tile_size: Vec2) -> (i32, i32) {
-    let i = (world_pos.x / tile_size.x).floor() as i32;
-    let j = (world_pos.y / tile_size.y).floor() as i32;
-    (i, j)
+fn world_to_tile(
+    world_pos: Vec2,
+    tilemap_transform: &Transform,
+    grid_size: &TilemapGridSize,
+) -> TilePos {
+    // Convert world position to tilemap local space
+    let local_pos =
+        (world_pos - tilemap_transform.translation.truncate()) / tilemap_transform.scale.truncate();
+    // Convert local position to tile indices
+    let tile_x = (local_pos.x / grid_size.x).floor() as i32;
+    let tile_y = (local_pos.y / grid_size.y).floor() as i32;
+    TilePos {
+        x: tile_x.max(0) as u32,
+        y: tile_y.max(0) as u32,
+    }
 }
 
 fn grow_crops(
