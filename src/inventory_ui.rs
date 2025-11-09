@@ -323,6 +323,25 @@ pub fn handle_drop(
     }
 }
 
+pub fn handle_right_click_selection(
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut selected_slot: ResMut<SelectedSlot>,
+    query: Query<(&Interaction, &Name), With<SlotTag>>,
+) {
+    if mouse.just_pressed(MouseButton::Right) {
+        for (interaction, name) in query.iter() {
+            if *interaction == Interaction::Hovered {
+                if let Some(slot_num) = name.as_str().strip_prefix("Slot_") {
+                    if let Ok(slot_index) = slot_num.parse::<usize>() {
+                        selected_slot.0 = slot_index;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn update_slot(
     commands: &mut Commands,
     slot_entity: Entity,
@@ -468,17 +487,17 @@ pub fn handle_inventory_scroll(
 ) {
     let num_slots = slots.iter().count();
     for event in mouse_wheel_events.read() {
-        if slot_query
-            .iter()
-            .any(|&interaction| interaction == Interaction::Hovered)
-        {
-            let scroll_direction = event.y;
-            if scroll_direction > 0.0 {
-                selected_slot.0 = (selected_slot.0 + 1) % num_slots;
-            } else if scroll_direction < 0.0 {
-                selected_slot.0 = (selected_slot.0 + num_slots - 1) % num_slots;
-            }
+        // if slot_query
+        //     .iter()
+        //     .any(|&interaction| interaction == Interaction::Hovered)
+        // {
+        let scroll_direction = event.y;
+        if scroll_direction > 0.0 {
+            selected_slot.0 = (selected_slot.0 + 1) % num_slots;
+        } else if scroll_direction < 0.0 {
+            selected_slot.0 = (selected_slot.0 + num_slots - 1) % num_slots;
         }
+        // }
     }
 }
 

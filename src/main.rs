@@ -1,4 +1,4 @@
-use bevy::{math::vec2, prelude::*};
+use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 
 mod player;
@@ -50,6 +50,7 @@ fn main() {
                 handle_drag,
                 handle_drop,
                 handle_inventory_scroll,
+                handle_right_click_selection,
                 update_slot_borders,
             ),
         )
@@ -179,8 +180,14 @@ fn player_action(
         // Compute the faced tile position
         let mut player_tile_faced = player_tile;
         match player.direction {
-            Direction::Up => player_tile_faced.y = (player_tile_faced.y + 1).min(19), // Cap at map bounds
-            Direction::Down => player_tile_faced.y = player_tile_faced.y.saturating_sub(1),
+            Direction::Up => {
+                player_tile_faced.y = (player_tile_faced.y + 1).min(19);
+                player_tile_faced.x = player_tile_faced.x.saturating_sub(1);
+            }
+            Direction::Down => {
+                player_tile_faced.y = player_tile_faced.y.saturating_sub(1);
+                player_tile_faced.x = player_tile_faced.x.saturating_sub(1)
+            }
             Direction::Left => player_tile_faced.x = player_tile_faced.x.saturating_sub(1),
             Direction::Right => player_tile_faced.x = player_tile_faced.x + 1,
         }
