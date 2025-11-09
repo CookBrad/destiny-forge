@@ -1,4 +1,5 @@
 pub mod seeds;
+pub mod weapons;
 use super::crops::{Corn, Crop, CropType};
 
 use bevy::prelude::Component;
@@ -33,13 +34,14 @@ pub trait Item {
 #[derive(Clone, Debug)]
 pub enum ItemType {
     CornSeed(seeds::corn::CornSeed),
+    Sword(weapons::sword::Sword),
 }
 
 impl ItemType {
     pub fn as_item(&self) -> &dyn Item {
         match self {
             ItemType::CornSeed(corn) => corn,
-            // Add other variants here as you expand your item system
+            ItemType::Sword(sword) => sword,
         }
     }
     pub fn category(&self) -> ItemCategory {
@@ -51,6 +53,7 @@ impl ItemType {
                 crop_type: CropType::Corn(Corn::default()),
                 timer: 0.0,
             }),
+            ItemType::Sword(_) => None,
         }
     }
 }

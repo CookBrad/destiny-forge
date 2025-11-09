@@ -171,3 +171,6 @@ pub fn move_player(
 pub struct Inventory {
     pub items: Vec<Option<ItemStack>>,
 }
+
+pub mod health_bar;
+pub use health_bar::{setup_player_health_bar, update_player_health_bar};

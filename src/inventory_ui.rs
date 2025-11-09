@@ -466,6 +466,7 @@ pub fn add_corn_to_inventory(mut inventory_query: Query<&mut Inventory, With<Pla
             if !found {
                 let max_count = match &item_type_to_add {
                     ItemType::CornSeed(corn) => corn.stack_size(),
+                    ItemType::Sword(sword) => sword.stack_size(),
                 };
                 let new_stack = ItemStack {
                     item_type: item_type_to_add,

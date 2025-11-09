@@ -3,7 +3,9 @@ use bevy_ecs_tilemap::prelude::*;
 
 mod player;
 use items::{ItemCategory, ItemStack};
-use player::{Direction, Inventory, Player, move_player};
+use player::{
+    Direction, Inventory, Player, move_player, setup_player_health_bar, update_player_health_bar,
+};
 
 mod inventory_ui;
 use inventory_ui::*;
@@ -12,6 +14,16 @@ mod crops;
 use crops::{Crop, GrowthStage};
 
 mod items;
+
+mod enemy;
+use enemy::{
+    Health as EnemyHealth, despawn_dead_enemies, enemy_ai, spawn_enemy, update_enemy_health_bars,
+};
+
+mod combat;
+use combat::{
+    enemy_attack_player, handle_sword_attack, update_attack_hitboxes, update_attacking_state,
+};
 
 const SCALE: f32 = 3.0;
 
@@ -40,9 +52,22 @@ fn main() {
         .add_systems(Startup, add_corn_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_corn_to_inventory))
         .add_systems(Startup, update_slot_borders.after(setup_inventory_bar))
+        .add_systems(Startup, setup_player_health_bar.after(setup_inventory_bar))
         .add_systems(Update, move_harvested_items)
         .add_systems(Update, (move_player, player_action))
         .add_systems(Update, grow_crops)
+        .add_systems(
+            Update,
+            (
+                enemy_ai,
+                enemy_attack_player,
+                update_enemy_health_bars,
+                despawn_dead_enemies,
+                handle_sword_attack,
+                update_attack_hitboxes,
+                update_attacking_state,
+            ),
+        )
         .add_systems(
             Update,
             (
@@ -52,6 +77,7 @@ fn main() {
                 handle_inventory_scroll,
                 handle_right_click_selection,
                 update_slot_borders,
+                update_player_health_bar,
             ),
         )
         .add_systems(
@@ -144,7 +170,28 @@ fn setup(
         Inventory {
             items: vec![None; 5], // 5 slots, initially empty
         },
+        EnemyHealth::new(100.0), // Player health
     ));
+
+    // **Spawn Enemies**
+    let enemy_positions = vec![
+        Vec3::new(100.0, 100.0, 500.0),
+        Vec3::new(-100.0, 100.0, 500.0),
+        Vec3::new(100.0, -100.0, 500.0),
+    ];
+
+    for pos in enemy_positions {
+        spawn_enemy(
+            &mut commands,
+            pos,
+            &SpriteSheetLayout {
+                crops_layout: crops_texture_atlas_layout.clone(),
+                crops_texture: crops_texture.clone(),
+                player_layout: player_texture_atlas_layout.clone(),
+                player_texture: player_texture.clone(),
+            },
+        );
+    }
 
     commands.insert_resource(SpriteSheetLayout {
         crops_layout: crops_texture_atlas_layout,
