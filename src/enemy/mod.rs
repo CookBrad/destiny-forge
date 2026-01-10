@@ -72,21 +72,6 @@ pub fn spawn_enemy(
 
     // Spawn health bar above enemy using UI nodes
     // Position will be updated by update_enemy_health_bars system
-    // Spawn health bar background
-    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            width: Val::Px(30.0),
-            height: Val::Px(4.0),
-            left: Val::Px(0.0), // Will be updated by system
-            top: Val::Px(0.0),  // Will be updated by system
-            ..default()
-        },
-        BackgroundColor(Color::srgb(0.2, 0.2, 0.2)), // Dark background
-        EnemyHealthBar { enemy_entity },
-        Name::new("EnemyHealthBarBackground"),
-    ));
-
     // Spawn health bar fill (the actual health indicator)
     commands.spawn((
         Node {

@@ -113,10 +113,10 @@ pub fn update_attack_hitboxes(
 }
 
 pub fn enemy_attack_player(
-    time: Res<Time>,
     mut player_query: Query<&mut Health, With<Player>>,
     enemy_query: Query<(&Transform, &Enemy), (With<Enemy>, Without<Player>)>,
     player_transform_query: Query<&Transform, With<Player>>,
+    mut hit_shake: ResMut<crate::player::PlayerHitShake>,
 ) {
     let Ok(mut player_health) = player_query.get_single_mut() else {
         return;
@@ -138,6 +138,8 @@ pub fn enemy_attack_player(
 
         if distance <= enemy.attack_range {
             player_health.take_damage(enemy.attack_damage);
+            // Trigger health bar shake
+            hit_shake.timer.reset();
             println!(
                 "Player hit by enemy! Health: {}/{}",
                 player_health.current, player_health.max

@@ -1,9 +1,23 @@
 use crate::enemy::Health;
 use bevy::prelude::*;
 use bevy::ui::BackgroundColor;
+use std::time::Duration;
 
 #[derive(Component)]
 pub struct PlayerHealthBar;
+
+#[derive(Resource)]
+pub struct PlayerHitShake {
+    pub timer: Timer,
+}
+
+impl Default for PlayerHitShake {
+    fn default() -> Self {
+        Self {
+            timer: Timer::new(Duration::from_secs_f32(0.3), TimerMode::Once),
+        }
+    }
+}
 
 pub fn setup_player_health_bar(mut commands: Commands) {
     // Spawn health bar fill (the actual health indicator)
@@ -24,12 +38,15 @@ pub fn setup_player_health_bar(mut commands: Commands) {
 
 pub fn update_player_health_bar(
     time: Res<Time>,
+    mut hit_shake: ResMut<PlayerHitShake>,
     player_query: Query<&Health, With<crate::player::Player>>,
     mut health_bar_query: Query<(&mut Node, &mut BackgroundColor, &Name), With<PlayerHealthBar>>,
 ) {
     let Ok(player_health) = player_query.get_single() else {
         return;
     };
+
+    hit_shake.timer.tick(time.delta());
 
     let health_percentage = player_health.current / player_health.max;
     let base_height = 200.0;
@@ -39,8 +56,19 @@ pub fn update_player_health_bar(
         if name.as_str() == "PlayerHealthBarFill" {
             node.height = Val::Px(current_height.max(0.0)); // Ensure non-negative
 
+            // Shake effect when hit (temporary)
+            let hit_shake_amount = if !hit_shake.timer.finished() {
+                let progress =
+                    hit_shake.timer.elapsed_secs() / hit_shake.timer.duration().as_secs_f32();
+                // Shake intensity decreases over time
+                let intensity = 1.0 - progress;
+                (time.elapsed_secs() * 30.0).sin() * intensity * 5.0 // Shake 5px max, fades out
+            } else {
+                0.0
+            };
+
             // Shake effect when health is in red zone (below 30%)
-            let shake_amount = if health_percentage <= 0.3 {
+            let red_zone_shake = if health_percentage <= 0.3 {
                 // Shake more intensely as health gets lower
                 let intensity = 1.0 - (health_percentage / 0.3); // 0.0 to 1.0
                 (time.elapsed_secs() * 20.0).sin() * intensity * 3.0 // Shake 3px max
@@ -48,7 +76,10 @@ pub fn update_player_health_bar(
                 0.0
             };
 
-            node.right = Val::Px(20.0 + shake_amount);
+            // Combine both shake effects
+            let total_shake = hit_shake_amount + red_zone_shake;
+
+            node.right = Val::Px(20.0 + total_shake);
             node.bottom = Val::Px(20.0); // Always keep bottom fixed
 
             // Change color based on health: dark green -> yellow -> red

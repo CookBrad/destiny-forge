@@ -48,6 +48,7 @@ fn main() {
         .add_plugins(TilemapPlugin)
         .add_event::<InventoryUpdateEvent>()
         .insert_resource(DragState::default())
+        .init_resource::<player::PlayerHitShake>()
         .add_systems(Startup, setup)
         .add_systems(Startup, add_corn_to_inventory.after(setup))
         .add_systems(Startup, setup_inventory_bar.after(add_corn_to_inventory))

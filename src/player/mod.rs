@@ -173,4 +173,4 @@ pub struct Inventory {
 }
 
 pub mod health_bar;
-pub use health_bar::{setup_player_health_bar, update_player_health_bar};
+pub use health_bar::{PlayerHitShake, setup_player_health_bar, update_player_health_bar};
