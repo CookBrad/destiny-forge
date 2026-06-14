@@ -1,8 +1,0 @@
-[package]
-name = "destiny_forge"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-bevy = "0.15"
-bevy_ecs_tilemap = "0.15"
