@@ -1,0 +1,16 @@
+All sprites in assets/sprites/ are AI-generated art processed by tools in tools/.
+
+Raw sources (assets/source/ai_*_raw.jpg):
+  player              - tools/character_art.py
+  mine_entrance       - tools/mine_art.py
+  hub_tiles           - tools/asset_art.py
+  dungeon_sheet       - tools/asset_art.py
+  forge               - tools/asset_art.py
+  hub_background      - tools/asset_art.py
+  dungeon_background  - tools/asset_art.py
+
+Rebuild everything:
+  .venv/bin/python tools/generate_ai_assets.py
+
+Rebuild gameplay sprites only:
+  .venv/bin/python tools/generate_sprites.py

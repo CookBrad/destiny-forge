@@ -1,0 +1,1 @@
+// Reserved for a dedicated forge UI panel in Phase 2.
