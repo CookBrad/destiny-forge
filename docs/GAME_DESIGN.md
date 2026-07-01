@@ -2,33 +2,113 @@
 
 A pixelated Rust game that blends **Stardew Valley**-style farming and mining with **Monster Hunter**-style weapon and armor progression.
 
+**Document version:** v0.2 — July 2026
+
+| Version | Date       | Notes                                      |
+| ------- | ---------- | ------------------------------------------ |
+| v0.1    | June 2026  | Initial design from planning session       |
+| v0.2    | July 2026  | Fresh-start revision: scope, specs, phases |
+
+---
+
+## Table of Contents
+
+1. [Vision](#vision)
+2. [Target Player & Tone](#target-player--tone)
+3. [Non-Goals](#non-goals)
+4. [Vertical Slice](#vertical-slice)
+5. [Perspective & World Structure](#perspective--world-structure)
+6. [Core Game Loop](#core-game-loop)
+7. [Controls](#controls)
+8. [Hub Layout](#hub-layout)
+9. [Tech Stack](#tech-stack)
+10. [Architecture](#architecture)
+11. [Coding Standards](#coding-standards)
+12. [Progression](#progression--monster-hunter-style)
+13. [Systems Detail](#systems-detail)
+14. [Tutorial Flow](#tutorial-flow)
+15. [Phase Plan](#phase-plan)
+16. [MVP Content Targets](#mvp-content-targets)
+17. [Art Direction](#art-direction)
+18. [Decisions](#decisions)
+19. [Open Questions](#open-questions)
+
 ---
 
 ## Vision
 
 **Destiny Forge** is a cozy-yet-challenging loop: tend your homestead above ground, then descend into dungeons to hunt monsters, carve materials, and forge gear that changes how you fight and farm.
 
-| Inspiration | What we borrow |
-|-------------|----------------|
-| Stardew Valley | Day cycles, tile-based farming, mining, inventory, satisfying resource loops |
+| Inspiration    | What we borrow                                                                           |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| Stardew Valley | Day cycles, tile-based farming, mining, inventory, satisfying resource loops             |
 | Monster Hunter | Craft gear from monster parts, weapon upgrade trees, armor set bonuses, prep-before-hunt |
 
 ### Long-term pillars (post-MVP)
 
-- **Fish farming** — ponds, species, feed, harvest yields
-- **Surface mining** — ore nodes, pickaxe tiers, stamina
+- **Fish farming** — ponds, species, feed, harvest yields → forge inputs and food
+- **Surface mining** — ore nodes, pickaxe tiers, stamina → base metals for weapons
 - **Homestead** — top-down farm, mine entrance, forge, town
 - **Dungeons** — side-scrolling floors, monsters, loot
 - **Forging** — weapons and armor crafted from carved materials
 
 ---
 
+## Target Player & Tone
+
+**Who:** Players who enjoy short, satisfying hunt-and-craft sessions without Monster Hunter's hour-long fights or steep onboarding.
+
+**Tone:** Cozy on the surface, tense underground. Preparation feels calm; dungeons feel focused and punchy.
+
+**Session length:**
+
+- **Dungeon run:** 15–30 minutes per floor
+- **Forge visit:** ~5 minutes between runs
+- **Full loop (MVP):** under 30 minutes from hub exit to first meaningful craft
+
+**MVP success metrics:**
+
+- Player completes one full hunt → carve → craft → re-hunt cycle without guidance
+- Second run feels meaningfully easier with new gear (faster kills or faster carving)
+- No crash or soft-lock across 10 consecutive loops
+
+---
+
+## Non-Goals
+
+Explicit scope boundaries for the MVP and early phases:
+
+- No multiplayer or co-op
+- No procedural dungeon generation (hand-authored floors)
+- No mid-dungeon gear changes
+- No farming, fishing, or surface mining until post–Phase 1
+- No shop or currency economy — all gear is forged from materials
+- No narrative campaign or quest system in MVP
+
+---
+
+## Vertical Slice
+
+The smallest shippable proof that the core fantasy works. Every Phase 1 milestone serves this session:
+
+1. Spawn at hub with Rusty Sword equipped
+2. Walk to dungeon entrance, enter Floor 1
+3. Defeat 2 Slimes and 1 Bat using melee combat
+4. Carve all three corpses
+5. Return to hub via ladder exit
+6. Craft Iron Sword at the forge
+7. Re-enter the dungeon and notice faster kills or easier carving with Slime armor (if crafted)
+
+**Phase 1 done when:** this session is playable start-to-finish without crashes.
+
+---
+
 ## Perspective & World Structure
 
-| Zone | Camera | Notes |
-|------|--------|-------|
-| Overworld (farm, mine, town) | **Top-down** | Tilemap-based, Stardew-like movement and interaction |
-| Dungeons | **Side-scroller** | Platformer combat, room/floor transitions, distinct feel from surface life |
+| Zone                         | Camera            | Notes                                                                      |
+| ---------------------------- | ----------------- | -------------------------------------------------------------------------- |
+| Overworld (farm, mine, town) | **Top-down**      | Tilemap-based, Stardew-like movement and interaction                       |
+| Dungeons                     | **Side-scroller** | Platformer combat, room/floor transitions, distinct feel from surface life |
 
 The shift in perspective reinforces the fantasy: calm preparation above, intense hunts below.
 
@@ -47,41 +127,85 @@ flowchart LR
         Enter[Enter Floor]
         Hunt[Hunt Monsters]
         Carve[Carve Materials]
+        Return[Return to Hub]
     end
     Prep --> Enter
     Enter --> Hunt
     Hunt --> Carve
-    Carve --> Forge
+    Carve --> Return
+    Return --> Forge
     Forge --> Prep
     ExploreS --> Forge
 ```
 
-**MVP loop (Phase 1):** enter dungeon → fight monsters → carve parts → return to forge → craft basic weapons and armor → re-enter with better gear.
+**MVP loop (Phase 1):** enter dungeon → fight monsters → carve parts → return to hub → craft weapons and armor at the forge → re-enter with better gear.
 
-Farming and surface mining plug into this loop later as additional material sources and downtime activities.
+Farming, surface mining, and fish farming plug into this loop later as additional material sources feeding the forge.
+
+---
+
+## Controls
+
+### Hub (top-down)
+
+| Input        | Action                          |
+| ------------ | ------------------------------- |
+| WASD         | Move                            |
+| E            | Interact (dungeon door, forge)  |
+| Up / Down    | Cycle forge recipes             |
+| F            | Craft selected recipe           |
+
+### Dungeon (side-scroller)
+
+| Input        | Action                          |
+| ------------ | ------------------------------- |
+| WASD         | Move                            |
+| Space        | Jump                            |
+| J            | Attack (weapon-dependent)       |
+| E (hold)     | Carve corpse (2s, interruptible)|
+| E            | Exit via ladder (when near)     |
+
+---
+
+## Hub Layout
+
+Minimal MVP hub — three interactable zones on a single screen:
+
+```text
+[Spawn] ——————— [Forge] ——————— [Dungeon Entrance]
+```
+
+- **Spawn:** player start position after loading or respawning
+- **Forge:** recipe selection and crafting
+- **Dungeon Entrance:** transitions to Floor 1
+
+Full farm, mine, and town zones are deferred to Phase 2+.
 
 ---
 
 ## Tech Stack
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Language | **Rust** | Performance, safety, good fit for game logic |
-| Engine | **Bevy** | ECS architecture scales for farming sim + combat + inventory |
-| Overworld rendering | **bevy_ecs_tilemap** | Pixel tilemaps, 16×16 or similar |
-| Dungeon rendering | **Bevy 2D** (sprites, cameras) | Side-scroller layers, parallax optional later |
-| Game data | **RON / TOML** | Fish species, ores, weapons, armor, recipes as data files |
-| Saves | **serde + bincode** (or RON) | World state, inventory, gear, dungeon progress |
+| Layer               | Choice                         | Rationale                                                    |
+| ------------------- | ------------------------------ | ------------------------------------------------------------ |
+| Language            | **Rust**                       | Performance, safety, good fit for game logic                 |
+| Engine              | **Bevy**                       | ECS architecture scales for farming sim + combat + inventory |
+| Overworld rendering | **bevy_ecs_tilemap**           | Pixel tilemaps, 16×16 tiles                                  |
+| Dungeon rendering   | **Bevy 2D** (sprites, cameras) | Side-scroller layers, parallax optional later                |
+| Game data           | **RON / TOML**                 | Fish species, ores, weapons, armor, recipes as data files    |
+| Saves               | **serde + bincode** (or RON)   | World state, inventory, gear, dungeon progress               |
+
+**Data migration note:** MVP recipes and loot tables may start as Rust constants for speed. Migrate to `assets/data/*.ron` before Phase 2 content expansion.
 
 ---
 
-## Architecture (Fresh Start)
+## Architecture
 
-Starting **completely over** on the `revamp` branch. No carry-over from the old monolithic `main.rs`; reuse ideas only where they still fit.
+Greenfield Bevy project. Organize by **game mode** and **domain**, not by a single giant update loop.
 
 ```
 src/
 ├── core/           # App states, time, save/load, scene transitions
+├── graphics/       # Sprites, tilemaps, camera, animation, pixel scale
 ├── dungeon/        # Side-scroller: floors, rooms, platforming, spawns
 ├── combat/         # Hitboxes, damage, weapons, armor skills
 ├── forging/        # Recipes, forge UI, craft validation
@@ -93,66 +217,13 @@ src/
 └── main.rs         # Plugin registration only
 ```
 
-Organize by **game mode** and **domain**, not by a single giant update loop.
+**Asset pipeline:** AI-generated source art in `assets/source/` → processed by `tools/generate_sprites.py` and related scripts → gameplay sprites in `assets/sprites/`. Art specs (tile size, frame layout) live in [Art Direction](#art-direction).
 
 ---
 
-## Coding Standards — Clean Code (Robert C. Martin)
+## Coding Standards
 
-All Rust code in this project follows the principles from *Clean Code*. The ECS architecture already encourages separation of concerns; these rules keep that discipline explicit.
-
-### Meaningful names
-
-- Types, functions, and variables reveal intent without comments: `CarveLootTable`, `try_craft_recipe`, `equipped_armor_pieces`
-- Avoid abbreviations and noise words (`data`, `info`, `manager`, `handle_thing`)
-- Names are pronounceable and searchable; one word per concept (`craft` not `make`/`build`/`create` interchangeably)
-
-### Small functions
-
-- Functions do **one thing**, do it well, and do it only
-- Prefer ~5–15 lines per function; extract when a function mixes concerns (e.g. input + validation + mutation)
-- One level of abstraction per function — a system orchestrates, helpers perform single steps
-
-### SOLID (adapted for Rust + Bevy)
-
-| Principle | How we apply it |
-|-----------|-----------------|
-| **S**ingle Responsibility | One plugin/module per domain (`dungeon`, `forging`, `combat`); one system per behavior |
-| **O**pen/Closed | New weapons, armor sets, and recipes extend via data/types — not by editing core loops |
-| **L**iskov Substitution | Shared traits (`Item`, `Recipe`) behave consistently across all implementors |
-| **I**nterface Segregation | Small traits and marker components instead of fat “god” components |
-| **D**ependency Inversion | Systems depend on resources/traits; content is injected via plugins and data |
-
-### Comments
-
-- Code explains **what**; comments explain **why** (non-obvious rules, balance notes, deferred work)
-- No commented-out code in commits; no journal-style change logs in source files
-- TODOs include context: `// TODO(phase-2): persist inventory when save system lands`
-
-### Formatting & structure
-
-- Consistent module layout: `plugin.rs` registers systems; behavior lives in focused files
-- `main.rs` only wires plugins — no game logic
-- Related code stays vertically close; variables declared near first use
-- Boy Scout Rule: leave every file slightly cleaner than you found it
-
-### Error handling
-
-- Recoverable game logic returns `Option` or `Result` — not panics
-- `expect`/`unwrap` only for programmer invariants (e.g. “player exists in dungeon state”)
-- Invalid player actions fail silently or with UI feedback — never crash the app
-
-### Tests
-
-- Pure logic (recipes, set bonuses, inventory math) gets unit tests
-- Systems that glue Bevy together stay thin so logic remains testable without a full app
-
-### What we avoid
-
-- Monolithic `update` functions and thousand-line `main.rs`
-- Boolean flag parameters that change behavior (`craft(item, true, false)`)
-- Duplicated logic across dungeon and overworld — shared behavior lives in `core` or `items`
-- Premature abstraction; extract only after the second real use case
+Engineering conventions (Clean Code, SOLID, testing, error handling): see [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 
 ---
 
@@ -162,41 +233,45 @@ All Rust code in this project follows the principles from *Clean Code*. The ECS 
 
 Start with a small weapon roster, each with a short upgrade tree:
 
-- **Sword** — balanced melee
-- **Spear** — reach, slower
-- *(Optional later: Rod, Hammer, etc.)*
+| Weapon | Role                              | Attack feel                          |
+| ------ | --------------------------------- | ------------------------------------ |
+| Sword  | Balanced melee                    | Fast swings, short range             |
+| Spear  | Reach, slower                     | Longer hitbox, slower wind-up        |
 
-Each tier requires specific **monster materials + base ore** (ore can be placeholder drops until surface mining exists).
+*(Optional later: Rod, Hammer, etc.)*
+
+Each tier requires specific **monster materials + base ore** (ore as placeholder dungeon drops until surface mining exists).
 
 ```text
-Rusty Sword → Iron Sword → [Monster] Scale Blade
+Rusty Sword → Iron Sword → Slime Blade
                 ↓
-            Iron Spear → [Monster] Core Pike
+            Rusty Spear → (future) Slime Core Pike
 ```
 
 **Design rules:**
 
 - Upgrades are crafted at the forge, not bought
+- Weapon upgrades that replace a tier consume the previous weapon (e.g. Slime Blade requires Iron Sword)
 - Higher tiers unlock new attack properties (range, combo, special) — not just +damage
-- Weapons are brought into dungeons; losing a run does not destroy gear (adjust for difficulty later)
+- Weapons are brought into dungeons; death does not destroy gear
 
 ### Armor sets (MVP focus)
 
 Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
-| Slot | Example piece |
-|------|----------------|
-| Head | Helm |
-| Chest | Mail |
-| Arms | Gauntlets |
-| Legs | Greaves |
+| Slot  | Example piece |
+| ----- | ------------- |
+| Head  | Helm          |
+| Chest | Mail          |
+| Arms  | Gauntlets     |
+| Legs  | Greaves       |
 
 **Example starter set — Slime Set** (from early dungeon monster):
 
-| Pieces equipped | Set bonus |
-|-----------------|-----------|
-| 2 | +10% carve speed |
-| 4 | Reduced knockback in dungeons |
+| Pieces equipped | Set bonus                     | Stacks with lower tiers? |
+| --------------- | ----------------------------- | ------------------------ |
+| 2               | +10% carve speed              | —                        |
+| 4               | 35% knockback resist          | Yes — includes 2pc bonus |
 
 **Design rules:**
 
@@ -206,11 +281,11 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 ### Materials
 
-| Source | MVP | Later |
-|--------|-----|-------|
-| Monster carve | Primary for forge | Expanded part tables per species |
-| Ore | Placeholder dungeon drops | Surface mining |
-| Fish | — | Fish farming |
+| Source        | MVP                       | Later                            |
+| ------------- | ------------------------- | -------------------------------- |
+| Monster carve | Primary for forge         | Expanded part tables per species |
+| Ore           | Placeholder dungeon drops | Surface mining                   |
+| Fish          | —                         | Fish farming                     |
 
 ---
 
@@ -218,39 +293,68 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 ### Dungeons (side-scroller) — **Phase 1 priority**
 
-- Floor-based progression (start with 1–2 floors)
+- **One hand-authored floor** for MVP (second floor in Phase 2)
 - Platform collision, ledges, room transitions
 - Monster spawns with simple AI (patrol, chase, attack)
-- **Carve** interaction on defeated monsters (timer or prompt)
-- Exit portal / ladder to surface (forge hub stub is fine for MVP)
+- **Carve** interaction on defeated monsters (see [Combat & Carve](#combat--carve))
+- Ladder exit to hub (forge hub stub is fine for MVP)
 - Drop tables: parts mapped to armor set and weapon upgrades
 
 ### Forging — **Phase 1 priority**
 
-- Forge station (UI on surface stub or between-run menu)
-- Recipe definitions in data files: inputs → output gear
+- Forge station in hub
+- Recipe definitions: inputs → output gear (Rust constants MVP; RON later)
 - Validate inventory materials before craft
 - Consume materials on success; equip weapon / armor slots
 - Show set bonus preview when crafting armor
 
-### Combat (dungeon)
+### Combat & Carve
 
-- Melee hitboxes tied to equipped weapon
-- Player health, ienemy health, i-frames on hit (tune later)
-- Armor modifies defense and skill triggers
-- Basic attack + one weapon-specific behavior per tier if time allows
+**Combat:**
+
+- Melee hitboxes tied to equipped weapon (sword: short/fast, spear: long/slow)
+- Player and enemy health
+- Damage formula: `max(1, attack_power - defense)` (tune in playtesting)
+- i-frames on player hit: **0.5s** (tune later)
+- Knockback on hit; reduced by armor set bonuses
+- Basic attack per weapon; one weapon-specific behavior per tier if time allows
+
+**Death:**
+
+- Player respawns at hub spawn point
+- Gear and materials are kept (see [Decisions](#decisions))
+
+**Carve (MVP):**
+
+- Approach defeated monster corpse, hold **E** for **2 seconds**
+- Carving is interruptible if the player takes damage
+- One carve per corpse; yields all parts from that monster's loot table
+- Set bonuses (e.g. +10% carve speed) reduce hold duration
 
 ### Inventory & loadout
 
-- Material stacks (carved parts, placeholder ore)
-- Equipped: weapon + 4 armor slots
+- **24 material stack slots** (carved parts, placeholder ore)
+- Equipped: 1 weapon + 4 armor slots (head, chest, arms, legs)
+- Gear is not stored in inventory — only equipped or uncrafted
 - Quick swap at forge only (no mid-dungeon gear change in MVP)
 
 ### Overworld (top-down) — **stub for MVP**
 
-- Minimal hub: spawn point, forge building, dungeon entrance
-- Top-down movement plugin stub so transition surface ↔ dungeon is real
+- Minimal hub: spawn point, forge building, dungeon entrance (see [Hub Layout](#hub-layout))
+- Top-down movement so transition surface ↔ dungeon is real
 - Full farm/mine/fish systems deferred
+
+---
+
+## Tutorial Flow
+
+First-time player guidance through the vertical slice (no quest UI in MVP — use placement and HUD hints):
+
+1. **Hub:** HUD hint — *"Press E at the dungeon door to hunt"*
+2. **Dungeon:** Slime placed near entrance; teaches move → attack
+3. **First kill:** HUD hint — *"Hold E on the corpse to carve"*
+4. **Ladder:** visible at floor end — *"Press E to return to the forge"*
+5. **Forge:** player arrives with enough Slime Gel to craft Iron Sword or first armor piece
 
 ---
 
@@ -258,37 +362,52 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 ### Phase 1 — Dungeons & Forging *(current focus)*
 
-- [x] Fresh Bevy project structure on `revamp`
-- [x] Side-scroller dungeon: one floor, platforms, player controller
-- [x] 1–2 monster types with carve loot tables
-- [x] Basic combat (attack, damage, death)
-- [x] Inventory + material stacks
-- [x] Forge: craft basic weapons (Sword line, Spear line)
-- [x] Forge: craft armor set (one full set, 4 slots, 2-piece bonus)
-- [x] Scene transition: hub (top-down stub) ↔ dungeon
+Build in dependency order:
+
+1. [ ] Greenfield Bevy project structure (see [Architecture](#architecture))
+2. [ ] App states: Hub ↔ Dungeon transitions
+3. [ ] Side-scroller dungeon: one floor, platforms, player controller
+4. [ ] Basic combat: attack, damage, death, respawn at hub
+5. [ ] 1–2 monster types with carve loot tables
+6. [ ] Carve interaction + material inventory
+7. [ ] Hub stub: spawn, forge, dungeon entrance
+8. [ ] Forge: craft Sword line (Rusty → Iron → Slime Blade)
+9. [ ] Forge: craft Spear line (Rusty Spear) + Slime Set (4 pieces, set bonuses)
+
+**Done when:** [Vertical Slice](#vertical-slice) is playable end-to-end.
 
 ### Phase 2 — Overworld & loop polish
 
-- [ ] Top-down hub zone (tilemap)
-- [ ] Day/night or run-based pacing
-- [ ] Save / load
-- [ ] Second dungeon floor + second armor set
+1. [ ] Save / load (inventory, loadout, dungeon progress)
+2. [ ] Top-down hub zone (tilemap)
+3. [ ] Day/night or run-based pacing
+4. [ ] Second dungeon floor + second armor set
+
+**Done when:** progress persists across sessions; two floors offer distinct gear goals.
 
 ### Phase 3 — Surface mining
 
 - [ ] Mine zone (top-down)
 - [ ] Ore nodes, pickaxe tiers
-- [ ] Ore feeds forge recipes
+- [ ] Ore feeds forge recipes (replaces placeholder dungeon ore drops)
+
+**Done when:** ore comes primarily from mining, not dungeon drops.
 
 ### Phase 4 — Fish farming
 
 - [ ] Ponds, species, growth timers
 - [ ] Fish as food or crafting inputs
 
+**Done when:** at least one forge recipe requires fish materials.
+
 ### Phase 5 — Content & balance
 
-- [ ] More monsters, sets, weapon branches
-- [ ] UI polish, audio, juice
+- [ ] More monsters, armor sets, weapon branches
+- [ ] Audio: hit, carve, craft success, ambient hub/dungeon
+- [ ] Juice: screen shake, hit flash, carve particles
+- [ ] UI polish: forge recipe preview, set bonus display, inventory sorting
+
+**Done when:** content roster supports 2+ hours of progression without repetition fatigue.
 
 ---
 
@@ -296,45 +415,70 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 ### Monsters (dungeon)
 
-| Monster | Role | Carve parts |
-|---------|------|-------------|
-| Slime | Tutorial enemy | Slime Gel, Slime Core |
-| Bat (or similar) | Light ranged / flyer | Leather Wing, Fang |
+| Monster | Role                 | HP  | Damage | Behavior              | Carve parts           | Carve time |
+| ------- | -------------------- | --- | ------ | --------------------- | --------------------- | ---------- |
+| Slime   | Tutorial enemy       | 30  | 8      | Slow patrol, chase    | Slime Gel, Slime Core | 2.0s       |
+| Bat     | Light ranged / flyer | 20  | 6      | Hover, swoop attack   | Leather Wing, Fang    | 2.0s       |
+
+*HP, damage, and carve time are initial tuning targets.*
 
 ### Weapons
 
-| Item | Tier | Key materials |
-|------|------|----------------|
-| Rusty Sword | 0 | Default loadout |
-| Iron Sword | 1 | Slime Gel ×5, Iron Scrap ×3 |
-| Slime Blade | 2 | Slime Core ×2, Iron Sword (upgrade) |
-| Rusty Spear | 1 | Slime Gel ×3, Fang ×2 |
+| Item        | Tier | Attack power | Reach | Key materials                       |
+| ----------- | ---- | ------------ | ----- | ----------------------------------- |
+| Rusty Sword | 0    | 10           | Short | Default loadout                     |
+| Iron Sword  | 1    | 14           | Short | Slime Gel ×5, Iron Scrap ×3         |
+| Slime Blade | 2    | 18           | Short | Slime Core ×2, Iron Sword (upgrade) |
+| Rusty Spear | 1    | 12           | Long  | Slime Gel ×3, Fang ×2               |
 
 ### Armor — Slime Set
 
-| Piece | Materials |
-|-------|-----------|
-| Slime Helm | Slime Gel ×4 |
-| Slime Mail | Slime Gel ×6, Slime Core ×1 |
-| Slime Gauntlets | Slime Gel ×3 |
-| Slime Greaves | Slime Gel ×4 |
+| Piece           | Defense | Materials                   |
+| --------------- | ------- | --------------------------- |
+| Slime Helm      | 2       | Slime Gel ×4                |
+| Slime Mail      | 4       | Slime Gel ×6, Slime Core ×1 |
+| Slime Gauntlets | 1       | Slime Gel ×3                |
+| Slime Greaves   | 2       | Slime Gel ×3                |
 
-**Set bonuses:** 2pc carve speed; 4pc knockback resist (values TBD in playtesting).
+**Set bonuses:** 2pc +10% carve speed; 4pc 35% knockback resist (4pc includes 2pc bonus). Values subject to playtesting.
+
+---
+
+## Art Direction
+
+| Spec              | Value                                      |
+| ----------------- | ------------------------------------------ |
+| Tile size         | 16×16 pixels                               |
+| Character frames  | 16×32 pixels (Stardew-style proportions)   |
+| Render scale      | 3× (pixel art upscaled without smoothing)  |
+| Palette           | Warm, Stardew-inspired — earthy greens, wood tones, soft highlights |
+| Shading           | Multi-tone per sprite (2–3 shades per color) |
+| Buildings         | Cozy, readable silhouettes; forge and mine entrance distinct at a glance |
+
+**Pipeline:** generate source art → process via `tools/generate_sprites.py` → output to `assets/sprites/`. Rebuild command documented in `assets/source/ATTRIBUTION.txt`.
+
+---
+
+## Decisions
+
+Resolved design questions. Update this table when choices change.
+
+| Date       | Decision                        | Rationale                                           |
+| ---------- | ------------------------------- | --------------------------------------------------- |
+| 2026-07    | Death respawns at hub           | Cozy tone; avoids punishing new players             |
+| 2026-07    | Gear and materials kept on death| Preserves craft-loop momentum                       |
+| 2026-07    | Unlimited movement (no stamina)| Reduces MVP tuning surface; revisit in Phase 3 mining |
+| 2026-07    | 24 material inventory slots     | Enough for one floor's drops without constant trips |
+| 2026-07    | One floor for MVP               | Vertical slice focus; second floor in Phase 2       |
+| 2026-07    | Carve: hold E for 2s             | Simple input, readable feedback, interruptible      |
+| 2026-07    | Set bonuses stack by tier       | 4pc includes 2pc bonus                              |
+| 2026-07    | Recipes in Rust for MVP         | Faster iteration; migrate to RON before Phase 2     |
 
 ---
 
 ## Open Questions
 
-- Permadeath vs. death respawn at hub?
-- Stamina in dungeons or unlimited sprint for MVP?
-- How many inventory slots for materials vs. gear?
-- Pixel scale: **16×16 tiles, 16×32 character frames** (Stardew layout), **3× render scale** — see `graphics::PIXEL_SCALE`
-- Art style: **Stardew-inspired** — warm palette, tiled grass, multi-tone shading, cozy buildings; regenerate via `tools/generate_sprites.py`
-
----
-
-## Repo Notes
-
-- **Branch:** `revamp` — clean slate; `develop` kept for reference only
-- **Prior codebase:** Had crops, inventory, top-down combat; not ported to revamp
-- **Document version:** Initial design from planning session — June 2026
+- Iron Spear tier-2 upgrade timing — Phase 2 or Phase 5?
+- Day/night cycle vs. run-based pacing for Phase 2?
+- Should Bat corpses fall to the ground or hang in place for carving?
+- Difficulty knob: enemy HP scaling on repeat visits, or static tuning?
