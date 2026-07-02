@@ -7,7 +7,7 @@ pub const ENEMY_ROOT: &str = "dungeon/enemies";
 pub const PLAYER_IDLE: &str = "player/knight_idle_side.png";
 pub const PLAYER_RUN: &str = "player/knight_run_side.png";
 pub const PLAYER_ATTACK: &str = "player/knight_attack_side.png";
-pub const WEAPON_ANIME_SWORD: &str = "player/weapon_anime_sword.png";
+pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
 pub const PLAYER_FRAME_WIDTH: f32 = 16.0;
 pub const PLAYER_FRAME_HEIGHT: f32 = 28.0;
