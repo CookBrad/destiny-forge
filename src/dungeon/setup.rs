@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::combat::{EquippedWeapon, Health, PlayerAttack};
+use crate::combat::{
+    ContactDamageCooldown, EquippedWeapon, Health, PlayerAttack, PLAYER_MAX_HEALTH,
+};
 use crate::graphics::{
     center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, PIXEL_SCALE, TILE,
 };
@@ -151,6 +153,8 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt) {
         PlayerAnimation::default(),
         EquippedWeapon::default(),
         PlayerAttack::inactive(),
+        Health::new(PLAYER_MAX_HEALTH),
+        ContactDamageCooldown::default(),
         DungeonEntity,
     ));
 }

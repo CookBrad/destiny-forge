@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    animate_weapon_swing, resolve_weapon_hits, start_player_attack, tick_hit_flash,
-    tick_player_attack,
+    animate_weapon_swing, apply_enemy_contact_damage, resolve_weapon_hits, start_player_attack,
+    tick_hit_flash, tick_player_attack,
 };
 use crate::core::GameState;
 
@@ -27,6 +27,7 @@ impl Plugin for DungeonPlugin {
                     dungeon_movement,
                     animate_player,
                     resolve_weapon_hits,
+                    apply_enemy_contact_damage,
                     tick_hit_flash,
                     patrol_enemies,
                     track_boss_defeat,
