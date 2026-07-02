@@ -10,7 +10,7 @@ const PLAYER_START_X: f32 = 1.5 * TILE;
 const ENTRANCE_TILES: u32 = 8;
 const BOSS_ARENA_TILES: u32 = 12;
 const LADDER_PAD_TILES: u32 = 3;
-const MIN_WIDTH_TILES: u32 = 96;
+const MIN_WIDTH_TILES: u32 = 180;
 
 pub fn random_seed() -> u64 {
     rand::random()
@@ -18,11 +18,11 @@ pub fn random_seed() -> u64 {
 
 pub fn generate_floor(seed: u64) -> GeneratedFloor {
     let mut rng = StdRng::seed_from_u64(seed);
-    let segment_count = rng.gen_range(4..=6);
+    let segment_count = rng.gen_range(8..=12);
 
     let mut width_tiles = ENTRANCE_TILES;
     for _ in 0..segment_count {
-        width_tiles += rng.gen_range(14..=20);
+        width_tiles += rng.gen_range(18..=26);
     }
     width_tiles += BOSS_ARENA_TILES + LADDER_PAD_TILES;
     width_tiles = width_tiles.max(MIN_WIDTH_TILES);
@@ -59,11 +59,11 @@ fn generate_segments(
     let mut bats = Vec::new();
     let mut cursor = start_tile;
 
-    while cursor + 14 < end_tile {
-        let segment_width = rng.gen_range(14..=22).min(end_tile - cursor);
+    while cursor + 18 < end_tile {
+        let segment_width = rng.gen_range(18..=28).min(end_tile - cursor);
         let segment_end = cursor + segment_width;
 
-        let slime_count = rng.gen_range(1..=3);
+        let slime_count = rng.gen_range(2..=4);
         for _ in 0..slime_count {
             if segment_end <= cursor + 4 {
                 break;
