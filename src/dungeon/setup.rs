@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use crate::combat::{EquippedWeapon, Health, PlayerAttack};
 use crate::graphics::{
-    player_display_size, player_half_extents, scaled_size, scaled_transform, DUNGEON_FLOOR_Y, TILE,
+    center_on_surface, player_display_size, scaled_transform, DUNGEON_FLOOR_Y,
+    ENEMY_DISPLAY_SIZE, TILE,
 };
 
 use super::animation::PlayerAnimation;
@@ -126,14 +127,16 @@ fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt) {
 }
 
 fn spawn_player(commands: &mut Commands, art: &DungeonArt) {
-    let half = player_half_extents();
-    let start = Vec2::new(FloorOne::PLAYER_START_X, DUNGEON_FLOOR_Y + half.y);
+    let height = player_display_size().y;
+    let start = Vec2::new(
+        FloorOne::PLAYER_START_X,
+        center_on_surface(DUNGEON_FLOOR_Y, height),
+    );
 
     commands.spawn((
         Sprite {
             image: art.player_idle.clone(),
             rect: Some(player_frame_rect(0)),
-            custom_size: Some(scaled_size(player_display_size())),
             ..default()
         },
         scaled_transform(start, 10.0),
@@ -147,14 +150,14 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt) {
 }
 
 fn spawn_slime(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
-    let half_height = TILE * 0.5;
+    let y = center_on_surface(top_y, ENEMY_DISPLAY_SIZE.y);
 
     commands.spawn((
         Sprite {
             image: art.slime.clone(),
             ..default()
         },
-        scaled_transform(Vec2::new(x, top_y + half_height), 5.0),
+        scaled_transform(Vec2::new(x, y), 5.0),
         SlimeEnemy,
         Health::new(30.0),
         Patrol::between(x - 2.0 * TILE, x + 2.0 * TILE, 35.0),

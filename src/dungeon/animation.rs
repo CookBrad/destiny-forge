@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::combat::PlayerAttack;
-use crate::graphics::{player_display_size, scaled_size};
+
 
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{
@@ -43,9 +43,6 @@ pub fn animate_player(
     else {
         return;
     };
-
-    let display = scaled_size(player_display_size());
-    sprite.custom_size = Some(display);
 
     if attack.is_active() {
         preserve_facing(&mut animation, &transform);

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::dungeon::Patrol;
 use crate::dungeon::DungeonPlayer;
-use crate::graphics::player_half_extents;
+use crate::graphics::{enemy_half_extents, player_half_extents};
 
 use super::health::{damage_amount, Health};
 use super::weapon::{EquippedWeapon, WeaponKind, WeaponStats};
@@ -169,12 +169,12 @@ fn swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
 
 fn enemy_bounds(transform: &Transform) -> Rect {
     let center = transform.translation.truncate();
-    let half = 8.0;
+    let half = enemy_half_extents();
     Rect {
-        min_x: center.x - half,
-        max_x: center.x + half,
-        min_y: center.y - half,
-        max_y: center.y + half,
+        min_x: center.x - half.x,
+        max_x: center.x + half.x,
+        min_y: center.y - half.y,
+        max_y: center.y + half.y,
     }
 }
 
