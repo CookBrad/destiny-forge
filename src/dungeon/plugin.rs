@@ -7,7 +7,7 @@ use crate::combat::{
 use crate::core::GameState;
 
 use super::animation::animate_player;
-use super::enemy::patrol_enemies;
+use super::enemy::{patrol_enemies, track_boss_defeat};
 use super::interaction::{ladder_interaction, update_ladder_prompt};
 use super::movement::dungeon_movement;
 use super::setup::{cleanup_dungeon, setup_dungeon};
@@ -29,6 +29,7 @@ impl Plugin for DungeonPlugin {
                     resolve_weapon_hits,
                     tick_hit_flash,
                     patrol_enemies,
+                    track_boss_defeat,
                     update_ladder_prompt,
                     ladder_interaction,
                 )

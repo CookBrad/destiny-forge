@@ -7,7 +7,7 @@ pub struct DungeonHud;
 
 pub fn spawn_controls_help(mut commands: Commands) {
     commands.spawn((
-        Text::new(controls_text(false)),
+        Text::new(controls_text(&LadderPrompt::default())),
         TextFont {
             font_size: 16.0,
             ..default()
@@ -31,8 +31,9 @@ pub fn update_controls_help(
         return;
     };
 
-    if text.as_str() != controls_text(prompt.visible) {
-        **text = controls_text(prompt.visible);
+    let next = controls_text(&prompt);
+    if text.as_str() != next {
+        **text = next;
     }
 }
 
@@ -45,16 +46,20 @@ pub fn cleanup_controls_help(
     }
 }
 
-fn controls_text(near_ladder: bool) -> String {
+fn controls_text(prompt: &LadderPrompt) -> String {
     let mut lines = vec![
         "Dungeon Floor 1".to_string(),
         "A/D — move   Space — jump   1 — attack".to_string(),
     ];
 
-    if near_ladder {
+    if prompt.near_exit && prompt.exit_unlocked {
         lines.push("E — exit to hub (stub)".to_string());
+    } else if prompt.near_exit {
+        lines.push("Defeat the King Slime to unlock the exit".to_string());
+    } else if prompt.exit_unlocked {
+        lines.push("Exit unlocked — reach the ladder".to_string());
     } else {
-        lines.push("Reach the ladder to return".to_string());
+        lines.push("Reach the boss arena and defeat the King Slime".to_string());
     }
 
     lines.join("\n")

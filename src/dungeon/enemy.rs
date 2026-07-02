@@ -1,12 +1,35 @@
 use bevy::prelude::*;
 
-use crate::combat::EnemyCorpse;
+use crate::combat::{EnemyCorpse, Health};
+use crate::graphics::ENEMY_DISPLAY_SIZE;
 
 #[derive(Component)]
 pub struct SlimeEnemy;
 
 #[derive(Component)]
 pub struct BatEnemy;
+
+#[derive(Component)]
+pub struct KingSlimeBoss;
+
+/// Logical collision half-extents in native sprite pixels (independent of transform scale).
+#[derive(Component, Clone, Copy)]
+pub struct EnemyHitbox(pub Vec2);
+
+impl EnemyHitbox {
+    pub fn standard() -> Self {
+        Self(ENEMY_DISPLAY_SIZE * 0.5)
+    }
+
+    pub fn scaled(multiplier: f32) -> Self {
+        Self(ENEMY_DISPLAY_SIZE * 0.5 * multiplier)
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct DungeonProgress {
+    pub boss_defeated: bool,
+}
 
 #[derive(Component)]
 pub struct Patrol {
@@ -41,5 +64,23 @@ pub fn patrol_enemies(
             transform.translation.x = patrol.max_x;
             patrol.direction = -1.0;
         }
+    }
+}
+
+pub fn track_boss_defeat(
+    mut progress: ResMut<DungeonProgress>,
+    bosses: Query<&Health, With<KingSlimeBoss>>,
+) {
+    if progress.boss_defeated {
+        return;
+    }
+
+    let Some(boss) = bosses.iter().next() else {
+        return;
+    };
+
+    if boss.is_dead() {
+        progress.boss_defeated = true;
+        info!("King Slime defeated — ladder exit unlocked.");
     }
 }

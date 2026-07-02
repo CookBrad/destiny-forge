@@ -2,9 +2,11 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
+use crate::dungeon::{
+    DungeonArt, DungeonPlayer, EnemyHitbox, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
+};
 use crate::dungeon::player_half_extents;
-use crate::graphics::{enemy_half_extents, PIXEL_SCALE};
+use crate::graphics::PIXEL_SCALE;
 
 use super::health::{damage_amount, Health};
 use super::weapon::{EquippedWeapon, WeaponKind, WeaponStats};
@@ -136,7 +138,7 @@ pub fn resolve_weapon_hits(
     mut commands: Commands,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
     mut enemies: Query<
-        (Entity, &Transform, &mut Health, &mut Sprite),
+        (Entity, &Transform, &EnemyHitbox, &mut Health, &mut Sprite),
         (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
     >,
 ) {
@@ -152,12 +154,12 @@ pub fn resolve_weapon_hits(
     let facing = animation_facing(player_transform);
     let hitbox = swing_hitbox(player_transform, &attack, facing);
 
-    for (entity, transform, mut health, mut sprite) in &mut enemies {
+    for (entity, transform, hitbox_extents, mut health, mut sprite) in &mut enemies {
         if attack.hit_entities.contains(&entity) || health.is_dead() {
             continue;
         }
 
-        if !hitbox_overlaps(hitbox, enemy_bounds(transform)) {
+        if !hitbox_overlaps(hitbox, enemy_bounds(transform, hitbox_extents.0)) {
             continue;
         }
 
@@ -253,9 +255,8 @@ fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Re
     }
 }
 
-fn enemy_bounds(transform: &Transform) -> Rect {
+fn enemy_bounds(transform: &Transform, half: Vec2) -> Rect {
     let center = transform.translation.truncate();
-    let half = enemy_half_extents();
     Rect {
         min_x: center.x - half.x,
         max_x: center.x + half.x,

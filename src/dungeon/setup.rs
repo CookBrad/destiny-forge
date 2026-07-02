@@ -2,11 +2,13 @@ use bevy::prelude::*;
 
 use crate::combat::{EquippedWeapon, Health, PlayerAttack};
 use crate::graphics::{
-    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE,
+    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, PIXEL_SCALE, TILE,
 };
 
 use super::animation::PlayerAnimation;
-use super::enemy::{BatEnemy, Patrol, SlimeEnemy};
+use super::enemy::{
+    BatEnemy, DungeonProgress, EnemyHitbox, KingSlimeBoss, Patrol, SlimeEnemy,
+};
 use super::interaction::LadderPrompt;
 use super::level::FloorOne;
 use super::movement::{DungeonPlayer, PlayerVelocity};
@@ -25,9 +27,13 @@ pub struct PlatformCollider {
 #[derive(Component)]
 pub struct DungeonExit;
 
+const BOSS_DISPLAY_SCALE: f32 = 2.0;
+const BOSS_MAX_HEALTH: f32 = 120.0;
+
 pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     let art = DungeonArt::load(&asset_server);
     commands.init_resource::<LadderPrompt>();
+    commands.init_resource::<DungeonProgress>();
 
     spawn_backdrop(&mut commands, &art);
     spawn_ground(&mut commands, &art, FloorOne::GROUND);
@@ -42,14 +48,15 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     for bat in FloorOne::BATS {
         spawn_bat(&mut commands, &art, bat.x, bat.top_y);
     }
+    spawn_king_slime(&mut commands, &art, FloorOne::BOSS);
 
     commands.insert_resource(art);
 }
 
 fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt) {
     let wall = art.wall.clone();
-    for row in 0..6 {
-        for column in 0..24 {
+    for row in 0..FloorOne::BACKDROP_ROWS {
+        for column in 0..FloorOne::WIDTH_TILES {
             let position = Vec2::new(column as f32 * TILE, row as f32 * TILE);
             commands.spawn((
                 Sprite {
@@ -158,6 +165,7 @@ fn spawn_slime(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
         },
         scaled_transform(Vec2::new(x, y), 5.0),
         SlimeEnemy,
+        EnemyHitbox::standard(),
         Health::new(30.0),
         Patrol::between(x - 2.0 * TILE, x + 2.0 * TILE, 35.0),
         DungeonEntity,
@@ -174,8 +182,32 @@ fn spawn_bat(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
         },
         scaled_transform(Vec2::new(x, hover_y), 5.0),
         BatEnemy,
+        EnemyHitbox::standard(),
         Health::new(20.0),
         Patrol::between(x - TILE, x + TILE, 50.0),
+        DungeonEntity,
+    ));
+}
+
+fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: super::level::BossSpawn) {
+    let y = center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y);
+    let boss_scale = PIXEL_SCALE * BOSS_DISPLAY_SCALE;
+
+    commands.spawn((
+        Sprite {
+            image: art.slime.clone(),
+            color: Color::srgb(0.55, 0.95, 0.45),
+            ..default()
+        },
+        Transform {
+            translation: Vec3::new(spec.x, y, 6.0),
+            scale: Vec3::splat(boss_scale),
+            ..default()
+        },
+        KingSlimeBoss,
+        EnemyHitbox::scaled(BOSS_DISPLAY_SCALE),
+        Health::new(BOSS_MAX_HEALTH),
+        Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),
         DungeonEntity,
     ));
 }
@@ -186,6 +218,7 @@ pub fn cleanup_dungeon(
 ) {
     commands.remove_resource::<DungeonArt>();
     commands.remove_resource::<LadderPrompt>();
+    commands.remove_resource::<DungeonProgress>();
     for entity in &entities {
         commands.entity(entity).despawn_recursive();
     }

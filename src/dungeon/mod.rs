@@ -7,7 +7,7 @@ mod plugin;
 mod setup;
 mod sprites;
 
-pub use enemy::Patrol;
+pub use enemy::{EnemyHitbox, Patrol};
 pub use interaction::LadderPrompt;
 pub use movement::DungeonPlayer;
 pub use plugin::DungeonPlugin;
