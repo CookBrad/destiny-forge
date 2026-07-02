@@ -5,7 +5,7 @@ use crate::combat::{
     tick_hit_flash, tick_player_attack,
 };
 use crate::core::GameState;
-use crate::graphics::init_dungeon_camera;
+use crate::graphics::{follow_camera, init_dungeon_camera};
 
 use super::animation::animate_player;
 use super::enemy::{patrol_enemies, track_boss_defeat};
@@ -29,6 +29,7 @@ impl Plugin for DungeonPlugin {
                     tick_player_attack,
                     animate_weapon_swing,
                     dungeon_movement,
+                    follow_camera,
                     animate_player,
                     resolve_weapon_hits,
                     apply_enemy_contact_damage,
