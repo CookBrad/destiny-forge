@@ -49,6 +49,8 @@ pub struct HitFlash {
 /// Sword sprite is 12×30; pivot at waist height on the player (local space).
 const SWORD_HALF_LENGTH: f32 = 15.0;
 const SWORD_PIVOT_Y: f32 = -10.0;
+/// Visual arc completes faster than the full attack timer (hit window unchanged).
+const SWORD_ARC_SPEED: f32 = 2.2;
 
 #[derive(Component)]
 pub struct WeaponSwingFx;
@@ -111,7 +113,8 @@ pub fn animate_weapon_swing(
         return;
     }
 
-    let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
+    let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs * SWORD_ARC_SPEED)
+        .clamp(0.0, 1.0);
 
     for (_, swing, mut transform) in &mut swings {
         let pose = swing_pose(progress);
