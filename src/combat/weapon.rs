@@ -13,7 +13,7 @@ pub enum WeaponKind {
 #[derive(Clone, Copy, Debug)]
 pub struct WeaponStats {
     pub attack_power: f32,
-    /// Pixels forward from the player's leading edge.
+    /// Pixels forward from the player center (spear); sword uses sprite geometry instead.
     pub reach: f32,
     pub swing_secs: f32,
     pub hit_start: f32,
@@ -25,7 +25,7 @@ impl WeaponKind {
         match self {
             Self::RustySword => WeaponStats {
                 attack_power: 10.0,
-                reach: 26.0,
+                reach: 30.0,
                 swing_secs: 0.28,
                 hit_start: 0.08,
                 hit_end: 0.18,

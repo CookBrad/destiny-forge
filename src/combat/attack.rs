@@ -51,6 +51,7 @@ const SWORD_HALF_LENGTH: f32 = 15.0;
 const SWORD_PIVOT_Y: f32 = -10.0;
 /// Visual arc completes faster than the full attack timer (hit window unchanged).
 const SWORD_ARC_SPEED: f32 = 2.2;
+const SWORD_HIT_HALF_THICKNESS: f32 = 8.0;
 
 #[derive(Component)]
 pub struct WeaponSwingFx;
@@ -113,8 +114,7 @@ pub fn animate_weapon_swing(
         return;
     }
 
-    let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs * SWORD_ARC_SPEED)
-        .clamp(0.0, 1.0);
+    let progress = sword_arc_progress(attack);
 
     for (_, swing, mut transform) in &mut swings {
         let pose = swing_pose(progress);
@@ -150,7 +150,8 @@ pub fn resolve_weapon_hits(
     }
 
     let stats = attack.weapon.stats();
-    let hitbox = swing_hitbox(player_transform, stats, animation_facing(player_transform));
+    let facing = animation_facing(player_transform);
+    let hitbox = swing_hitbox(player_transform, &attack, facing);
 
     for (entity, transform, mut health, mut sprite) in &mut enemies {
         if attack.hit_entities.contains(&entity) || health.is_dead() {
@@ -204,22 +205,41 @@ struct Rect {
     max_y: f32,
 }
 
-fn swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
+fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect {
+    match attack.weapon {
+        WeaponKind::RustySword => sword_swing_hitbox(player, attack, facing),
+        WeaponKind::RustySpear => spear_swing_hitbox(player, attack.weapon.stats(), facing),
+    }
+}
+
+fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect {
     let half = player_half_extents();
     let center = player.translation.truncate();
-    let forward = facing.signum();
-    let front_edge = center.x + forward * half.x;
+    let angle = swing_angle(sword_arc_progress(attack));
+    let tip_local = sword_tip_local(angle);
+    let blade_local = sword_blade_center_local(angle);
 
-    let (min_x, max_x) = if forward >= 0.0 {
-        (front_edge, front_edge + stats.reach)
-    } else {
-        (front_edge - stats.reach, front_edge)
-    };
+    let front = center.x + facing * half.x;
+    let tip_x = center.x + facing * tip_local.x;
+    let blade_y = center.y + blade_local.y;
 
-    // Low arc so side-by-side hits connect with shorter ground enemies.
     Rect {
-        min_x,
-        max_x,
+        min_x: front.min(tip_x),
+        max_x: front.max(tip_x),
+        min_y: blade_y - SWORD_HIT_HALF_THICKNESS,
+        max_y: blade_y + SWORD_HIT_HALF_THICKNESS,
+    }
+}
+
+fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
+    let half = player_half_extents();
+    let center = player.translation.truncate();
+    let front = center.x + facing * half.x;
+    let tip_x = center.x + facing * stats.reach;
+
+    Rect {
+        min_x: front.min(tip_x),
+        max_x: front.max(tip_x),
         min_y: center.y - half.y,
         max_y: center.y + 4.0,
     }
@@ -248,22 +268,36 @@ fn animation_facing(transform: &Transform) -> f32 {
     }
 }
 
+fn sword_arc_progress(attack: &PlayerAttack) -> f32 {
+    (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs * SWORD_ARC_SPEED).clamp(0.0, 1.0)
+}
+
 /// Vertical sword starts raised and sweeps 90° downward in local space.
 /// Parent scale flip mirrors the arc when the player faces left.
 fn swing_angle(progress: f32) -> f32 {
     -progress * FRAC_PI_2
 }
 
+fn sword_blade_center_local(angle: f32) -> Vec2 {
+    Vec2::new(
+        SWORD_HALF_LENGTH * (-angle).sin(),
+        SWORD_PIVOT_Y + SWORD_HALF_LENGTH * (-angle).cos(),
+    )
+}
+
+fn sword_tip_local(angle: f32) -> Vec2 {
+    let center = sword_blade_center_local(angle);
+    let direction = Vec2::new((-angle).sin(), (-angle).cos());
+    center + direction * SWORD_HALF_LENGTH
+}
+
 /// Tip traces a circular arc around the waist pivot (not in-place rotation).
 fn swing_pose(progress: f32) -> SwingPose {
     let angle = swing_angle(progress);
-    let offset = Vec2::new(
-        SWORD_HALF_LENGTH * (-angle).sin(),
-        SWORD_HALF_LENGTH * (-angle).cos(),
-    );
+    let center = sword_blade_center_local(angle);
 
     SwingPose {
-        translation: Vec3::new(offset.x, SWORD_PIVOT_Y + offset.y, 0.5),
+        translation: Vec3::new(center.x, center.y, 0.5),
         rotation: Quat::from_rotation_z(angle),
     }
 }
