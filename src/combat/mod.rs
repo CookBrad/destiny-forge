@@ -4,8 +4,8 @@ mod plugin;
 mod weapon;
 
 pub use attack::{
-    animate_weapon_swing, resolve_weapon_hits, start_player_attack, tick_hit_flash,
-    tick_player_attack, EnemyCorpse, PlayerAttack,
+    animate_weapon_swing, draw_sword_hitbox_debug, resolve_weapon_hits, start_player_attack,
+    tick_hit_flash, tick_player_attack, EnemyCorpse, PlayerAttack,
 };
 pub use health::{damage_amount, Health};
 pub use plugin::CombatPlugin;
