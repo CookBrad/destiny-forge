@@ -1,11 +1,10 @@
-use bevy::math::Isometry2d;
 use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
 use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
 use crate::dungeon::player_half_extents;
-use crate::graphics::enemy_half_extents;
+use crate::graphics::{enemy_half_extents, PIXEL_SCALE};
 
 use super::health::{damage_amount, Health};
 use super::weapon::{EquippedWeapon, WeaponKind, WeaponStats};
@@ -96,36 +95,6 @@ pub fn start_player_attack(
             WeaponSwingFx,
         ));
     });
-}
-
-/// Temporary debug overlay for sword collision bounds.
-pub fn draw_sword_hitbox_debug(
-    mut gizmos: Gizmos,
-    player: Query<(&Transform, &PlayerAttack), With<DungeonPlayer>>,
-) {
-    let Ok((transform, attack)) = player.get_single() else {
-        return;
-    };
-
-    if !attack.is_active() || attack.weapon != WeaponKind::RustySword {
-        return;
-    }
-
-    let hitbox = sword_swing_hitbox(transform, attack, animation_facing(transform));
-    let center = Vec2::new(
-        (hitbox.min_x + hitbox.max_x) * 0.5,
-        (hitbox.min_y + hitbox.max_y) * 0.5,
-    );
-    let size = Vec2::new(
-        hitbox.max_x - hitbox.min_x,
-        hitbox.max_y - hitbox.min_y,
-    );
-
-    gizmos.rect_2d(
-        Isometry2d::from_translation(center),
-        size,
-        Color::srgb(1.0, 1.0, 0.0),
-    );
 }
 
 pub fn animate_weapon_swing(
@@ -246,16 +215,17 @@ fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) ->
     let player_center = player.translation.truncate();
     let angle = swing_angle(sword_arc_progress(attack));
     let blade_local = sword_blade_center_local(angle);
-    let blade_world =
-        player_center + Vec2::new(facing * blade_local.x, blade_local.y);
+    // Sword overlay is a scaled child; local offsets render at PIXEL_SCALE in world space.
+    let blade_world = player_center
+        + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
 
     sword_sprite_aabb(blade_world, angle)
 }
 
-/// Axis-aligned bounds of the rotated sword sprite (12×30 native pixels).
+/// Axis-aligned bounds of the rotated sword sprite (12×30 native pixels, scaled for display).
 fn sword_sprite_aabb(center: Vec2, angle: f32) -> Rect {
-    let half_w = SWORD_SPRITE_WIDTH * 0.5;
-    let half_h = SWORD_SPRITE_HEIGHT * 0.5;
+    let half_w = SWORD_SPRITE_WIDTH * 0.5 * PIXEL_SCALE;
+    let half_h = SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE;
     let c = angle.cos().abs();
     let s = angle.sin().abs();
     let extent_x = c * half_w + s * half_h;
