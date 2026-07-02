@@ -46,14 +46,11 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
-/// Sword sprite is 12×30; pivot at the handle (bottom of the blade).
+/// Sword sprite is 12×30; pivot at the player center (parent local origin).
 const SWORD_HALF_LENGTH: f32 = 15.0;
-const SWORD_PIVOT_Y: f32 = 4.0;
 
 #[derive(Component)]
-pub struct WeaponSwingFx {
-    pub facing: f32,
-}
+pub struct WeaponSwingFx;
 
 struct SwingPose {
     translation: Vec3,
@@ -64,9 +61,9 @@ pub fn start_player_attack(
     mut commands: Commands,
     art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut player: Query<(Entity, &Transform, &EquippedWeapon, &mut PlayerAttack), With<DungeonPlayer>>,
+    mut player: Query<(Entity, &EquippedWeapon, &mut PlayerAttack), With<DungeonPlayer>>,
 ) {
-    let Ok((entity, transform, weapon, mut attack)) = player.get_single_mut() else {
+    let Ok((entity, weapon, mut attack)) = player.get_single_mut() else {
         return;
     };
 
@@ -80,8 +77,7 @@ pub fn start_player_attack(
     attack.timer = Timer::from_seconds(stats.swing_secs, TimerMode::Once);
     attack.timer.reset();
 
-    let facing = animation_facing(transform);
-    let pose = swing_pose(0.0, facing);
+    let pose = swing_pose(0.0);
     commands.entity(entity).with_children(|parent| {
         parent.spawn((
             Sprite {
@@ -93,7 +89,7 @@ pub fn start_player_attack(
                 rotation: pose.rotation,
                 ..default()
             },
-            WeaponSwingFx { facing },
+            WeaponSwingFx,
         ));
     });
 }
@@ -117,7 +113,7 @@ pub fn animate_weapon_swing(
     let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
 
     for (_, swing, mut transform) in &mut swings {
-        let pose = swing_pose(progress, swing.facing);
+        let pose = swing_pose(progress);
         transform.translation = pose.translation;
         transform.rotation = pose.rotation;
     }
@@ -248,31 +244,22 @@ fn animation_facing(transform: &Transform) -> f32 {
     }
 }
 
-fn hand_offset_x(facing: f32) -> f32 {
-    5.0 * facing.signum()
+/// Vertical sword starts raised and sweeps 90° downward in local space.
+/// Parent scale flip mirrors the arc when the player faces left.
+fn swing_angle(progress: f32) -> f32 {
+    -progress * FRAC_PI_2
 }
 
-/// Vertical sword sprite starts raised and sweeps 90° downward into the facing direction.
-fn swing_angle(progress: f32, facing: f32) -> f32 {
-    let sweep = progress * FRAC_PI_2;
-    if facing >= 0.0 {
-        -sweep
-    } else {
-        sweep
-    }
-}
-
-/// Tip traces a circular arc around the handle pivot (not in-place rotation).
-fn swing_pose(progress: f32, facing: f32) -> SwingPose {
-    let angle = swing_angle(progress, facing);
-    let pivot = Vec2::new(hand_offset_x(facing), SWORD_PIVOT_Y);
+/// Tip traces a circular arc around the player center pivot (not in-place rotation).
+fn swing_pose(progress: f32) -> SwingPose {
+    let angle = swing_angle(progress);
     let offset = Vec2::new(
         SWORD_HALF_LENGTH * (-angle).sin(),
         SWORD_HALF_LENGTH * (-angle).cos(),
     );
 
     SwingPose {
-        translation: Vec3::new(pivot.x + offset.x, pivot.y + offset.y, 0.5),
+        translation: Vec3::new(offset.x, offset.y, 0.5),
         rotation: Quat::from_rotation_z(angle),
     }
 }
