@@ -1,4 +1,6 @@
 /target
 .venv
+.venv_assets
 __pycache__/
 *.pyc
+assets/source

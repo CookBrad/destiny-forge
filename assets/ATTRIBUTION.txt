@@ -1,0 +1,56 @@
+Destiny Forge — Asset Attribution
+==================================
+
+Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/environment/
+Source packs and archives: assets/source/
+
+Primary stack (recommended)
+---------------------------
+
+Pixel Crawler — Free Pack 2.1
+  Author: Anokolisa
+  URL: https://anokolisa.itch.io/free-pixel-art-asset-pack-topdown-tileset-rpg-16x16-sprites
+  License: Free for commercial/non-commercial use; do not redistribute or resell
+  Used for: source reference (hub props, future)
+
+0x72 knight_m (player)
+  Curated from 0x72 DungeonTileset II frames into assets/player/
+
+0x72 — 16x16 DungeonTileset II v1.7
+  Author: Robert (0x72)
+  URL: https://0x72.itch.io/dungeontileset-ii
+  License: CC0 1.0 (public domain)
+  Used for: dungeon environment tiles, slime and bat enemies
+
+Stealthix — Animated Slimes
+  Author: Stealthix
+  URL: https://stealthix.itch.io/animated-slimes
+  License: CC0 1.0
+  Used for: alternate slime sprites (future)
+
+Rebuild third-party source packs
+--------------------------------
+
+  python3 tools/download_assets.py
+
+Downloads itch.io packs into assets/source/ and extracts to:
+  source/pixel_crawler/
+  source/0x72/
+  source/slimes/
+
+Curate gameplay files from source into player/, dungeon/enemies/, and dungeon/environment/.
+
+Gameplay sprite map
+-------------------
+
+  player/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
+  player/knight_run_side.png    — 0x72 knight_m run (4 frames)
+  player/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
+
+  dungeon/environment/floor_ground.png   — 0x72 floor tile
+  dungeon/environment/floor_platform.png   — 0x72 platform tile
+  dungeon/environment/floor_ladder.png     — 0x72 ladder tile
+  dungeon/environment/wall.png             — 0x72 wall tile
+
+  dungeon/enemies/slime.png   — 0x72 tiny slug
+  dungeon/enemies/bat.png     — 0x72 imp (flying enemy stand-in)
