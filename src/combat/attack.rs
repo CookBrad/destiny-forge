@@ -52,6 +52,8 @@ const SWORD_PIVOT_Y: f32 = -10.0;
 /// Visual arc completes faster than the full attack timer (hit window unchanged).
 const SWORD_ARC_SPEED: f32 = 2.2;
 const SWORD_HIT_HALF_THICKNESS: f32 = 8.0;
+/// Pixels beyond the visual blade tip; also sets minimum reach at full extension.
+const SWORD_HIT_REACH_EXTRA: f32 = 14.0;
 
 #[derive(Component)]
 pub struct WeaponSwingFx;
@@ -220,7 +222,8 @@ fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) ->
     let blade_local = sword_blade_center_local(angle);
 
     let front = center.x + facing * half.x;
-    let tip_x = center.x + facing * tip_local.x;
+    let forward_reach = sword_forward_reach(tip_local.x);
+    let tip_x = center.x + facing * forward_reach;
     let blade_y = center.y + blade_local.y;
 
     Rect {
@@ -229,6 +232,11 @@ fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) ->
         min_y: blade_y - SWORD_HIT_HALF_THICKNESS,
         max_y: blade_y + SWORD_HIT_HALF_THICKNESS,
     }
+}
+
+fn sword_forward_reach(tip_x: f32) -> f32 {
+    let full_extended = 2.0 * SWORD_HALF_LENGTH + SWORD_HIT_REACH_EXTRA;
+    (tip_x + SWORD_HIT_REACH_EXTRA).max(full_extended)
 }
 
 fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
