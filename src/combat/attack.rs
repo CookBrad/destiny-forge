@@ -148,22 +148,21 @@ struct Rect {
 fn swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
     let half = player_half_extents();
     let center = player.translation.truncate();
+    let forward = facing.signum();
+    let front_edge = center.x + forward * half.x;
 
-    let reach = stats.reach;
-    if facing >= 0.0 {
-        Rect {
-            min_x: center.x + 4.0,
-            max_x: center.x + reach,
-            min_y: center.y - half.y + 4.0,
-            max_y: center.y + half.y - 2.0,
-        }
+    let (min_x, max_x) = if forward >= 0.0 {
+        (front_edge, front_edge + stats.reach)
     } else {
-        Rect {
-            min_x: center.x - reach,
-            max_x: center.x - 4.0,
-            min_y: center.y - half.y + 4.0,
-            max_y: center.y + half.y - 2.0,
-        }
+        (front_edge - stats.reach, front_edge)
+    };
+
+    // Low arc so side-by-side hits connect with shorter ground enemies.
+    Rect {
+        min_x,
+        max_x,
+        min_y: center.y - half.y,
+        max_y: center.y + 4.0,
     }
 }
 
