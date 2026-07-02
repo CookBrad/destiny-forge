@@ -236,12 +236,12 @@ fn hand_offset_x(facing: f32) -> f32 {
     5.0 * facing.signum()
 }
 
-/// Vertical sword sprite sweeps 90° into the facing direction over the attack.
+/// Vertical sword sprite starts raised and sweeps 90° downward into the facing direction.
 fn swing_angle(progress: f32, facing: f32) -> f32 {
     let sweep = progress * FRAC_PI_2;
     if facing >= 0.0 {
-        -FRAC_PI_2 + sweep
+        -sweep
     } else {
-        FRAC_PI_2 - sweep
+        sweep
     }
 }
