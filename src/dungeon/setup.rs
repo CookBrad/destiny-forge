@@ -12,8 +12,9 @@ use super::animation::PlayerAnimation;
 use super::enemy::{
     BatEnemy, DungeonProgress, EnemyHitbox, KingSlimeBoss, Patrol, SlimeEnemy,
 };
+use super::generation::{generate_floor, random_seed};
 use super::interaction::LadderPrompt;
-use super::level::FloorOne;
+use super::level::{BossSpawn, DungeonLayout, GeneratedFloor, PlatformSpec};
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
 
@@ -35,34 +36,42 @@ const BOSS_MAX_HEALTH: f32 = 120.0;
 
 pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     let art = DungeonArt::load(&asset_server);
+    let seed = random_seed();
+    let floor = generate_floor(seed);
+
     commands.init_resource::<LadderPrompt>();
     commands.init_resource::<DungeonProgress>();
+    commands.insert_resource(DungeonLayout {
+        seed,
+        floor: floor.clone(),
+    });
     commands.insert_resource(DungeonScrollBounds {
-        width: FloorOne::width_pixels(),
+        width: floor.width_pixels(),
     });
 
-    spawn_backdrop(&mut commands, &art);
-    spawn_ground(&mut commands, &art, FloorOne::GROUND);
-    for platform in FloorOne::PLATFORMS {
+    spawn_backdrop(&mut commands, &art, &floor);
+    spawn_ground(&mut commands, &art, floor.ground);
+    for platform in &floor.platforms {
         spawn_platform(&mut commands, &art, *platform);
     }
-    spawn_ladder_exit(&mut commands, &art);
-    spawn_player(&mut commands, &art);
-    for slime in FloorOne::SLIMES {
+    spawn_ladder_exit(&mut commands, &art, floor.ladder_tile);
+    spawn_player(&mut commands, &art, floor.player_start_x);
+    for slime in &floor.slimes {
         spawn_slime(&mut commands, &art, slime.x, slime.top_y);
     }
-    for bat in FloorOne::BATS {
+    for bat in &floor.bats {
         spawn_bat(&mut commands, &art, bat.x, bat.top_y);
     }
-    spawn_king_slime(&mut commands, &art, FloorOne::BOSS);
+    spawn_king_slime(&mut commands, &art, floor.boss);
 
+    info!("Generated dungeon floor (seed {seed}, {} tiles)", floor.width_tiles);
     commands.insert_resource(art);
 }
 
-fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt) {
+fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFloor) {
     let wall = art.wall.clone();
-    for row in 0..FloorOne::BACKDROP_ROWS {
-        for column in 0..FloorOne::WIDTH_TILES {
+    for row in 0..floor.backdrop_rows {
+        for column in 0..floor.width_tiles {
             let position = Vec2::new(column as f32 * TILE, row as f32 * TILE);
             commands.spawn((
                 Sprite {
@@ -76,18 +85,18 @@ fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt) {
     }
 }
 
-fn spawn_ground(commands: &mut Commands, art: &DungeonArt, spec: super::level::PlatformSpec) {
+fn spawn_ground(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
     spawn_platform_tiles(commands, art, spec, true);
 }
 
-fn spawn_platform(commands: &mut Commands, art: &DungeonArt, spec: super::level::PlatformSpec) {
+fn spawn_platform(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
     spawn_platform_tiles(commands, art, spec, false);
 }
 
 fn spawn_platform_tiles(
     commands: &mut Commands,
     art: &DungeonArt,
-    spec: super::level::PlatformSpec,
+    spec: PlatformSpec,
     ground: bool,
 ) {
     let texture = if ground {
@@ -118,8 +127,8 @@ fn spawn_platform_tiles(
     }
 }
 
-fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt) {
-    let x = FloorOne::LADDER_TILE as f32 * TILE + TILE * 0.5;
+fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile: u32) {
+    let x = ladder_tile as f32 * TILE + TILE * 0.5;
     let y = DUNGEON_FLOOR_Y - TILE * 0.5;
 
     commands.spawn((
@@ -138,10 +147,10 @@ fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt) {
     ));
 }
 
-fn spawn_player(commands: &mut Commands, art: &DungeonArt) {
+fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
     let height = player_sprite_size().y;
     let start = Vec2::new(
-        FloorOne::PLAYER_START_X,
+        start_x,
         center_on_surface(DUNGEON_FLOOR_Y, height),
     );
 
@@ -197,7 +206,7 @@ fn spawn_bat(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
     ));
 }
 
-fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: super::level::BossSpawn) {
+fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
     let y = center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y);
     let boss_scale = PIXEL_SCALE * BOSS_DISPLAY_SCALE;
 
@@ -228,6 +237,7 @@ pub fn cleanup_dungeon(
     commands.remove_resource::<LadderPrompt>();
     commands.remove_resource::<DungeonProgress>();
     commands.remove_resource::<DungeonScrollBounds>();
+    commands.remove_resource::<DungeonLayout>();
     for entity in &entities {
         commands.entity(entity).despawn_recursive();
     }

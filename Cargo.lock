@@ -1799,6 +1799,7 @@ name = "destiny_forge"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "rand",
  "serde",
 ]
 

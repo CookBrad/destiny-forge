@@ -7,4 +7,5 @@ description = "A pixel farming and dungeon-crawling game with Monster Hunter-sty
 
 [dependencies]
 bevy = "0.15"
+rand = "0.8"
 serde = { version = "1", features = ["derive"] }

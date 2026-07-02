@@ -1,5 +1,6 @@
 mod animation;
 mod enemy;
+mod generation;
 mod interaction;
 mod level;
 mod movement;
