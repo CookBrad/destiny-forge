@@ -47,7 +47,9 @@ pub struct HitFlash {
 }
 
 #[derive(Component)]
-pub struct WeaponSwingFx;
+pub struct WeaponSwingFx {
+    pub facing: f32,
+}
 
 pub fn start_player_attack(
     mut commands: Commands,
@@ -77,33 +79,31 @@ pub fn start_player_attack(
                 ..default()
             },
             Transform::from_xyz(hand_offset_x(facing), 2.0, 0.5),
-            WeaponSwingFx,
+            WeaponSwingFx { facing },
         ));
     });
 }
 
 pub fn animate_weapon_swing(
     mut commands: Commands,
-    player: Query<(&PlayerAttack, &Transform), With<DungeonPlayer>>,
-    mut swings: Query<(Entity, &mut Transform), With<WeaponSwingFx>>,
+    player: Query<&PlayerAttack, With<DungeonPlayer>>,
+    mut swings: Query<(Entity, &WeaponSwingFx, &mut Transform)>,
 ) {
-    let Ok((attack, player_transform)) = player.get_single() else {
+    let Ok(attack) = player.get_single() else {
         return;
     };
 
     if !attack.is_active() {
-        for (entity, _) in &swings {
+        for (entity, _, _) in &swings {
             commands.entity(entity).despawn();
         }
         return;
     }
 
     let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
-    let facing = animation_facing(player_transform);
-    let angle = swing_angle(progress, facing);
 
-    for (_, mut transform) in &mut swings {
-        transform.rotation = Quat::from_rotation_z(angle);
+    for (_, swing, mut transform) in &mut swings {
+        transform.rotation = Quat::from_rotation_z(swing_angle(progress, swing.facing));
     }
 }
 
