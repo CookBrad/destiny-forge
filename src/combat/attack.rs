@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
-use crate::dungeon::Patrol;
-use crate::dungeon::DungeonPlayer;
+use std::f32::consts::FRAC_PI_2;
+
+use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol};
 use crate::graphics::{enemy_half_extents, player_half_extents};
 
 use super::health::{damage_amount, Health};
@@ -45,11 +46,16 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
+#[derive(Component)]
+pub struct WeaponSwingFx;
+
 pub fn start_player_attack(
+    mut commands: Commands,
+    art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut player: Query<(&EquippedWeapon, &mut PlayerAttack), With<DungeonPlayer>>,
+    mut player: Query<(Entity, &Transform, &EquippedWeapon, &mut PlayerAttack), With<DungeonPlayer>>,
 ) {
-    let Ok((weapon, mut attack)) = player.get_single_mut() else {
+    let Ok((entity, transform, weapon, mut attack)) = player.get_single_mut() else {
         return;
     };
 
@@ -62,6 +68,43 @@ pub fn start_player_attack(
     attack.hit_entities.clear();
     attack.timer = Timer::from_seconds(stats.swing_secs, TimerMode::Once);
     attack.timer.reset();
+
+    let facing = animation_facing(transform);
+    commands.entity(entity).with_children(|parent| {
+        parent.spawn((
+            Sprite {
+                image: art.weapon_anime_sword.clone(),
+                ..default()
+            },
+            Transform::from_xyz(hand_offset_x(facing), 2.0, 0.5),
+            WeaponSwingFx,
+        ));
+    });
+}
+
+pub fn animate_weapon_swing(
+    mut commands: Commands,
+    player: Query<(&PlayerAttack, &Transform), With<DungeonPlayer>>,
+    mut swings: Query<(Entity, &mut Transform), With<WeaponSwingFx>>,
+) {
+    let Ok((attack, player_transform)) = player.get_single() else {
+        return;
+    };
+
+    if !attack.is_active() {
+        for (entity, _) in &swings {
+            commands.entity(entity).despawn();
+        }
+        return;
+    }
+
+    let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
+    let facing = animation_facing(player_transform);
+    let angle = swing_angle(progress, facing);
+
+    for (_, mut transform) in &mut swings {
+        transform.rotation = Quat::from_rotation_z(angle);
+    }
 }
 
 pub fn tick_player_attack(time: Res<Time>, mut attacks: Query<&mut PlayerAttack, With<DungeonPlayer>>) {
@@ -186,5 +229,19 @@ fn animation_facing(transform: &Transform) -> f32 {
         -1.0
     } else {
         1.0
+    }
+}
+
+fn hand_offset_x(facing: f32) -> f32 {
+    5.0 * facing.signum()
+}
+
+/// Vertical sword sprite sweeps 90° into the facing direction over the attack.
+fn swing_angle(progress: f32, facing: f32) -> f32 {
+    let sweep = progress * FRAC_PI_2;
+    if facing >= 0.0 {
+        -FRAC_PI_2 + sweep
+    } else {
+        FRAC_PI_2 - sweep
     }
 }

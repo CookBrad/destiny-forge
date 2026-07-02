@@ -46,6 +46,7 @@ Gameplay sprite map
   player/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
   player/knight_run_side.png    — 0x72 knight_m run (4 frames)
   player/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
+  player/weapon_anime_sword.png  — 0x72 swing arc overlay (rotates 90° on attack)
 
   dungeon/environment/floor_ground.png   — 0x72 floor tile
   dungeon/environment/floor_platform.png   — 0x72 platform tile
