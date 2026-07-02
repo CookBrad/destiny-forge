@@ -46,9 +46,18 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
+/// Sword sprite is 12×30; pivot at the handle (bottom of the blade).
+const SWORD_HALF_LENGTH: f32 = 15.0;
+const SWORD_PIVOT_Y: f32 = 4.0;
+
 #[derive(Component)]
 pub struct WeaponSwingFx {
     pub facing: f32,
+}
+
+struct SwingPose {
+    translation: Vec3,
+    rotation: Quat,
 }
 
 pub fn start_player_attack(
@@ -72,13 +81,18 @@ pub fn start_player_attack(
     attack.timer.reset();
 
     let facing = animation_facing(transform);
+    let pose = swing_pose(0.0, facing);
     commands.entity(entity).with_children(|parent| {
         parent.spawn((
             Sprite {
                 image: art.weapon_anime_sword.clone(),
                 ..default()
             },
-            Transform::from_xyz(hand_offset_x(facing), 2.0, 0.5),
+            Transform {
+                translation: pose.translation,
+                rotation: pose.rotation,
+                ..default()
+            },
             WeaponSwingFx { facing },
         ));
     });
@@ -103,7 +117,9 @@ pub fn animate_weapon_swing(
     let progress = (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
 
     for (_, swing, mut transform) in &mut swings {
-        transform.rotation = Quat::from_rotation_z(swing_angle(progress, swing.facing));
+        let pose = swing_pose(progress, swing.facing);
+        transform.translation = pose.translation;
+        transform.rotation = pose.rotation;
     }
 }
 
@@ -243,5 +259,20 @@ fn swing_angle(progress: f32, facing: f32) -> f32 {
         -sweep
     } else {
         sweep
+    }
+}
+
+/// Tip traces a circular arc around the handle pivot (not in-place rotation).
+fn swing_pose(progress: f32, facing: f32) -> SwingPose {
+    let angle = swing_angle(progress, facing);
+    let pivot = Vec2::new(hand_offset_x(facing), SWORD_PIVOT_Y);
+    let offset = Vec2::new(
+        SWORD_HALF_LENGTH * (-angle).sin(),
+        SWORD_HALF_LENGTH * (-angle).cos(),
+    );
+
+    SwingPose {
+        translation: Vec3::new(pivot.x + offset.x, pivot.y + offset.y, 0.5),
+        rotation: Quat::from_rotation_z(angle),
     }
 }
