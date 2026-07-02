@@ -11,4 +11,7 @@ pub use enemy::Patrol;
 pub use interaction::LadderPrompt;
 pub use movement::DungeonPlayer;
 pub use plugin::DungeonPlugin;
-pub use sprites::{DungeonArt, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
+pub use sprites::{
+    player_frame_rect, player_half_extents, player_sprite_size, DungeonArt, PLAYER_SPRITE_HEIGHT,
+    PLAYER_SPRITE_WIDTH, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
+};

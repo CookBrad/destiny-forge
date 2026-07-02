@@ -2,9 +2,10 @@ use bevy::prelude::*;
 
 use crate::combat::PlayerAttack;
 use crate::graphics::{
-    player_half_extents, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
-    TILE,
+    DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED, TILE,
 };
+
+use super::sprites::player_half_extents;
 
 use super::setup::PlatformCollider;
 

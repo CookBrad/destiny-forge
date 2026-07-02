@@ -3,7 +3,8 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
-use crate::graphics::{enemy_half_extents, player_half_extents};
+use crate::dungeon::player_half_extents;
+use crate::graphics::enemy_half_extents;
 
 use super::health::{damage_amount, Health};
 use super::weapon::{EquippedWeapon, WeaponKind, WeaponStats};

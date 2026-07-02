@@ -13,8 +13,9 @@ pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 pub const SWORD_SPRITE_WIDTH: f32 = 12.0;
 pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
 
-pub const PLAYER_FRAME_WIDTH: f32 = 16.0;
-pub const PLAYER_FRAME_HEIGHT: f32 = 28.0;
+/// Native pixel size of each knight_m frame (width × height).
+pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
+pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
 
 pub const PLAYER_IDLE_FRAMES: usize = 4;
 pub const PLAYER_RUN_FRAMES: usize = 4;
@@ -51,10 +52,18 @@ impl DungeonArt {
     }
 }
 
+pub fn player_sprite_size() -> Vec2 {
+    Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT)
+}
+
+pub fn player_half_extents() -> Vec2 {
+    player_sprite_size() * 0.5
+}
+
 pub fn player_frame_rect(frame: usize) -> Rect {
-    let x = frame as f32 * PLAYER_FRAME_WIDTH;
+    let x = frame as f32 * PLAYER_SPRITE_WIDTH;
     Rect {
         min: Vec2::new(x, 0.0),
-        max: Vec2::new(x + PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT),
+        max: Vec2::new(x + PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT),
     }
 }

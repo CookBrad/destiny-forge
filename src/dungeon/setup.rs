@@ -2,8 +2,7 @@ use bevy::prelude::*;
 
 use crate::combat::{EquippedWeapon, Health, PlayerAttack};
 use crate::graphics::{
-    center_on_surface, player_display_size, scaled_transform, DUNGEON_FLOOR_Y,
-    ENEMY_DISPLAY_SIZE, TILE,
+    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE,
 };
 
 use super::animation::PlayerAnimation;
@@ -11,7 +10,7 @@ use super::enemy::{BatEnemy, Patrol, SlimeEnemy};
 use super::interaction::LadderPrompt;
 use super::level::FloorOne;
 use super::movement::{DungeonPlayer, PlayerVelocity};
-use super::sprites::{player_frame_rect, DungeonArt};
+use super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
 
 #[derive(Component)]
 pub struct DungeonEntity;
@@ -127,7 +126,7 @@ fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt) {
 }
 
 fn spawn_player(commands: &mut Commands, art: &DungeonArt) {
-    let height = player_display_size().y;
+    let height = player_sprite_size().y;
     let start = Vec2::new(
         FloorOne::PLAYER_START_X,
         center_on_surface(DUNGEON_FLOOR_Y, height),
