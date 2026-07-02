@@ -4,7 +4,8 @@ use crate::combat::{
     ContactDamageCooldown, EquippedWeapon, Health, PlayerAttack, PLAYER_MAX_HEALTH,
 };
 use crate::graphics::{
-    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, PIXEL_SCALE, TILE,
+    center_on_surface, scaled_transform, DungeonScrollBounds, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
+    PIXEL_SCALE, TILE,
 };
 
 use super::animation::PlayerAnimation;
@@ -36,6 +37,9 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     let art = DungeonArt::load(&asset_server);
     commands.init_resource::<LadderPrompt>();
     commands.init_resource::<DungeonProgress>();
+    commands.insert_resource(DungeonScrollBounds {
+        width: FloorOne::width_pixels(),
+    });
 
     spawn_backdrop(&mut commands, &art);
     spawn_ground(&mut commands, &art, FloorOne::GROUND);
@@ -223,6 +227,7 @@ pub fn cleanup_dungeon(
     commands.remove_resource::<DungeonArt>();
     commands.remove_resource::<LadderPrompt>();
     commands.remove_resource::<DungeonProgress>();
+    commands.remove_resource::<DungeonScrollBounds>();
     for entity in &entities {
         commands.entity(entity).despawn_recursive();
     }

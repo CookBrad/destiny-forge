@@ -5,6 +5,7 @@ use crate::combat::{
     tick_hit_flash, tick_player_attack,
 };
 use crate::core::GameState;
+use crate::graphics::init_dungeon_camera;
 
 use super::animation::animate_player;
 use super::enemy::{patrol_enemies, track_boss_defeat};
@@ -16,7 +17,10 @@ pub struct DungeonPlugin;
 
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Dungeon), setup_dungeon)
+        app.add_systems(
+            OnEnter(GameState::Dungeon),
+            (setup_dungeon, init_dungeon_camera).chain(),
+        )
             .add_systems(OnExit(GameState::Dungeon), cleanup_dungeon)
             .add_systems(
                 Update,

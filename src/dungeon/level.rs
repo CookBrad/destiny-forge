@@ -31,8 +31,13 @@ pub struct BossSpawn {
 pub struct FloorOne;
 
 impl FloorOne {
-    pub const WIDTH_TILES: u32 = 72;
+    /// Long enough to scroll on a 1280px-wide window with extra runway.
+    pub const WIDTH_TILES: u32 = 120;
     pub const BACKDROP_ROWS: u32 = 6;
+
+    pub const fn width_pixels() -> f32 {
+        Self::WIDTH_TILES as f32 * TILE
+    }
 
     pub const GROUND: PlatformSpec = PlatformSpec {
         left: 0.0,
@@ -41,36 +46,33 @@ impl FloorOne {
     };
 
     pub const PLATFORMS: &'static [PlatformSpec] = &[
-        // Early hop — teaches jumping.
         PlatformSpec {
-            left: 13.0 * TILE,
+            left: 22.0 * TILE,
             width_tiles: 4,
             top_y: DUNGEON_FLOOR_Y + 4.0 * TILE,
         },
-        // Mid-floor stepping stones.
         PlatformSpec {
-            left: 22.0 * TILE,
+            left: 37.0 * TILE,
             width_tiles: 3,
             top_y: DUNGEON_FLOOR_Y + 5.0 * TILE,
         },
         PlatformSpec {
-            left: 28.0 * TILE,
+            left: 47.0 * TILE,
             width_tiles: 4,
             top_y: DUNGEON_FLOOR_Y + 4.0 * TILE,
         },
         PlatformSpec {
-            left: 36.0 * TILE,
+            left: 60.0 * TILE,
             width_tiles: 3,
             top_y: DUNGEON_FLOOR_Y + 7.0 * TILE,
         },
         PlatformSpec {
-            left: 44.0 * TILE,
+            left: 73.0 * TILE,
             width_tiles: 5,
             top_y: DUNGEON_FLOOR_Y + 5.0 * TILE,
         },
-        // Short climb before the arena.
         PlatformSpec {
-            left: 53.0 * TILE,
+            left: 88.0 * TILE,
             width_tiles: 3,
             top_y: DUNGEON_FLOOR_Y + 4.0 * TILE,
         },
@@ -78,61 +80,61 @@ impl FloorOne {
 
     pub const SLIMES: &'static [SlimeSpawn] = &[
         SlimeSpawn {
-            x: 5.0 * TILE,
+            x: 8.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 11.0 * TILE,
+            x: 18.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 20.0 * TILE,
+            x: 33.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 27.0 * TILE,
+            x: 45.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 34.0 * TILE,
+            x: 57.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 41.0 * TILE,
+            x: 68.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
         SlimeSpawn {
-            x: 48.0 * TILE,
+            x: 80.0 * TILE,
             top_y: DUNGEON_FLOOR_Y,
         },
     ];
 
     pub const BATS: &'static [BatSpawn] = &[
         BatSpawn {
-            x: 15.5 * TILE,
+            x: 26.0 * TILE,
             top_y: DUNGEON_FLOOR_Y + 4.0 * TILE,
         },
         BatSpawn {
-            x: 30.5 * TILE,
+            x: 51.0 * TILE,
             top_y: DUNGEON_FLOOR_Y + 4.0 * TILE,
         },
         BatSpawn {
-            x: 38.5 * TILE,
+            x: 64.0 * TILE,
             top_y: DUNGEON_FLOOR_Y + 7.0 * TILE,
         },
         BatSpawn {
-            x: 47.5 * TILE,
+            x: 79.0 * TILE,
             top_y: DUNGEON_FLOOR_Y + 5.0 * TILE,
         },
     ];
 
     pub const BOSS: BossSpawn = BossSpawn {
-        x: 62.5 * TILE,
+        x: 104.5 * TILE,
         top_y: DUNGEON_FLOOR_Y,
-        patrol_min_x: 58.0 * TILE,
-        patrol_max_x: 66.0 * TILE,
+        patrol_min_x: 100.0 * TILE,
+        patrol_max_x: 108.0 * TILE,
     };
 
-    pub const PLAYER_START_X: f32 = 2.5 * TILE;
-    pub const LADDER_TILE: u32 = 69;
+    pub const PLAYER_START_X: f32 = 1.5 * TILE;
+    pub const LADDER_TILE: u32 = 117;
 }

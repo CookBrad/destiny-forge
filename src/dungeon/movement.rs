@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use crate::combat::PlayerAttack;
 use crate::graphics::{
-    DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED, TILE,
+    DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
+    TILE,
 };
 
 use super::sprites::player_half_extents;
@@ -22,6 +23,7 @@ pub struct PlayerVelocity {
 pub fn dungeon_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
     mut player: Query<(&mut Transform, &mut PlayerVelocity, &PlayerAttack), With<DungeonPlayer>>,
 ) {
@@ -55,7 +57,8 @@ pub fn dungeon_movement(
     let mut position = Vec2::new(transform.translation.x, transform.translation.y);
 
     position.x += delta.x;
-    position.x = position.x.max(half.x);
+    let max_x = bounds.width - half.x;
+    position.x = position.x.clamp(half.x, max_x);
 
     position.y += delta.y;
     velocity.grounded = false;
