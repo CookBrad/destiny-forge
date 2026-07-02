@@ -46,8 +46,9 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
-/// Sword sprite is 12×30; pivot at the player center (parent local origin).
+/// Sword sprite is 12×30; pivot at waist height on the player (local space).
 const SWORD_HALF_LENGTH: f32 = 15.0;
+const SWORD_PIVOT_Y: f32 = -10.0;
 
 #[derive(Component)]
 pub struct WeaponSwingFx;
@@ -250,7 +251,7 @@ fn swing_angle(progress: f32) -> f32 {
     -progress * FRAC_PI_2
 }
 
-/// Tip traces a circular arc around the player center pivot (not in-place rotation).
+/// Tip traces a circular arc around the waist pivot (not in-place rotation).
 fn swing_pose(progress: f32) -> SwingPose {
     let angle = swing_angle(progress);
     let offset = Vec2::new(
@@ -259,7 +260,7 @@ fn swing_pose(progress: f32) -> SwingPose {
     );
 
     SwingPose {
-        translation: Vec3::new(offset.x, offset.y, 0.5),
+        translation: Vec3::new(offset.x, SWORD_PIVOT_Y + offset.y, 0.5),
         rotation: Quat::from_rotation_z(angle),
     }
 }
