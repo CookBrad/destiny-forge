@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol};
+use crate::dungeon::{DungeonArt, DungeonPlayer, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
 use crate::graphics::{enemy_half_extents, player_half_extents};
 
 use super::health::{damage_amount, Health};
@@ -46,14 +46,10 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
-/// Sword sprite is 12×30; pivot at waist height on the player (local space).
-const SWORD_HALF_LENGTH: f32 = 15.0;
+/// Handle pivot on the player in local space (matches swing overlay).
 const SWORD_PIVOT_Y: f32 = -10.0;
 /// Visual arc completes faster than the full attack timer (hit window unchanged).
 const SWORD_ARC_SPEED: f32 = 2.2;
-const SWORD_HIT_HALF_THICKNESS: f32 = 8.0;
-/// Pixels beyond the visual blade tip; also sets minimum reach at full extension.
-const SWORD_HIT_REACH_EXTRA: f32 = 14.0;
 
 #[derive(Component)]
 pub struct WeaponSwingFx;
@@ -215,28 +211,30 @@ fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect 
 }
 
 fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect {
-    let half = player_half_extents();
-    let center = player.translation.truncate();
+    let player_center = player.translation.truncate();
     let angle = swing_angle(sword_arc_progress(attack));
-    let tip_local = sword_tip_local(angle);
     let blade_local = sword_blade_center_local(angle);
+    let blade_world =
+        player_center + Vec2::new(facing * blade_local.x, blade_local.y);
 
-    let front = center.x + facing * half.x;
-    let forward_reach = sword_forward_reach(tip_local.x);
-    let tip_x = center.x + facing * forward_reach;
-    let blade_y = center.y + blade_local.y;
-
-    Rect {
-        min_x: front.min(tip_x),
-        max_x: front.max(tip_x),
-        min_y: blade_y - SWORD_HIT_HALF_THICKNESS,
-        max_y: blade_y + SWORD_HIT_HALF_THICKNESS,
-    }
+    sword_sprite_aabb(blade_world, angle)
 }
 
-fn sword_forward_reach(tip_x: f32) -> f32 {
-    let full_extended = 2.0 * SWORD_HALF_LENGTH + SWORD_HIT_REACH_EXTRA;
-    (tip_x + SWORD_HIT_REACH_EXTRA).max(full_extended)
+/// Axis-aligned bounds of the rotated sword sprite (12×30 native pixels).
+fn sword_sprite_aabb(center: Vec2, angle: f32) -> Rect {
+    let half_w = SWORD_SPRITE_WIDTH * 0.5;
+    let half_h = SWORD_SPRITE_HEIGHT * 0.5;
+    let c = angle.cos().abs();
+    let s = angle.sin().abs();
+    let extent_x = c * half_w + s * half_h;
+    let extent_y = s * half_w + c * half_h;
+
+    Rect {
+        min_x: center.x - extent_x,
+        max_x: center.x + extent_x,
+        min_y: center.y - extent_y,
+        max_y: center.y + extent_y,
+    }
 }
 
 fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
@@ -287,16 +285,11 @@ fn swing_angle(progress: f32) -> f32 {
 }
 
 fn sword_blade_center_local(angle: f32) -> Vec2 {
+    let half_height = SWORD_SPRITE_HEIGHT * 0.5;
     Vec2::new(
-        SWORD_HALF_LENGTH * (-angle).sin(),
-        SWORD_PIVOT_Y + SWORD_HALF_LENGTH * (-angle).cos(),
+        half_height * (-angle).sin(),
+        SWORD_PIVOT_Y + half_height * (-angle).cos(),
     )
-}
-
-fn sword_tip_local(angle: f32) -> Vec2 {
-    let center = sword_blade_center_local(angle);
-    let direction = Vec2::new((-angle).sin(), (-angle).cos());
-    center + direction * SWORD_HALF_LENGTH
 }
 
 /// Tip traces a circular arc around the waist pivot (not in-place rotation).

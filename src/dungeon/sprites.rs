@@ -9,6 +9,10 @@ pub const PLAYER_RUN: &str = "player/knight_run_side.png";
 pub const PLAYER_ATTACK: &str = "player/knight_attack_side.png";
 pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
+/// Native pixel size of `weapon_anime_sword.png` (width × height).
+pub const SWORD_SPRITE_WIDTH: f32 = 12.0;
+pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
+
 pub const PLAYER_FRAME_WIDTH: f32 = 16.0;
 pub const PLAYER_FRAME_HEIGHT: f32 = 28.0;
 
