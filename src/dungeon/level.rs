@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::enemy::EnemyKind;
 use crate::graphics::TILE;
 
 #[derive(Clone, Copy, Debug)]
@@ -10,7 +11,8 @@ pub struct PlatformSpec {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct SlimeSpawn {
+pub struct EnemySpawn {
+    pub kind: EnemyKind,
     pub x: f32,
     pub top_y: f32,
 }
@@ -35,7 +37,7 @@ pub struct GeneratedFloor {
     pub backdrop_rows: u32,
     pub ground: PlatformSpec,
     pub platforms: Vec<PlatformSpec>,
-    pub slimes: Vec<SlimeSpawn>,
+    pub enemies: Vec<EnemySpawn>,
     pub bats: Vec<BatSpawn>,
     pub boss: BossSpawn,
     pub player_start_x: f32,

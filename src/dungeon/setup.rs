@@ -1,20 +1,24 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    ContactDamageCooldown, EquippedWeapon, Health, PlayerAttack, PLAYER_MAX_HEALTH,
+    spawn_sheathed_sword, ContactDamageCooldown, EquippedWeapon, Health, PlayerAttack,
+    PlayerBlock, PLAYER_MAX_HEALTH,
 };
+use rand::Rng;
 use crate::graphics::{
     center_on_surface, scaled_transform, DungeonScrollBounds, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
     PIXEL_SCALE, TILE,
 };
 
 use super::animation::PlayerAnimation;
+use super::boss::BossAttackController;
 use super::enemy::{
-    BatEnemy, DungeonProgress, EnemyHitbox, KingSlimeBoss, Patrol, SlimeEnemy,
+    DungeonProgress, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown,
+    KingSlimeBoss, Patrol,
 };
 use super::generation::{generate_floor, random_seed};
 use super::interaction::LadderPrompt;
-use super::level::{BossSpawn, DungeonLayout, GeneratedFloor, PlatformSpec};
+use super::level::{BossSpawn, DungeonLayout, EnemySpawn, GeneratedFloor, PlatformSpec};
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
 
@@ -56,11 +60,19 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     }
     spawn_ladder_exit(&mut commands, &art, floor.ladder_tile);
     spawn_player(&mut commands, &art, floor.player_start_x);
-    for slime in &floor.slimes {
-        spawn_slime(&mut commands, &art, slime.x, slime.top_y);
+    for enemy in &floor.enemies {
+        spawn_enemy(&mut commands, &art, *enemy);
     }
     for bat in &floor.bats {
-        spawn_bat(&mut commands, &art, bat.x, bat.top_y);
+        spawn_enemy(
+            &mut commands,
+            &art,
+            EnemySpawn {
+                kind: EnemyKind::Bat,
+                x: bat.x,
+                top_y: bat.top_y,
+            },
+        );
     }
     spawn_king_slime(&mut commands, &art, floor.boss);
 
@@ -154,56 +166,68 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
         center_on_surface(DUNGEON_FLOOR_Y, height),
     );
 
-    commands.spawn((
-        Sprite {
-            image: art.player_idle.clone(),
-            rect: Some(player_frame_rect(0)),
-            ..default()
-        },
-        scaled_transform(start, 10.0),
-        DungeonPlayer,
-        PlayerVelocity::default(),
-        PlayerAnimation::default(),
-        EquippedWeapon::default(),
-        PlayerAttack::inactive(),
-        Health::new(PLAYER_MAX_HEALTH),
-        ContactDamageCooldown::default(),
-        DungeonEntity,
-    ));
+    commands
+        .spawn((
+            Sprite {
+                image: art.player_idle.clone(),
+                rect: Some(player_frame_rect(0)),
+                ..default()
+            },
+            scaled_transform(start, 10.0),
+            DungeonPlayer,
+            PlayerVelocity::default(),
+            PlayerAnimation::default(),
+            EquippedWeapon::default(),
+            PlayerAttack::inactive(),
+            PlayerBlock::default(),
+            Health::new(PLAYER_MAX_HEALTH),
+            ContactDamageCooldown::default(),
+            DungeonEntity,
+        ))
+        .with_children(|parent| {
+            parent.spawn(spawn_sheathed_sword(art.weapon_anime_sword.clone()));
+        });
 }
 
-fn spawn_slime(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
-    let y = center_on_surface(top_y, ENEMY_DISPLAY_SIZE.y);
+fn spawn_enemy(commands: &mut Commands, art: &DungeonArt, spec: EnemySpawn) {
+    let radius = spec.kind.patrol_radius_tiles() * TILE;
+    let patrol = Patrol::between(spec.x - radius, spec.x + radius, spec.kind.patrol_speed());
+    let image = enemy_texture(art, spec.kind);
 
-    commands.spawn((
+    let (x, y) = if spec.kind.is_airborne() {
+        (spec.x, spec.top_y + 3.0 * TILE)
+    } else {
+        (spec.x, center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y))
+    };
+
+    let mut entity = commands.spawn((
         Sprite {
-            image: art.slime.clone(),
+            image,
             ..default()
         },
         scaled_transform(Vec2::new(x, y), 5.0),
-        SlimeEnemy,
+        spec.kind,
         EnemyHitbox::standard(),
-        Health::new(30.0),
-        Patrol::between(x - 2.0 * TILE, x + 2.0 * TILE, 35.0),
+        Health::new(spec.kind.max_health()),
+        EnemyContactDamage(spec.kind.contact_damage()),
+        patrol,
         DungeonEntity,
     ));
+
+    if spec.kind.shoots_projectiles() {
+        let delay = rand::thread_rng().gen_range(0.5..spec.kind.shoot_cooldown());
+        entity.insert(EnemyShootCooldown(Timer::from_seconds(delay, TimerMode::Once)));
+    }
 }
 
-fn spawn_bat(commands: &mut Commands, art: &DungeonArt, x: f32, top_y: f32) {
-    let hover_y = top_y + 3.0 * TILE;
-
-    commands.spawn((
-        Sprite {
-            image: art.bat.clone(),
-            ..default()
-        },
-        scaled_transform(Vec2::new(x, hover_y), 5.0),
-        BatEnemy,
-        EnemyHitbox::standard(),
-        Health::new(20.0),
-        Patrol::between(x - TILE, x + TILE, 50.0),
-        DungeonEntity,
-    ));
+fn enemy_texture(art: &DungeonArt, kind: EnemyKind) -> Handle<Image> {
+    match kind {
+        EnemyKind::Slime => art.slime.clone(),
+        EnemyKind::Bat => art.bat.clone(),
+        EnemyKind::Goblin => art.goblin.clone(),
+        EnemyKind::Skeleton => art.skeleton.clone(),
+        EnemyKind::Zombie => art.zombie.clone(),
+    }
 }
 
 fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
@@ -222,8 +246,10 @@ fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) 
             ..default()
         },
         KingSlimeBoss,
+        BossAttackController::new(),
         EnemyHitbox::scaled(BOSS_DISPLAY_SCALE),
         Health::new(BOSS_MAX_HEALTH),
+        EnemyContactDamage(12.0),
         Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),
         DungeonEntity,
     ));

@@ -3,11 +3,15 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::dungeon::{
-    DungeonArt, DungeonPlayer, EnemyHitbox, Patrol, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
+    DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
+    Patrol, PlayerAnimation, PlayerVelocity, SWORD_SPRITE_HEIGHT,
+    PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
 };
-use crate::dungeon::player_half_extents;
-use crate::graphics::PIXEL_SCALE;
 
+use super::hitbox::{enemy_aabb, hitbox_overlaps, sword_swing_aabb, HitRect};
+use super::player_block::PlayerBlock;
+
+use crate::dungeon::player_half_extents;
 use super::health::{damage_amount, Health};
 use super::weapon::{EquippedWeapon, WeaponKind, WeaponStats};
 
@@ -41,6 +45,21 @@ impl PlayerAttack {
     }
 }
 
+/// Active sword swing volume during the hit window (for projectile parries).
+pub fn player_sword_hit_rect(player: &Transform, attack: &PlayerAttack) -> Option<HitRect> {
+    if !attack.in_hit_window() {
+        return None;
+    }
+
+    match attack.weapon {
+        WeaponKind::RustySword => Some(sword_swing_aabb(
+            player,
+            swing_angle(sword_arc_progress(attack)),
+        )),
+        WeaponKind::RustySpear => None,
+    }
+}
+
 #[derive(Component)]
 pub struct EnemyCorpse;
 
@@ -57,6 +76,19 @@ const SWORD_ARC_SPEED: f32 = 2.2;
 #[derive(Component)]
 pub struct WeaponSwingFx;
 
+#[derive(Component)]
+pub struct WeaponOnBack;
+
+/// Sheathed sword pose in player-local pixels (parent scale mirrors with facing).
+const SHEATHED_SWORD_X: f32 = -4.0;
+const SHEATHED_SWORD_Y: f32 = 8.0;
+const SHEATHED_SWORD_Z: f32 = -0.2;
+const SHEATHED_SWORD_ANGLE: f32 = 0.45;
+
+/// Per-frame Y offsets matching knight idle/run sprite bob (native pixels).
+const IDLE_SHEATHED_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
+const RUN_SHEATHED_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
+
 struct SwingPose {
     translation: Vec3,
     rotation: Quat,
@@ -66,13 +98,16 @@ pub fn start_player_attack(
     mut commands: Commands,
     art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut player: Query<(Entity, &EquippedWeapon, &mut PlayerAttack), With<DungeonPlayer>>,
+    mut player: Query<
+        (Entity, &EquippedWeapon, &mut PlayerAttack, &PlayerBlock),
+        With<DungeonPlayer>,
+    >,
 ) {
-    let Ok((entity, weapon, mut attack)) = player.get_single_mut() else {
+    let Ok((entity, weapon, mut attack, block)) = player.get_single_mut() else {
         return;
     };
 
-    if !keyboard.just_pressed(KeyCode::Digit1) || attack.is_active() {
+    if !keyboard.just_pressed(KeyCode::Digit1) || attack.is_active() || block.is_active() {
         return;
     }
 
@@ -97,6 +132,67 @@ pub fn start_player_attack(
             WeaponSwingFx,
         ));
     });
+}
+
+pub fn spawn_sheathed_sword(image: Handle<Image>) -> impl Bundle {
+    (
+        WeaponOnBack,
+        Sprite {
+            image,
+            ..default()
+        },
+        Transform {
+            translation: Vec3::new(SHEATHED_SWORD_X, SHEATHED_SWORD_Y, SHEATHED_SWORD_Z),
+            rotation: Quat::from_rotation_z(SHEATHED_SWORD_ANGLE),
+            ..default()
+        },
+    )
+}
+
+pub fn sync_sheathed_weapon(
+    player: Query<
+        (
+            &PlayerAttack,
+            &EquippedWeapon,
+            &PlayerBlock,
+            &PlayerAnimation,
+            &PlayerVelocity,
+        ),
+        With<DungeonPlayer>,
+    >,
+    mut sheathed: Query<(&mut Transform, &mut Visibility), With<WeaponOnBack>>,
+) {
+    let Ok((attack, weapon, block, animation, velocity)) = player.get_single() else {
+        return;
+    };
+
+    let visible =
+        !attack.is_active() && !block.is_active() && weapon.0 == WeaponKind::RustySword;
+    let bob = sheathed_bob_offset(animation, velocity);
+
+    for (mut transform, mut visibility) in &mut sheathed {
+        *visibility = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+        transform.translation.x = SHEATHED_SWORD_X;
+        transform.translation.y = SHEATHED_SWORD_Y + bob;
+    }
+}
+
+fn sheathed_bob_offset(animation: &PlayerAnimation, velocity: &PlayerVelocity) -> f32 {
+    if !velocity.grounded {
+        return 0.0;
+    }
+
+    if velocity.x.abs() > 1.0 {
+        let frame = animation.frame % PLAYER_RUN_FRAMES;
+        return RUN_SHEATHED_BOB[frame];
+    }
+
+    let frame = animation.frame % PLAYER_IDLE_FRAMES;
+    IDLE_SHEATHED_BOB[frame]
 }
 
 pub fn animate_weapon_swing(
@@ -138,7 +234,15 @@ pub fn resolve_weapon_hits(
     mut commands: Commands,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
     mut enemies: Query<
-        (Entity, &Transform, &EnemyHitbox, &mut Health, &mut Sprite),
+        (
+            Entity,
+            &Transform,
+            &EnemyHitbox,
+            &mut Health,
+            &mut Sprite,
+            Option<&KingSlimeBoss>,
+            Option<&EnemyKind>,
+        ),
         (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
     >,
 ) {
@@ -154,7 +258,7 @@ pub fn resolve_weapon_hits(
     let facing = animation_facing(player_transform);
     let hitbox = swing_hitbox(player_transform, &attack, facing);
 
-    for (entity, transform, hitbox_extents, mut health, mut sprite) in &mut enemies {
+    for (entity, transform, hitbox_extents, mut health, mut sprite, boss, kind) in &mut enemies {
         if attack.hit_entities.contains(&entity) || health.is_dead() {
             continue;
         }
@@ -168,9 +272,18 @@ pub fn resolve_weapon_hits(
         attack.hit_entities.push(entity);
 
         sprite.color = Color::srgb(1.0, 0.45, 0.45);
-        commands.entity(entity).insert(HitFlash {
-            timer: Timer::from_seconds(0.12, TimerMode::Once),
-        });
+        commands.entity(entity).insert((
+            EnemyAggro::from_hit(),
+            HitFlash {
+                timer: Timer::from_seconds(0.12, TimerMode::Once),
+            },
+            EnemyKnockback::away_from_player(
+                player_transform,
+                transform,
+                if boss.is_some() { 0.35 } else { 1.0 },
+                kind.is_some_and(|kind| kind.is_airborne()),
+            ),
+        ));
 
         if health.is_dead() {
             commands.entity(entity).remove::<Patrol>();
@@ -198,56 +311,24 @@ pub fn tick_hit_flash(
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct Rect {
-    min_x: f32,
-    max_x: f32,
-    min_y: f32,
-    max_y: f32,
-}
-
-fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect {
+fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> HitRect {
     match attack.weapon {
         WeaponKind::RustySword => sword_swing_hitbox(player, attack, facing),
         WeaponKind::RustySpear => spear_swing_hitbox(player, attack.weapon.stats(), facing),
     }
 }
 
-fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> Rect {
-    let player_center = player.translation.truncate();
-    let angle = swing_angle(sword_arc_progress(attack));
-    let blade_local = sword_blade_center_local(angle);
-    // Sword overlay is a scaled child; local offsets render at PIXEL_SCALE in world space.
-    let blade_world = player_center
-        + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
-
-    sword_sprite_aabb(blade_world, angle)
+fn sword_swing_hitbox(player: &Transform, attack: &PlayerAttack, _facing: f32) -> HitRect {
+    sword_swing_aabb(player, swing_angle(sword_arc_progress(attack)))
 }
 
-/// Axis-aligned bounds of the rotated sword sprite (12×30 native pixels, scaled for display).
-fn sword_sprite_aabb(center: Vec2, angle: f32) -> Rect {
-    let half_w = SWORD_SPRITE_WIDTH * 0.5 * PIXEL_SCALE;
-    let half_h = SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE;
-    let c = angle.cos().abs();
-    let s = angle.sin().abs();
-    let extent_x = c * half_w + s * half_h;
-    let extent_y = s * half_w + c * half_h;
-
-    Rect {
-        min_x: center.x - extent_x,
-        max_x: center.x + extent_x,
-        min_y: center.y - extent_y,
-        max_y: center.y + extent_y,
-    }
-}
-
-fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Rect {
+fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> HitRect {
     let half = player_half_extents();
     let center = player.translation.truncate();
     let front = center.x + facing * half.x;
     let tip_x = center.x + facing * stats.reach;
 
-    Rect {
+    HitRect {
         min_x: front.min(tip_x),
         max_x: front.max(tip_x),
         min_y: center.y - half.y,
@@ -255,18 +336,8 @@ fn spear_swing_hitbox(player: &Transform, stats: WeaponStats, facing: f32) -> Re
     }
 }
 
-fn enemy_bounds(transform: &Transform, half: Vec2) -> Rect {
-    let center = transform.translation.truncate();
-    Rect {
-        min_x: center.x - half.x,
-        max_x: center.x + half.x,
-        min_y: center.y - half.y,
-        max_y: center.y + half.y,
-    }
-}
-
-fn hitbox_overlaps(a: Rect, b: Rect) -> bool {
-    a.min_x < b.max_x && a.max_x > b.min_x && a.min_y < b.max_y && a.max_y > b.min_y
+fn enemy_bounds(transform: &Transform, half: Vec2) -> HitRect {
+    enemy_aabb(transform.translation.truncate(), half)
 }
 
 fn animation_facing(transform: &Transform) -> f32 {

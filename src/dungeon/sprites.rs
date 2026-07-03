@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub const ENV_ROOT: &str = "dungeon/environment";
 pub const ENEMY_ROOT: &str = "dungeon/enemies";
+pub const PROJECTILE_ROOT: &str = "dungeon/projectiles";
 
 /// 0x72 knight_m — side-scroller armored hero (matches dungeon tileset).
 pub const PLAYER_IDLE: &str = "player/knight_idle_side.png";
@@ -33,6 +34,10 @@ pub struct DungeonArt {
     pub wall: Handle<Image>,
     pub slime: Handle<Image>,
     pub bat: Handle<Image>,
+    pub goblin: Handle<Image>,
+    pub skeleton: Handle<Image>,
+    pub zombie: Handle<Image>,
+    pub arrow: Handle<Image>,
 }
 
 impl DungeonArt {
@@ -48,6 +53,10 @@ impl DungeonArt {
             wall: asset_server.load(format!("{ENV_ROOT}/wall.png")),
             slime: asset_server.load(format!("{ENEMY_ROOT}/slime.png")),
             bat: asset_server.load(format!("{ENEMY_ROOT}/bat.png")),
+            goblin: asset_server.load(format!("{ENEMY_ROOT}/goblin.png")),
+            skeleton: asset_server.load(format!("{ENEMY_ROOT}/skeleton.png")),
+            zombie: asset_server.load(format!("{ENEMY_ROOT}/zombie.png")),
+            arrow: asset_server.load(format!("{PROJECTILE_ROOT}/arrow.png")),
         }
     }
 }

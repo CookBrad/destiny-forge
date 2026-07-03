@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::PlayerAttack;
-
+use crate::combat::{PlayerAttack, PlayerKnockback};
 
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{
@@ -32,6 +31,7 @@ pub fn animate_player(
         (
             &PlayerVelocity,
             &PlayerAttack,
+            Option<&PlayerKnockback>,
             &mut PlayerAnimation,
             &mut Sprite,
             &mut Transform,
@@ -39,7 +39,8 @@ pub fn animate_player(
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((velocity, attack, mut animation, mut sprite, mut transform)) = player.get_single_mut()
+    let Ok((velocity, attack, knockback, mut animation, mut sprite, mut transform)) =
+        player.get_single_mut()
     else {
         return;
     };
@@ -58,7 +59,7 @@ pub fn animate_player(
         return;
     }
 
-    if velocity.x.abs() > 1.0 {
+    if knockback.is_none() && velocity.x.abs() > 1.0 {
         animation.facing = velocity.x.signum();
     }
 

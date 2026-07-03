@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::dungeon::move_enemies;
 
 use super::controls::{cleanup_controls_help, spawn_controls_help, update_controls_help};
 use super::health_bars::{
@@ -33,7 +34,7 @@ impl Plugin for UiPlugin {
                 (
                     update_controls_help,
                     update_player_health_bar,
-                    update_enemy_health_bars,
+                    update_enemy_health_bars.after(move_enemies),
                 )
                     .run_if(in_state(GameState::Dungeon)),
             );

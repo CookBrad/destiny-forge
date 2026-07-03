@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::PlayerAttack;
+use crate::combat::{PlayerAttack, PlayerBlock, PlayerKnockback};
 use crate::graphics::{
     DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
     TILE,
@@ -20,19 +20,59 @@ pub struct PlayerVelocity {
     pub grounded: bool,
 }
 
+const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
+const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
+
 pub fn dungeon_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    mut commands: Commands,
     bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
-    mut player: Query<(&mut Transform, &mut PlayerVelocity, &PlayerAttack), With<DungeonPlayer>>,
+    mut player: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut PlayerVelocity,
+            &PlayerAttack,
+            &PlayerBlock,
+            Option<&mut PlayerKnockback>,
+        ),
+        With<DungeonPlayer>,
+    >,
 ) {
-    let Ok((mut transform, mut velocity, attack)) = player.get_single_mut() else {
+    let Ok((entity, mut transform, mut velocity, attack, block, mut knockback)) =
+        player.get_single_mut()
+    else {
         return;
     };
 
+    let mut under_knockback = false;
+    if let Some(knockback) = knockback.as_mut() {
+        if knockback.velocity.length() > PLAYER_KNOCKBACK_STOP {
+            under_knockback = true;
+            velocity.x = knockback.velocity.x;
+            if knockback.velocity.y > 1.0 {
+                velocity.y = knockback.velocity.y;
+                knockback.velocity.y = 0.0;
+            }
+            velocity.grounded = false;
+
+            let dt = time.delta_secs();
+            let decay = (-PLAYER_KNOCKBACK_DECAY * dt).exp();
+            knockback.velocity.x *= decay;
+
+            if knockback.velocity.x.abs() <= PLAYER_KNOCKBACK_STOP {
+                commands.entity(entity).remove::<PlayerKnockback>();
+                under_knockback = false;
+            }
+        } else {
+            commands.entity(entity).remove::<PlayerKnockback>();
+        }
+    }
+
     let mut move_input = 0.0;
-    if !attack.is_active() {
+    if !under_knockback && !attack.is_active() && !block.is_active() {
         if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
             move_input -= 1.0;
         }
@@ -41,9 +81,16 @@ pub fn dungeon_movement(
         }
     }
 
-    velocity.x = move_input * DUNGEON_MOVE_SPEED;
+    if !under_knockback {
+        velocity.x = move_input * DUNGEON_MOVE_SPEED;
+    }
 
-    if velocity.grounded && !attack.is_active() && keyboard.just_pressed(KeyCode::Space) {
+    if !under_knockback
+        && velocity.grounded
+        && !attack.is_active()
+        && !block.is_active()
+        && keyboard.just_pressed(KeyCode::Space)
+    {
         velocity.y = DUNGEON_JUMP_SPEED;
         velocity.grounded = false;
     }
