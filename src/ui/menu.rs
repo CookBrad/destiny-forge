@@ -56,7 +56,7 @@ pub fn spawn_title_menu(mut commands: Commands) {
                 TextColor(Color::srgb(0.96, 0.88, 0.38)),
             ));
             parent.spawn((
-                Text::new("A/D move  ·  Space jump  ·  1 attack  ·  2 block  ·  3 charge  ·  4 spin"),
+                Text::new("A/D move  ·  Space jump (2x)  ·  1 attack  ·  2 block  ·  3 charge  ·  4 spin"),
                 TextFont {
                     font_size: 16.0,
                     ..default()

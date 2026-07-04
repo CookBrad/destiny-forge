@@ -18,8 +18,8 @@ use super::enemy::{
 };
 use super::generation::{generate_floor, random_seed};
 use super::interaction::LadderPrompt;
-use super::level::{BossSpawn, DungeonLayout, EnemySpawn, GeneratedFloor, PlatformSpec};
-use super::movement::{DungeonPlayer, PlayerVelocity};
+use super::level::{BossSpawn, DungeonLayout, EnemySpawn, GeneratedFloor, PitfallSpec, PlatformSpec};
+use super::movement::{DungeonPlayer, PlayerAirJumps, PlayerVelocity};
 use super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
 
 #[derive(Component)]
@@ -34,6 +34,9 @@ pub struct PlatformCollider {
 
 #[derive(Component)]
 pub struct DungeonExit;
+
+#[derive(Component)]
+pub struct Pitfall;
 
 const BOSS_DISPLAY_SCALE: f32 = 2.0;
 const BOSS_MAX_HEALTH: f32 = 120.0;
@@ -54,7 +57,10 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 
     spawn_backdrop(&mut commands, &art, &floor);
-    spawn_ground(&mut commands, &art, floor.ground);
+    for segment in &floor.ground_segments {
+        spawn_ground(&mut commands, &art, *segment);
+    }
+    spawn_pitfalls(&mut commands, &art, &floor.pitfalls);
     for platform in &floor.platforms {
         spawn_platform(&mut commands, &art, *platform);
     }
@@ -99,6 +105,25 @@ fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFl
 
 fn spawn_ground(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
     spawn_platform_tiles(commands, art, spec, true);
+}
+
+fn spawn_pitfalls(commands: &mut Commands, art: &DungeonArt, pitfalls: &[PitfallSpec]) {
+    for pit in pitfalls {
+        for tile in 0..pit.width_tiles {
+            let x = pit.left + tile as f32 * TILE + TILE * 0.5;
+            let y = DUNGEON_FLOOR_Y - TILE * 1.25;
+            commands.spawn((
+                Sprite {
+                    image: art.floor_ground.clone(),
+                    color: Color::srgba(0.12, 0.05, 0.1, 0.92),
+                    ..default()
+                },
+                scaled_transform(Vec2::new(x, y), 0.5),
+                Pitfall,
+                DungeonEntity,
+            ));
+        }
+    }
 }
 
 fn spawn_platform(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
@@ -176,6 +201,7 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
             scaled_transform(start, 10.0),
             DungeonPlayer,
             PlayerVelocity::default(),
+            PlayerAirJumps::default(),
             PlayerAnimation::default(),
             EquippedWeapon::default(),
             PlayerAttack::inactive(),

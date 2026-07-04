@@ -11,6 +11,12 @@ pub struct PlatformSpec {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct PitfallSpec {
+    pub left: f32,
+    pub width_tiles: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct EnemySpawn {
     pub kind: EnemyKind,
     pub x: f32,
@@ -35,7 +41,8 @@ pub struct BossSpawn {
 pub struct GeneratedFloor {
     pub width_tiles: u32,
     pub backdrop_rows: u32,
-    pub ground: PlatformSpec,
+    pub ground_segments: Vec<PlatformSpec>,
+    pub pitfalls: Vec<PitfallSpec>,
     pub platforms: Vec<PlatformSpec>,
     pub enemies: Vec<EnemySpawn>,
     pub bats: Vec<BatSpawn>,

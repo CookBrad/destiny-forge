@@ -4,9 +4,10 @@ use bevy::prelude::*;
 pub const TILE: f32 = 16.0;
 pub const PIXEL_SCALE: f32 = 3.0;
 
-pub const DUNGEON_MOVE_SPEED: f32 = 90.0;
-pub const DUNGEON_JUMP_SPEED: f32 = 260.0;
-pub const DUNGEON_GRAVITY: f32 = -720.0;
+pub const DUNGEON_MOVE_SPEED: f32 = 138.0;
+pub const DUNGEON_JUMP_SPEED: f32 = 385.0;
+pub const DUNGEON_AIR_JUMP_MULT: f32 = 0.88;
+pub const DUNGEON_GRAVITY: f32 = -760.0;
 pub const DUNGEON_FLOOR_Y: f32 = 64.0;
 pub const INTERACT_DISTANCE: f32 = 20.0;
 

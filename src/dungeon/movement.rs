@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    charge_speed, special_blocks_movement, PlayerAttack, PlayerBlock, PlayerKnockback,
+    charge_speed, special_blocks_movement, Health, PlayerAttack, PlayerBlock, PlayerKnockback,
     PlayerSpecialMove, SpecialMoveKind,
 };
 use crate::graphics::{
-    DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
-    TILE,
+    DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY,
+    DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED, TILE,
 };
 
 use super::sprites::player_half_extents;
@@ -23,8 +23,15 @@ pub struct PlayerVelocity {
     pub grounded: bool,
 }
 
+#[derive(Component, Default)]
+pub struct PlayerAirJumps {
+    pub remaining: u8,
+}
+
+const MAX_AIR_JUMPS: u8 = 1;
 const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
+const PIT_DEATH_Y: f32 = DUNGEON_FLOOR_Y - 3.5 * TILE;
 
 pub fn dungeon_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -37,6 +44,8 @@ pub fn dungeon_movement(
             Entity,
             &mut Transform,
             &mut PlayerVelocity,
+            &mut PlayerAirJumps,
+            &mut Health,
             &PlayerAttack,
             &PlayerBlock,
             Option<&PlayerSpecialMove>,
@@ -45,11 +54,24 @@ pub fn dungeon_movement(
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((entity, mut transform, mut velocity, attack, block, special, mut knockback)) =
-        player.get_single_mut()
+    let Ok((
+        entity,
+        mut transform,
+        mut velocity,
+        mut air_jumps,
+        mut health,
+        attack,
+        block,
+        special,
+        mut knockback,
+    )) = player.get_single_mut()
     else {
         return;
     };
+
+    if health.is_dead() {
+        return;
+    }
 
     let mut under_knockback = false;
     if let Some(knockback) = knockback.as_mut() {
@@ -101,13 +123,15 @@ pub fn dungeon_movement(
         || block.is_active()
         || special.is_some_and(|m| m.is_active() && m.kind == SpecialMoveKind::Charge);
 
-    if !under_knockback
-        && velocity.grounded
-        && !jump_blocked
-        && keyboard.just_pressed(KeyCode::Space)
-    {
-        velocity.y = DUNGEON_JUMP_SPEED;
-        velocity.grounded = false;
+    if !under_knockback && !jump_blocked && keyboard.just_pressed(KeyCode::Space) {
+        if velocity.grounded {
+            velocity.y = DUNGEON_JUMP_SPEED;
+            velocity.grounded = false;
+            air_jumps.remaining = MAX_AIR_JUMPS;
+        } else if air_jumps.remaining > 0 {
+            velocity.y = DUNGEON_JUMP_SPEED * DUNGEON_AIR_JUMP_MULT;
+            air_jumps.remaining -= 1;
+        }
     }
 
     if !velocity.grounded {
@@ -135,15 +159,14 @@ pub fn dungeon_movement(
                 position.y = collider.top_y + half.y;
                 velocity.y = 0.0;
                 velocity.grounded = true;
+                air_jumps.remaining = MAX_AIR_JUMPS;
                 break;
             }
         }
     }
 
-    if feet_y < -4.0 * TILE {
-        velocity.y = DUNGEON_JUMP_SPEED * 0.5;
-        position.y = DUNGEON_FLOOR_Y + half.y + TILE;
-        velocity.grounded = false;
+    if feet_y < PIT_DEATH_Y {
+        health.current = 0.0;
     }
 
     transform.translation.x = position.x;

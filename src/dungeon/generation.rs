@@ -4,7 +4,7 @@ use rand::{Rng, SeedableRng};
 use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 
 use super::enemy::EnemyKind;
-use super::level::{BatSpawn, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec};
+use super::level::{BatSpawn, BossSpawn, EnemySpawn, GeneratedFloor, PitfallSpec, PlatformSpec};
 
 const BACKDROP_ROWS: u32 = 6;
 const PLAYER_START_X: f32 = 1.5 * TILE;
@@ -29,18 +29,31 @@ pub fn generate_floor(seed: u64) -> GeneratedFloor {
     width_tiles = width_tiles.max(MIN_WIDTH_TILES);
 
     let boss_arena_start = width_tiles - BOSS_ARENA_TILES - LADDER_PAD_TILES;
-    let (platforms, enemies, bats) = generate_segments(&mut rng, ENTRANCE_TILES, boss_arena_start);
+    let (mut ground_segments, pitfalls) =
+        generate_ground_segments(&mut rng, ENTRANCE_TILES, boss_arena_start);
+    ground_segments.push(PlatformSpec {
+        left: boss_arena_start as f32 * TILE,
+        width_tiles: width_tiles - boss_arena_start,
+        top_y: DUNGEON_FLOOR_Y,
+    });
+
+    let (mut platforms, enemies, bats) =
+        generate_segments(&mut rng, ENTRANCE_TILES, boss_arena_start, &ground_segments);
+
+    for pit in &pitfalls {
+        if rng.gen_bool(0.55) {
+            platforms.push(bridge_over_pit(&mut rng, pit));
+        }
+    }
+
     let boss = boss_spawn(boss_arena_start);
     let ladder_tile = width_tiles - 3;
 
     GeneratedFloor {
         width_tiles,
         backdrop_rows: BACKDROP_ROWS,
-        ground: PlatformSpec {
-            left: 0.0,
-            width_tiles,
-            top_y: DUNGEON_FLOOR_Y,
-        },
+        ground_segments,
+        pitfalls,
         platforms,
         enemies,
         bats,
@@ -50,10 +63,69 @@ pub fn generate_floor(seed: u64) -> GeneratedFloor {
     }
 }
 
+fn generate_ground_segments(
+    rng: &mut StdRng,
+    start_tile: u32,
+    end_tile: u32,
+) -> (Vec<PlatformSpec>, Vec<PitfallSpec>) {
+    let mut segments = Vec::new();
+    let mut pitfalls = Vec::new();
+
+    segments.push(PlatformSpec {
+        left: 0.0,
+        width_tiles: start_tile,
+        top_y: DUNGEON_FLOOR_Y,
+    });
+
+    let mut cursor = start_tile;
+
+    while cursor + 10 < end_tile {
+        let max_run = (end_tile - cursor).saturating_sub(4);
+        if max_run < 6 {
+            break;
+        }
+
+        let run_tiles = rng.gen_range(8..18).min(max_run);
+        segments.push(PlatformSpec {
+            left: cursor as f32 * TILE,
+            width_tiles: run_tiles,
+            top_y: DUNGEON_FLOOR_Y,
+        });
+        cursor += run_tiles;
+
+        if cursor + 6 >= end_tile {
+            break;
+        }
+
+        if rng.gen_bool(0.44) {
+            let max_pit = (end_tile - cursor).saturating_sub(2).min(5);
+            if max_pit >= 2 {
+                let pit_width = rng.gen_range(2..=max_pit);
+                pitfalls.push(PitfallSpec {
+                    left: cursor as f32 * TILE,
+                    width_tiles: pit_width,
+                });
+                cursor += pit_width;
+            }
+        }
+    }
+
+    if cursor < end_tile {
+        segments.push(PlatformSpec {
+            left: cursor as f32 * TILE,
+            width_tiles: end_tile - cursor,
+            top_y: DUNGEON_FLOOR_Y,
+        });
+    }
+
+    (segments, pitfalls)
+}
+
 fn generate_segments(
     rng: &mut StdRng,
     start_tile: u32,
     end_tile: u32,
+    ground_segments: &[PlatformSpec],
 ) -> (Vec<PlatformSpec>, Vec<EnemySpawn>, Vec<BatSpawn>) {
     let mut platforms = Vec::new();
     let mut enemies = Vec::new();
@@ -73,19 +145,27 @@ fn generate_segments(
                 break;
             }
             let tile = rng.gen_range((cursor + 2)..(segment_end - 2));
-            enemies.push(EnemySpawn {
-                kind: pick_ground_enemy(rng, progress),
-                x: (tile as f32 + 0.5) * TILE,
-                top_y: DUNGEON_FLOOR_Y,
-            });
+            let x = (tile as f32 + 0.5) * TILE;
+            if is_on_floor(x, ground_segments) {
+                enemies.push(EnemySpawn {
+                    kind: pick_ground_enemy(rng, progress),
+                    x,
+                    top_y: DUNGEON_FLOOR_Y,
+                });
+            }
         }
 
-        if rng.gen_bool(0.75) && segment_end > cursor + 6 {
-            let plat_width = rng.gen_range(3..=5);
-            let max_left = segment_end.saturating_sub(plat_width + 1);
-            if max_left > cursor + 1 {
+        if rng.gen_bool(0.88) && segment_end > cursor + 6 {
+            let platform_count = if rng.gen_bool(0.35) { 2 } else { 1 };
+            for step in 0..platform_count {
+                let plat_width = rng.gen_range(3..=6);
+                let max_left = segment_end.saturating_sub(plat_width + 1);
+                if max_left <= cursor + 1 {
+                    continue;
+                }
                 let plat_left = rng.gen_range((cursor + 1)..=max_left);
-                let height_tiles = rng.gen_range(4..=7);
+                let base_height = rng.gen_range(3..=8);
+                let height_tiles = base_height + step * rng.gen_range(1..=3);
                 let top_y = DUNGEON_FLOOR_Y + height_tiles as f32 * TILE;
 
                 platforms.push(PlatformSpec {
@@ -94,7 +174,7 @@ fn generate_segments(
                     top_y,
                 });
 
-                if rng.gen_bool(0.55) {
+                if rng.gen_bool(0.6) {
                     bats.push(BatSpawn {
                         x: (plat_left as f32 + plat_width as f32 * 0.5) * TILE,
                         top_y,
@@ -107,6 +187,24 @@ fn generate_segments(
     }
 
     (platforms, enemies, bats)
+}
+
+fn bridge_over_pit(rng: &mut StdRng, pit: &PitfallSpec) -> PlatformSpec {
+    let width = pit.width_tiles.saturating_sub(1).max(2);
+    let inset = ((pit.width_tiles - width) as f32 * 0.5 * TILE).max(0.0);
+    PlatformSpec {
+        left: pit.left + inset,
+        width_tiles: width,
+        top_y: DUNGEON_FLOOR_Y + rng.gen_range(2..=5) as f32 * TILE,
+    }
+}
+
+fn is_on_floor(x: f32, segments: &[PlatformSpec]) -> bool {
+    segments.iter().any(|segment| {
+        segment.top_y == DUNGEON_FLOOR_Y
+            && x >= segment.left
+            && x <= segment.left + segment.width_tiles as f32 * TILE
+    })
 }
 
 fn pick_ground_enemy(rng: &mut StdRng, progress: f32) -> EnemyKind {
@@ -161,6 +259,7 @@ mod tests {
             assert!(floor.ladder_tile < floor.width_tiles);
             assert!(floor.boss.patrol_max_x < floor.ladder_tile as f32 * TILE);
             assert!(floor.width_tiles >= MIN_WIDTH_TILES);
+            assert!(!floor.ground_segments.is_empty());
         }
     }
 }
