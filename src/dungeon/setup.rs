@@ -13,7 +13,7 @@ use crate::graphics::{
 use super::animation::PlayerAnimation;
 use super::boss::BossAttackController;
 use super::enemy::{
-    DungeonProgress, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown,
+    DungeonProgress, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump,
     KingSlimeBoss, Patrol,
 };
 use super::generation::{generate_floor, random_seed};
@@ -288,7 +288,7 @@ fn spawn_enemy(
     let radius = spec.kind.patrol_radius_tiles() * TILE;
     let (patrol_min, patrol_max) = if spec.kind.is_airborne() {
         (spec.x - radius, spec.x + radius)
-    } else if let Some((min_x, max_x)) = ground_patrol_range(spec.x, radius, ground_segments) {
+    } else if let Some((min_x, max_x)) = ground_patrol_range(spec.x, ground_segments) {
         (min_x, max_x)
     } else {
         (spec.x - radius, spec.x + radius)
@@ -319,6 +319,10 @@ fn spawn_enemy(
     if spec.kind.shoots_projectiles() {
         let delay = rand::thread_rng().gen_range(0.5..spec.kind.shoot_cooldown());
         entity.insert(EnemyShootCooldown(Timer::from_seconds(delay, TimerMode::Once)));
+    }
+
+    if spec.kind == EnemyKind::Goblin {
+        entity.insert(GoblinJump::default());
     }
 }
 

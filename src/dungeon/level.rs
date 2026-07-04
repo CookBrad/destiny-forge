@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 use super::enemy::EnemyKind;
-use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
+use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
-const GROUND_EDGE_INSET: f32 = TILE * 0.2;
+fn enemy_half_width() -> f32 {
+    ENEMY_DISPLAY_SIZE.x * 0.5
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct PlatformSpec {
@@ -65,88 +67,103 @@ pub struct DungeonLayout {
     pub floor: GeneratedFloor,
 }
 
-/// Walkable span of the floor segment under `x`, if any.
-pub fn ground_segment_bounds_at(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
-    segments
-        .iter()
-        .find(|segment| {
-            segment.top_y == DUNGEON_FLOOR_Y
-                && x >= segment.left
-                && x < segment.left + segment.width_tiles as f32 * TILE
-        })
-        .map(|segment| {
-            (
-                segment.left + GROUND_EDGE_INSET,
-                segment.left + segment.width_tiles as f32 * TILE - GROUND_EDGE_INSET,
-            )
-        })
-}
-
-pub fn ground_patrol_range(x: f32, radius: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
-    ground_segment_bounds_at(x, segments).map(|(seg_min, seg_max)| {
-        let mut min_x = (x - radius).max(seg_min);
-        let mut max_x = (x + radius).min(seg_max);
-        let min_span = TILE * 2.0;
-        if max_x - min_x < min_span {
-            let center = ((min_x + max_x) * 0.5).clamp(seg_min, seg_max);
-            min_x = (center - min_span * 0.5).max(seg_min);
-            max_x = (min_x + min_span).min(seg_max);
-            min_x = (max_x - min_span).max(seg_min);
-        }
-        (min_x, max_x)
+pub fn find_ground_segment_at<'a>(x: f32, segments: &'a [PlatformSpec]) -> Option<&'a PlatformSpec> {
+    segments.iter().find(|segment| {
+        segment.top_y == DUNGEON_FLOOR_Y
+            && x >= segment.left
+            && x < segment.left + segment.width_tiles as f32 * TILE
     })
 }
 
-/// Keep ground movement on the current floor segment; returns `(new_x, hit_edge)`.
-pub fn constrain_ground_movement(
-    current_x: f32,
-    delta_x: f32,
-    segments: &[PlatformSpec],
-) -> (f32, bool) {
-    let proposed = current_x + delta_x;
+pub fn segment_walk_bounds(segment: &PlatformSpec) -> (f32, f32) {
+    let half = enemy_half_width();
+    (
+        segment.left + half,
+        segment.left + segment.width_tiles as f32 * TILE - half,
+    )
+}
 
-    if let Some((cur_min, cur_max)) = ground_segment_bounds_at(current_x, segments) {
-        if proposed >= cur_min && proposed <= cur_max {
-            return (proposed, false);
-        }
-        if delta_x > 0.0 {
-            return (cur_max, true);
-        }
-        if delta_x < 0.0 {
-            return (cur_min, true);
-        }
-        return (current_x, false);
-    }
+/// Walkable span on the floor segment under `x`.
+pub fn ground_walk_bounds_at(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
+    find_ground_segment_at(x, segments).map(segment_walk_bounds)
+}
 
-    if let Some(snapped) = snap_x_to_nearest_ground(current_x, segments) {
-        return (snapped, true);
-    }
-
-    (current_x, false)
+pub fn ground_patrol_range(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
+    ground_walk_bounds_at(x, segments)
 }
 
 pub fn is_on_ground_floor(x: f32, segments: &[PlatformSpec]) -> bool {
-    ground_segment_bounds_at(x, segments).is_some()
+    find_ground_segment_at(x, segments).is_some()
 }
 
-fn snap_x_to_nearest_ground(x: f32, segments: &[PlatformSpec]) -> Option<f32> {
-    let mut best: Option<(f32, f32)> = None;
-
-    for segment in segments {
-        if segment.top_y != DUNGEON_FLOOR_Y {
-            continue;
-        }
-        let seg_min = segment.left + GROUND_EDGE_INSET;
-        let seg_max = segment.left + segment.width_tiles as f32 * TILE - GROUND_EDGE_INSET;
-        for edge in [seg_min, seg_max] {
-            let distance = (x - edge).abs();
-            if best.is_none_or(|(_, best_dist)| distance < best_dist) {
-                best = Some((edge, distance));
-            }
-        }
+pub fn horizontal_move_crosses_pit(from_x: f32, to_x: f32, pitfalls: &[PitfallSpec]) -> bool {
+    if (to_x - from_x).abs() < 0.01 {
+        return false;
     }
 
-    best.map(|(edge, _)| edge)
+    let min_x = from_x.min(to_x);
+    let max_x = from_x.max(to_x);
+
+    pitfalls.iter().any(|pit| {
+        let pit_left = pit.left;
+        let pit_right = pit.left + pit.width_tiles as f32 * TILE;
+        max_x > pit_left && min_x < pit_right
+    })
+}
+
+/// Keep horizontal movement on the current floor segment; returns `(new_x, hit_edge)`.
+pub fn constrain_ground_walk(current_x: f32, delta_x: f32, segments: &[PlatformSpec]) -> (f32, bool) {
+    let proposed = current_x + delta_x;
+
+    let Some((walk_min, walk_max)) = ground_walk_bounds_at(current_x, segments) else {
+        return (current_x, false);
+    };
+
+    if proposed >= walk_min && proposed <= walk_max {
+        return (proposed, false);
+    }
+
+    if delta_x > 0.0 {
+        (walk_max, true)
+    } else if delta_x < 0.0 {
+        (walk_min, true)
+    } else {
+        (current_x, false)
+    }
+}
+
+pub fn pit_jump_landing_exists(
+    from_x: f32,
+    direction: f32,
+    pitfalls: &[PitfallSpec],
+    segments: &[PlatformSpec],
+) -> bool {
+    let direction = direction.signum();
+    if direction == 0.0 {
+        return false;
+    }
+
+    let pit = pitfalls.iter().find(|pit| {
+        let pit_left = pit.left;
+        let pit_right = pit.left + pit.width_tiles as f32 * TILE;
+        if direction > 0.0 {
+            from_x >= pit_left - TILE && from_x <= pit_left + TILE * 0.25
+        } else {
+            from_x <= pit_right + TILE && from_x >= pit_right - TILE * 0.25
+        }
+    });
+
+    let Some(pit) = pit else {
+        return false;
+    };
+
+    let landing_x = if direction > 0.0 {
+        pit.left + pit.width_tiles as f32 * TILE + TILE
+    } else {
+        pit.left - TILE
+    };
+
+    is_on_ground_floor(landing_x, segments)
 }
 
 #[cfg(test)]
@@ -168,23 +185,40 @@ mod tests {
         ]
     }
 
+    fn test_pit() -> PitfallSpec {
+        PitfallSpec {
+            left: 8.0 * TILE,
+            width_tiles: 4,
+        }
+    }
+
     #[test]
-    fn ground_movement_stops_at_segment_edge() {
+    fn ground_walk_uses_full_segment_span() {
+        let segments = test_segments();
+        let (min_x, max_x) = ground_walk_bounds_at(4.0 * TILE, &segments).unwrap();
+        assert_eq!(min_x, enemy_half_width());
+        assert_eq!(max_x, 8.0 * TILE - enemy_half_width());
+    }
+
+    #[test]
+    fn ground_walk_stops_at_segment_edge_not_mid_platform() {
         let segments = test_segments();
         let start = 7.0 * TILE;
-        let (stopped, hit_edge) = constrain_ground_movement(start, TILE * 2.0, &segments);
+        let (stopped, hit_edge) = constrain_ground_walk(start, TILE * 2.0, &segments);
         assert!(hit_edge);
         assert!(stopped < 12.0 * TILE);
         assert!(is_on_ground_floor(stopped, &segments));
     }
 
     #[test]
-    fn ground_movement_cannot_enter_pit_gap() {
+    fn pit_jump_has_landing_on_far_side() {
         let segments = test_segments();
-        let in_pit = 10.0 * TILE;
-        assert!(!is_on_ground_floor(in_pit, &segments));
-        let (snapped, hit_edge) = constrain_ground_movement(in_pit, 0.0, &segments);
-        assert!(hit_edge);
-        assert!(is_on_ground_floor(snapped, &segments));
+        let pit = test_pit();
+        assert!(pit_jump_landing_exists(
+            8.0 * TILE - enemy_half_width(),
+            1.0,
+            &[pit],
+            &segments
+        ));
     }
 }

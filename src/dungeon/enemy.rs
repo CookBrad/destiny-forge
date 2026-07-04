@@ -2,7 +2,10 @@ use bevy::prelude::*;
 
 use crate::combat::{EnemyCorpse, Health};
 use super::boss::{BossAttackController, BossCharging};
-use super::level::{constrain_ground_movement, is_on_ground_floor, DungeonLayout};
+use super::level::{
+    constrain_ground_walk, horizontal_move_crosses_pit, is_on_ground_floor, pit_jump_landing_exists,
+    DungeonLayout,
+};
 use super::movement::DungeonPlayer;
 use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
@@ -221,6 +224,17 @@ pub struct DungeonProgress {
     pub boss_defeated: bool,
 }
 
+#[derive(Component, Default)]
+pub struct GoblinJump {
+    pub velocity_y: f32,
+}
+
+impl GoblinJump {
+    pub fn is_airborne(&self) -> bool {
+        self.velocity_y.abs() > 1.0
+    }
+}
+
 #[derive(Component)]
 pub struct Patrol {
     pub min_x: f32,
@@ -249,6 +263,9 @@ const KNOCKBACK_FORCE_Y: f32 = 85.0;
 const KNOCKBACK_DECAY: f32 = 6.0;
 const KNOCKBACK_GRAVITY: f32 = -360.0;
 const KNOCKBACK_STOP_SPEED: f32 = 18.0;
+const GOBLIN_JUMP_SPEED: f32 = 400.0;
+const GOBLIN_JUMP_HSPEED: f32 = 115.0;
+const GOBLIN_GRAVITY: f32 = -740.0;
 
 pub fn move_enemies(
     time: Res<Time>,
@@ -263,6 +280,7 @@ pub fn move_enemies(
             Option<&mut EnemyKnockback>,
             Option<&mut EnemyAggro>,
             Option<&EnemyKind>,
+            Option<&mut GoblinJump>,
             Option<&KingSlimeBoss>,
             Option<&BossAttackController>,
             Option<&mut BossCharging>,
@@ -277,8 +295,21 @@ pub fn move_enemies(
     let player_pos = player_transform.translation.truncate();
     let dt = time.delta_secs();
 
-    for (entity, mut transform, mut patrol, mut knockback, mut aggro, kind, boss, attack_ctrl, mut charge) in
-        &mut enemies
+    let segments = &layout.floor.ground_segments;
+    let pitfalls = &layout.floor.pitfalls;
+
+    for (
+        entity,
+        mut transform,
+        mut patrol,
+        mut knockback,
+        mut aggro,
+        kind,
+        mut goblin_jump,
+        boss,
+        attack_ctrl,
+        mut charge,
+    ) in &mut enemies
     {
         let enemy_pos = transform.translation.truncate();
         let to_player = player_pos - enemy_pos;
@@ -348,21 +379,63 @@ pub fn move_enemies(
             velocity.x = patrol.direction * patrol.speed;
         }
 
+        let is_goblin = kind.is_some_and(|kind| *kind == EnemyKind::Goblin);
+        let goblin_airborne = goblin_jump.as_ref().is_some_and(|jump| jump.is_airborne())
+            || transform.translation.y > DUNGEON_FLOOR_Y + ENEMY_DISPLAY_SIZE.y * 0.5 + 0.5;
+
+        if is_goblin && !under_knockback && !charging && !goblin_airborne {
+            let jump_direction = if is_aggro {
+                to_player.x.signum()
+            } else {
+                patrol.direction
+            };
+            if jump_direction != 0.0
+                && pit_jump_landing_exists(transform.translation.x, jump_direction, pitfalls, segments)
+            {
+                let probe_dx = jump_direction * TILE * 0.5;
+                let (_, hit_edge) =
+                    constrain_ground_walk(transform.translation.x, probe_dx, segments);
+                if hit_edge || horizontal_move_crosses_pit(
+                    transform.translation.x,
+                    transform.translation.x + jump_direction * TILE,
+                    pitfalls,
+                ) {
+                    if let Some(jump) = goblin_jump.as_mut() {
+                        jump.velocity_y = GOBLIN_JUMP_SPEED;
+                    }
+                    velocity.x = jump_direction * GOBLIN_JUMP_HSPEED;
+                }
+            }
+        }
+
         let dx = velocity.x * dt;
-        if !airborne && boss.is_none() {
-            let (new_x, hit_edge) = constrain_ground_movement(
-                transform.translation.x,
-                dx,
-                &layout.floor.ground_segments,
-            );
+        if is_goblin && goblin_airborne {
+            if let Some(jump) = goblin_jump.as_mut() {
+                jump.velocity_y += GOBLIN_GRAVITY * dt;
+                transform.translation.y += jump.velocity_y * dt;
+
+                let half = ENEMY_DISPLAY_SIZE.y * 0.5;
+                let floor_y = DUNGEON_FLOOR_Y + half;
+                if jump.velocity_y <= 0.0
+                    && transform.translation.y <= floor_y
+                    && is_on_ground_floor(transform.translation.x, segments)
+                {
+                    transform.translation.y = floor_y;
+                    jump.velocity_y = 0.0;
+                }
+            }
+            transform.translation.x += dx;
+        } else if !airborne && boss.is_none() {
+            let (new_x, hit_edge) = constrain_ground_walk(transform.translation.x, dx, segments);
             transform.translation.x = new_x;
             if hit_edge && !is_aggro && !charging {
                 patrol.direction = -patrol.direction;
             }
+            transform.translation.y += velocity.y * dt;
         } else {
             transform.translation.x += dx;
+            transform.translation.y += velocity.y * dt;
         }
-        transform.translation.y += velocity.y * dt;
 
         if charging {
             let hit_left = transform.translation.x <= patrol.min_x;
@@ -374,7 +447,8 @@ pub fn move_enemies(
         }
 
         if !airborne
-            && is_on_ground_floor(transform.translation.x, &layout.floor.ground_segments)
+            && !goblin_airborne
+            && is_on_ground_floor(transform.translation.x, segments)
         {
             let half = ENEMY_DISPLAY_SIZE.y * 0.5;
             let floor_y = DUNGEON_FLOOR_Y + half;
@@ -383,13 +457,7 @@ pub fn move_enemies(
             }
         }
 
-        let clamp_patrol = !charging
-            && if boss.is_some() {
-                !is_aggro
-            } else {
-                !airborne && !is_aggro
-            };
-        if clamp_patrol {
+        if !charging && !airborne && !goblin_airborne && !is_aggro && boss.is_none() {
             if transform.translation.x <= patrol.min_x {
                 transform.translation.x = patrol.min_x;
                 patrol.direction = 1.0;
