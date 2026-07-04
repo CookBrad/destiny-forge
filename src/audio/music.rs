@@ -6,8 +6,8 @@ use crate::core::{DungeonPlayState, GameState};
 #[derive(Component)]
 pub struct DungeonMusic;
 
-const DUNGEON_MUSIC_PATH: &str = "audio/dungeon_ambient.ogg";
-const DUNGEON_MUSIC_VOLUME: f32 = 0.42;
+const DUNGEON_MUSIC_PATH: &str = "audio/dungeon_music.mp3";
+const DUNGEON_MUSIC_VOLUME: f32 = 0.38;
 
 pub fn start_dungeon_music(
     mut commands: Commands,

@@ -59,8 +59,8 @@ Gameplay sprite map
 Audio
 -----
 
-  audio/dungeon_ambient.ogg — Loopable Dungeon Ambience (dungeon_ambient_1)
-  Author: JaggedStone
-  URL: https://opengameart.org/content/loopable-dungeon-ambience
+  audio/dungeon_music.mp3 — 8-bit Cave Loop (8BitCave)
+  Author: Wolfgang_
+  URL: https://opengameart.org/content/8-bit-cave-loop
   License: CC0 1.0 (public domain)
   Used for: dungeon background music (looped)
