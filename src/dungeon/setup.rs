@@ -45,8 +45,16 @@ const BOSS_DISPLAY_SCALE: f32 = 2.0;
 const BOSS_MAX_HEALTH: f32 = 120.0;
 
 pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let art = DungeonArt::load(&asset_server);
-    let seed = random_seed();
+    setup_dungeon_with_seed(&mut commands, &asset_server, None);
+}
+
+pub fn setup_dungeon_with_seed(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    seed: Option<u64>,
+) {
+    let art = DungeonArt::load(asset_server);
+    let seed = seed.unwrap_or_else(random_seed);
     let floor = generate_floor(seed);
 
     commands.init_resource::<LadderPrompt>();
@@ -59,22 +67,22 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
         width: floor.width_pixels(),
     });
 
-    spawn_backdrop(&mut commands, &art, &floor);
+    spawn_backdrop(commands, &art, &floor);
     for segment in &floor.ground_segments {
-        spawn_ground(&mut commands, &art, *segment);
+        spawn_ground(commands, &art, *segment);
     }
-    spawn_pitfalls(&mut commands, &art, &floor.pitfalls);
+    spawn_pitfalls(commands, &art, &floor.pitfalls);
     for platform in &floor.platforms {
-        spawn_platform(&mut commands, &art, *platform);
+        spawn_platform(commands, &art, *platform);
     }
-    spawn_ladder_exit(&mut commands, &art, floor.ladder_tile);
-    spawn_player(&mut commands, &art, floor.player_start_x);
+    spawn_ladder_exit(commands, &art, floor.ladder_tile);
+    spawn_player(commands, &art, floor.player_start_x);
     for enemy in &floor.enemies {
-        spawn_enemy(&mut commands, &art, *enemy, &floor.ground_segments);
+        spawn_enemy(commands, &art, *enemy, &floor.ground_segments);
     }
     for bat in &floor.bats {
         spawn_enemy(
-            &mut commands,
+            commands,
             &art,
             EnemySpawn {
                 kind: EnemyKind::Bat,
@@ -84,7 +92,7 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
             &floor.ground_segments,
         );
     }
-    spawn_king_slime(&mut commands, &art, floor.boss);
+    spawn_king_slime(commands, &art, floor.boss);
 
     info!("Generated dungeon floor (seed {seed}, {} tiles)", floor.width_tiles);
     commands.insert_resource(art);
@@ -372,14 +380,16 @@ pub fn cleanup_dungeon(
 
 pub fn retry_dungeon(
     keyboard: Res<ButtonInput<KeyCode>>,
+    layout: Option<Res<DungeonLayout>>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     entities: Query<Entity, With<DungeonEntity>>,
     mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
+        let seed = layout.as_deref().map(|layout| layout.seed);
         despawn_dungeon(&mut commands, &entities);
-        setup_dungeon(commands, asset_server);
+        setup_dungeon_with_seed(&mut commands, &asset_server, seed);
         next_play.set(crate::core::DungeonPlayState::Running);
     }
 }
