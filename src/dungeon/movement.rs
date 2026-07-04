@@ -5,8 +5,8 @@ use crate::combat::{
     PlayerSpecialMove, SpecialMoveKind,
 };
 use crate::graphics::{
-    DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY,
-    DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED, TILE,
+    viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY,
+    DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
 };
 
 use super::sprites::player_half_extents;
@@ -31,11 +31,11 @@ pub struct PlayerAirJumps {
 const MAX_AIR_JUMPS: u8 = 1;
 const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
-const PIT_DEATH_Y: f32 = DUNGEON_FLOOR_Y - 3.5 * TILE;
 
 pub fn dungeon_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    window: Query<&Window>,
     mut commands: Commands,
     bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
@@ -165,8 +165,11 @@ pub fn dungeon_movement(
         }
     }
 
-    if feet_y < PIT_DEATH_Y {
-        health.current = 0.0;
+    if let Ok(window) = window.get_single() {
+        let off_screen_bottom = position.y + half.y < viewport_bottom_y(window);
+        if off_screen_bottom {
+            health.current = 0.0;
+        }
     }
 
     transform.translation.x = position.x;

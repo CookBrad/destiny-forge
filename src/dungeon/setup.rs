@@ -58,7 +58,7 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     spawn_backdrop(&mut commands, &art, &floor);
     for segment in &floor.ground_segments {
-        spawn_ground(&mut commands, &art, *segment);
+        spawn_ground(&mut commands, &art, *segment, &floor.pitfalls);
     }
     spawn_pitfalls(&mut commands, &art, &floor.pitfalls);
     for platform in &floor.platforms {
@@ -103,31 +103,72 @@ fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFl
     }
 }
 
-fn spawn_ground(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
-    spawn_platform_tiles(commands, art, spec, true);
+const PIT_WARNING_COLOR: Color = Color::srgb(1.0, 0.38, 0.1);
+const PIT_VOID_COLOR: Color = Color::srgb(0.04, 0.02, 0.07);
+const PIT_VOID_ROWS: u32 = 10;
+
+fn spawn_ground(
+    commands: &mut Commands,
+    art: &DungeonArt,
+    spec: PlatformSpec,
+    pitfalls: &[PitfallSpec],
+) {
+    spawn_platform_tiles(commands, art, spec, true, pitfalls);
 }
 
 fn spawn_pitfalls(commands: &mut Commands, art: &DungeonArt, pitfalls: &[PitfallSpec]) {
     for pit in pitfalls {
-        for tile in 0..pit.width_tiles {
-            let x = pit.left + tile as f32 * TILE + TILE * 0.5;
-            let y = DUNGEON_FLOOR_Y - TILE * 1.25;
+        let pit_right = pit.left + pit.width_tiles as f32 * TILE;
+
+        for edge_x in [pit.left + TILE * 0.5, pit_right - TILE * 0.5] {
             commands.spawn((
                 Sprite {
                     image: art.floor_ground.clone(),
-                    color: Color::srgba(0.12, 0.05, 0.1, 0.92),
+                    color: PIT_WARNING_COLOR,
                     ..default()
                 },
-                scaled_transform(Vec2::new(x, y), 0.5),
+                scaled_transform(Vec2::new(edge_x, DUNGEON_FLOOR_Y - TILE * 0.5), 0.55),
                 Pitfall,
                 DungeonEntity,
             ));
+            commands.spawn((
+                Sprite {
+                    image: art.floor_ground.clone(),
+                    color: Color::srgb(0.15, 0.0, 0.0),
+                    ..default()
+                },
+                scaled_transform(Vec2::new(edge_x, DUNGEON_FLOOR_Y - TILE * 1.5), 0.45),
+                Pitfall,
+                DungeonEntity,
+            ));
+        }
+
+        for tile in 0..pit.width_tiles {
+            let x = pit.left + tile as f32 * TILE + TILE * 0.5;
+            for row in 0..PIT_VOID_ROWS {
+                let y = DUNGEON_FLOOR_Y - TILE * (0.5 + row as f32);
+                let stripe = row % 2 == 0;
+                commands.spawn((
+                    Sprite {
+                        image: art.floor_ground.clone(),
+                        color: if stripe {
+                            PIT_VOID_COLOR
+                        } else {
+                            Color::srgb(0.08, 0.03, 0.12)
+                        },
+                        ..default()
+                    },
+                    scaled_transform(Vec2::new(x, y), 0.35),
+                    Pitfall,
+                    DungeonEntity,
+                ));
+            }
         }
     }
 }
 
 fn spawn_platform(commands: &mut Commands, art: &DungeonArt, spec: PlatformSpec) {
-    spawn_platform_tiles(commands, art, spec, false);
+    spawn_platform_tiles(commands, art, spec, false, &[]);
 }
 
 fn spawn_platform_tiles(
@@ -135,6 +176,7 @@ fn spawn_platform_tiles(
     art: &DungeonArt,
     spec: PlatformSpec,
     ground: bool,
+    pitfalls: &[PitfallSpec],
 ) {
     let texture = if ground {
         art.floor_ground.clone()
@@ -150,11 +192,18 @@ fn spawn_platform_tiles(
     };
 
     for tile in 0..spec.width_tiles {
-        let x = spec.left + tile as f32 * TILE + TILE * 0.5;
+        let tile_left = spec.left + tile as f32 * TILE;
+        let x = tile_left + TILE * 0.5;
         let y = spec.top_y - TILE * 0.5;
+        let color = if ground && tile_borders_pit(tile_left, tile_left + TILE, pitfalls) {
+            PIT_WARNING_COLOR
+        } else {
+            Color::WHITE
+        };
         commands.spawn((
             Sprite {
                 image: texture.clone(),
+                color,
                 ..default()
             },
             scaled_transform(Vec2::new(x, y), 1.0),
@@ -162,6 +211,14 @@ fn spawn_platform_tiles(
             DungeonEntity,
         ));
     }
+}
+
+fn tile_borders_pit(tile_left: f32, tile_right: f32, pitfalls: &[PitfallSpec]) -> bool {
+    pitfalls.iter().any(|pit| {
+        let pit_left = pit.left;
+        let pit_right = pit.left + pit.width_tiles as f32 * TILE;
+        (tile_right - pit_left).abs() < 0.5 || (tile_left - pit_right).abs() < 0.5
+    })
 }
 
 fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile: u32) {

@@ -2,7 +2,7 @@ mod camera;
 mod plugin;
 mod world_units;
 
-pub use camera::{follow_camera, init_dungeon_camera, DungeonScrollBounds};
+pub use camera::{follow_camera, init_dungeon_camera, viewport_bottom_y, DungeonScrollBounds};
 pub use plugin::GraphicsPlugin;
 pub use world_units::{
     center_on_surface, enemy_half_extents, scaled_size, scaled_transform, DUNGEON_FLOOR_Y,

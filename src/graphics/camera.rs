@@ -77,6 +77,15 @@ fn viewport_half_width(window: &Window) -> f32 {
     window.width() * 0.5
 }
 
-fn camera_y() -> f32 {
+pub fn dungeon_camera_center_y() -> f32 {
     DUNGEON_FLOOR_Y + CAMERA_HEIGHT_ABOVE_FLOOR
+}
+
+/// World-space Y of the bottom edge of the visible viewport.
+pub fn viewport_bottom_y(window: &Window) -> f32 {
+    dungeon_camera_center_y() - window.height() * 0.5
+}
+
+fn camera_y() -> f32 {
+    dungeon_camera_center_y()
 }
