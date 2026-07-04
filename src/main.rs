@@ -1,3 +1,4 @@
+mod audio;
 mod combat;
 mod core;
 mod dungeon;
@@ -11,6 +12,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .insert_resource(ClearColor(Color::srgb(0.08, 0.07, 0.1)))
         .add_plugins(core::CorePlugin)
+        .add_plugins(audio::GameAudioPlugin)
         .add_plugins(combat::CombatPlugin)
         .add_plugins(graphics::GraphicsPlugin)
         .add_plugins(dungeon::DungeonPlugin)
