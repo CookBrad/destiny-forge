@@ -51,8 +51,8 @@ impl CombatSfxAssets {
         self.heavy_hit = server.load("audio/sfx/heavy_hit.ogg");
         self.block = server.load("audio/sfx/block.ogg");
         self.parry = server.load("audio/sfx/parry.ogg");
-        self.charge = server.load("audio/sfx/charge.ogg");
-        self.spin = server.load("audio/sfx/spin.ogg");
+        self.charge = server.load("audio/sfx/charge.wav");
+        self.spin = server.load("audio/sfx/spin.wav");
         self.enemy_shoot = server.load("audio/sfx/enemy_shoot.ogg");
         self.slime_shoot = server.load("audio/sfx/slime_shoot.ogg");
         self.slime_burst = server.load("audio/sfx/slime_burst.ogg");
@@ -70,8 +70,8 @@ impl CombatSfxAssets {
             CombatSfx::HeavyHit => (&self.heavy_hit, 0.64, 1.0),
             CombatSfx::Block => (&self.block, 0.52, 1.0),
             CombatSfx::Parry => (&self.parry, 0.55, 1.0),
-            CombatSfx::Charge => (&self.charge, 0.52, 1.18),
-            CombatSfx::Spin => (&self.spin, 0.46, 1.22),
+            CombatSfx::Charge => (&self.charge, 0.44, 1.05),
+            CombatSfx::Spin => (&self.spin, 0.42, 1.12),
             CombatSfx::EnemyShoot => (&self.enemy_shoot, 0.5, 1.0),
             CombatSfx::SlimeShoot => (&self.slime_shoot, 0.46, 1.0),
             CombatSfx::SlimeBurst => (&self.slime_burst, 0.44, 1.0),

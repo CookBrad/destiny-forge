@@ -70,4 +70,11 @@ Audio
   URL: https://kenney.nl/assets/rpg-audio
   License: CC0 1.0 (public domain)
   Used for: combat sound effects (swings, hits, blocks, projectiles, boss attacks)
-  Curated clips include cloth4 (sword whoosh), cloth2 (sword hit), clothBelt2 (charge), beltHandle2 (spin), etc.
+  Curated clips include cloth4 (sword whoosh), cloth2 (sword hit), knifeSlice, etc.
+
+  audio/sfx/charge.wav — Swishes Sound Pack (swish-7)
+  audio/sfx/spin.wav — Swishes Sound Pack (swish-11)
+  Author: artisticdude
+  URL: https://opengameart.org/content/swishes-sound-pack
+  License: CC0 1.0 (public domain)
+  Used for: player charge and whirlwind whoosh effects
