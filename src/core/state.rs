@@ -13,4 +13,6 @@ pub enum DungeonPlayState {
     #[default]
     Running,
     Paused,
+    Dying,
+    Dead,
 }

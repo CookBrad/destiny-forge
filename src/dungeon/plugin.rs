@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    animate_special_weapon, animate_weapon_swing, apply_enemy_contact_damage,
-    cleanup_special_weapon, deflect_projectiles_with_swing, despawn_block_weapon,
-    enemy_shoot_projectiles, move_enemy_projectiles, resolve_deflected_projectile_hits,
-    resolve_enemy_projectiles, resolve_special_move_hits, resolve_weapon_hits,
-    start_player_attack, start_player_special_moves, sync_block_weapon, sync_sheathed_weapon,
-    tick_hit_flash, tick_player_attack, tick_player_hit_flash, tick_player_special_moves,
-    update_player_block,
+    animate_player_death, animate_special_weapon, animate_weapon_swing, apply_enemy_contact_damage,
+    cleanup_special_weapon, deflect_projectiles_with_swing, despawn_block_weapon, detect_player_death,
+    enemy_shoot_projectiles, finish_player_death, hide_death_weapons, move_enemy_projectiles,
+    resolve_deflected_projectile_hits, resolve_enemy_projectiles, resolve_special_move_hits,
+    resolve_weapon_hits, start_player_attack, start_player_special_moves, sync_block_weapon,
+    sync_sheathed_weapon, tick_hit_flash, tick_player_attack, tick_player_death,
+    tick_player_hit_flash, tick_player_special_moves, update_player_block,
 };
 use crate::core::{DungeonPlayState, GameState};
 use crate::graphics::{follow_camera, init_dungeon_camera};
@@ -17,7 +17,7 @@ use super::boss::{resolve_boss_hazards, tick_boss_attacks};
 use super::enemy::{move_enemies, track_boss_defeat};
 use super::interaction::{ladder_interaction, update_ladder_prompt};
 use super::movement::dungeon_movement;
-use super::setup::{cleanup_dungeon, setup_dungeon};
+use super::setup::{cleanup_dungeon, retry_dungeon, setup_dungeon};
 
 pub struct DungeonPlugin;
 
@@ -25,9 +25,41 @@ impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             OnEnter(GameState::Dungeon),
-            (setup_dungeon, init_dungeon_camera).chain(),
+            (
+                setup_dungeon,
+                init_dungeon_camera,
+                |mut next_play: ResMut<NextState<DungeonPlayState>>| {
+                    next_play.set(DungeonPlayState::Running);
+                },
+            )
+                .chain(),
         )
             .add_systems(OnExit(GameState::Dungeon), cleanup_dungeon)
+            .add_systems(
+                Update,
+                detect_player_death
+                    .run_if(in_state(GameState::Dungeon))
+                    .run_if(in_state(DungeonPlayState::Running)),
+            )
+            .add_systems(
+                Update,
+                (
+                    tick_player_death,
+                    hide_death_weapons,
+                    animate_player_death,
+                    follow_camera,
+                    finish_player_death,
+                )
+                    .chain()
+                    .run_if(in_state(GameState::Dungeon))
+                    .run_if(in_state(DungeonPlayState::Dying)),
+            )
+            .add_systems(
+                Update,
+                retry_dungeon
+                    .run_if(in_state(GameState::Dungeon))
+                    .run_if(in_state(DungeonPlayState::Dead)),
+            )
             .add_systems(
                 Update,
                 (

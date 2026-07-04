@@ -2,18 +2,20 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::dungeon::{player_frame_rect, DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES};
+use crate::core::DungeonPlayState;
+use crate::dungeon::{
+    player_frame_rect, player_half_extents, DungeonArt, DungeonPlayer, PlatformCollider,
+    PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES,
+};
 use crate::graphics::{DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, PIXEL_SCALE, TILE};
 
 use super::attack::{WeaponOnBack, WeaponSwingFx};
 use super::block::WeaponBlockFx;
 use super::health::Health;
 use super::player_block::PlayerBlock;
-use super::player_hurt::PlayerKnockback;
+use super::player_hurt::{PlayerHitFlash, PlayerKnockback};
 use super::special_moves::{PlayerSpecialMove, WeaponSpecialFx};
 use super::PlayerAttack;
-use crate::dungeon::setup::PlatformCollider;
-use crate::dungeon::sprites::player_half_extents;
 
 const DEATH_DURATION: f32 = 1.45;
 const DEATH_KNOCKBACK_X: f32 = 185.0;
@@ -23,13 +25,15 @@ const DEATH_KNOCKBACK_Y: f32 = 165.0;
 pub struct PlayerDeath {
     pub timer: Timer,
     pub knockback: Vec2,
+    pub ground_y: f32,
 }
 
 impl PlayerDeath {
-    pub fn new(facing: f32) -> Self {
+    pub fn new(facing: f32, ground_y: f32) -> Self {
         Self {
             timer: Timer::from_seconds(DEATH_DURATION, TimerMode::Once),
             knockback: Vec2::new(-facing.signum() * DEATH_KNOCKBACK_X, DEATH_KNOCKBACK_Y),
+            ground_y,
         }
     }
 
@@ -44,9 +48,11 @@ impl PlayerDeath {
 
 pub fn detect_player_death(
     mut commands: Commands,
+    mut next_play: ResMut<NextState<DungeonPlayState>>,
     player: Query<
         (
             Entity,
+            &Transform,
             &Health,
             &PlayerAnimation,
             Option<&PlayerDeath>,
@@ -54,7 +60,7 @@ pub fn detect_player_death(
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((entity, health, animation, death)) = player.get_single() else {
+    let Ok((entity, transform, health, animation, death)) = player.get_single() else {
         return;
     };
 
@@ -63,7 +69,7 @@ pub fn detect_player_death(
     }
 
     commands.entity(entity).insert((
-        PlayerDeath::new(animation.facing),
+        PlayerDeath::new(animation.facing, transform.translation.y),
         PlayerVelocity {
             x: 0.0,
             y: 0.0,
@@ -75,7 +81,9 @@ pub fn detect_player_death(
         PlayerBlock,
         PlayerSpecialMove,
         PlayerKnockback,
+        PlayerHitFlash,
     )>();
+    next_play.set(DungeonPlayState::Dying);
 }
 
 pub fn tick_player_death(
@@ -141,6 +149,7 @@ pub fn tick_player_death(
 
     transform.translation.x = position.x;
     transform.translation.y = position.y;
+    death.ground_y = position.y;
 
     if death.timer.elapsed_secs() > 0.08 {
         for child in children.iter() {
@@ -191,7 +200,7 @@ pub fn animate_player_death(
     transform.rotation = Quat::from_rotation_z(tilt);
 
     let sink = fall * TILE * 0.35;
-    transform.translation.y -= sink * 0.02;
+    transform.translation.y = death.ground_y - sink;
 
     let alpha = if t > 0.78 {
         1.0 - ((t - 0.78) / 0.22)
@@ -200,6 +209,19 @@ pub fn animate_player_death(
     };
     let shade = 0.52 + 0.28 * (1.0 - t);
     sprite.color = Color::srgba(shade, shade * 0.82, shade * 0.88, alpha);
+}
+
+pub fn finish_player_death(
+    player: Query<&PlayerDeath, With<DungeonPlayer>>,
+    mut next_play: ResMut<NextState<DungeonPlayState>>,
+) {
+    let Ok(death) = player.get_single() else {
+        return;
+    };
+
+    if death.is_finished() {
+        next_play.set(DungeonPlayState::Dead);
+    }
 }
 
 pub fn hide_death_weapons(

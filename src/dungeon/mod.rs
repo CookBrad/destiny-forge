@@ -15,7 +15,7 @@ pub use enemy::{
     move_enemies, EnemyAggro, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyKnockback,
     EnemyShootCooldown, KingSlimeBoss, Patrol,
 };
-pub use setup::DungeonEntity;
+pub use setup::{DungeonEntity, PlatformCollider};
 pub use interaction::LadderPrompt;
 pub use movement::{DungeonPlayer, PlayerVelocity};
 pub use plugin::DungeonPlugin;

@@ -2,6 +2,8 @@ use bevy::prelude::*;
 
 use crate::dungeon::DungeonPlayer;
 
+use super::player_death::PlayerDeath;
+
 #[derive(Component)]
 pub struct PlayerHitFlash {
     pub timer: Timer,
@@ -53,7 +55,10 @@ pub fn apply_player_hurt(
 pub fn tick_player_hit_flash(
     time: Res<Time>,
     mut commands: Commands,
-    mut player: Query<(Entity, &mut PlayerHitFlash, &mut Sprite), With<DungeonPlayer>>,
+    mut player: Query<
+        (Entity, &mut PlayerHitFlash, &mut Sprite),
+        (With<DungeonPlayer>, Without<PlayerDeath>),
+    >,
 ) {
     for (entity, mut flash, mut sprite) in &mut player {
         flash.timer.tick(time.delta());

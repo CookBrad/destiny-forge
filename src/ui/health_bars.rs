@@ -172,6 +172,18 @@ pub fn update_player_health_bar(
     }
 }
 
+pub fn despawn_orphan_enemy_health_bars(
+    mut commands: Commands,
+    owners: Query<Entity, With<Health>>,
+    bars: Query<(Entity, &EnemyHealthBar)>,
+) {
+    for (bar_entity, bar) in &bars {
+        if owners.get(bar.owner).is_err() {
+            commands.entity(bar_entity).despawn_recursive();
+        }
+    }
+}
+
 pub fn update_enemy_health_bars(
     owners: Query<
         (Entity, &Transform, &Health, &EnemyHitbox, Option<&EnemyCorpse>),

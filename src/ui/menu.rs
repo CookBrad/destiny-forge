@@ -8,6 +8,9 @@ pub struct TitleMenu;
 #[derive(Component)]
 pub struct PauseMenu;
 
+#[derive(Component)]
+pub struct DeathMenu;
+
 pub fn spawn_title_menu(mut commands: Commands) {
     commands
         .spawn((
@@ -158,5 +161,63 @@ pub fn resume_game_time(mut time: ResMut<Time<Virtual>>) {
 pub fn ensure_time_running(mut time: ResMut<Time<Virtual>>) {
     if time.is_paused() {
         time.unpause();
+    }
+}
+
+pub fn spawn_death_menu(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.06, 0.02, 0.04, 0.82)),
+            DeathMenu,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("You Died"),
+                TextFont {
+                    font_size: 52.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.95, 0.35, 0.38)),
+            ));
+            parent.spawn((
+                Text::new("Enter or Space — Try again"),
+                TextFont {
+                    font_size: 22.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.78, 0.82, 0.88)),
+            ));
+            parent.spawn((
+                Text::new("Q — Quit to title"),
+                TextFont {
+                    font_size: 22.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.78, 0.82, 0.88)),
+            ));
+        });
+}
+
+pub fn cleanup_death_menu(mut commands: Commands, menus: Query<Entity, With<DeathMenu>>) {
+    for entity in &menus {
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+pub fn death_menu_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_game: ResMut<NextState<GameState>>,
+) {
+    if keyboard.just_pressed(KeyCode::KeyQ) {
+        next_game.set(GameState::Title);
     }
 }

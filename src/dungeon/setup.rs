@@ -255,16 +255,37 @@ fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) 
     ));
 }
 
-pub fn cleanup_dungeon(
-    mut commands: Commands,
-    entities: Query<Entity, With<DungeonEntity>>,
+fn despawn_dungeon(
+    commands: &mut Commands,
+    entities: &Query<Entity, With<DungeonEntity>>,
 ) {
     commands.remove_resource::<DungeonArt>();
     commands.remove_resource::<LadderPrompt>();
     commands.remove_resource::<DungeonProgress>();
     commands.remove_resource::<DungeonScrollBounds>();
     commands.remove_resource::<DungeonLayout>();
-    for entity in &entities {
+    for entity in entities.iter() {
         commands.entity(entity).despawn_recursive();
+    }
+}
+
+pub fn cleanup_dungeon(
+    mut commands: Commands,
+    entities: Query<Entity, With<DungeonEntity>>,
+) {
+    despawn_dungeon(&mut commands, &entities);
+}
+
+pub fn retry_dungeon(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    entities: Query<Entity, With<DungeonEntity>>,
+    mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
+) {
+    if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
+        despawn_dungeon(&mut commands, &entities);
+        setup_dungeon(commands, asset_server);
+        next_play.set(crate::core::DungeonPlayState::Running);
     }
 }

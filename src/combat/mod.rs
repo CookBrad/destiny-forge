@@ -3,6 +3,7 @@ mod block;
 mod health;
 mod hitbox;
 mod player_block;
+mod player_death;
 mod player_hurt;
 mod plugin;
 mod projectile;
@@ -21,6 +22,10 @@ pub use special_moves::{
     resolve_special_move_hits, special_move_hit_rect, spin_deflects_projectile,
     start_player_special_moves,
     tick_player_special_moves, PlayerSpecialMove, SpecialMoveKind, WeaponSpecialFx,
+};
+pub use player_death::{
+    animate_player_death, detect_player_death, finish_player_death, hide_death_weapons,
+    tick_player_death, PlayerDeath,
 };
 pub use player_hurt::{apply_player_hurt, tick_player_hit_flash, PlayerKnockback};
 pub use projectile::{

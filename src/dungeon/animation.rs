@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::{PlayerAttack, PlayerKnockback, PlayerSpecialMove};
+use crate::combat::{PlayerAttack, PlayerDeath, PlayerKnockback, PlayerSpecialMove};
 
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{
@@ -37,7 +37,7 @@ pub fn animate_player(
             &mut Sprite,
             &mut Transform,
         ),
-        With<DungeonPlayer>,
+        (With<DungeonPlayer>, Without<PlayerDeath>),
     >,
 ) {
     let Ok((velocity, attack, special, knockback, mut animation, mut sprite, mut transform)) =
