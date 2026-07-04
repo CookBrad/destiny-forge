@@ -356,7 +356,7 @@ pub fn move_enemies(
                 &layout.floor.ground_segments,
             );
             transform.translation.x = new_x;
-            if hit_edge {
+            if hit_edge && !is_aggro && !charging {
                 patrol.direction = -patrol.direction;
             }
         } else {

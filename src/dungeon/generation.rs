@@ -14,6 +14,10 @@ const LADDER_PAD_TILES: u32 = 3;
 const MIN_WIDTH_TILES: u32 = 180;
 const MIN_PIT_TILES: u32 = 4;
 const MAX_PIT_TILES: u32 = 8;
+const MIN_PLATFORM_HEIGHT_TILES: u32 = 5;
+const MAX_PLATFORM_HEIGHT_TILES: u32 = 10;
+const MIN_BRIDGE_HEIGHT_TILES: u32 = 4;
+const MAX_BRIDGE_HEIGHT_TILES: u32 = 7;
 
 pub fn random_seed() -> u64 {
     rand::random()
@@ -168,8 +172,8 @@ fn generate_segments(
                     continue;
                 }
                 let plat_left = rng.gen_range((cursor + 1)..=max_left);
-                let base_height = rng.gen_range(3..=8);
-                let height_tiles = base_height + step * rng.gen_range(1..=3);
+                let base_height = rng.gen_range(MIN_PLATFORM_HEIGHT_TILES..=MAX_PLATFORM_HEIGHT_TILES);
+                let height_tiles = base_height + step * rng.gen_range(2..=4);
                 let top_y = DUNGEON_FLOOR_Y + height_tiles as f32 * TILE;
 
                 platforms.push(PlatformSpec {
@@ -199,7 +203,8 @@ fn bridge_over_pit(rng: &mut StdRng, pit: &PitfallSpec) -> PlatformSpec {
     PlatformSpec {
         left: pit.left + inset,
         width_tiles: width,
-        top_y: DUNGEON_FLOOR_Y + rng.gen_range(2..=5) as f32 * TILE,
+        top_y: DUNGEON_FLOOR_Y
+            + rng.gen_range(MIN_BRIDGE_HEIGHT_TILES..=MAX_BRIDGE_HEIGHT_TILES) as f32 * TILE,
     }
 }
 

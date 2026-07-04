@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use super::enemy::EnemyKind;
 use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 
-const GROUND_EDGE_INSET: f32 = TILE * 0.35;
+const GROUND_EDGE_INSET: f32 = TILE * 0.2;
 
 #[derive(Clone, Copy, Debug)]
 pub struct PlatformSpec {
@@ -82,8 +82,19 @@ pub fn ground_segment_bounds_at(x: f32, segments: &[PlatformSpec]) -> Option<(f3
         })
 }
 
-pub fn ground_patrol_range(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
-    ground_segment_bounds_at(x, segments)
+pub fn ground_patrol_range(x: f32, radius: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
+    ground_segment_bounds_at(x, segments).map(|(seg_min, seg_max)| {
+        let mut min_x = (x - radius).max(seg_min);
+        let mut max_x = (x + radius).min(seg_max);
+        let min_span = TILE * 2.0;
+        if max_x - min_x < min_span {
+            let center = ((min_x + max_x) * 0.5).clamp(seg_min, seg_max);
+            min_x = (center - min_span * 0.5).max(seg_min);
+            max_x = (min_x + min_span).min(seg_max);
+            min_x = (max_x - min_span).max(seg_min);
+        }
+        (min_x, max_x)
+    })
 }
 
 /// Keep ground movement on the current floor segment; returns `(new_x, hit_edge)`.
