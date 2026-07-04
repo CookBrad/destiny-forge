@@ -64,7 +64,7 @@ impl CombatSfxAssets {
     fn clip(&self, sfx: CombatSfx) -> (&Handle<AudioSource>, f32, f32) {
         match sfx {
             CombatSfx::SwordSwing => (&self.sword_swing, 0.36, 1.15),
-            CombatSfx::SwordHit => (&self.sword_hit, 0.58, 1.0),
+            CombatSfx::SwordHit => (&self.sword_hit, 0.4, 1.1),
             CombatSfx::HeavyHit => (&self.heavy_hit, 0.64, 1.0),
             CombatSfx::Block => (&self.block, 0.52, 1.0),
             CombatSfx::Parry => (&self.parry, 0.55, 1.0),
