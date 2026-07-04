@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::combat::{EnemyCorpse, Health};
 use super::boss::{BossAttackController, BossCharging};
 use super::level::{
-    constrain_ground_walk, horizontal_move_crosses_pit, is_on_ground_floor, pit_jump_landing_exists,
-    DungeonLayout,
+    adjacent_pit_from_edge, constrain_ground_walk, ground_walk_bounds_at, is_on_ground_floor,
+    is_over_pit_gap, pit_bounds, DungeonLayout,
 };
 use super::movement::DungeonPlayer;
 use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
@@ -224,14 +224,33 @@ pub struct DungeonProgress {
     pub boss_defeated: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct PitClearing {
+    pub pit_left: f32,
+    pub pit_right: f32,
+    pub direction: f32,
+}
+
+impl PitClearing {
+    pub fn cleared(&self, x: f32) -> bool {
+        let half = ENEMY_DISPLAY_SIZE.x * 0.5;
+        if self.direction > 0.0 {
+            x >= self.pit_right - half
+        } else {
+            x <= self.pit_left + half
+        }
+    }
+}
+
 #[derive(Component, Default)]
 pub struct GoblinJump {
     pub velocity_y: f32,
+    pub clearing: Option<PitClearing>,
 }
 
 impl GoblinJump {
     pub fn is_airborne(&self) -> bool {
-        self.velocity_y.abs() > 1.0
+        self.velocity_y.abs() > 1.0 || self.clearing.is_some()
     }
 }
 
@@ -263,9 +282,10 @@ const KNOCKBACK_FORCE_Y: f32 = 85.0;
 const KNOCKBACK_DECAY: f32 = 6.0;
 const KNOCKBACK_GRAVITY: f32 = -360.0;
 const KNOCKBACK_STOP_SPEED: f32 = 18.0;
-const GOBLIN_JUMP_SPEED: f32 = 400.0;
-const GOBLIN_JUMP_HSPEED: f32 = 115.0;
-const GOBLIN_GRAVITY: f32 = -740.0;
+const GOBLIN_JUMP_SPEED: f32 = 430.0;
+const GOBLIN_JUMP_HSPEED: f32 = 132.0;
+const GOBLIN_GRAVITY: f32 = -700.0;
+const GOBLIN_PIT_CLEARANCE_Y: f32 = TILE * 1.1;
 
 pub fn move_enemies(
     time: Res<Time>,
@@ -389,19 +409,26 @@ pub fn move_enemies(
             } else {
                 patrol.direction
             };
-            if jump_direction != 0.0
-                && pit_jump_landing_exists(transform.translation.x, jump_direction, pitfalls, segments)
-            {
-                let probe_dx = jump_direction * TILE * 0.5;
-                let (_, hit_edge) =
-                    constrain_ground_walk(transform.translation.x, probe_dx, segments);
-                if hit_edge || horizontal_move_crosses_pit(
-                    transform.translation.x,
-                    transform.translation.x + jump_direction * TILE,
-                    pitfalls,
-                ) {
+            if jump_direction != 0.0 {
+                let x = transform.translation.x;
+                if let Some(pit) =
+                    adjacent_pit_from_edge(x, jump_direction, segments, pitfalls)
+                {
+                    let (pit_left, pit_right) = pit_bounds(&pit);
+                    if let Some((walk_min, walk_max)) = ground_walk_bounds_at(x, segments) {
+                        transform.translation.x = if jump_direction > 0.0 {
+                            walk_max
+                        } else {
+                            walk_min
+                        };
+                    }
                     if let Some(jump) = goblin_jump.as_mut() {
                         jump.velocity_y = GOBLIN_JUMP_SPEED;
+                        jump.clearing = Some(PitClearing {
+                            pit_left,
+                            pit_right,
+                            direction: jump_direction,
+                        });
                     }
                     velocity.x = jump_direction * GOBLIN_JUMP_HSPEED;
                 }
@@ -416,12 +443,25 @@ pub fn move_enemies(
 
                 let half = ENEMY_DISPLAY_SIZE.y * 0.5;
                 let floor_y = DUNGEON_FLOOR_Y + half;
-                if jump.velocity_y <= 0.0
+                let x = transform.translation.x;
+                let over_pit = is_over_pit_gap(x, pitfalls);
+                let still_clearing = jump
+                    .clearing
+                    .is_some_and(|clearing| !clearing.cleared(x));
+
+                if still_clearing || over_pit {
+                    let min_y = floor_y + GOBLIN_PIT_CLEARANCE_Y;
+                    if transform.translation.y < min_y {
+                        transform.translation.y = min_y;
+                        jump.velocity_y = jump.velocity_y.max(0.0);
+                    }
+                } else if jump.velocity_y <= 0.0
                     && transform.translation.y <= floor_y
-                    && is_on_ground_floor(transform.translation.x, segments)
+                    && is_on_ground_floor(x, segments)
                 {
                     transform.translation.y = floor_y;
                     jump.velocity_y = 0.0;
+                    jump.clearing = None;
                 }
             }
             transform.translation.x += dx;

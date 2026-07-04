@@ -132,38 +132,50 @@ pub fn constrain_ground_walk(current_x: f32, delta_x: f32, segments: &[PlatformS
     }
 }
 
-pub fn pit_jump_landing_exists(
-    from_x: f32,
-    direction: f32,
-    pitfalls: &[PitfallSpec],
-    segments: &[PlatformSpec],
-) -> bool {
-    let direction = direction.signum();
-    if direction == 0.0 {
-        return false;
-    }
-
-    let pit = pitfalls.iter().find(|pit| {
+pub fn is_over_pit_gap(x: f32, pitfalls: &[PitfallSpec]) -> bool {
+    pitfalls.iter().any(|pit| {
         let pit_left = pit.left;
         let pit_right = pit.left + pit.width_tiles as f32 * TILE;
-        if direction > 0.0 {
-            from_x >= pit_left - TILE && from_x <= pit_left + TILE * 0.25
-        } else {
-            from_x <= pit_right + TILE && from_x >= pit_right - TILE * 0.25
-        }
-    });
+        x > pit_left && x < pit_right
+    })
+}
 
-    let Some(pit) = pit else {
-        return false;
-    };
+pub fn pit_bounds(pit: &PitfallSpec) -> (f32, f32) {
+    (pit.left, pit.left + pit.width_tiles as f32 * TILE)
+}
 
-    let landing_x = if direction > 0.0 {
-        pit.left + pit.width_tiles as f32 * TILE + TILE
+/// Pit immediately beyond the walk edge the goblin is standing on, if any.
+pub fn adjacent_pit_from_edge(
+    x: f32,
+    direction: f32,
+    segments: &[PlatformSpec],
+    pitfalls: &[PitfallSpec],
+) -> Option<PitfallSpec> {
+    let direction = direction.signum();
+    if direction == 0.0 {
+        return None;
+    }
+
+    let (walk_min, walk_max) = ground_walk_bounds_at(x, segments)?;
+    let at_edge = if direction > 0.0 {
+        (walk_max - x).abs() <= 2.0
     } else {
-        pit.left - TILE
+        (x - walk_min).abs() <= 2.0
     };
+    if !at_edge {
+        return None;
+    }
 
-    is_on_ground_floor(landing_x, segments)
+    pitfalls.iter().copied().find(|pit| {
+        let (pit_left, pit_right) = pit_bounds(pit);
+        if direction > 0.0 {
+            (pit_left - walk_max).abs() <= TILE * 0.5
+                && is_on_ground_floor(pit_right + enemy_half_width(), segments)
+        } else {
+            (pit_right - walk_min).abs() <= TILE * 0.5
+                && is_on_ground_floor(pit_left - enemy_half_width(), segments)
+        }
+    })
 }
 
 #[cfg(test)]
@@ -211,14 +223,19 @@ mod tests {
     }
 
     #[test]
-    fn pit_jump_has_landing_on_far_side() {
+    fn adjacent_pit_detected_from_walk_edge() {
         let segments = test_segments();
         let pit = test_pit();
-        assert!(pit_jump_landing_exists(
-            8.0 * TILE - enemy_half_width(),
-            1.0,
-            &[pit],
-            &segments
-        ));
+        let edge_x = 8.0 * TILE - enemy_half_width();
+        assert!(adjacent_pit_from_edge(edge_x, 1.0, &segments, &[pit]).is_some());
+        assert!(adjacent_pit_from_edge(4.0 * TILE, 1.0, &segments, &[pit]).is_none());
+    }
+
+    #[test]
+    fn pit_gap_is_between_floor_segments() {
+        let pit = test_pit();
+        let (pit_left, pit_right) = pit_bounds(&pit);
+        assert!(is_over_pit_gap((pit_left + pit_right) * 0.5, &[pit]));
+        assert!(!is_over_pit_gap(pit_left, &[pit]));
     }
 }
