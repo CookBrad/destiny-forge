@@ -12,6 +12,8 @@ const ENTRANCE_TILES: u32 = 8;
 const BOSS_ARENA_TILES: u32 = 12;
 const LADDER_PAD_TILES: u32 = 3;
 const MIN_WIDTH_TILES: u32 = 180;
+const MIN_PIT_TILES: u32 = 4;
+const MAX_PIT_TILES: u32 = 8;
 
 pub fn random_seed() -> u64 {
     rand::random()
@@ -79,8 +81,8 @@ fn generate_ground_segments(
 
     let mut cursor = start_tile;
 
-    while cursor + 10 < end_tile {
-        let max_run = (end_tile - cursor).saturating_sub(4);
+    while cursor + MIN_PIT_TILES + 8 < end_tile {
+        let max_run = (end_tile - cursor).saturating_sub(MIN_PIT_TILES + 3);
         if max_run < 6 {
             break;
         }
@@ -93,14 +95,16 @@ fn generate_ground_segments(
         });
         cursor += run_tiles;
 
-        if cursor + 6 >= end_tile {
+        if cursor + MIN_PIT_TILES + 6 >= end_tile {
             break;
         }
 
         if rng.gen_bool(0.44) {
-            let max_pit = (end_tile - cursor).saturating_sub(2).min(5);
-            if max_pit >= 2 {
-                let pit_width = rng.gen_range(2..=max_pit);
+            let max_pit = (end_tile - cursor)
+                .saturating_sub(3)
+                .min(MAX_PIT_TILES);
+            if max_pit >= MIN_PIT_TILES {
+                let pit_width = rng.gen_range(MIN_PIT_TILES..=max_pit);
                 pitfalls.push(PitfallSpec {
                     left: cursor as f32 * TILE,
                     width_tiles: pit_width,
@@ -260,6 +264,17 @@ mod tests {
             assert!(floor.boss.patrol_max_x < floor.ladder_tile as f32 * TILE);
             assert!(floor.width_tiles >= MIN_WIDTH_TILES);
             assert!(!floor.ground_segments.is_empty());
+        }
+    }
+
+    #[test]
+    fn pitfalls_are_at_least_min_width() {
+        for seed in [1, 42, 999, 12_345, 98_765] {
+            let floor = generate_floor(seed);
+            for pit in &floor.pitfalls {
+                assert!(pit.width_tiles >= MIN_PIT_TILES);
+                assert!(pit.width_tiles <= MAX_PIT_TILES);
+            }
         }
     }
 }

@@ -18,7 +18,10 @@ use super::enemy::{
 };
 use super::generation::{generate_floor, random_seed};
 use super::interaction::LadderPrompt;
-use super::level::{BossSpawn, DungeonLayout, EnemySpawn, GeneratedFloor, PitfallSpec, PlatformSpec};
+use super::level::{
+    ground_patrol_range, BossSpawn, DungeonLayout, EnemySpawn, GeneratedFloor, PitfallSpec,
+    PlatformSpec,
+};
 use super::movement::{DungeonPlayer, PlayerAirJumps, PlayerVelocity};
 use super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
 
@@ -67,7 +70,7 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_ladder_exit(&mut commands, &art, floor.ladder_tile);
     spawn_player(&mut commands, &art, floor.player_start_x);
     for enemy in &floor.enemies {
-        spawn_enemy(&mut commands, &art, *enemy);
+        spawn_enemy(&mut commands, &art, *enemy, &floor.ground_segments);
     }
     for bat in &floor.bats {
         spawn_enemy(
@@ -78,6 +81,7 @@ pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
                 x: bat.x,
                 top_y: bat.top_y,
             },
+            &floor.ground_segments,
         );
     }
     spawn_king_slime(&mut commands, &art, floor.boss);
@@ -267,9 +271,19 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
         });
 }
 
-fn spawn_enemy(commands: &mut Commands, art: &DungeonArt, spec: EnemySpawn) {
+fn spawn_enemy(
+    commands: &mut Commands,
+    art: &DungeonArt,
+    spec: EnemySpawn,
+    ground_segments: &[PlatformSpec],
+) {
     let radius = spec.kind.patrol_radius_tiles() * TILE;
-    let patrol = Patrol::between(spec.x - radius, spec.x + radius, spec.kind.patrol_speed());
+    let (patrol_min, patrol_max) = if spec.kind.is_airborne() {
+        (spec.x - radius, spec.x + radius)
+    } else {
+        ground_patrol_range(spec.x, radius, ground_segments)
+    };
+    let patrol = Patrol::between(patrol_min, patrol_max, spec.kind.patrol_speed());
     let image = enemy_texture(art, spec.kind);
 
     let (x, y) = if spec.kind.is_airborne() {

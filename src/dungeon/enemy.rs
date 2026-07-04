@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::combat::{EnemyCorpse, Health};
 use super::boss::{BossAttackController, BossCharging};
+use super::level::{clamp_x_to_ground_segment, DungeonLayout};
 use super::movement::DungeonPlayer;
 use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
@@ -251,6 +252,7 @@ const KNOCKBACK_STOP_SPEED: f32 = 18.0;
 
 pub fn move_enemies(
     time: Res<Time>,
+    layout: Res<DungeonLayout>,
     mut commands: Commands,
     player: Query<&Transform, With<DungeonPlayer>>,
     mut enemies: Query<
@@ -379,6 +381,20 @@ pub fn move_enemies(
             } else if transform.translation.x >= patrol.max_x {
                 transform.translation.x = patrol.max_x;
                 patrol.direction = -1.0;
+            }
+        }
+
+        if !airborne && !under_knockback && !charging && boss.is_none() {
+            if let Some(clamped_x) =
+                clamp_x_to_ground_segment(transform.translation.x, &layout.floor.ground_segments)
+            {
+                if transform.translation.x < clamped_x {
+                    transform.translation.x = clamped_x;
+                    patrol.direction = 1.0;
+                } else if transform.translation.x > clamped_x {
+                    transform.translation.x = clamped_x;
+                    patrol.direction = -1.0;
+                }
             }
         }
     }
