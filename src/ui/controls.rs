@@ -49,7 +49,7 @@ pub fn cleanup_controls_help(
 fn controls_text(prompt: &LadderPrompt) -> String {
     let mut lines = vec![
         "Dungeon Floor 1".to_string(),
-        "A/D — move   Space — jump   1 — attack   2 — block".to_string(),
+        "A/D — move   Space — jump   1 — attack   2 — block   3 — charge   4 — spin".to_string(),
     ];
 
     if prompt.near_exit && prompt.exit_unlocked {

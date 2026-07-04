@@ -180,11 +180,33 @@ impl EnemyKnockback {
             1.0
         };
 
+        Self::in_direction(horizontal, strength, airborne)
+    }
+
+    pub fn in_direction(direction: f32, strength: f32, airborne: bool) -> Self {
+        let dir = direction.signum();
         Self {
             velocity: Vec2::new(
-                horizontal * KNOCKBACK_FORCE_X * strength,
+                dir * KNOCKBACK_FORCE_X * strength,
                 if airborne {
                     KNOCKBACK_FORCE_Y * strength
+                } else {
+                    0.0
+                },
+            ),
+        }
+    }
+
+    /// Launches enemies farther than a full player charge dash travels.
+    pub fn from_charge(direction: f32, is_boss: bool, airborne: bool) -> Self {
+        let dir = direction.signum();
+        // Decay-integrated travel ≈ speed / KNOCKBACK_DECAY; charge dash ≈ 124px.
+        let speed = if is_boss { 780.0 } else { 1_020.0 };
+        Self {
+            velocity: Vec2::new(
+                dir * speed,
+                if airborne {
+                    KNOCKBACK_FORCE_Y * 0.5
                 } else {
                     0.0
                 },
@@ -299,11 +321,14 @@ pub fn move_enemies(
 
         let boss_winding_up = boss.is_some() && attack_ctrl.is_some_and(|c| c.windup_timer.is_some());
 
+        let mut charging = false;
         if let Some(charge) = charge.as_mut() {
+            charging = true;
             charge.timer.tick(time.delta());
             velocity = charge.velocity;
             if charge.timer.finished() {
                 commands.entity(entity).remove::<BossCharging>();
+                charging = false;
             }
         } else if !under_knockback && !boss_winding_up && is_aggro {
             let chase_speed = if boss.is_some() {
@@ -324,6 +349,15 @@ pub fn move_enemies(
         transform.translation.x += velocity.x * dt;
         transform.translation.y += velocity.y * dt;
 
+        if charging {
+            let hit_left = transform.translation.x <= patrol.min_x;
+            let hit_right = transform.translation.x >= patrol.max_x;
+            if hit_left || hit_right {
+                transform.translation.x = transform.translation.x.clamp(patrol.min_x, patrol.max_x);
+                commands.entity(entity).remove::<BossCharging>();
+            }
+        }
+
         if !airborne {
             let half = ENEMY_DISPLAY_SIZE.y * 0.5;
             let floor_y = DUNGEON_FLOOR_Y + half;
@@ -332,7 +366,12 @@ pub fn move_enemies(
             }
         }
 
-        let clamp_patrol = boss.is_some() || (!airborne && !is_aggro);
+        let clamp_patrol = !charging
+            && if boss.is_some() {
+                !is_aggro
+            } else {
+                !airborne && !is_aggro
+            };
         if clamp_patrol {
             if transform.translation.x <= patrol.min_x {
                 transform.translation.x = patrol.min_x;

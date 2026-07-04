@@ -58,6 +58,15 @@ pub fn hitbox_overlaps(a: HitRect, b: HitRect) -> bool {
     a.min_x < b.max_x && a.max_x > b.min_x && a.min_y < b.max_y && a.max_y > b.min_y
 }
 
+pub fn expand_hit_rect(rect: HitRect, margin: f32) -> HitRect {
+    HitRect {
+        min_x: rect.min_x - margin,
+        max_x: rect.max_x + margin,
+        min_y: rect.min_y - margin,
+        max_y: rect.max_y + margin,
+    }
+}
+
 fn animation_facing(transform: &Transform) -> f32 {
     if transform.scale.x < 0.0 {
         -1.0
@@ -72,6 +81,10 @@ fn sword_blade_center_local(angle: f32) -> Vec2 {
         half_height * (-angle).sin(),
         SWORD_PIVOT_Y + half_height * (-angle).cos(),
     )
+}
+
+pub fn sword_sprite_hit_rect(center: Vec2, angle: f32) -> HitRect {
+    sword_sprite_aabb(center, angle)
 }
 
 fn sword_sprite_aabb(center: Vec2, angle: f32) -> HitRect {

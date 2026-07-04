@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::{PlayerAttack, PlayerKnockback};
+use crate::combat::{PlayerAttack, PlayerKnockback, PlayerSpecialMove};
 
 use super::movement::{DungeonPlayer, PlayerVelocity};
 use super::sprites::{
@@ -31,6 +31,7 @@ pub fn animate_player(
         (
             &PlayerVelocity,
             &PlayerAttack,
+            Option<&PlayerSpecialMove>,
             Option<&PlayerKnockback>,
             &mut PlayerAnimation,
             &mut Sprite,
@@ -39,11 +40,39 @@ pub fn animate_player(
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((velocity, attack, knockback, mut animation, mut sprite, mut transform)) =
+    let Ok((velocity, attack, special, knockback, mut animation, mut sprite, mut transform)) =
         player.get_single_mut()
     else {
         return;
     };
+
+    if special.is_some_and(|m| m.is_active()) {
+        let special = special.unwrap();
+
+        if knockback.is_none() && velocity.x.abs() > 1.0 {
+            animation.facing = velocity.x.signum();
+        } else {
+            preserve_facing(&mut animation, &transform);
+        }
+        apply_facing(&mut transform, animation.facing);
+
+        let progress = special.timer.elapsed_secs() / special.duration();
+        let frame = (progress.clamp(0.0, 1.0) * PLAYER_ATTACK_FRAMES as f32)
+            .floor()
+            .min((PLAYER_ATTACK_FRAMES - 1) as f32) as usize;
+
+        apply_sheet_frame(&mut sprite, &art.player_attack, frame);
+
+        if special.kind == crate::combat::SpecialMoveKind::Spin && velocity.grounded && velocity.x.abs() > 1.0
+        {
+            animation.timer.tick(time.delta());
+            if animation.timer.just_finished() {
+                animation.frame = (animation.frame + 1) % PLAYER_RUN_FRAMES;
+            }
+            apply_sheet_frame(&mut sprite, &art.player_run, animation.frame);
+        }
+        return;
+    }
 
     if attack.is_active() {
         preserve_facing(&mut animation, &transform);

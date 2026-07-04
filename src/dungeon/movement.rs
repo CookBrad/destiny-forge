@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::combat::{PlayerAttack, PlayerBlock, PlayerKnockback};
+use crate::combat::{
+    charge_speed, special_blocks_movement, PlayerAttack, PlayerBlock, PlayerKnockback,
+    PlayerSpecialMove, SpecialMoveKind,
+};
 use crate::graphics::{
     DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
     TILE,
@@ -36,12 +39,13 @@ pub fn dungeon_movement(
             &mut PlayerVelocity,
             &PlayerAttack,
             &PlayerBlock,
+            Option<&PlayerSpecialMove>,
             Option<&mut PlayerKnockback>,
         ),
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((entity, mut transform, mut velocity, attack, block, mut knockback)) =
+    let Ok((entity, mut transform, mut velocity, attack, block, special, mut knockback)) =
         player.get_single_mut()
     else {
         return;
@@ -71,24 +75,35 @@ pub fn dungeon_movement(
         }
     }
 
-    let mut move_input = 0.0;
-    if !under_knockback && !attack.is_active() && !block.is_active() {
-        if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
-            move_input -= 1.0;
+    let movement_locked = special_blocks_movement(special);
+
+    if movement_locked {
+        if let Some(special) = special {
+            velocity.x = special.charge_direction * charge_speed();
         }
-        if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
-            move_input += 1.0;
+    } else {
+        let mut move_input = 0.0;
+        if !under_knockback && !attack.is_active() && !block.is_active() {
+            if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+                move_input -= 1.0;
+            }
+            if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+                move_input += 1.0;
+            }
+        }
+
+        if !under_knockback {
+            velocity.x = move_input * DUNGEON_MOVE_SPEED;
         }
     }
 
-    if !under_knockback {
-        velocity.x = move_input * DUNGEON_MOVE_SPEED;
-    }
+    let jump_blocked = attack.is_active()
+        || block.is_active()
+        || special.is_some_and(|m| m.is_active() && m.kind == SpecialMoveKind::Charge);
 
     if !under_knockback
         && velocity.grounded
-        && !attack.is_active()
-        && !block.is_active()
+        && !jump_blocked
         && keyboard.just_pressed(KeyCode::Space)
     {
         velocity.y = DUNGEON_JUMP_SPEED;

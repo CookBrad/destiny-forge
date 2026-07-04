@@ -4,6 +4,7 @@ use crate::dungeon::{DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity,
 
 use super::attack::PlayerAttack;
 use super::player_block::PlayerBlock;
+use super::special_moves::PlayerSpecialMove;
 use super::weapon::{EquippedWeapon, WeaponKind};
 
 #[derive(Component)]
@@ -19,13 +20,16 @@ const RUN_BLOCK_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
 
 pub fn update_player_block(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut player: Query<(&PlayerAttack, &mut PlayerBlock), With<DungeonPlayer>>,
+    mut player: Query<
+        (&PlayerAttack, &mut PlayerBlock, Option<&PlayerSpecialMove>),
+        With<DungeonPlayer>,
+    >,
 ) {
-    let Ok((attack, mut block)) = player.get_single_mut() else {
+    let Ok((attack, mut block, special)) = player.get_single_mut() else {
         return;
     };
 
-    if attack.is_active() {
+    if attack.is_active() || special.is_some_and(|m| m.is_active()) {
         block.active = false;
         return;
     }
@@ -37,16 +41,27 @@ pub fn sync_block_weapon(
     mut commands: Commands,
     art: Res<DungeonArt>,
     player: Query<
-        (Entity, &EquippedWeapon, &PlayerBlock, &PlayerAnimation, &PlayerVelocity),
+        (
+            Entity,
+            &EquippedWeapon,
+            &PlayerBlock,
+            &PlayerAttack,
+            Option<&PlayerSpecialMove>,
+            &PlayerAnimation,
+            &PlayerVelocity,
+        ),
         With<DungeonPlayer>,
     >,
     mut blocks: Query<&mut Transform, With<WeaponBlockFx>>,
 ) {
-    let Ok((entity, weapon, block, animation, velocity)) = player.get_single() else {
+    let Ok((entity, weapon, block, attack, special, animation, velocity)) = player.get_single() else {
         return;
     };
 
-    let show = block.is_active() && weapon.0 == WeaponKind::RustySword;
+    let show = block.is_active()
+        && !attack.is_active()
+        && !special.is_some_and(|m| m.is_active())
+        && weapon.0 == WeaponKind::RustySword;
     let bob = block_bob_offset(animation, velocity);
     let pose = block_pose(bob);
 

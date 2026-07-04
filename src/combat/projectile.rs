@@ -10,6 +10,7 @@ use crate::dungeon::{
 use crate::graphics::{PIXEL_SCALE, TILE};
 
 use super::attack::{player_sword_hit_rect, HitFlash, PlayerAttack};
+use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
 use super::hitbox::{enemy_aabb, hitbox_overlaps, player_body_rect, sword_guard_aabb, HitRect};
 use super::player_block::PlayerBlock;
 use super::health::{ContactDamageCooldown, Health};
@@ -152,7 +153,7 @@ pub fn move_enemy_projectiles(
 
 pub fn deflect_projectiles_with_swing(
     player: Query<
-        (&Transform, &PlayerAttack),
+        (&Transform, &PlayerAttack, Option<&PlayerSpecialMove>),
         (With<DungeonPlayer>, Without<EnemyProjectile>),
     >,
     mut projectiles: Query<
@@ -165,11 +166,7 @@ pub fn deflect_projectiles_with_swing(
         (With<EnemyProjectile>, Without<DungeonPlayer>),
     >,
 ) {
-    let Ok((player_transform, attack)) = player.get_single() else {
-        return;
-    };
-
-    let Some(swing_rect) = player_sword_hit_rect(player_transform, attack) else {
+    let Ok((player_transform, attack, special)) = player.get_single() else {
         return;
     };
 
@@ -179,7 +176,16 @@ pub fn deflect_projectiles_with_swing(
         }
 
         let center = projectile_transform.translation.truncate();
-        if !hitbox_overlaps(swing_rect, projectile_rect(center)) {
+        let projectile_hit = projectile_rect(center);
+
+        let deflected_by_swing = player_sword_hit_rect(player_transform, attack)
+            .is_some_and(|swing_rect| hitbox_overlaps(swing_rect, projectile_hit));
+
+        let deflected_by_spin = special.is_some_and(|special| {
+            spin_deflects_projectile(player_transform, special, center, projectile_hit)
+        });
+
+        if !deflected_by_swing && !deflected_by_spin {
             continue;
         }
 
@@ -300,8 +306,11 @@ pub fn resolve_enemy_projectiles(
         return;
     }
 
+    cooldown.0.tick(time.delta());
+
     let body = player_body_rect(player_transform);
     let guard = sword_guard_aabb(player_transform);
+    let mut took_damage_this_frame = false;
 
     for (projectile_entity, transform, projectile, deflected) in &projectiles {
         if deflected.active {
@@ -317,8 +326,7 @@ pub fn resolve_enemy_projectiles(
         }
 
         if hitbox_overlaps(body, projectile_hit) {
-            cooldown.0.tick(time.delta());
-            if cooldown.0.finished() {
+            if !took_damage_this_frame && cooldown.0.finished() {
                 health.take_damage(projectile.damage);
                 apply_player_hurt(
                     &mut commands,
@@ -328,6 +336,7 @@ pub fn resolve_enemy_projectiles(
                     0.85,
                 );
                 cooldown.0 = Timer::from_seconds(PROJECTILE_DAMAGE_INTERVAL, TimerMode::Once);
+                took_damage_this_frame = true;
             }
             commands.entity(projectile_entity).despawn();
         }

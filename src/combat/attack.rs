@@ -10,6 +10,7 @@ use crate::dungeon::{
 
 use super::hitbox::{enemy_aabb, hitbox_overlaps, sword_swing_aabb, HitRect};
 use super::player_block::PlayerBlock;
+use super::special_moves::{player_is_busy, PlayerSpecialMove};
 
 use crate::dungeon::player_half_extents;
 use super::health::{damage_amount, Health};
@@ -99,15 +100,21 @@ pub fn start_player_attack(
     art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<
-        (Entity, &EquippedWeapon, &mut PlayerAttack, &PlayerBlock),
+        (
+            Entity,
+            &EquippedWeapon,
+            &mut PlayerAttack,
+            &PlayerBlock,
+            Option<&PlayerSpecialMove>,
+        ),
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((entity, weapon, mut attack, block)) = player.get_single_mut() else {
+    let Ok((entity, weapon, mut attack, block, special)) = player.get_single_mut() else {
         return;
     };
 
-    if !keyboard.just_pressed(KeyCode::Digit1) || attack.is_active() || block.is_active() {
+    if !keyboard.just_pressed(KeyCode::Digit1) || player_is_busy(&attack, block, special) {
         return;
     }
 
@@ -155,6 +162,7 @@ pub fn sync_sheathed_weapon(
             &PlayerAttack,
             &EquippedWeapon,
             &PlayerBlock,
+            Option<&PlayerSpecialMove>,
             &PlayerAnimation,
             &PlayerVelocity,
         ),
@@ -162,12 +170,12 @@ pub fn sync_sheathed_weapon(
     >,
     mut sheathed: Query<(&mut Transform, &mut Visibility), With<WeaponOnBack>>,
 ) {
-    let Ok((attack, weapon, block, animation, velocity)) = player.get_single() else {
+    let Ok((attack, weapon, block, special, animation, velocity)) = player.get_single() else {
         return;
     };
 
     let visible =
-        !attack.is_active() && !block.is_active() && weapon.0 == WeaponKind::RustySword;
+        !player_is_busy(attack, block, special) && weapon.0 == WeaponKind::RustySword;
     let bob = sheathed_bob_offset(animation, velocity);
 
     for (mut transform, mut visibility) in &mut sheathed {

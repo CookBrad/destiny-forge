@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use rand::Rng;
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::f32::consts::FRAC_PI_2;
 
 use crate::combat::{
     apply_player_hurt, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse, EnemyProjectile,
@@ -105,6 +105,7 @@ pub fn tick_boss_attacks(
             &mut BossAttackController,
             Option<&EnemyKnockback>,
             Option<&EnemyAggro>,
+            Option<&BossCharging>,
         ),
         (With<KingSlimeBoss>, Without<EnemyCorpse>, Without<DungeonPlayer>),
     >,
@@ -115,7 +116,9 @@ pub fn tick_boss_attacks(
 
     let player_pos = player_transform.translation.truncate();
 
-    for (entity, transform, health, mut sprite, mut controller, knockback, aggro) in &mut bosses {
+    for (entity, transform, health, mut sprite, mut controller, knockback, aggro, charging) in
+        &mut bosses
+    {
         if health.is_dead() {
             continue;
         }
@@ -130,6 +133,11 @@ pub fn tick_boss_attacks(
 
         if knockback.is_some() {
             sprite.color = BOSS_COLOR_IDLE;
+            continue;
+        }
+
+        if charging.is_some() {
+            sprite.color = BOSS_COLOR_RELEASE;
             continue;
         }
 
@@ -278,19 +286,19 @@ fn execute_attack(
             }
         }
         BossAttackKind::RingBurst => {
-            for i in 0..8 {
-                let angle = i as f32 / 8.0 * PI * 2.0;
-                let dir = Vec2::new(angle.cos(), angle.sin());
-                fire_slime_blob(commands, art, boss_pos, dir, 6.0, 175.0, 0.85);
+            let base = to_player.y.atan2(to_player.x);
+            for offset in [-0.72, -0.48, -0.24, 0.0, 0.24, 0.48, 0.72] {
+                let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
+                fire_slime_blob(commands, art, boss_pos, dir, 5.0, 165.0, 0.85);
             }
         }
-        BossAttackKind::GroundSlam => spawn_ground_slam(commands, art, player_pos),
+        BossAttackKind::GroundSlam => spawn_ground_slam(commands, art, player_pos.x),
         BossAttackKind::RoyalCharge => {
-            let dir = to_player.normalize_or_zero();
-            if dir != Vec2::ZERO {
+            let dx = to_player.x.signum();
+            if dx != 0.0 {
                 commands.entity(boss_entity).insert(BossCharging {
-                    velocity: dir * 125.0,
-                    timer: Timer::from_seconds(0.58, TimerMode::Once),
+                    velocity: Vec2::new(dx * 140.0, 0.0),
+                    timer: Timer::from_seconds(0.65, TimerMode::Once),
                 });
             }
         }
@@ -385,8 +393,9 @@ fn spawn_projectile(
     ));
 }
 
-fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, player_pos: Vec2) {
-    let y = DUNGEON_FLOOR_Y + TILE * 0.25;
+fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, target_x: f32) {
+    let half_height = TILE * 0.75;
+    let y = DUNGEON_FLOOR_Y + half_height;
 
     commands.spawn((
         Sprite {
@@ -395,15 +404,15 @@ fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, player_pos: Vec2
             ..default()
         },
         Transform {
-            translation: Vec3::new(player_pos.x, y, 2.0),
+            translation: Vec3::new(target_x, y, 2.0),
             scale: Vec3::new(PIXEL_SCALE * 3.2, PIXEL_SCALE * 0.55, 1.0),
             ..default()
         },
         BossGroundHazard {
             damage: 16.0,
             lifetime: Timer::from_seconds(1.35, TimerMode::Once),
-            half_width: TILE * 2.6,
-            half_height: TILE * 0.55,
+            half_width: TILE * 2.8,
+            half_height,
         },
         DungeonEntity,
     ));
