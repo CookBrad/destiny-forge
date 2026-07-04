@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
+use crate::audio::AudioSettings;
 use crate::core::{DungeonPlayState, GameState};
+
+use super::pause_audio::spawn_pause_audio_controls;
 
 #[derive(Component)]
 pub struct TitleMenu;
@@ -78,7 +81,7 @@ pub fn cleanup_title_menu(mut commands: Commands, menus: Query<Entity, With<Titl
     }
 }
 
-pub fn spawn_pause_menu(mut commands: Commands) {
+pub fn spawn_pause_menu(mut commands: Commands, settings: Res<AudioSettings>) {
     commands
         .spawn((
             Node {
@@ -87,7 +90,8 @@ pub fn spawn_pause_menu(mut commands: Commands) {
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(20.0),
+                row_gap: Val::Px(22.0),
+                padding: UiRect::all(Val::Px(24.0)),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.02, 0.02, 0.05, 0.72)),
@@ -102,6 +106,7 @@ pub fn spawn_pause_menu(mut commands: Commands) {
                 },
                 TextColor(Color::srgb(0.92, 0.92, 0.95)),
             ));
+            spawn_pause_audio_controls(parent, &settings);
             parent.spawn((
                 Text::new("Esc — Resume"),
                 TextFont {

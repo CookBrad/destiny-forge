@@ -14,6 +14,7 @@ use super::menu::{
     ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
     spawn_death_menu, spawn_pause_menu, spawn_title_menu, title_input,
 };
+use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
 
 pub struct UiPlugin;
 
@@ -46,6 +47,12 @@ impl Plugin for UiPlugin {
                 (
                     open_pause_menu.run_if(in_state(DungeonPlayState::Running)),
                     pause_menu_input.run_if(in_state(DungeonPlayState::Paused)),
+                    (
+                        handle_pause_audio_input,
+                        sync_pause_audio_display,
+                    )
+                        .chain()
+                        .run_if(in_state(DungeonPlayState::Paused)),
                     death_menu_input.run_if(in_state(DungeonPlayState::Dead)),
                 )
                     .run_if(in_state(GameState::Dungeon)),

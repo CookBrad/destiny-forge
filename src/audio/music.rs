@@ -6,21 +6,24 @@ use crate::core::{DungeonPlayState, GameState};
 #[derive(Component)]
 pub struct DungeonMusic;
 
+pub const DUNGEON_MUSIC_BASE_VOLUME: f32 = 0.38;
+
 const DUNGEON_MUSIC_PATH: &str = "audio/dungeon_music.mp3";
-const DUNGEON_MUSIC_VOLUME: f32 = 0.38;
 
 pub fn start_dungeon_music(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    settings: Res<crate::audio::AudioSettings>,
     existing: Query<Entity, With<DungeonMusic>>,
 ) {
     if !existing.is_empty() {
         return;
     }
 
+    let volume = settings.music_gain() * DUNGEON_MUSIC_BASE_VOLUME;
     commands.spawn((
         AudioPlayer::new(asset_server.load(DUNGEON_MUSIC_PATH)),
-        PlaybackSettings::LOOP.with_volume(Volume::new(DUNGEON_MUSIC_VOLUME)),
+        PlaybackSettings::LOOP.with_volume(Volume::new(volume)),
         DungeonMusic,
     ));
 }

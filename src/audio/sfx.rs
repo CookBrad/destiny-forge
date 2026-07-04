@@ -1,6 +1,8 @@
 use bevy::audio::{AudioPlayer, PlaybackSettings, Volume};
 use bevy::prelude::*;
 
+use super::settings::AudioSettings;
+
 #[derive(Event, Clone, Copy, Debug)]
 pub enum CombatSfx {
     SwordSwing,
@@ -89,13 +91,20 @@ pub fn play_combat_sfx(
     mut commands: Commands,
     mut events: EventReader<CombatSfx>,
     assets: Res<CombatSfxAssets>,
+    settings: Res<AudioSettings>,
 ) {
+    let gain = settings.sfx_gain();
+    if gain <= 0.0 {
+        events.clear();
+        return;
+    }
+
     for event in events.read() {
         let (clip, volume, speed) = assets.clip(*event);
         commands.spawn((
             AudioPlayer::new(clip.clone()),
             PlaybackSettings::DESPAWN
-                .with_volume(Volume::new(volume))
+                .with_volume(Volume::new(volume * gain))
                 .with_speed(speed),
         ));
     }
