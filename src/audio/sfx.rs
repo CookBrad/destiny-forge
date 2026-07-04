@@ -61,22 +61,22 @@ impl CombatSfxAssets {
         self.loaded = true;
     }
 
-    fn clip(&self, sfx: CombatSfx) -> (&Handle<AudioSource>, f32) {
+    fn clip(&self, sfx: CombatSfx) -> (&Handle<AudioSource>, f32, f32) {
         match sfx {
-            CombatSfx::SwordSwing => (&self.sword_swing, 0.62),
-            CombatSfx::SwordHit => (&self.sword_hit, 0.58),
-            CombatSfx::HeavyHit => (&self.heavy_hit, 0.64),
-            CombatSfx::Block => (&self.block, 0.52),
-            CombatSfx::Parry => (&self.parry, 0.55),
-            CombatSfx::Charge => (&self.charge, 0.5),
-            CombatSfx::Spin => (&self.spin, 0.48),
-            CombatSfx::EnemyShoot => (&self.enemy_shoot, 0.5),
-            CombatSfx::SlimeShoot => (&self.slime_shoot, 0.46),
-            CombatSfx::SlimeBurst => (&self.slime_burst, 0.44),
-            CombatSfx::GroundSlam => (&self.ground_slam, 0.58),
-            CombatSfx::EnemyMelee => (&self.enemy_melee, 0.5),
-            CombatSfx::PlayerHurt => (&self.player_hurt, 0.54),
-            CombatSfx::BossCharge => (&self.boss_charge, 0.52),
+            CombatSfx::SwordSwing => (&self.sword_swing, 0.36, 1.15),
+            CombatSfx::SwordHit => (&self.sword_hit, 0.58, 1.0),
+            CombatSfx::HeavyHit => (&self.heavy_hit, 0.64, 1.0),
+            CombatSfx::Block => (&self.block, 0.52, 1.0),
+            CombatSfx::Parry => (&self.parry, 0.55, 1.0),
+            CombatSfx::Charge => (&self.charge, 0.58, 1.25),
+            CombatSfx::Spin => (&self.spin, 0.48, 1.0),
+            CombatSfx::EnemyShoot => (&self.enemy_shoot, 0.5, 1.0),
+            CombatSfx::SlimeShoot => (&self.slime_shoot, 0.46, 1.0),
+            CombatSfx::SlimeBurst => (&self.slime_burst, 0.44, 1.0),
+            CombatSfx::GroundSlam => (&self.ground_slam, 0.58, 1.0),
+            CombatSfx::EnemyMelee => (&self.enemy_melee, 0.5, 1.0),
+            CombatSfx::PlayerHurt => (&self.player_hurt, 0.54, 1.0),
+            CombatSfx::BossCharge => (&self.boss_charge, 0.52, 1.0),
         }
     }
 }
@@ -91,10 +91,12 @@ pub fn play_combat_sfx(
     assets: Res<CombatSfxAssets>,
 ) {
     for event in events.read() {
-        let (clip, volume) = assets.clip(*event);
+        let (clip, volume, speed) = assets.clip(*event);
         commands.spawn((
             AudioPlayer::new(clip.clone()),
-            PlaybackSettings::DESPAWN.with_volume(Volume::new(volume)),
+            PlaybackSettings::DESPAWN
+                .with_volume(Volume::new(volume))
+                .with_speed(speed),
         ));
     }
 }
