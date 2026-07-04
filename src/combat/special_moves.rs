@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use std::f32::consts::{FRAC_PI_2, TAU};
 
+use crate::audio::CombatSfx;
 use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind,
     EnemyKnockback, KingSlimeBoss, Patrol, PlayerAnimation, PlayerVelocity,
@@ -130,6 +131,7 @@ pub fn spin_deflects_projectile(
 
 pub fn start_player_special_moves(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<
@@ -180,6 +182,11 @@ pub fn start_player_special_moves(
         timer: Timer::from_seconds(duration, TimerMode::Once),
         charge_direction: direction,
         hit_entities: Vec::new(),
+    });
+
+    sfx.send(match kind {
+        SpecialMoveKind::Charge => CombatSfx::Charge,
+        SpecialMoveKind::Spin => CombatSfx::Spin,
     });
 
     commands.entity(entity).with_children(|parent| {
@@ -261,6 +268,7 @@ pub fn animate_special_weapon(
 
 pub fn resolve_special_move_hits(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<(&Transform, &mut PlayerSpecialMove), With<DungeonPlayer>>,
     mut enemies: Query<
         (
@@ -315,6 +323,7 @@ pub fn resolve_special_move_hits(
 
         health.take_damage(damage);
         special.hit_entities.push(entity);
+        sfx.send(CombatSfx::HeavyHit);
 
         let airborne = kind.is_some_and(|kind| kind.is_airborne());
         let knockback = match special.kind {

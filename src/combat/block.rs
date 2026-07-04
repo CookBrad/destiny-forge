@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::audio::CombatSfx;
 use crate::dungeon::{DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES};
 
 use super::attack::PlayerAttack;
@@ -20,6 +21,7 @@ const RUN_BLOCK_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
 
 pub fn update_player_block(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (&PlayerAttack, &mut PlayerBlock, Option<&PlayerSpecialMove>),
         With<DungeonPlayer>,
@@ -32,6 +34,10 @@ pub fn update_player_block(
     if attack.is_active() || special.is_some_and(|m| m.is_active()) {
         block.active = false;
         return;
+    }
+
+    if keyboard.just_pressed(KeyCode::Digit2) {
+        sfx.send(CombatSfx::Block);
     }
 
     block.active = keyboard.pressed(KeyCode::Digit2);

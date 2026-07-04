@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::audio::CombatSfx;
+
 use super::player_hurt::apply_player_hurt;
 
 pub const PLAYER_MAX_HEALTH: f32 = 100.0;
@@ -66,6 +68,7 @@ impl Default for ContactDamageCooldown {
 pub fn apply_enemy_contact_damage(
     time: Res<Time>,
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
         With<crate::dungeon::DungeonPlayer>,
@@ -123,6 +126,7 @@ pub fn apply_enemy_contact_damage(
         if cooldown.0.finished() {
             health.take_damage(contact_damage);
             apply_player_hurt(&mut commands, entity, player_transform, hurt_source, 1.0);
+            sfx.send(CombatSfx::EnemyMelee);
             cooldown.0 = Timer::from_seconds(CONTACT_DAMAGE_INTERVAL, TimerMode::Once);
         }
     } else {

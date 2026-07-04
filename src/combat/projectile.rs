@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::combat::EnemyCorpse;
+use crate::audio::CombatSfx;
 use crate::dungeon::{
     DungeonArt, DungeonEntity, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback,
     EnemyShootCooldown, KingSlimeBoss, Patrol,
@@ -46,6 +47,7 @@ const DEFLECT_SPEED_MULT: f32 = 1.2;
 
 pub fn enemy_shoot_projectiles(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     time: Res<Time>,
     art: Res<DungeonArt>,
     player: Query<&Transform, With<DungeonPlayer>>,
@@ -127,6 +129,7 @@ pub fn enemy_shoot_projectiles(
 
         cooldown.0 = Timer::from_seconds(kind.shoot_cooldown(), TimerMode::Once);
         commands.entity(entity).insert(EnemyAggro::from_hit());
+        sfx.send(CombatSfx::EnemyShoot);
     }
 }
 
@@ -152,6 +155,7 @@ pub fn move_enemy_projectiles(
 }
 
 pub fn deflect_projectiles_with_swing(
+    mut sfx: EventWriter<CombatSfx>,
     player: Query<
         (&Transform, &PlayerAttack, Option<&PlayerSpecialMove>),
         (With<DungeonPlayer>, Without<EnemyProjectile>),
@@ -195,11 +199,13 @@ pub fn deflect_projectiles_with_swing(
         sprite.color = Color::srgb(1.0, 0.95, 0.55);
         deflected.active = true;
         deflected.hit_entities.clear();
+        sfx.send(CombatSfx::Parry);
     }
 }
 
 pub fn resolve_deflected_projectile_hits(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut projectiles: Query<
         (
             Entity,
@@ -251,6 +257,7 @@ pub fn resolve_deflected_projectile_hits(
 
             health.take_damage(projectile.damage);
             deflected.hit_entities.push(enemy_entity);
+            sfx.send(CombatSfx::SwordHit);
 
             sprite.color = Color::srgb(1.0, 0.45, 0.45);
             commands.entity(enemy_entity).insert((
@@ -281,6 +288,7 @@ pub fn resolve_deflected_projectile_hits(
 pub fn resolve_enemy_projectiles(
     time: Res<Time>,
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (
             Entity,
@@ -322,6 +330,7 @@ pub fn resolve_enemy_projectiles(
 
         if block.is_active() && hitbox_overlaps(guard, projectile_hit) {
             commands.entity(projectile_entity).despawn();
+            sfx.send(CombatSfx::Parry);
             continue;
         }
 
@@ -335,6 +344,7 @@ pub fn resolve_enemy_projectiles(
                     center,
                     0.85,
                 );
+                sfx.send(CombatSfx::PlayerHurt);
                 cooldown.0 = Timer::from_seconds(PROJECTILE_DAMAGE_INTERVAL, TimerMode::Once);
                 took_damage_this_frame = true;
             }

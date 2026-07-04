@@ -64,3 +64,9 @@ Audio
   URL: https://opengameart.org/content/8-bit-cave-loop
   License: CC0 1.0 (public domain)
   Used for: dungeon background music (looped)
+
+  audio/sfx/*.ogg — Kenney RPG Audio (curated clips)
+  Author: Kenney (www.kenney.nl)
+  URL: https://kenney.nl/assets/rpg-audio
+  License: CC0 1.0 (public domain)
+  Used for: combat sound effects (swings, hits, blocks, projectiles, boss attacks)

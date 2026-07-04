@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::f32::consts::FRAC_PI_2;
 
+use crate::audio::CombatSfx;
 use crate::combat::{
     apply_player_hurt, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse, EnemyProjectile,
     Health, ProjectileLifetime, ProjectileVelocity,
@@ -93,6 +94,7 @@ pub struct BossGroundHazard {
 
 pub fn tick_boss_attacks(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     time: Res<Time>,
     art: Res<DungeonArt>,
     player: Query<&Transform, (With<DungeonPlayer>, Without<KingSlimeBoss>)>,
@@ -149,6 +151,7 @@ pub fn tick_boss_attacks(
                 if let Some(kind) = controller.pending.take() {
                     execute_attack(
                         &mut commands,
+                        &mut sfx,
                         &art,
                         entity,
                         boss_pos,
@@ -184,6 +187,7 @@ pub fn tick_boss_attacks(
 pub fn resolve_boss_hazards(
     time: Res<Time>,
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (
             Entity,
@@ -231,6 +235,7 @@ pub fn resolve_boss_hazards(
                     center,
                     1.1,
                 );
+                sfx.send(CombatSfx::GroundSlam);
                 cooldown.0 = Timer::from_seconds(0.5, TimerMode::Once);
             }
         }
@@ -263,6 +268,7 @@ fn pick_attack(last: Option<BossAttackKind>, health_ratio: f32) -> BossAttackKin
 
 fn execute_attack(
     commands: &mut Commands,
+    sfx: &mut EventWriter<CombatSfx>,
     art: &DungeonArt,
     boss_entity: Entity,
     boss_pos: Vec2,
@@ -271,19 +277,24 @@ fn execute_attack(
     kind: BossAttackKind,
 ) {
     match kind {
-        BossAttackKind::SlimeBolt => fire_slime_bolt(commands, art, boss_pos, to_player, 11.0, 240.0),
+        BossAttackKind::SlimeBolt => {
+            fire_slime_bolt(commands, art, boss_pos, to_player, 11.0, 240.0);
+            sfx.send(CombatSfx::SlimeShoot);
+        }
         BossAttackKind::TripleSpread => {
             let base = to_player.y.atan2(to_player.x);
             for offset in [-0.38, 0.0, 0.38] {
                 let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
                 fire_slime_blob(commands, art, boss_pos, dir, 8.0, 200.0, 1.0);
             }
+            sfx.send(CombatSfx::SlimeBurst);
         }
         BossAttackKind::SlimeRain => {
             for offset in [-2.5, -1.2, 0.0, 1.2, 2.5] {
                 let spawn = Vec2::new(player_pos.x + offset * TILE, player_pos.y + 8.5 * TILE);
                 spawn_falling_blob(commands, art, spawn, 7.0);
             }
+            sfx.send(CombatSfx::SlimeBurst);
         }
         BossAttackKind::RingBurst => {
             let base = to_player.y.atan2(to_player.x);
@@ -291,8 +302,12 @@ fn execute_attack(
                 let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
                 fire_slime_blob(commands, art, boss_pos, dir, 5.0, 165.0, 0.85);
             }
+            sfx.send(CombatSfx::SlimeBurst);
         }
-        BossAttackKind::GroundSlam => spawn_ground_slam(commands, art, player_pos.x),
+        BossAttackKind::GroundSlam => {
+            spawn_ground_slam(commands, art, player_pos.x);
+            sfx.send(CombatSfx::GroundSlam);
+        }
         BossAttackKind::RoyalCharge => {
             let dx = to_player.x.signum();
             if dx != 0.0 {
@@ -300,6 +315,7 @@ fn execute_attack(
                     velocity: Vec2::new(dx * 140.0, 0.0),
                     timer: Timer::from_seconds(0.65, TimerMode::Once),
                 });
+                sfx.send(CombatSfx::BossCharge);
             }
         }
     }

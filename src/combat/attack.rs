@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
+use crate::audio::CombatSfx;
 use crate::dungeon::{
     DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
     Patrol, PlayerAnimation, PlayerVelocity, SWORD_SPRITE_HEIGHT,
@@ -97,6 +98,7 @@ struct SwingPose {
 
 pub fn start_player_attack(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     art: Res<DungeonArt>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<
@@ -123,6 +125,7 @@ pub fn start_player_attack(
     attack.hit_entities.clear();
     attack.timer = Timer::from_seconds(stats.swing_secs, TimerMode::Once);
     attack.timer.reset();
+    sfx.send(CombatSfx::SwordSwing);
 
     let pose = swing_pose(0.0);
     commands.entity(entity).with_children(|parent| {
@@ -240,6 +243,7 @@ pub fn tick_player_attack(time: Res<Time>, mut attacks: Query<&mut PlayerAttack,
 
 pub fn resolve_weapon_hits(
     mut commands: Commands,
+    mut sfx: EventWriter<CombatSfx>,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
     mut enemies: Query<
         (
@@ -278,6 +282,7 @@ pub fn resolve_weapon_hits(
         let damage = damage_amount(stats.attack_power, 0.0);
         health.take_damage(damage);
         attack.hit_entities.push(entity);
+        sfx.send(CombatSfx::SwordHit);
 
         sprite.color = Color::srgb(1.0, 0.45, 0.45);
         commands.entity(entity).insert((
