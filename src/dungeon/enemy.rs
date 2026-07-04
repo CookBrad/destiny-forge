@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::combat::{EnemyCorpse, Health};
 use super::boss::{BossAttackController, BossCharging};
-use super::level::{clamp_x_to_ground_segment, DungeonLayout};
+use super::level::{constrain_ground_movement, is_on_ground_floor, DungeonLayout};
 use super::movement::DungeonPlayer;
 use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
@@ -348,7 +348,20 @@ pub fn move_enemies(
             velocity.x = patrol.direction * patrol.speed;
         }
 
-        transform.translation.x += velocity.x * dt;
+        let dx = velocity.x * dt;
+        if !airborne && boss.is_none() {
+            let (new_x, hit_edge) = constrain_ground_movement(
+                transform.translation.x,
+                dx,
+                &layout.floor.ground_segments,
+            );
+            transform.translation.x = new_x;
+            if hit_edge {
+                patrol.direction = -patrol.direction;
+            }
+        } else {
+            transform.translation.x += dx;
+        }
         transform.translation.y += velocity.y * dt;
 
         if charging {
@@ -360,7 +373,9 @@ pub fn move_enemies(
             }
         }
 
-        if !airborne {
+        if !airborne
+            && is_on_ground_floor(transform.translation.x, &layout.floor.ground_segments)
+        {
             let half = ENEMY_DISPLAY_SIZE.y * 0.5;
             let floor_y = DUNGEON_FLOOR_Y + half;
             if transform.translation.y < floor_y {
@@ -381,20 +396,6 @@ pub fn move_enemies(
             } else if transform.translation.x >= patrol.max_x {
                 transform.translation.x = patrol.max_x;
                 patrol.direction = -1.0;
-            }
-        }
-
-        if !airborne && !under_knockback && !charging && boss.is_none() {
-            if let Some(clamped_x) =
-                clamp_x_to_ground_segment(transform.translation.x, &layout.floor.ground_segments)
-            {
-                if transform.translation.x < clamped_x {
-                    transform.translation.x = clamped_x;
-                    patrol.direction = 1.0;
-                } else if transform.translation.x > clamped_x {
-                    transform.translation.x = clamped_x;
-                    patrol.direction = -1.0;
-                }
             }
         }
     }

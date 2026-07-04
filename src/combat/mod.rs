@@ -25,7 +25,7 @@ pub use special_moves::{
 };
 pub use player_death::{
     animate_player_death, detect_player_death, finish_player_death, hide_death_weapons,
-    tick_player_death, PlayerDeath,
+    tick_player_death, PlayerDeath, PlayerFallDeath,
 };
 pub use player_hurt::{apply_player_hurt, tick_player_hit_flash, PlayerKnockback};
 pub use projectile::{

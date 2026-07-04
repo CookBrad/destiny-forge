@@ -82,18 +82,98 @@ pub fn ground_segment_bounds_at(x: f32, segments: &[PlatformSpec]) -> Option<(f3
         })
 }
 
-pub fn ground_patrol_range(x: f32, radius: f32, segments: &[PlatformSpec]) -> (f32, f32) {
-    if let Some((seg_min, seg_max)) = ground_segment_bounds_at(x, segments) {
-        let min_x = (x - radius).max(seg_min);
-        let max_x = (x + radius).min(seg_max);
-        if min_x < max_x {
-            return (min_x, max_x);
+pub fn ground_patrol_range(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
+    ground_segment_bounds_at(x, segments)
+}
+
+/// Keep ground movement on the current floor segment; returns `(new_x, hit_edge)`.
+pub fn constrain_ground_movement(
+    current_x: f32,
+    delta_x: f32,
+    segments: &[PlatformSpec],
+) -> (f32, bool) {
+    let proposed = current_x + delta_x;
+
+    if let Some((cur_min, cur_max)) = ground_segment_bounds_at(current_x, segments) {
+        if proposed >= cur_min && proposed <= cur_max {
+            return (proposed, false);
+        }
+        if delta_x > 0.0 {
+            return (cur_max, true);
+        }
+        if delta_x < 0.0 {
+            return (cur_min, true);
+        }
+        return (current_x, false);
+    }
+
+    if let Some(snapped) = snap_x_to_nearest_ground(current_x, segments) {
+        return (snapped, true);
+    }
+
+    (current_x, false)
+}
+
+pub fn is_on_ground_floor(x: f32, segments: &[PlatformSpec]) -> bool {
+    ground_segment_bounds_at(x, segments).is_some()
+}
+
+fn snap_x_to_nearest_ground(x: f32, segments: &[PlatformSpec]) -> Option<f32> {
+    let mut best: Option<(f32, f32)> = None;
+
+    for segment in segments {
+        if segment.top_y != DUNGEON_FLOOR_Y {
+            continue;
+        }
+        let seg_min = segment.left + GROUND_EDGE_INSET;
+        let seg_max = segment.left + segment.width_tiles as f32 * TILE - GROUND_EDGE_INSET;
+        for edge in [seg_min, seg_max] {
+            let distance = (x - edge).abs();
+            if best.is_none_or(|(_, best_dist)| distance < best_dist) {
+                best = Some((edge, distance));
+            }
         }
     }
 
-    (x - radius, x + radius)
+    best.map(|(edge, _)| edge)
 }
 
-pub fn clamp_x_to_ground_segment(x: f32, segments: &[PlatformSpec]) -> Option<f32> {
-    ground_segment_bounds_at(x, segments).map(|(min_x, max_x)| x.clamp(min_x, max_x))
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_segments() -> Vec<PlatformSpec> {
+        vec![
+            PlatformSpec {
+                left: 0.0,
+                width_tiles: 8,
+                top_y: DUNGEON_FLOOR_Y,
+            },
+            PlatformSpec {
+                left: 12.0 * TILE,
+                width_tiles: 10,
+                top_y: DUNGEON_FLOOR_Y,
+            },
+        ]
+    }
+
+    #[test]
+    fn ground_movement_stops_at_segment_edge() {
+        let segments = test_segments();
+        let start = 7.0 * TILE;
+        let (stopped, hit_edge) = constrain_ground_movement(start, TILE * 2.0, &segments);
+        assert!(hit_edge);
+        assert!(stopped < 12.0 * TILE);
+        assert!(is_on_ground_floor(stopped, &segments));
+    }
+
+    #[test]
+    fn ground_movement_cannot_enter_pit_gap() {
+        let segments = test_segments();
+        let in_pit = 10.0 * TILE;
+        assert!(!is_on_ground_floor(in_pit, &segments));
+        let (snapped, hit_edge) = constrain_ground_movement(in_pit, 0.0, &segments);
+        assert!(hit_edge);
+        assert!(is_on_ground_floor(snapped, &segments));
+    }
 }

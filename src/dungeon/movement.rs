@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    charge_speed, special_blocks_movement, Health, PlayerAttack, PlayerBlock, PlayerKnockback,
-    PlayerSpecialMove, SpecialMoveKind,
+    charge_speed, special_blocks_movement, Health, PlayerAttack, PlayerBlock, PlayerFallDeath,
+    PlayerKnockback, PlayerSpecialMove, SpecialMoveKind,
 };
 use crate::graphics::{
     viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY,
@@ -169,6 +169,7 @@ pub fn dungeon_movement(
         let off_screen_bottom = position.y + half.y < viewport_bottom_y(window);
         if off_screen_bottom {
             health.current = 0.0;
+            commands.entity(entity).insert(PlayerFallDeath);
         }
     }
 

@@ -22,6 +22,9 @@ const DEATH_KNOCKBACK_X: f32 = 185.0;
 const DEATH_KNOCKBACK_Y: f32 = 165.0;
 
 #[derive(Component)]
+pub struct PlayerFallDeath;
+
+#[derive(Component)]
 pub struct PlayerDeath {
     pub timer: Timer,
     pub knockback: Vec2,
@@ -56,15 +59,30 @@ pub fn detect_player_death(
             &Health,
             &PlayerAnimation,
             Option<&PlayerDeath>,
+            Option<&PlayerFallDeath>,
         ),
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((entity, transform, health, animation, death)) = player.get_single() else {
+    let Ok((entity, transform, health, animation, death, fall_death)) = player.get_single() else {
         return;
     };
 
     if !health.is_dead() || death.is_some() {
+        return;
+    }
+
+    if fall_death.is_some() {
+        commands.entity(entity).insert(Visibility::Hidden);
+        commands.entity(entity).remove::<(
+            PlayerAttack,
+            PlayerBlock,
+            PlayerSpecialMove,
+            PlayerKnockback,
+            PlayerHitFlash,
+            PlayerFallDeath,
+        )>();
+        next_play.set(DungeonPlayState::Dead);
         return;
     }
 

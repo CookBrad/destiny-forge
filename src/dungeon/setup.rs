@@ -280,8 +280,10 @@ fn spawn_enemy(
     let radius = spec.kind.patrol_radius_tiles() * TILE;
     let (patrol_min, patrol_max) = if spec.kind.is_airborne() {
         (spec.x - radius, spec.x + radius)
+    } else if let Some((min_x, max_x)) = ground_patrol_range(spec.x, ground_segments) {
+        (min_x, max_x)
     } else {
-        ground_patrol_range(spec.x, radius, ground_segments)
+        (spec.x - radius, spec.x + radius)
     };
     let patrol = Patrol::between(patrol_min, patrol_max, spec.kind.patrol_speed());
     let image = enemy_texture(art, spec.kind);
