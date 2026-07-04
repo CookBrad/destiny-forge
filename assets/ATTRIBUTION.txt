@@ -70,4 +70,4 @@ Audio
   URL: https://kenney.nl/assets/rpg-audio
   License: CC0 1.0 (public domain)
   Used for: combat sound effects (swings, hits, blocks, projectiles, boss attacks)
-  Curated clips include cloth4 (sword whoosh), cloth2 (sword hit), cloth1 (charge whoosh), etc.
+  Curated clips include cloth4 (sword whoosh), cloth2 (sword hit), clothBelt2 (charge), beltHandle2 (spin), etc.
