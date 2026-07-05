@@ -14,7 +14,7 @@ use super::hitbox::{enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_sprite_h
 use crate::graphics::{PIXEL_SCALE, TILE};
 use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
-use super::skills::{SkillBindings, SkillKind};
+use crate::combat::{SkillBindings, SkillKind};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

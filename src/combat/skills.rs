@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub const SKILL_SLOT_COUNT: usize = 9;
+const ICON_TILE: f32 = 16.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SkillKind {
@@ -20,21 +21,53 @@ impl SkillKind {
         }
     }
 
-    pub fn abbrev(&self) -> &'static str {
+    pub fn icon_path(&self) -> &'static str {
         match self {
-            Self::Attack => "ATK",
-            Self::Block => "BLK",
-            Self::Charge => "CHG",
-            Self::Spin => "SPN",
+            Self::Attack => "ui/skills/short_wep.png",
+            Self::Block => "ui/skills/shield.png",
+            Self::Charge => "ui/skills/boot.png",
+            Self::Spin => "ui/skills/wand.png",
         }
     }
 
-    pub fn color(&self) -> Color {
-        match self {
-            Self::Attack => Color::srgb(0.95, 0.42, 0.32),
-            Self::Block => Color::srgb(0.38, 0.62, 0.95),
-            Self::Charge => Color::srgb(0.95, 0.82, 0.28),
-            Self::Spin => Color::srgb(0.72, 0.45, 0.95),
+    pub fn icon_rect(&self) -> Rect {
+        let (x, y) = match self {
+            Self::Attack => (0.0, 0.0),
+            Self::Block => (0.0, 0.0),
+            Self::Charge => (16.0, 0.0),
+            Self::Spin => (32.0, 16.0),
+        };
+        Rect {
+            min: Vec2::new(x, y),
+            max: Vec2::new(x + ICON_TILE, y + ICON_TILE),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct SkillIconAssets {
+    pub attack: Handle<Image>,
+    pub block: Handle<Image>,
+    pub charge: Handle<Image>,
+    pub spin: Handle<Image>,
+}
+
+impl SkillIconAssets {
+    pub fn load(asset_server: &AssetServer) -> Self {
+        Self {
+            attack: asset_server.load(SkillKind::Attack.icon_path()),
+            block: asset_server.load(SkillKind::Block.icon_path()),
+            charge: asset_server.load(SkillKind::Charge.icon_path()),
+            spin: asset_server.load(SkillKind::Spin.icon_path()),
+        }
+    }
+
+    pub fn handle_for(&self, skill: SkillKind) -> Handle<Image> {
+        match skill {
+            SkillKind::Attack => self.attack.clone(),
+            SkillKind::Block => self.block.clone(),
+            SkillKind::Charge => self.charge.clone(),
+            SkillKind::Spin => self.spin.clone(),
         }
     }
 }

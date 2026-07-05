@@ -16,7 +16,8 @@ use super::menu::{
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
 use super::skill_bar::{
-    cleanup_skill_bar, handle_skill_bar_drag, spawn_skill_bar, sync_skill_bar, SkillBarDrag,
+    cleanup_skill_bar, handle_skill_bar_drag, setup_skill_icon_assets, spawn_skill_bar,
+    sync_skill_bar, update_skill_bar_drag_ghost, SkillBarDrag,
 };
 
 pub struct UiPlugin;
@@ -26,7 +27,7 @@ impl Plugin for UiPlugin {
         app.init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
-            .add_systems(Startup, setup_health_bar_assets)
+            .add_systems(Startup, (setup_health_bar_assets, setup_skill_icon_assets))
             .add_systems(
                 OnEnter(GameState::Title),
                 (
@@ -95,7 +96,8 @@ impl Plugin for UiPlugin {
                 Update,
                 (
                     handle_skill_bar_drag,
-                    sync_skill_bar,
+                    update_skill_bar_drag_ghost.after(handle_skill_bar_drag),
+                    sync_skill_bar.after(update_skill_bar_drag_ghost),
                     update_player_health_bar,
                     despawn_orphan_enemy_health_bars,
                     spawn_enemy_health_bars,

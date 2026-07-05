@@ -78,3 +78,12 @@ Audio
   URL: https://opengameart.org/content/swishes-sound-pack
   License: CC0 1.0 (public domain)
   Used for: player charge and whirlwind whoosh effects
+
+UI
+--
+
+  ui/skills/*.png — Dawnlike 16x16 (CC-BY 4.0)
+  Author: DragonDePlatino (Artyom Zhidkov)
+  URL: https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tile-set-v181
+  License: CC-BY 4.0
+  Used for: skill bar icons (sword, shield, boots, wand tiles cropped from item sheets)
