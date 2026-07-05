@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
+use crate::combat::SkillBindings;
 use crate::core::{DungeonPlayState, GameState};
 use crate::dungeon::move_enemies;
 
-use super::controls::{cleanup_controls_help, spawn_controls_help, update_controls_help};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -15,12 +15,18 @@ use super::menu::{
     spawn_death_menu, spawn_pause_menu, spawn_title_menu, title_input,
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
+use super::skill_bar::{
+    cleanup_skill_bar, handle_skill_bar_drag, skill_bar_active, spawn_skill_bar, sync_skill_bar,
+    SkillBarDrag,
+};
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<HealthBarAssets>()
+            .init_resource::<SkillBindings>()
+            .init_resource::<SkillBarDrag>()
             .add_systems(Startup, setup_health_bar_assets)
             .add_systems(
                 OnEnter(GameState::Title),
@@ -28,6 +34,7 @@ impl Plugin for UiPlugin {
                     ensure_time_running,
                     cleanup_pause_menu,
                     cleanup_death_menu,
+                    cleanup_skill_bar,
                     spawn_title_menu,
                 )
                     .chain(),
@@ -61,7 +68,7 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Dungeon),
                 (
                     setup_health_bar_assets,
-                    spawn_controls_help,
+                    spawn_skill_bar,
                     spawn_player_health_bar,
                     spawn_enemy_health_bars,
                 )
@@ -81,21 +88,22 @@ impl Plugin for UiPlugin {
                     ensure_time_running,
                     cleanup_pause_menu,
                     cleanup_death_menu,
-                    cleanup_controls_help,
+                    cleanup_skill_bar,
                     cleanup_health_bars,
                 ),
             )
             .add_systems(
                 Update,
                 (
-                    update_controls_help,
+                    handle_skill_bar_drag,
+                    sync_skill_bar,
                     update_player_health_bar,
                     despawn_orphan_enemy_health_bars,
                     spawn_enemy_health_bars,
                     update_enemy_health_bars.after(move_enemies),
                 )
                     .run_if(in_state(GameState::Dungeon))
-                    .run_if(in_state(DungeonPlayState::Running)),
+                    .run_if(skill_bar_active),
             );
     }
 }

@@ -11,6 +11,7 @@ use crate::dungeon::{
 
 use super::hitbox::{enemy_aabb, hitbox_overlaps, sword_swing_aabb, HitRect};
 use super::player_block::PlayerBlock;
+use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::{player_is_busy, PlayerSpecialMove};
 
 use crate::dungeon::player_half_extents;
@@ -100,6 +101,7 @@ pub fn start_player_attack(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     art: Res<DungeonArt>,
+    bindings: Res<SkillBindings>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<
         (
@@ -116,7 +118,9 @@ pub fn start_player_attack(
         return;
     };
 
-    if !keyboard.just_pressed(KeyCode::Digit1) || player_is_busy(&attack, block, special) {
+    if !SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Attack)
+        || player_is_busy(&attack, block, special)
+    {
         return;
     }
 

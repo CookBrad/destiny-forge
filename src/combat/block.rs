@@ -5,6 +5,7 @@ use crate::dungeon::{DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity,
 
 use super::attack::PlayerAttack;
 use super::player_block::PlayerBlock;
+use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::PlayerSpecialMove;
 use super::weapon::{EquippedWeapon, WeaponKind};
 
@@ -20,6 +21,7 @@ const IDLE_BLOCK_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
 const RUN_BLOCK_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
 
 pub fn update_player_block(
+    bindings: Res<SkillBindings>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -36,11 +38,11 @@ pub fn update_player_block(
         return;
     }
 
-    if keyboard.just_pressed(KeyCode::Digit2) {
+    if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Block) {
         sfx.send(CombatSfx::Block);
     }
 
-    block.active = keyboard.pressed(KeyCode::Digit2);
+    block.active = SkillBindings::skill_pressed(&keyboard, &bindings, SkillKind::Block);
 }
 
 pub fn sync_block_weapon(

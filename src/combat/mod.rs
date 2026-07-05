@@ -7,6 +7,7 @@ mod player_death;
 mod player_hurt;
 mod plugin;
 mod projectile;
+mod skills;
 mod special_moves;
 mod weapon;
 
@@ -40,5 +41,6 @@ pub use health::{
     apply_enemy_contact_damage, damage_amount, health_bar_color, ContactDamageCooldown, Health,
     PLAYER_MAX_HEALTH,
 };
+pub use skills::{SkillBindings, SkillKind, SKILL_SLOT_COUNT};
 pub use plugin::CombatPlugin;
 pub use weapon::{EquippedWeapon, WeaponKind};

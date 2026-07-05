@@ -14,6 +14,7 @@ use super::hitbox::{enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_sprite_h
 use crate::graphics::{PIXEL_SCALE, TILE};
 use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
+use super::skills::{SkillBindings, SkillKind};
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,6 +134,7 @@ pub fn start_player_special_moves(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     art: Res<DungeonArt>,
+    bindings: Res<SkillBindings>,
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: Query<
         (
@@ -160,9 +162,9 @@ pub fn start_player_special_moves(
     let facing = animation.facing.signum().max(-1.0).min(1.0);
     let direction = if facing == 0.0 { 1.0 } else { facing };
 
-    let kind = if keyboard.just_pressed(KeyCode::Digit3) {
+    let kind = if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Charge) {
         Some(SpecialMoveKind::Charge)
-    } else if keyboard.just_pressed(KeyCode::Digit4) {
+    } else if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Spin) {
         Some(SpecialMoveKind::Spin)
     } else {
         None
