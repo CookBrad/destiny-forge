@@ -12,9 +12,12 @@ use super::health_bars::{
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
     ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
-    spawn_death_menu, spawn_pause_menu, spawn_title_menu, title_input,
+    spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_profile_rows,
+    title_input, title_profile_input,
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
+use super::pause_inventory::{handle_forge_craft_input, sync_pause_inventory_display};
+use super::profile_picker::{refresh_profile_picker, ProfilePicker};
 use super::skill_bar::{
     cleanup_skill_bar, handle_skill_bar_drag, setup_skill_icon_assets, spawn_skill_bar,
     sync_skill_bar, update_skill_bar_drag_ghost, SkillBarDrag,
@@ -24,7 +27,8 @@ pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HealthBarAssets>()
+        app.insert_resource(ProfilePicker::default())
+            .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
             .add_systems(Startup, (setup_health_bar_assets, setup_skill_icon_assets))
@@ -35,12 +39,22 @@ impl Plugin for UiPlugin {
                     cleanup_pause_menu,
                     cleanup_death_menu,
                     cleanup_skill_bar,
+                    refresh_profile_picker,
                     spawn_title_menu,
                 )
                     .chain(),
             )
             .add_systems(OnExit(GameState::Title), cleanup_title_menu)
-            .add_systems(Update, title_input.run_if(in_state(GameState::Title)))
+            .add_systems(
+                Update,
+                (
+                    title_profile_input,
+                    sync_title_profile_rows,
+                    title_input,
+                )
+                    .chain()
+                    .run_if(in_state(GameState::Title)),
+            )
             .add_systems(
                 OnEnter(DungeonPlayState::Paused),
                 (pause_game_time, spawn_pause_menu),
@@ -57,6 +71,8 @@ impl Plugin for UiPlugin {
                     (
                         handle_pause_audio_input,
                         sync_pause_audio_display,
+                        handle_forge_craft_input,
+                        sync_pause_inventory_display,
                     )
                         .chain()
                         .run_if(in_state(DungeonPlayState::Paused)),

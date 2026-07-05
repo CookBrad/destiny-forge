@@ -9,3 +9,5 @@ description = "A pixel farming and dungeon-crawling game with Monster Hunter-sty
 bevy = { version = "0.15", features = ["mp3", "wav"] }
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
+ron = "0.8"
+directories = "5"

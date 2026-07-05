@@ -1,0 +1,22 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MaterialId {
+    SlimeGel,
+    SlimeCore,
+    LeatherWing,
+    Fang,
+    IronScrap,
+}
+
+impl MaterialId {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::SlimeGel => "Slime Gel",
+            Self::SlimeCore => "Slime Core",
+            Self::LeatherWing => "Leather Wing",
+            Self::Fang => "Fang",
+            Self::IronScrap => "Iron Scrap",
+        }
+    }
+}

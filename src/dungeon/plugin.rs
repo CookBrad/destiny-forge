@@ -14,6 +14,7 @@ use crate::graphics::{follow_camera, init_dungeon_camera};
 
 use super::animation::animate_player;
 use super::boss::{resolve_boss_hazards, tick_boss_attacks};
+use super::carve::carve_corpses;
 use super::enemy::{move_enemies, track_boss_defeat};
 use super::interaction::{ladder_interaction, update_ladder_prompt};
 use super::movement::dungeon_movement;
@@ -23,7 +24,8 @@ pub struct DungeonPlugin;
 
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<super::carve::CarveState>()
+            .add_systems(
             OnEnter(GameState::Dungeon),
             (
                 setup_dungeon,
@@ -94,6 +96,7 @@ impl Plugin for DungeonPlugin {
                         resolve_enemy_projectiles,
                         tick_player_hit_flash,
                         track_boss_defeat,
+                        carve_corpses,
                         update_ladder_prompt,
                         ladder_interaction,
                     ),

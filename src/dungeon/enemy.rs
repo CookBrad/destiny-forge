@@ -535,6 +535,8 @@ fn update_aggro(
 
 pub fn track_boss_defeat(
     mut progress: ResMut<DungeonProgress>,
+    mut world_progress: ResMut<crate::player::WorldProgress>,
+    mut profile_dirty: ResMut<crate::core::ProfileDirty>,
     bosses: Query<&Health, With<KingSlimeBoss>>,
 ) {
     if progress.boss_defeated {
@@ -547,6 +549,8 @@ pub fn track_boss_defeat(
 
     if boss.is_dead() {
         progress.boss_defeated = true;
+        world_progress.record_boss_defeated_floor_1();
+        profile_dirty.mark();
         info!("King Slime defeated — ladder exit unlocked.");
     }
 }

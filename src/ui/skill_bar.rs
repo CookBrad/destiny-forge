@@ -3,6 +3,7 @@ use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
 
 use crate::combat::{SkillBindings, SkillIconAssets, SKILL_SLOT_COUNT};
+use crate::core::ProfileDirty;
 
 #[derive(Component)]
 pub struct SkillBarHud;
@@ -309,6 +310,7 @@ pub fn handle_skill_bar_drag(
     mouse: Res<ButtonInput<MouseButton>>,
     mut bindings: ResMut<SkillBindings>,
     mut drag: ResMut<SkillBarDrag>,
+    mut profile_dirty: ResMut<ProfileDirty>,
     slots: Query<(&SkillSlot, &Interaction), With<SkillSlot>>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
@@ -319,6 +321,7 @@ pub fn handle_skill_bar_drag(
             if let Some(from) = drag.from_slot {
                 bindings.swap_slots(from, slot.index);
                 drag.from_slot = None;
+                profile_dirty.mark();
             } else if bindings.slots[slot.index].is_some() {
                 drag.from_slot = Some(slot.index);
             }
@@ -337,6 +340,7 @@ pub fn handle_skill_bar_drag(
             }
             if let Some(to) = target {
                 bindings.swap_slots(from, to);
+                profile_dirty.mark();
             }
             drag.from_slot = None;
         }

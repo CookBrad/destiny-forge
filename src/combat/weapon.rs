@@ -1,13 +1,15 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct EquippedWeapon(pub WeaponKind);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WeaponKind {
     #[default]
     RustySword,
     RustySpear,
+    IronSword,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +38,13 @@ impl WeaponKind {
                 swing_secs: 0.36,
                 hit_start: 0.12,
                 hit_end: 0.24,
+            },
+            Self::IronSword => WeaponStats {
+                attack_power: 14.0,
+                reach: 30.0,
+                swing_secs: 0.28,
+                hit_start: 0.08,
+                hit_end: 0.18,
             },
         }
     }

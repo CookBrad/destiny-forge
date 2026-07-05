@@ -4,6 +4,7 @@ use crate::combat::{
     spawn_sheathed_sword, ContactDamageCooldown, EquippedWeapon, Health, PlayerAttack,
     PlayerBlock, PLAYER_MAX_HEALTH,
 };
+use crate::player::{Loadout, WorldProgress};
 use rand::Rng;
 use crate::graphics::{
     center_on_surface, scaled_transform, DungeonScrollBounds, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
@@ -44,21 +45,30 @@ pub struct Pitfall;
 const BOSS_DISPLAY_SCALE: f32 = 2.0;
 const BOSS_MAX_HEALTH: f32 = 120.0;
 
-pub fn setup_dungeon(mut commands: Commands, asset_server: Res<AssetServer>) {
-    setup_dungeon_with_seed(&mut commands, &asset_server, None);
+pub fn setup_dungeon(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    loadout: Res<Loadout>,
+    world_progress: Res<WorldProgress>,
+) {
+    setup_dungeon_with_seed(&mut commands, &asset_server, None, &loadout, &world_progress);
 }
 
 pub fn setup_dungeon_with_seed(
     commands: &mut Commands,
     asset_server: &AssetServer,
     seed: Option<u64>,
+    loadout: &Loadout,
+    world_progress: &WorldProgress,
 ) {
     let art = DungeonArt::load(asset_server);
     let seed = seed.unwrap_or_else(random_seed);
     let floor = generate_floor(seed);
 
     commands.init_resource::<LadderPrompt>();
-    commands.init_resource::<DungeonProgress>();
+    let mut progress = DungeonProgress::default();
+    world_progress.apply_to_dungeon_progress(&mut progress);
+    commands.insert_resource(progress);
     commands.insert_resource(DungeonLayout {
         seed,
         floor: floor.clone(),
@@ -76,7 +86,7 @@ pub fn setup_dungeon_with_seed(
         spawn_platform(commands, &art, *platform);
     }
     spawn_ladder_exit(commands, &art, floor.ladder_tile);
-    spawn_player(commands, &art, floor.player_start_x);
+    spawn_player(commands, &art, floor.player_start_x, loadout);
     for enemy in &floor.enemies {
         spawn_enemy(commands, &art, *enemy, &floor.ground_segments);
     }
@@ -248,7 +258,7 @@ fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile: u32
     ));
 }
 
-fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
+fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32, loadout: &Loadout) {
     let height = player_sprite_size().y;
     let start = Vec2::new(
         start_x,
@@ -267,7 +277,7 @@ fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32) {
             PlayerVelocity::default(),
             PlayerAirJumps::default(),
             PlayerAnimation::default(),
-            EquippedWeapon::default(),
+            loadout.equipped_weapon(),
             PlayerAttack::inactive(),
             PlayerBlock::default(),
             Health::new(PLAYER_MAX_HEALTH),
@@ -385,6 +395,8 @@ pub fn cleanup_dungeon(
 pub fn retry_dungeon(
     keyboard: Res<ButtonInput<KeyCode>>,
     layout: Option<Res<DungeonLayout>>,
+    loadout: Res<Loadout>,
+    world_progress: Res<WorldProgress>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     entities: Query<Entity, With<DungeonEntity>>,
@@ -393,7 +405,13 @@ pub fn retry_dungeon(
     if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
         let seed = layout.as_deref().map(|layout| layout.seed);
         despawn_dungeon(&mut commands, &entities);
-        setup_dungeon_with_seed(&mut commands, &asset_server, seed);
+        setup_dungeon_with_seed(
+            &mut commands,
+            &asset_server,
+            seed,
+            &loadout,
+            &world_progress,
+        );
         next_play.set(crate::core::DungeonPlayState::Running);
     }
 }

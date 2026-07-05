@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::ui::RelativeCursorPosition;
 
 use crate::audio::AudioSettings;
+use crate::core::ProfileDirty;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AudioControl {
@@ -149,6 +150,7 @@ fn toggle_label(enabled: bool) -> &'static str {
 pub fn handle_pause_audio_input(
     mouse: Res<ButtonInput<MouseButton>>,
     mut settings: ResMut<AudioSettings>,
+    mut profile_dirty: ResMut<ProfileDirty>,
     mut toggles: Query<
         (&Interaction, &AudioToggleButton),
         (Changed<Interaction>, With<Button>),
@@ -167,6 +169,7 @@ pub fn handle_pause_audio_input(
             AudioControl::Music => settings.music_enabled = !settings.music_enabled,
             AudioControl::Sfx => settings.sfx_enabled = !settings.sfx_enabled,
         }
+        profile_dirty.mark();
     }
 
     let dragging = mouse.pressed(MouseButton::Left);
@@ -187,6 +190,7 @@ pub fn handle_pause_audio_input(
             AudioControl::Music => settings.music_volume = volume,
             AudioControl::Sfx => settings.sfx_volume = volume,
         }
+        profile_dirty.mark();
     }
 }
 
