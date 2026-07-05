@@ -4,9 +4,19 @@ use crate::dungeon::DungeonPlayer;
 
 use super::player_death::PlayerDeath;
 
+pub const PLAYER_INVULN_DURATION: f32 = 0.65;
+
 #[derive(Component)]
 pub struct PlayerHitFlash {
     pub timer: Timer,
+}
+
+impl PlayerHitFlash {
+    pub fn new() -> Self {
+        Self {
+            timer: Timer::from_seconds(PLAYER_INVULN_DURATION, TimerMode::Once),
+        }
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -45,9 +55,7 @@ pub fn apply_player_hurt(
     knockback_strength: f32,
 ) {
     commands.entity(player).insert((
-        PlayerHitFlash {
-            timer: Timer::from_seconds(0.14, TimerMode::Once),
-        },
+        PlayerHitFlash::new(),
         PlayerKnockback::away_from(source, player_transform, knockback_strength),
     ));
 }

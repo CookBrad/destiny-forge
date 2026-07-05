@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::audio::CombatSfx;
 
-use super::player_hurt::apply_player_hurt;
+use super::player_hurt::{apply_player_hurt, PlayerHitFlash};
 
 pub const PLAYER_MAX_HEALTH: f32 = 100.0;
 
@@ -71,7 +71,7 @@ pub fn apply_enemy_contact_damage(
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
-        With<crate::dungeon::DungeonPlayer>,
+        (With<crate::dungeon::DungeonPlayer>, Without<PlayerHitFlash>),
     >,
     enemies: Query<
         (

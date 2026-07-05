@@ -15,7 +15,7 @@ use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
 use super::hitbox::{enemy_aabb, hitbox_overlaps, player_body_rect, sword_guard_aabb, HitRect};
 use super::player_block::PlayerBlock;
 use super::health::{ContactDamageCooldown, Health};
-use super::player_hurt::apply_player_hurt;
+use super::player_hurt::{apply_player_hurt, PlayerHitFlash};
 
 #[derive(Component)]
 pub struct EnemyProjectile {
@@ -296,6 +296,7 @@ pub fn resolve_enemy_projectiles(
             &mut Health,
             &mut ContactDamageCooldown,
             &PlayerBlock,
+            Option<&PlayerHitFlash>,
         ),
         (With<DungeonPlayer>, Without<EnemyProjectile>),
     >,
@@ -304,7 +305,7 @@ pub fn resolve_enemy_projectiles(
         (With<EnemyProjectile>, Without<DungeonPlayer>),
     >,
 ) {
-    let Ok((player_entity, player_transform, mut health, mut cooldown, block)) =
+    let Ok((player_entity, player_transform, mut health, mut cooldown, block, hit_flash)) =
         player.get_single_mut()
     else {
         return;
@@ -335,7 +336,7 @@ pub fn resolve_enemy_projectiles(
         }
 
         if hitbox_overlaps(body, projectile_hit) {
-            if !took_damage_this_frame && cooldown.0.finished() {
+            if hit_flash.is_none() && !took_damage_this_frame && cooldown.0.finished() {
                 health.take_damage(projectile.damage);
                 apply_player_hurt(
                     &mut commands,

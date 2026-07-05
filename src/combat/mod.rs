@@ -27,7 +27,10 @@ pub use player_death::{
     animate_player_death, detect_player_death, finish_player_death, hide_death_weapons,
     tick_player_death, PlayerDeath, PlayerFallDeath,
 };
-pub use player_hurt::{apply_player_hurt, tick_player_hit_flash, PlayerKnockback};
+pub use player_hurt::{
+    apply_player_hurt, tick_player_hit_flash, PlayerHitFlash, PlayerKnockback,
+    PLAYER_INVULN_DURATION,
+};
 pub use projectile::{
     deflect_projectiles_with_swing, enemy_shoot_projectiles, move_enemy_projectiles,
     resolve_deflected_projectile_hits, resolve_enemy_projectiles, DeflectedProjectile,

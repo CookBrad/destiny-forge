@@ -6,7 +6,7 @@ use std::f32::consts::FRAC_PI_2;
 use crate::audio::CombatSfx;
 use crate::combat::{
     apply_player_hurt, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse, EnemyProjectile,
-    Health, ProjectileLifetime, ProjectileVelocity,
+    Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
 use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
 
@@ -195,7 +195,11 @@ pub fn resolve_boss_hazards(
             &mut Health,
             &mut ContactDamageCooldown,
         ),
-        (With<DungeonPlayer>, Without<BossGroundHazard>),
+        (
+            With<DungeonPlayer>,
+            Without<BossGroundHazard>,
+            Without<PlayerHitFlash>,
+        ),
     >,
     mut hazards: Query<(Entity, &Transform, &mut BossGroundHazard), Without<DungeonPlayer>>,
 ) {
