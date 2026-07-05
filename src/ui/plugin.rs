@@ -16,8 +16,7 @@ use super::menu::{
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
 use super::skill_bar::{
-    cleanup_skill_bar, handle_skill_bar_drag, skill_bar_active, spawn_skill_bar, sync_skill_bar,
-    SkillBarDrag,
+    cleanup_skill_bar, handle_skill_bar_drag, spawn_skill_bar, sync_skill_bar, SkillBarDrag,
 };
 
 pub struct UiPlugin;
@@ -103,7 +102,10 @@ impl Plugin for UiPlugin {
                     update_enemy_health_bars.after(move_enemies),
                 )
                     .run_if(in_state(GameState::Dungeon))
-                    .run_if(skill_bar_active),
+                    .run_if(
+                        in_state(DungeonPlayState::Running)
+                            .or(in_state(DungeonPlayState::Paused)),
+                    ),
             );
     }
 }

@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
-use crate::combat::{SkillBindings, SkillKind, SKILL_SLOT_COUNT};
-use crate::core::{DungeonPlayState, GameState};
+use crate::combat::{SkillBindings, SKILL_SLOT_COUNT};
 
 #[derive(Component)]
 pub struct SkillBarHud;
@@ -125,9 +124,12 @@ pub fn sync_skill_bar(
             &mut BackgroundColor,
             &mut BorderColor,
         ),
-        With<SkillSlot>,
+        (With<SkillSlot>, Without<SkillSlotIcon>),
     >,
-    mut icons: Query<(&SkillSlotIcon, &mut BackgroundColor)>,
+    mut icons: Query<
+        (&SkillSlotIcon, &mut BackgroundColor),
+        (With<SkillSlotIcon>, Without<SkillSlot>),
+    >,
     mut labels: Query<(&SkillSlotIconLabel, &mut Text)>,
 ) {
     for (slot, interaction, mut bg, mut border) in &mut slots {
@@ -226,13 +228,3 @@ pub fn cleanup_skill_bar(
     }
 }
 
-pub fn skill_bar_active(
-    game: Res<State<GameState>>,
-    play: Res<State<DungeonPlayState>>,
-) -> bool {
-    *game.get() == GameState::Dungeon
-        && matches!(
-            play.get(),
-            DungeonPlayState::Running | DungeonPlayState::Paused
-        )
-}
