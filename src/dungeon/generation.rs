@@ -18,6 +18,10 @@ const MIN_PLATFORM_HEIGHT_TILES: u32 = 5;
 const MAX_PLATFORM_HEIGHT_TILES: u32 = 10;
 const MIN_BRIDGE_HEIGHT_TILES: u32 = 4;
 const MAX_BRIDGE_HEIGHT_TILES: u32 = 7;
+const MIN_PLATFORM_WIDTH_TILES: u32 = 6;
+const MAX_PLATFORM_WIDTH_TILES: u32 = 12;
+const MIN_ENEMY_SPACING_TILES: u32 = 8;
+const MAX_ENEMY_SPAWN_ATTEMPTS: u32 = 16;
 
 pub fn random_seed() -> u64 {
     rand::random()
@@ -147,26 +151,27 @@ fn generate_segments(
         let progress = (cursor.saturating_sub(start_tile) as f32 + segment_width as f32 * 0.5)
             / dungeon_span;
 
-        let enemy_count = rng.gen_range(2..=4);
+        let enemy_count = rng.gen_range(1..=3);
         for _ in 0..enemy_count {
             if segment_end <= cursor + 4 {
                 break;
             }
-            let tile = rng.gen_range((cursor + 2)..(segment_end - 2));
-            let x = (tile as f32 + 0.5) * TILE;
-            if is_on_floor(x, ground_segments) {
-                enemies.push(EnemySpawn {
-                    kind: pick_ground_enemy(rng, progress),
-                    x,
-                    top_y: DUNGEON_FLOOR_Y,
-                });
+            if let Some(spawn) = try_spawn_enemy(
+                rng,
+                cursor + 2,
+                segment_end - 2,
+                progress,
+                ground_segments,
+                &enemies,
+            ) {
+                enemies.push(spawn);
             }
         }
 
         if rng.gen_bool(0.88) && segment_end > cursor + 6 {
-            let platform_count = if rng.gen_bool(0.35) { 2 } else { 1 };
+            let platform_count = if rng.gen_bool(0.22) { 2 } else { 1 };
             for step in 0..platform_count {
-                let plat_width = rng.gen_range(3..=6);
+                let plat_width = rng.gen_range(MIN_PLATFORM_WIDTH_TILES..=MAX_PLATFORM_WIDTH_TILES);
                 let max_left = segment_end.saturating_sub(plat_width + 1);
                 if max_left <= cursor + 1 {
                     continue;
@@ -197,9 +202,44 @@ fn generate_segments(
     (platforms, enemies, bats)
 }
 
+fn try_spawn_enemy(
+    rng: &mut StdRng,
+    min_tile: u32,
+    max_tile: u32,
+    progress: f32,
+    ground_segments: &[PlatformSpec],
+    existing: &[EnemySpawn],
+) -> Option<EnemySpawn> {
+    if max_tile <= min_tile {
+        return None;
+    }
+
+    for _ in 0..MAX_ENEMY_SPAWN_ATTEMPTS {
+        let tile = rng.gen_range(min_tile..max_tile);
+        let x = (tile as f32 + 0.5) * TILE;
+        if !is_on_floor(x, ground_segments) || enemies_too_close(existing, x) {
+            continue;
+        }
+        return Some(EnemySpawn {
+            kind: pick_ground_enemy(rng, progress),
+            x,
+            top_y: DUNGEON_FLOOR_Y,
+        });
+    }
+
+    None
+}
+
+fn enemies_too_close(existing: &[EnemySpawn], x: f32) -> bool {
+    let min_dist = MIN_ENEMY_SPACING_TILES as f32 * TILE;
+    existing
+        .iter()
+        .any(|enemy| (enemy.x - x).abs() < min_dist)
+}
+
 fn bridge_over_pit(rng: &mut StdRng, pit: &PitfallSpec) -> PlatformSpec {
-    let width = pit.width_tiles.saturating_sub(1).max(2);
-    let inset = ((pit.width_tiles - width) as f32 * 0.5 * TILE).max(0.0);
+    let width = (pit.width_tiles + 2).clamp(MIN_PLATFORM_WIDTH_TILES, MAX_PLATFORM_WIDTH_TILES);
+    let inset = ((pit.width_tiles.saturating_sub(width)) as f32 * 0.5 * TILE).max(0.0);
     PlatformSpec {
         left: pit.left + inset,
         width_tiles: width,
@@ -279,6 +319,35 @@ mod tests {
             for pit in &floor.pitfalls {
                 assert!(pit.width_tiles >= MIN_PIT_TILES);
                 assert!(pit.width_tiles <= MAX_PIT_TILES);
+            }
+        }
+    }
+
+    #[test]
+    fn floating_platforms_are_wider() {
+        for seed in [1, 42, 999, 12_345, 98_765] {
+            let floor = generate_floor(seed);
+            for platform in &floor.platforms {
+                assert!(platform.width_tiles >= MIN_PLATFORM_WIDTH_TILES);
+                assert!(platform.width_tiles <= MAX_PLATFORM_WIDTH_TILES);
+            }
+        }
+    }
+
+    #[test]
+    fn enemies_spawn_with_minimum_spacing() {
+        let min_dist = MIN_ENEMY_SPACING_TILES as f32 * TILE;
+        for seed in [1, 42, 999, 12_345, 98_765] {
+            let floor = generate_floor(seed);
+            for (i, left) in floor.enemies.iter().enumerate() {
+                for right in floor.enemies.iter().skip(i + 1) {
+                    assert!(
+                        (left.x - right.x).abs() >= min_dist,
+                        "seed {seed}: enemies at {} and {} are too close",
+                        left.x,
+                        right.x
+                    );
+                }
             }
         }
     }
