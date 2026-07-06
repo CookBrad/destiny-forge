@@ -149,7 +149,7 @@ pub fn move_enemy_projectiles(
         lifetime.remaining -= dt;
         let x = transform.translation.x;
         if lifetime.remaining <= 0.0 || x < -margin || x > bounds.width + margin {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }
@@ -279,7 +279,7 @@ pub fn resolve_deflected_projectile_hits(
                 sprite.color = Color::srgba(0.55, 0.55, 0.6, 0.85);
             }
 
-            commands.entity(projectile_entity).despawn();
+            commands.entity(projectile_entity).try_despawn();
             break;
         }
     }
@@ -330,7 +330,7 @@ pub fn resolve_enemy_projectiles(
         let projectile_hit = projectile_rect(center);
 
         if block.is_active() && hitbox_overlaps(guard, projectile_hit) {
-            commands.entity(projectile_entity).despawn();
+            commands.entity(projectile_entity).try_despawn();
             sfx.send(CombatSfx::Parry);
             continue;
         }
@@ -349,7 +349,7 @@ pub fn resolve_enemy_projectiles(
                 cooldown.0 = Timer::from_seconds(PROJECTILE_DAMAGE_INTERVAL, TimerMode::Once);
                 took_damage_this_frame = true;
             }
-            commands.entity(projectile_entity).despawn();
+            commands.entity(projectile_entity).try_despawn();
         }
     }
 }

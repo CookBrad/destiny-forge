@@ -221,7 +221,7 @@ pub fn animate_weapon_swing(
 
     if !attack.is_active() {
         for (entity, _, _) in &swings {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
         return;
     }

@@ -218,7 +218,7 @@ pub fn resolve_boss_hazards(
     for (entity, transform, mut hazard) in &mut hazards {
         hazard.lifetime.tick(time.delta());
         if hazard.lifetime.finished() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
             continue;
         }
 

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::core::{DungeonPlayState, GameState};
+use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 
 use super::music::{
     pause_dungeon_music, resume_dungeon_music, start_dungeon_music, stop_dungeon_music,
@@ -16,11 +16,13 @@ impl Plugin for GameAudioPlugin {
             .init_resource::<CombatSfxAssets>()
             .add_event::<super::sfx::CombatSfx>()
             .add_systems(OnEnter(GameState::Dungeon), (setup_combat_sfx, start_dungeon_music).chain())
-            .add_systems(OnExit(GameState::Dungeon), stop_dungeon_music)
+            .add_systems(
+                OnExit(GameState::Dungeon),
+                stop_dungeon_music.after(DungeonUiTeardown),
+            )
             .add_systems(OnEnter(DungeonPlayState::Paused), pause_dungeon_music)
             .add_systems(OnEnter(DungeonPlayState::Dead), pause_dungeon_music)
-            .add_systems(OnExit(DungeonPlayState::Paused), resume_dungeon_music)
-            .add_systems(OnExit(DungeonPlayState::Dead), resume_dungeon_music)
+            .add_systems(OnEnter(DungeonPlayState::Running), resume_dungeon_music)
             .add_systems(
                 Update,
                 apply_music_volume.run_if(in_state(GameState::Dungeon)),

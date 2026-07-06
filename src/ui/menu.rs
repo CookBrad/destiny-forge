@@ -1,31 +1,25 @@
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
-use crate::combat::SkillBindings;
-use crate::core::{
-    save_root_display, ActiveProfile, DungeonPlayState, GameSettings, PlayerProfile, ProfileDirty,
-    PROFILE_COUNT, GameState,
-};
+use crate::core::{save_root_display, DungeonPlayState, GameState};
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
 
 use super::pause_audio::spawn_pause_audio_controls;
 use super::pause_inventory::spawn_pause_inventory_panel;
-use super::profile_picker::{select_profile_for_run, ProfilePicker};
+use super::profile_picker::ProfilePicker;
+use super::title_profiles::spawn_title_profile_cards;
 
 #[derive(Component)]
 pub struct TitleMenu;
+
+#[derive(Component)]
+pub struct TitleHintLabel;
 
 #[derive(Component)]
 pub struct PauseMenu;
 
 #[derive(Component)]
 pub struct DeathMenu;
-
-#[derive(Component, Clone, Copy)]
-pub struct TitleProfileRow {
-    pub index: u8,
-}
 
 pub fn spawn_title_menu(mut commands: Commands, picker: Res<ProfilePicker>) {
     commands
@@ -61,7 +55,8 @@ pub fn spawn_title_menu(mut commands: Commands, picker: Res<ProfilePicker>) {
                 TextColor(Color::srgb(0.72, 0.76, 0.8)),
             ));
             parent.spawn((
-                Text::new("Select profile (1-3), then Enter to begin"),
+                TitleHintLabel,
+                Text::new("Click a profile to play · Rename to customize · 1-3 quick start"),
                 TextFont {
                     font_size: 22.0,
                     ..default()
@@ -69,40 +64,7 @@ pub fn spawn_title_menu(mut commands: Commands, picker: Res<ProfilePicker>) {
                 TextColor(Color::srgb(0.96, 0.88, 0.38)),
             ));
 
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(8.0),
-                    align_items: AlignItems::Center,
-                    ..default()
-                })
-                .with_children(|profiles| {
-                    for index in 0..PROFILE_COUNT {
-                        let summary = &picker.cards[index as usize];
-                        let selected = index == picker.selected;
-                        let boss = if summary.boss_cleared { " ✓ boss" } else { "" };
-                        let line = format!(
-                            "{}Profile {} — {} · {} mats{boss}",
-                            if selected { "> " } else { "  " },
-                            index + 1,
-                            summary.weapon,
-                            summary.materials,
-                        );
-                        profiles.spawn((
-                            TitleProfileRow { index },
-                            Text::new(line),
-                            TextFont {
-                                font_size: if selected { 20.0 } else { 17.0 },
-                                ..default()
-                            },
-                            TextColor(if selected {
-                                Color::srgb(0.95, 0.9, 0.45)
-                            } else {
-                                Color::srgb(0.68, 0.72, 0.78)
-                            }),
-                        ));
-                    }
-                });
+            spawn_title_profile_cards(parent, &picker);
 
             parent.spawn((
                 Text::new(format!("Saves: {}", save_root_display())),
@@ -123,84 +85,28 @@ pub fn spawn_title_menu(mut commands: Commands, picker: Res<ProfilePicker>) {
         });
 }
 
-pub fn title_profile_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut picker: ResMut<ProfilePicker>,
+pub fn sync_title_hint(
+    rename: Res<super::title_profiles::ProfileRenameState>,
+    mut hints: Query<&mut Text, With<TitleHintLabel>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Digit1) {
-        picker.selected = 0;
-    } else if keyboard.just_pressed(KeyCode::Digit2) {
-        picker.selected = 1;
-    } else if keyboard.just_pressed(KeyCode::Digit3) {
-        picker.selected = 2;
-    } else if keyboard.just_pressed(KeyCode::ArrowLeft) || keyboard.just_pressed(KeyCode::KeyA) {
-        picker.selected = picker.selected.saturating_sub(1);
-    } else if keyboard.just_pressed(KeyCode::ArrowRight) || keyboard.just_pressed(KeyCode::KeyD) {
-        picker.selected = (picker.selected + 1).min(PROFILE_COUNT - 1);
-    }
-}
-
-pub fn sync_title_profile_rows(
-    picker: Res<ProfilePicker>,
-    mut rows: Query<(&TitleProfileRow, &mut Text, &mut TextColor)>,
-) {
-    if !picker.is_changed() {
+    if !rename.is_changed() {
         return;
     }
 
-    for (row, mut text, mut color) in &mut rows {
-        let summary = &picker.cards[row.index as usize];
-        let selected = row.index == picker.selected;
-        let boss = if summary.boss_cleared { " ✓ boss" } else { "" };
-        text.0 = format!(
-            "{}Profile {} — {} · {} mats{boss}",
-            if selected { "> " } else { "  " },
-            row.index + 1,
-            summary.weapon,
-            summary.materials,
-        );
-        color.0 = if selected {
-            Color::srgb(0.95, 0.9, 0.45)
-        } else {
-            Color::srgb(0.68, 0.72, 0.78)
-        };
-    }
-}
+    let message = if rename.active.is_some() {
+        "Type a name · Enter to save · Esc to cancel"
+    } else {
+        "Click a profile to play · Rename to customize · 1-3 quick start"
+    };
 
-pub fn title_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    picker: Res<ProfilePicker>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut active: ResMut<ActiveProfile>,
-    mut profile: ResMut<PlayerProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut global: ResMut<GameSettings>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-) {
-    if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
-        select_profile_for_run(
-            &picker,
-            &mut inventory,
-            &mut loadout,
-            &mut progress,
-            &mut audio,
-            &mut bindings,
-            &mut active,
-            &mut profile,
-            &mut global,
-            &mut profile_dirty,
-        );
-        next_state.set(GameState::Dungeon);
+    for mut text in &mut hints {
+        text.0 = message.to_string();
     }
 }
 
 pub fn cleanup_title_menu(mut commands: Commands, menus: Query<Entity, With<TitleMenu>>) {
     for entity in &menus {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
@@ -256,7 +162,7 @@ pub fn spawn_pause_menu(
 
 pub fn cleanup_pause_menu(mut commands: Commands, menus: Query<Entity, With<PauseMenu>>) {
     for entity in &menus {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
@@ -342,7 +248,7 @@ pub fn spawn_death_menu(mut commands: Commands) {
 
 pub fn cleanup_death_menu(mut commands: Commands, menus: Query<Entity, With<DeathMenu>>) {
     for entity in &menus {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 

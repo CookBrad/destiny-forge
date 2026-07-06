@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 use crate::combat::{
@@ -374,22 +376,36 @@ fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) 
 fn despawn_dungeon(
     commands: &mut Commands,
     entities: &Query<Entity, With<DungeonEntity>>,
+    parents: &Query<&Parent>,
 ) {
     commands.remove_resource::<DungeonArt>();
     commands.remove_resource::<LadderPrompt>();
     commands.remove_resource::<DungeonProgress>();
     commands.remove_resource::<DungeonScrollBounds>();
     commands.remove_resource::<DungeonLayout>();
-    for entity in entities.iter() {
-        commands.entity(entity).despawn_recursive();
+
+    let dungeon_entities: HashSet<Entity> = entities.iter().collect();
+    let roots: Vec<Entity> = entities
+        .iter()
+        .filter(|entity| {
+            parents
+                .get(*entity)
+                .ok()
+                .is_none_or(|parent| !dungeon_entities.contains(&parent.get()))
+        })
+        .collect();
+
+    for entity in roots {
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
 pub fn cleanup_dungeon(
     mut commands: Commands,
     entities: Query<Entity, With<DungeonEntity>>,
+    parents: Query<&Parent>,
 ) {
-    despawn_dungeon(&mut commands, &entities);
+    despawn_dungeon(&mut commands, &entities, &parents);
 }
 
 pub fn retry_dungeon(
@@ -400,11 +416,12 @@ pub fn retry_dungeon(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     entities: Query<Entity, With<DungeonEntity>>,
+    parents: Query<&Parent>,
     mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
         let seed = layout.as_deref().map(|layout| layout.seed);
-        despawn_dungeon(&mut commands, &entities);
+        despawn_dungeon(&mut commands, &entities, &parents);
         setup_dungeon_with_seed(
             &mut commands,
             &asset_server,

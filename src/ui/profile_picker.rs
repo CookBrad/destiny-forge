@@ -11,6 +11,7 @@ use crate::player::{Loadout, WorldProgress};
 
 #[derive(Clone, Debug)]
 pub struct ProfileCardSummary {
+    pub name: String,
     pub weapon: String,
     pub materials: u32,
     pub boss_cleared: bool,
@@ -18,26 +19,22 @@ pub struct ProfileCardSummary {
 
 #[derive(Resource)]
 pub struct ProfilePicker {
-    pub selected: u8,
     pub cards: [ProfileCardSummary; PROFILE_COUNT as usize],
 }
 
 impl Default for ProfilePicker {
     fn default() -> Self {
-        Self::refresh(0)
+        Self::refresh()
     }
 }
 
 impl ProfilePicker {
-    pub fn new(active: u8) -> Self {
-        Self::refresh(active)
-    }
-
-    pub fn refresh(selected: u8) -> Self {
+    pub fn refresh() -> Self {
         let mut cards = Vec::with_capacity(PROFILE_COUNT as usize);
         for index in 0..PROFILE_COUNT {
             let profile = load_profile(index);
             cards.push(ProfileCardSummary {
+                name: profile.display_name(index),
                 weapon: profile.summary_weapon().to_string(),
                 materials: profile.summary_material_count(),
                 boss_cleared: profile.summary_boss_cleared(),
@@ -46,16 +43,19 @@ impl ProfilePicker {
 
         let mut card_array = [
             ProfileCardSummary {
+                name: PlayerProfile::default_name(0),
                 weapon: "Rusty Sword".to_string(),
                 materials: 0,
                 boss_cleared: false,
             },
             ProfileCardSummary {
+                name: PlayerProfile::default_name(1),
                 weapon: "Rusty Sword".to_string(),
                 materials: 0,
                 boss_cleared: false,
             },
             ProfileCardSummary {
+                name: PlayerProfile::default_name(2),
                 weapon: "Rusty Sword".to_string(),
                 materials: 0,
                 boss_cleared: false,
@@ -65,19 +65,16 @@ impl ProfilePicker {
             *slot = summary;
         }
 
-        Self {
-            selected: selected.min(PROFILE_COUNT - 1),
-            cards: card_array,
-        }
+        Self { cards: card_array }
     }
 }
 
-pub fn refresh_profile_picker(active: Res<ActiveProfile>, mut picker: ResMut<ProfilePicker>) {
-    *picker = ProfilePicker::refresh(active.index());
+pub fn refresh_profile_picker(mut picker: ResMut<ProfilePicker>) {
+    *picker = ProfilePicker::refresh();
 }
 
-pub fn select_profile_for_run(
-    picker: &ProfilePicker,
+pub fn begin_profile_run(
+    index: u8,
     inventory: &mut Inventory,
     loadout: &mut Loadout,
     progress: &mut WorldProgress,
@@ -89,7 +86,7 @@ pub fn select_profile_for_run(
     profile_dirty: &mut ProfileDirty,
 ) {
     activate_profile(
-        picker.selected,
+        index,
         inventory,
         loadout,
         progress,

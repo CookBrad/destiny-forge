@@ -9,7 +9,7 @@ use crate::combat::{
     sync_sheathed_weapon, tick_hit_flash, tick_player_attack, tick_player_death,
     tick_player_hit_flash, tick_player_special_moves, update_player_block,
 };
-use crate::core::{DungeonPlayState, GameState};
+use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::graphics::{follow_camera, init_dungeon_camera};
 
 use super::animation::animate_player;
@@ -36,7 +36,10 @@ impl Plugin for DungeonPlugin {
             )
                 .chain(),
         )
-            .add_systems(OnExit(GameState::Dungeon), cleanup_dungeon)
+            .add_systems(
+                OnExit(GameState::Dungeon),
+                cleanup_dungeon.after(DungeonUiTeardown),
+            )
             .add_systems(
                 Update,
                 detect_player_death

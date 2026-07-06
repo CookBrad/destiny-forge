@@ -7,7 +7,8 @@ use crate::player::{Loadout, WorldProgress};
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 2;
+pub const PROFILE_VERSION: u32 = 3;
+pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ActiveProfile(pub u8);
@@ -21,6 +22,8 @@ impl ActiveProfile {
 #[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerProfile {
     pub version: u32,
+    #[serde(default)]
+    pub name: String,
     pub inventory: Inventory,
     pub loadout: Loadout,
     pub progress: WorldProgress,
@@ -32,6 +35,7 @@ impl Default for PlayerProfile {
     fn default() -> Self {
         Self {
             version: PROFILE_VERSION,
+            name: String::new(),
             inventory: Inventory::default(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
@@ -48,6 +52,23 @@ impl PlayerProfile {
         self
     }
 
+    pub fn default_name(index: u8) -> String {
+        format!("Profile {}", index.saturating_add(1))
+    }
+
+    pub fn display_name(&self, index: u8) -> String {
+        let trimmed = self.name.trim();
+        if trimmed.is_empty() {
+            Self::default_name(index)
+        } else {
+            trimmed.to_string()
+        }
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.name = sanitize_profile_name(name.to_string());
+    }
+
     pub fn summary_weapon(&self) -> &'static str {
         self.loadout.weapon_label()
     }
@@ -59,4 +80,22 @@ impl PlayerProfile {
     pub fn summary_boss_cleared(&self) -> bool {
         self.progress.boss_defeated_floor_1
     }
+}
+
+pub fn sanitize_profile_name(name: String) -> String {
+    name.chars()
+        .filter(|ch| !ch.is_control())
+        .take(MAX_PROFILE_NAME_LEN)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+pub fn rename_profile_on_disk(index: u8, name: String) -> PlayerProfile {
+    let mut profile = super::storage::load_profile(index);
+    profile.set_name(&name);
+    if let Err(error) = super::storage::save_profile(index, &profile) {
+        warn!("Failed to save profile name: {error}");
+    }
+    profile
 }

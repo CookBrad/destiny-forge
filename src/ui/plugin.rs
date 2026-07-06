@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::combat::SkillBindings;
-use crate::core::{DungeonPlayState, GameState};
+use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 
 use super::health_bars::{
@@ -12,8 +12,12 @@ use super::health_bars::{
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
     ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
-    spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_profile_rows,
-    title_input, title_profile_input,
+    spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_hint,
+};
+use super::title_profiles::{
+    handle_profile_rename_input, handle_title_profile_card_clicks,
+    handle_title_profile_keyboard_shortcuts, handle_title_profile_rename_clicks,
+    sync_title_profile_cards, ProfileRenameState,
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
 use super::pause_inventory::{handle_forge_craft_input, sync_pause_inventory_display};
@@ -23,11 +27,16 @@ use super::skill_bar::{
     sync_skill_bar, update_skill_bar_drag_ghost, SkillBarDrag,
 };
 
+fn clear_profile_rename_state(mut rename: ResMut<ProfileRenameState>) {
+    rename.active = None;
+}
+
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ProfilePicker::default())
+            .init_resource::<ProfileRenameState>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -36,23 +45,25 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Title),
                 (
                     ensure_time_running,
-                    cleanup_pause_menu,
-                    cleanup_death_menu,
-                    cleanup_skill_bar,
                     refresh_profile_picker,
                     spawn_title_menu,
                 )
                     .chain(),
             )
-            .add_systems(OnExit(GameState::Title), cleanup_title_menu)
+            .add_systems(
+                OnExit(GameState::Title),
+                (cleanup_title_menu, clear_profile_rename_state),
+            )
             .add_systems(
                 Update,
                 (
-                    title_profile_input,
-                    sync_title_profile_rows,
-                    title_input,
+                    handle_title_profile_card_clicks,
+                    handle_title_profile_rename_clicks,
+                    handle_title_profile_keyboard_shortcuts,
+                    handle_profile_rename_input,
+                    sync_title_profile_cards,
+                    sync_title_hint,
                 )
-                    .chain()
                     .run_if(in_state(GameState::Title)),
             )
             .add_systems(
@@ -106,7 +117,9 @@ impl Plugin for UiPlugin {
                     cleanup_death_menu,
                     cleanup_skill_bar,
                     cleanup_health_bars,
-                ),
+                )
+                    .chain()
+                    .in_set(DungeonUiTeardown),
             )
             .add_systems(
                 Update,

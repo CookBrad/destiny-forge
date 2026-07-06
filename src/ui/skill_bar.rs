@@ -279,7 +279,7 @@ pub fn update_skill_bar_drag_ghost(
 
 fn despawn_drag_ghost(commands: &mut Commands, drag: &mut SkillBarDrag) {
     if let Some(entity) = drag.ghost.take() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
@@ -355,7 +355,7 @@ pub fn cleanup_skill_bar(
     despawn_drag_ghost(&mut commands, &mut drag);
     drag.from_slot = None;
     for entity in &hud {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 

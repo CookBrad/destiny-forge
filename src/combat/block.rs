@@ -111,7 +111,7 @@ pub fn despawn_block_weapon(
 
     if !block.is_active() {
         for entity in &blocks {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

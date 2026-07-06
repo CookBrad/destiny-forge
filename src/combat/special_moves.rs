@@ -210,14 +210,14 @@ pub fn cleanup_special_weapon(
 ) {
     let Ok(special) = player.get_single() else {
         for entity in &fx {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
         return;
     };
 
     if !special.is_active() {
         for entity in &fx {
-            commands.entity(entity).despawn();
+            commands.entity(entity).try_despawn();
         }
     }
 }

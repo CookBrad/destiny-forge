@@ -179,7 +179,7 @@ pub fn despawn_orphan_enemy_health_bars(
 ) {
     for (bar_entity, bar) in &bars {
         if owners.get(bar.owner).is_err() {
-            commands.entity(bar_entity).despawn_recursive();
+            commands.entity(bar_entity).try_despawn_recursive();
         }
     }
 }
@@ -243,7 +243,7 @@ pub fn cleanup_health_bars(
     enemy_bars: Query<Entity, With<EnemyHealthBar>>,
 ) {
     for entity in player_bars.iter().chain(enemy_bars.iter()) {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
