@@ -6,7 +6,7 @@ use crate::combat::{
 };
 use crate::graphics::{
     viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY,
-    DUNGEON_JUMP_SPEED, DUNGEON_MOVE_SPEED,
+    DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
 };
 
 use super::sprites::player_half_extents;
@@ -115,7 +115,7 @@ pub fn dungeon_movement(
         }
 
         if !under_knockback {
-            velocity.x = move_input * DUNGEON_MOVE_SPEED;
+            velocity.x = move_input * PLAYER_WALK_SPEED;
         }
     }
 

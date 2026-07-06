@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::graphics::{DUNGEON_MOVE_SPEED, TILE};
+use crate::graphics::{PLAYER_WALK_SPEED, TILE};
 
 use super::sprites::{OverworldArt, PLAYER_ANIM_FRAMES};
 
@@ -67,8 +67,8 @@ pub fn exploration_movement(
         input = input.normalize();
     }
 
-    velocity.x = input.x * DUNGEON_MOVE_SPEED;
-    velocity.y = input.y * DUNGEON_MOVE_SPEED;
+    velocity.x = input.x * PLAYER_WALK_SPEED;
+    velocity.y = input.y * PLAYER_WALK_SPEED;
 
     let dt = time.delta_secs();
     let delta = Vec2::new(velocity.x * dt, velocity.y * dt);
