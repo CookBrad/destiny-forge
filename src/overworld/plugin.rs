@@ -9,7 +9,7 @@ use super::movement::{animate_overworld_player, overworld_movement};
 use super::setup::{cleanup_overworld, setup_overworld, spawn_overworld_hud};
 
 fn set_overworld_clear_color(mut clear: ResMut<ClearColor>) {
-    clear.0 = Color::srgb(0.45, 0.62, 0.38);
+    clear.0 = Color::srgb(0.22, 0.28, 0.18);
 }
 
 pub struct OverworldPlugin;

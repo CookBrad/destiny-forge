@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub const ENV_ROOT: &str = "dungeon/environment";
+pub const OVERWORLD_ROOT: &str = "overworld";
 pub const ANIMAL_SHEET: &str = "source/dawnlike/Characters/Quadraped0.png";
 const HOMESTEAD_FRAME_ROOT: &str = "source/0x72_DungeonTilesetII_v1.7/frames";
 
@@ -48,6 +49,11 @@ pub struct OverworldArt {
     pub soil: Handle<Image>,
     pub fence: Handle<Image>,
     pub roof: Handle<Image>,
+    pub grid_line: Handle<Image>,
+    pub forge_furnace: Handle<Image>,
+    pub forge_workbench: Handle<Image>,
+    pub forge_anvil: Handle<Image>,
+    pub forge_chimney: Handle<Image>,
     pub player: HomesteadPlayerFrames,
     pub animal: Handle<Image>,
 }
@@ -61,6 +67,11 @@ impl OverworldArt {
             soil: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             fence: asset_server.load(format!("{ENV_ROOT}/floor_ladder.png")),
             roof: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
+            grid_line: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
+            forge_furnace: asset_server.load(format!("{OVERWORLD_ROOT}/forge_furnace.png")),
+            forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
+            forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),
+            forge_chimney: asset_server.load(format!("{OVERWORLD_ROOT}/forge_chimney.png")),
             player: HomesteadPlayerFrames::load(asset_server),
             animal: asset_server.load(ANIMAL_SHEET),
         }
