@@ -4,8 +4,8 @@ use std::f32::consts::FRAC_PI_2;
 
 use crate::audio::CombatSfx;
 use crate::dungeon::{
-    DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
-    Patrol, PlayerAnimation, PlayerVelocity,
+    DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
+    PlayerAnimation, PlayerVelocity,
     PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
 };
 
@@ -13,6 +13,7 @@ use super::hitbox::{
     animation_facing, enemy_aabb, hitbox_overlaps, sword_blade_center_local, sword_swing_aabb,
     HitRect,
 };
+use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::{player_is_busy, PlayerSpecialMove};
@@ -284,30 +285,24 @@ pub fn resolve_weapon_hits(
             continue;
         }
 
-        let damage = damage_amount(stats.attack_power, 0.0);
-        health.take_damage(damage);
-        attack.hit_entities.push(entity);
-        sfx.send(CombatSfx::SwordHit);
-
-        sprite.color = Color::srgb(1.0, 0.45, 0.45);
-        commands.entity(entity).insert((
-            EnemyAggro::from_hit(),
-            HitFlash {
-                timer: Timer::from_seconds(0.12, TimerMode::Once),
+        apply_enemy_strike(
+            &mut commands,
+            &mut sfx,
+            entity,
+            &mut health,
+            &mut sprite,
+            &mut attack.hit_entities,
+            EnemyStrike {
+                damage: damage_amount(stats.attack_power, 0.0),
+                sfx: CombatSfx::SwordHit,
+                knockback: EnemyKnockback::away_from_player(
+                    player_transform,
+                    transform,
+                    if boss.is_some() { 0.35 } else { 1.0 },
+                    kind.is_some_and(|kind| kind.is_airborne()),
+                ),
             },
-            EnemyKnockback::away_from_player(
-                player_transform,
-                transform,
-                if boss.is_some() { 0.35 } else { 1.0 },
-                kind.is_some_and(|kind| kind.is_airborne()),
-            ),
-        ));
-
-        if health.is_dead() {
-            commands.entity(entity).remove::<Patrol>();
-            commands.entity(entity).insert(EnemyCorpse);
-            sprite.color = Color::srgba(0.55, 0.55, 0.6, 0.85);
-        }
+        );
     }
 }
 

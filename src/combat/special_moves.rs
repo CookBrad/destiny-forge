@@ -4,16 +4,17 @@ use std::f32::consts::{FRAC_PI_2, TAU};
 
 use crate::audio::CombatSfx;
 use crate::dungeon::{
-    player_half_extents, DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind,
-    EnemyKnockback, KingSlimeBoss, Patrol, PlayerAnimation, PlayerVelocity,
+    player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
+    KingSlimeBoss, PlayerAnimation, PlayerVelocity,
 };
 
-use super::attack::{EnemyCorpse, HitFlash, PlayerAttack};
+use super::attack::{EnemyCorpse, PlayerAttack};
 use super::health::{damage_amount, Health};
 use super::hitbox::{
     enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local, sword_sprite_hit_rect,
     HitRect,
 };
+use super::hits::{apply_enemy_strike, EnemyStrike};
 use crate::graphics::{PIXEL_SCALE, TILE};
 use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
@@ -301,8 +302,6 @@ pub fn resolve_special_move_hits(
         SpecialMoveKind::Spin => SPIN_ATTACK_POWER,
     };
 
-    let damage = damage_amount(attack_power, 0.0);
-
     for (entity, transform, hitbox_extents, mut health, mut sprite, boss, kind) in &mut enemies {
         if special.hit_entities.contains(&entity) || health.is_dead() {
             continue;
@@ -324,10 +323,6 @@ pub fn resolve_special_move_hits(
             continue;
         }
 
-        health.take_damage(damage);
-        special.hit_entities.push(entity);
-        sfx.send(CombatSfx::HeavyHit);
-
         let airborne = kind.is_some_and(|kind| kind.is_airborne());
         let knockback = match special.kind {
             SpecialMoveKind::Charge => EnemyKnockback::from_charge(
@@ -343,20 +338,19 @@ pub fn resolve_special_move_hits(
             ),
         };
 
-        sprite.color = Color::srgb(1.0, 0.45, 0.45);
-        commands.entity(entity).insert((
-            EnemyAggro::from_hit(),
-            HitFlash {
-                timer: Timer::from_seconds(0.12, TimerMode::Once),
+        apply_enemy_strike(
+            &mut commands,
+            &mut sfx,
+            entity,
+            &mut health,
+            &mut sprite,
+            &mut special.hit_entities,
+            EnemyStrike {
+                damage: damage_amount(attack_power, 0.0),
+                sfx: CombatSfx::HeavyHit,
+                knockback,
             },
-            knockback,
-        ));
-
-        if health.is_dead() {
-            commands.entity(entity).remove::<Patrol>();
-            commands.entity(entity).insert(EnemyCorpse);
-            sprite.color = Color::srgba(0.55, 0.55, 0.6, 0.85);
-        }
+        );
     }
 }
 
