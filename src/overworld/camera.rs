@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use super::layout::{WORLD_HEIGHT, WORLD_WIDTH};
-use super::movement::OverworldPlayer;
+use super::movement::{ExplorationMap, OverworldPlayer};
 
 const OVERWORLD_CAMERA_Z: f32 = 100.0;
 
-pub fn init_overworld_camera(
+pub fn init_exploration_camera(
+    map: Res<ExplorationMap>,
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
     mut camera: Query<&mut Transform, (With<Camera2d>, Without<OverworldPlayer>)>,
@@ -21,11 +21,13 @@ pub fn init_overworld_camera(
     };
 
     let half_view = Vec2::new(window.width() * 0.5, window.height() * 0.5);
-    let target = clamp_camera(player_transform.translation.truncate(), half_view);
+    let world = Vec2::new(map.world_width, map.world_height);
+    let target = clamp_camera(player_transform.translation.truncate(), half_view, world);
     camera_transform.translation = target.extend(OVERWORLD_CAMERA_Z);
 }
 
-pub fn follow_overworld_camera(
+pub fn follow_exploration_camera(
+    map: Res<ExplorationMap>,
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
     mut camera: Query<&mut Transform, (With<Camera2d>, Without<OverworldPlayer>)>,
@@ -41,15 +43,16 @@ pub fn follow_overworld_camera(
     };
 
     let half_view = Vec2::new(window.width() * 0.5, window.height() * 0.5);
-    let target = clamp_camera(player_transform.translation.truncate(), half_view);
+    let world = Vec2::new(map.world_width, map.world_height);
+    let target = clamp_camera(player_transform.translation.truncate(), half_view, world);
     camera_transform.translation = target.extend(OVERWORLD_CAMERA_Z);
 }
 
-fn clamp_camera(player: Vec2, half_view: Vec2) -> Vec2 {
+fn clamp_camera(player: Vec2, half_view: Vec2, world: Vec2) -> Vec2 {
     let min = half_view;
-    let max = Vec2::new(WORLD_WIDTH, WORLD_HEIGHT) - half_view;
+    let max = world - half_view;
     if max.x < min.x || max.y < min.y {
-        return Vec2::new(WORLD_WIDTH * 0.5, WORLD_HEIGHT * 0.5);
+        return world * 0.5;
     }
     player.clamp(min, max)
 }

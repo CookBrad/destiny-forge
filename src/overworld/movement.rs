@@ -2,8 +2,31 @@ use bevy::prelude::*;
 
 use crate::graphics::{DUNGEON_MOVE_SPEED, TILE};
 
-use super::layout::{OverworldLayout, WORLD_HEIGHT, WORLD_WIDTH};
 use super::sprites::{OverworldArt, PLAYER_ANIM_FRAMES};
+
+#[derive(Resource, Clone)]
+pub struct ExplorationMap {
+    pub solids: Vec<Rect>,
+    pub world_width: f32,
+    pub world_height: f32,
+}
+
+/// Prevents immediately bouncing back after a map transition.
+#[derive(Resource)]
+pub struct MapTransitionCooldown(pub Timer);
+
+impl Default for MapTransitionCooldown {
+    fn default() -> Self {
+        Self(Timer::from_seconds(0.45, TimerMode::Once))
+    }
+}
+
+pub fn tick_map_transition_cooldown(
+    time: Res<Time>,
+    mut cooldown: ResMut<MapTransitionCooldown>,
+) {
+    cooldown.0.tick(time.delta());
+}
 
 #[derive(Component)]
 pub struct OverworldPlayer;
@@ -16,10 +39,10 @@ pub struct OverworldVelocity {
 
 const PLAYER_RADIUS: f32 = TILE * 0.42;
 
-pub fn overworld_movement(
+pub fn exploration_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    layout: Res<OverworldLayout>,
+    map: Res<ExplorationMap>,
     mut player: Query<(&mut Transform, &mut OverworldVelocity), With<OverworldPlayer>>,
 ) {
     let Ok((mut transform, mut velocity)) = player.get_single_mut() else {
@@ -50,9 +73,13 @@ pub fn overworld_movement(
     let dt = time.delta_secs();
     let delta = Vec2::new(velocity.x * dt, velocity.y * dt);
     let mut next = transform.translation.truncate() + delta;
-    next = resolve_collisions(next, delta, &layout.solids);
-    next.x = next.x.clamp(PLAYER_RADIUS, WORLD_WIDTH - PLAYER_RADIUS);
-    next.y = next.y.clamp(PLAYER_RADIUS, WORLD_HEIGHT - PLAYER_RADIUS);
+    next = resolve_collisions(next, delta, &map.solids);
+    next.x = next
+        .x
+        .clamp(PLAYER_RADIUS, map.world_width - PLAYER_RADIUS);
+    next.y = next
+        .y
+        .clamp(PLAYER_RADIUS, map.world_height - PLAYER_RADIUS);
     transform.translation.x = next.x;
     transform.translation.y = next.y;
 

@@ -4,10 +4,7 @@ pub const ENV_ROOT: &str = "dungeon/environment";
 pub const ENEMY_ROOT: &str = "dungeon/enemies";
 pub const PROJECTILE_ROOT: &str = "dungeon/projectiles";
 
-/// 0x72 knight_m — side-scroller armored hero (matches dungeon tileset).
-pub const PLAYER_IDLE: &str = "player/knight_idle_side.png";
-pub const PLAYER_RUN: &str = "player/knight_run_side.png";
-pub const PLAYER_ATTACK: &str = "player/knight_attack_side.png";
+pub const PLAYER_COMBAT_ROOT: &str = "player/combat";
 pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
 /// Native pixel size of `weapon_anime_sword.png` (width × height).
@@ -43,9 +40,9 @@ pub struct DungeonArt {
 impl DungeonArt {
     pub fn load(asset_server: &AssetServer) -> Self {
         Self {
-            player_idle: asset_server.load(PLAYER_IDLE),
-            player_run: asset_server.load(PLAYER_RUN),
-            player_attack: asset_server.load(PLAYER_ATTACK),
+            player_idle: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_idle_side.png")),
+            player_run: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_run_side.png")),
+            player_attack: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png")),
             weapon_anime_sword: asset_server.load(WEAPON_ANIME_SWORD),
             floor_ground: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             floor_platform: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),

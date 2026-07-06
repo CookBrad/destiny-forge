@@ -1,10 +1,11 @@
 mod animals;
-mod camera;
+pub mod camera;
 mod interaction;
-mod layout;
-mod movement;
+pub mod layout;
+pub mod movement;
 mod plugin;
-mod setup;
-mod sprites;
+pub mod setup;
+pub mod sprites;
 
 pub use plugin::OverworldPlugin;
+pub use setup::OverworldEntry;

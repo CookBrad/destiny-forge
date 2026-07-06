@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use crate::core::GameState;
 
 use super::animals::move_farm_animals;
-use super::camera::{follow_overworld_camera, init_overworld_camera};
+use super::camera::{follow_exploration_camera, init_exploration_camera};
 use super::interaction::overworld_interaction;
-use super::movement::{animate_overworld_player, overworld_movement};
+use super::movement::{animate_overworld_player, exploration_movement, tick_map_transition_cooldown};
 use super::setup::{cleanup_overworld, setup_overworld, spawn_overworld_hud};
 
 fn set_overworld_clear_color(mut clear: ResMut<ClearColor>) {
@@ -21,7 +21,7 @@ impl Plugin for OverworldPlugin {
             (
                 set_overworld_clear_color,
                 setup_overworld,
-                init_overworld_camera,
+                init_exploration_camera,
                 spawn_overworld_hud,
             )
                 .chain(),
@@ -30,10 +30,11 @@ impl Plugin for OverworldPlugin {
         .add_systems(
             Update,
             (
-                overworld_movement,
+                exploration_movement,
+                tick_map_transition_cooldown,
                 animate_overworld_player,
                 move_farm_animals,
-                follow_overworld_camera,
+                follow_exploration_camera,
                 overworld_interaction,
             )
                 .chain()

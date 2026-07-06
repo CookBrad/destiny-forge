@@ -5,6 +5,7 @@ pub enum GameState {
     #[default]
     Title,
     Overworld,
+    Forest,
     Dungeon,
 }
 

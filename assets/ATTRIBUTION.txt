@@ -13,13 +13,19 @@ Pixel Crawler — Free Pack 2.1
   License: Free for commercial/non-commercial use; do not redistribute or resell
   Used for: homestead forge sprites (curated in overworld/)
 
-  overworld/forge_furnace.png   — Pixel Crawler Furnace sheet (brick forge)
-  overworld/forge_chimney.png   — Pixel Crawler Furnace sheet (chimney stack)
+  overworld/forge_furnace.png   — Pixel Crawler Furnace sheet (brick forge with chimney)
   overworld/forge_workbench.png — Pixel Crawler Anvil sheet (workbench station)
   overworld/forge_anvil.png     — Pixel Crawler Anvil sheet (anvil platform)
 
-0x72 knight_m (player)
-  Curated from 0x72 DungeonTileset II frames into assets/player/
+  forest/trees.png              — Pixel Crawler tree props (Model_02 Size_02)
+
+  player/non-combat/dwarf_m_idle_anim_f0..3.png — 0x72 dwarf_m idle (overworld player)
+  player/non-combat/dwarf_m_run_anim_f0..3.png  — 0x72 dwarf_m run (overworld player)
+
+  overworld/animals/quadraped.png — Dawnlike Quadraped0 sheet (farm animals)
+
+0x72 knight_m (dungeon player)
+  Curated from 0x72 DungeonTileset II frames into assets/player/combat/
 
 0x72 — 16x16 DungeonTileset II v1.7
   Author: Robert (0x72)
@@ -48,9 +54,9 @@ Curate gameplay files from source into player/, dungeon/enemies/, and dungeon/en
 Gameplay sprite map
 -------------------
 
-  player/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
-  player/knight_run_side.png    — 0x72 knight_m run (4 frames)
-  player/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
+  player/combat/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
+  player/combat/knight_run_side.png    — 0x72 knight_m run (4 frames)
+  player/combat/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
   player/weapons/weapon_anime_sword.png — 0x72 swing arc overlay (rotates 90° on attack)
 
   dungeon/environment/floor_ground.png   — 0x72 floor tile
