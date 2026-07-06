@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::core::GameState;
 
+use super::animals::move_farm_animals;
 use super::camera::{follow_overworld_camera, init_overworld_camera};
 use super::interaction::overworld_interaction;
 use super::movement::{animate_overworld_player, overworld_movement};
@@ -31,6 +32,7 @@ impl Plugin for OverworldPlugin {
             (
                 overworld_movement,
                 animate_overworld_player,
+                move_farm_animals,
                 follow_overworld_camera,
                 overworld_interaction,
             )

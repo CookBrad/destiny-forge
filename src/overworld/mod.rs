@@ -1,3 +1,4 @@
+mod animals;
 mod camera;
 mod interaction;
 mod layout;

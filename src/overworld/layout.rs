@@ -355,15 +355,14 @@ fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, pen: Rect) {
         (42, 11),
     ];
     for (index, (tx, ty)) in animal_spots.iter().enumerate() {
-        commands.spawn((
-            Sprite {
-                image: art.animal.clone(),
-                rect: Some(super::sprites::animal_frame_rect(index)),
-                ..default()
-            },
-            scaled_transform(tile_center(*tx, *ty), 2.0),
-            OverworldEntity,
-        ));
+        super::animals::spawn_farm_animal(
+            commands,
+            art.animal.clone(),
+            tile_center(*tx, *ty),
+            2.0,
+            index / 4,
+            super::animals::AnimalWander::new(super::animals::WANDER_SPEED + index as f32 * 2.0),
+        );
     }
 }
 

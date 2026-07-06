@@ -43,8 +43,12 @@ impl OverworldArt {
 }
 
 pub fn animal_frame_rect(index: usize) -> Rect {
-    let x = (index % 4) as f32 * 16.0;
-    let y = (index / 4) as f32 * 16.0;
+    animal_anim_rect(index / 4, index % 4)
+}
+
+pub fn animal_anim_rect(sheet_row: usize, anim_frame: usize) -> Rect {
+    let x = (anim_frame % 4) as f32 * 16.0;
+    let y = sheet_row as f32 * 16.0;
     Rect {
         min: Vec2::new(x, y),
         max: Vec2::new(x + 16.0, y + 16.0),
