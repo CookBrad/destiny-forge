@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 
-use crate::graphics::{center_on_surface, stretched_size, world_transform, TILE};
+use crate::exploration::{
+    build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade, zone_at,
+    GridOverlayStyle, ZoneRect,
+};
+use crate::graphics::{center_on_surface, world_transform, TILE};
+
 use crate::overworld::layout::tile_center;
 
 use super::sprites::{tree_frame_rect, ForestArt, TREE_CELL_H, TREE_TINT};
@@ -26,14 +31,7 @@ pub enum ForestZone {
 #[derive(Resource, Clone)]
 pub struct ForestLayout {
     pub solids: Vec<Rect>,
-    pub zones: Vec<ZoneRect>,
-}
-
-#[derive(Clone)]
-pub struct ZoneRect {
-    pub zone: ForestZone,
-    pub bounds: Rect,
-    pub label: &'static str,
+    pub zones: Vec<ZoneRect<ForestZone>>,
 }
 
 impl ForestLayout {
@@ -57,16 +55,13 @@ impl ForestLayout {
             label: "Whispering Forest",
         });
 
-        build_map_border(&mut solids);
+        build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
 
         Self { solids, zones }
     }
 
-    pub fn zone_at(&self, position: Vec2) -> Option<&ZoneRect> {
-        self.zones
-            .iter()
-            .rev()
-            .find(|zone| zone.bounds.contains(position))
+    pub fn zone_at(&self, position: Vec2) -> Option<&ZoneRect<ForestZone>> {
+        zone_at(&self.zones, position)
     }
 
     pub fn tree_variant(&self, tx: u32, ty: u32) -> Option<usize> {
@@ -82,20 +77,6 @@ impl ForestLayout {
     }
 }
 
-fn tile_rect(x0: u32, y0: u32, x1: u32, y1: u32) -> Rect {
-    Rect {
-        min: Vec2::new(x0 as f32 * TILE, y0 as f32 * TILE),
-        max: Vec2::new(x1 as f32 * TILE, y1 as f32 * TILE),
-    }
-}
-
-fn build_map_border(solids: &mut Vec<Rect>) {
-    solids.push(tile_rect(0, 0, MAP_TILES_W, 1));
-    solids.push(tile_rect(0, MAP_TILES_H - 1, MAP_TILES_W, MAP_TILES_H));
-    solids.push(tile_rect(0, 0, 1, MAP_TILES_H));
-    solids.push(tile_rect(MAP_TILES_W - 1, 0, MAP_TILES_W, MAP_TILES_H));
-}
-
 pub fn forest_path(tx: u32, ty: u32) -> bool {
     (tx >= 2 && tx <= 4 && ty <= 30)
         || (tx >= 2 && tx <= 6 && ty <= 4)
@@ -106,7 +87,7 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
     for ty in 0..MAP_TILES_H {
         for tx in 0..MAP_TILES_W {
             let center = tile_center(tx, ty);
-            let shade = if (tx + ty) % 2 == 0 { 1.0 } else { 0.9 };
+            let shade = tile_checker_shade(tx, ty);
             let (texture, tint) = if forest_path(tx, ty) {
                 (
                     art.path.clone(),
@@ -130,7 +111,21 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
         }
     }
 
-    spawn_grid_overlay(commands, art);
+    spawn_grid_overlay(
+        commands,
+        art.grid_line.clone(),
+        WORLD_WIDTH,
+        WORLD_HEIGHT,
+        MAP_TILES_W,
+        MAP_TILES_H,
+        GridOverlayStyle {
+            line_color: Color::srgba(0.05, 0.08, 0.04, 0.72),
+            z: 0.08,
+        },
+        |entity| {
+            entity.insert(ForestEntity);
+        },
+    );
 
     for ty in 1..MAP_TILES_H - 1 {
         for tx in 1..MAP_TILES_W - 1 {
@@ -167,44 +162,6 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
         HomesteadReturnMarker,
         ForestEntity,
     ));
-}
-
-fn tint_shade(color: Color, shade: f32) -> Color {
-    let c = color.to_srgba();
-    Color::srgba(c.red * shade, c.green * shade, c.blue * shade, c.alpha)
-}
-
-fn spawn_grid_overlay(commands: &mut Commands, art: &ForestArt) {
-    let line = Color::srgba(0.05, 0.08, 0.04, 0.72);
-    let z = 0.08;
-
-    for tx in 0..=MAP_TILES_W {
-        let x = tx as f32 * TILE;
-        commands.spawn((
-            Sprite {
-                image: art.grid_line.clone(),
-                color: line,
-                custom_size: Some(stretched_size(Vec2::new(1.0, WORLD_HEIGHT))),
-                ..default()
-            },
-            world_transform(Vec2::new(x, WORLD_HEIGHT * 0.5), z),
-            ForestEntity,
-        ));
-    }
-
-    for ty in 0..=MAP_TILES_H {
-        let y = ty as f32 * TILE;
-        commands.spawn((
-            Sprite {
-                image: art.grid_line.clone(),
-                color: line,
-                custom_size: Some(stretched_size(Vec2::new(WORLD_WIDTH, 1.0))),
-                ..default()
-            },
-            world_transform(Vec2::new(WORLD_WIDTH * 0.5, y), z),
-            ForestEntity,
-        ));
-    }
 }
 
 #[derive(Component)]
