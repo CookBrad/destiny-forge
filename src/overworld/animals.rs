@@ -4,7 +4,7 @@ use rand::Rng;
 use crate::graphics::TILE;
 
 use super::layout::OverworldEntity;
-use super::sprites::animal_anim_rect;
+use super::sprites::animal_frame_rect;
 
 pub const PEN_MIN: Vec2 = Vec2::new(33.0 * TILE, 7.0 * TILE);
 pub const PEN_MAX: Vec2 = Vec2::new(48.0 * TILE, 17.0 * TILE);
@@ -12,11 +12,7 @@ const ANIMAL_MARGIN: f32 = TILE * 0.6;
 pub const WANDER_SPEED: f32 = 22.0;
 
 #[derive(Component)]
-pub struct FarmAnimal {
-    pub sheet_row: usize,
-    pub anim_frame: usize,
-    pub anim_timer: Timer,
-}
+pub struct FarmAnimal;
 
 #[derive(Component)]
 pub struct AnimalWander {
@@ -43,14 +39,15 @@ pub fn spawn_farm_animal(
     image: Handle<Image>,
     position: Vec2,
     z: f32,
-    sheet_row: usize,
+    sprite_index: usize,
     wander: AnimalWander,
 ) -> Entity {
+    let sprite_rect = animal_frame_rect(sprite_index);
     commands
         .spawn((
             Sprite {
                 image,
-                rect: Some(animal_anim_rect(sheet_row, 0)),
+                rect: Some(sprite_rect),
                 ..default()
             },
             Transform {
@@ -58,11 +55,7 @@ pub fn spawn_farm_animal(
                 scale: Vec3::splat(crate::graphics::PIXEL_SCALE),
                 ..default()
             },
-            FarmAnimal {
-                sheet_row,
-                anim_frame: 0,
-                anim_timer: Timer::from_seconds(0.18, TimerMode::Repeating),
-            },
+            FarmAnimal,
             wander,
             OverworldEntity,
         ))
@@ -71,15 +64,14 @@ pub fn spawn_farm_animal(
 
 pub fn move_farm_animals(
     time: Res<Time>,
-    mut animals: Query<(&mut Transform, &mut Sprite, &mut AnimalWander, &mut FarmAnimal)>,
+    mut animals: Query<(&mut Transform, &mut AnimalWander), With<FarmAnimal>>,
 ) {
     let mut rng = rand::thread_rng();
     let dt = time.delta_secs();
     let bounds = pen_bounds();
 
-    for (mut transform, mut sprite, mut wander, mut animal) in &mut animals {
+    for (mut transform, mut wander) in &mut animals {
         wander.graze_timer.tick(time.delta());
-        animal.anim_timer.tick(time.delta());
 
         if wander.grazing {
             if wander.graze_timer.finished() {
@@ -88,7 +80,6 @@ pub fn move_farm_animals(
                 wander.graze_timer =
                     Timer::from_seconds(rng.gen_range(2.0..5.0), TimerMode::Once);
             }
-            animate_animal(&mut sprite, &mut animal, false);
             continue;
         }
 
@@ -123,7 +114,6 @@ pub fn move_farm_animals(
             wander.grazing = true;
             wander.graze_timer = Timer::from_seconds(rng.gen_range(0.8..2.2), TimerMode::Once);
             wander.direction = Vec2::ZERO;
-            animate_animal(&mut sprite, &mut animal, false);
             continue;
         }
 
@@ -134,17 +124,7 @@ pub fn move_farm_animals(
             let scale = transform.scale.x.abs();
             transform.scale.x = if wander.direction.x < 0.0 { -scale } else { scale };
         }
-
-        animate_animal(&mut sprite, &mut animal, true);
     }
-}
-
-fn animate_animal(sprite: &mut Sprite, animal: &mut FarmAnimal, moving: bool) {
-    if moving && animal.anim_timer.just_finished() {
-        animal.anim_frame = (animal.anim_frame + 1) % 4;
-    }
-    let frame = if moving { animal.anim_frame } else { 0 };
-    sprite.rect = Some(animal_anim_rect(animal.sheet_row, frame));
 }
 
 fn pen_bounds() -> Rect {

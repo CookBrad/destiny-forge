@@ -360,7 +360,7 @@ fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, pen: Rect) {
             art.animal.clone(),
             tile_center(*tx, *ty),
             2.0,
-            index / 4,
+            index,
             super::animals::AnimalWander::new(super::animals::WANDER_SPEED + index as f32 * 2.0),
         );
     }
