@@ -2,6 +2,8 @@ mod animation;
 mod boss;
 mod carve;
 mod enemy;
+mod enemy_movement;
+mod enemy_stats;
 mod generation;
 mod interaction;
 mod level;
@@ -14,9 +16,11 @@ pub use animation::PlayerAnimation;
 pub use boss::{resolve_boss_hazards, tick_boss_attacks};
 pub use carve::carve_corpses;
 pub use enemy::{
-    move_enemies, track_boss_defeat, DungeonProgress, EnemyAggro, EnemyContactDamage, EnemyHitbox,
-    EnemyKind, EnemyKnockback, EnemyShootCooldown, KingSlimeBoss, Patrol,
+    track_boss_defeat, DungeonProgress, EnemyAggro, EnemyContactDamage, EnemyHitbox, EnemyKind,
+    EnemyKnockback, EnemyShootCooldown, KingSlimeBoss, Patrol,
 };
+pub use enemy_movement::move_enemies;
+pub use enemy_stats::EnemyStats;
 pub use setup::{DungeonEntity, PlatformCollider};
 pub use interaction::LadderPrompt;
 pub use movement::{DungeonPlayer, PlayerVelocity};
