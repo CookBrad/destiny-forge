@@ -4,8 +4,7 @@ use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
 use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
-use super::profile::{ActiveProfile, PlayerProfile};
-use super::settings::GameSettings;
+use super::profile::ActiveProfile;
 use super::storage::{load_profile, load_settings};
 use super::sync::hydrate_runtime_from_memory;
 

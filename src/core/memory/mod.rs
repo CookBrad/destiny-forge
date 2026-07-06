@@ -10,6 +10,6 @@ pub use plugin::MemoryPlugin;
 pub use profile::{
     rename_profile_on_disk, sanitize_profile_name, ActiveProfile, PlayerProfile, PROFILE_COUNT,
 };
-pub use settings::{GameSettings, ProfileSettings};
-pub use storage::{load_profile, save_root, save_root_display, settings_path};
-pub use sync::{activate_profile, apply_profile_to_runtime, snapshot_profile};
+pub use settings::GameSettings;
+pub use storage::{load_profile, save_root_display};
+pub use sync::{activate_profile, apply_profile_to_runtime};

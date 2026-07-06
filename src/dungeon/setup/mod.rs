@@ -11,7 +11,7 @@ use crate::player::{Loadout, WorldProgress};
 use super::enemy::DungeonProgress;
 use super::generation::{generate_floor, random_seed};
 use super::interaction::LadderPrompt;
-use super::level::{DungeonLayout, GeneratedFloor};
+use super::level::DungeonLayout;
 use super::sprites::DungeonArt;
 
 pub use actors::{spawn_enemies, spawn_king_slime, spawn_player};

@@ -18,11 +18,9 @@ pub use attack::{
 pub use block::{despawn_block_weapon, sync_block_weapon, update_player_block};
 pub use player_block::PlayerBlock;
 pub use special_moves::{
-    animate_special_weapon, charge_speed, cleanup_special_weapon, player_is_busy,
-    special_blocks_movement,
-    resolve_special_move_hits, special_move_hit_rect, spin_deflects_projectile,
-    start_player_special_moves,
-    tick_player_special_moves, PlayerSpecialMove, SpecialMoveKind, WeaponSpecialFx,
+    animate_special_weapon, charge_speed, cleanup_special_weapon, special_blocks_movement,
+    resolve_special_move_hits, start_player_special_moves, tick_player_special_moves,
+    PlayerSpecialMove, SpecialMoveKind,
 };
 pub use player_death::{
     animate_player_death, detect_player_death, finish_player_death, hide_death_weapons,
@@ -30,7 +28,6 @@ pub use player_death::{
 };
 pub use player_hurt::{
     apply_player_hurt, tick_player_hit_flash, PlayerHitFlash, PlayerKnockback,
-    PLAYER_INVULN_DURATION,
 };
 pub use projectile::{
     deflect_projectiles_with_swing, enemy_shoot_projectiles, move_enemy_projectiles,
@@ -38,8 +35,7 @@ pub use projectile::{
     EnemyProjectile, ProjectileLifetime, ProjectileVelocity,
 };
 pub use health::{
-    apply_enemy_contact_damage, damage_amount, health_bar_color, ContactDamageCooldown, Health,
-    PLAYER_MAX_HEALTH,
+    apply_enemy_contact_damage, health_bar_color, ContactDamageCooldown, Health, PLAYER_MAX_HEALTH,
 };
 pub use skills::{SkillBindings, SkillIconAssets, SkillKind, SKILL_SLOT_COUNT};
 pub use weapon::{EquippedWeapon, WeaponKind};

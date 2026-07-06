@@ -5,4 +5,4 @@ mod sfx;
 
 pub use plugin::GameAudioPlugin;
 pub use settings::AudioSettings;
-pub use sfx::{CombatSfx, CombatSfxAssets};
+pub use sfx::CombatSfx;

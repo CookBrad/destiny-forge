@@ -8,4 +8,3 @@ pub mod setup;
 pub mod sprites;
 
 pub use plugin::OverworldPlugin;
-pub use setup::OverworldEntry;
