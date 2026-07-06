@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::exploration::{
+    set_exploration_prompt, set_exploration_zone_label, EXPLORATION_PROMPT_MOVE_INTERACT,
+};
 use crate::graphics::INTERACT_DISTANCE;
 
 use super::layout::{homestead_forest_transition, HomesteadZone, OverworldLayout};
@@ -23,34 +26,31 @@ pub fn overworld_interaction(
     let position = transform.translation.truncate();
     let zone = layout.zone_at(position);
 
-    if let Ok(mut text) = zone_label.get_single_mut() {
-        text.0 = zone
-            .map(|zone| zone.label.to_string())
-            .unwrap_or_else(|| "Homestead Yard".to_string());
-    }
+    set_exploration_zone_label(
+        &mut zone_label,
+        zone.map(|zone| zone.label)
+            .unwrap_or("Homestead Yard"),
+    );
 
-    let mut prompt = "WASD move  ·  E interact  ·  Esc title".to_string();
+    let mut prompt = EXPLORATION_PROMPT_MOVE_INTERACT;
     if let Some(zone) = zone {
-        match zone.zone {
-            HomesteadZone::House => prompt = "E — Enter house (soon)".to_string(),
-            HomesteadZone::Forge => prompt = "E — Open forge (soon)".to_string(),
-            HomesteadZone::Crops => prompt = "Crop plots ready for planting".to_string(),
-            HomesteadZone::Animals => prompt = "Feed and tend your livestock".to_string(),
-            HomesteadZone::ForestTrail => {
-                prompt = "Walk north up the trail to enter the woods".to_string();
-            }
+        prompt = match zone.zone {
+            HomesteadZone::House => "E — Enter house (soon)",
+            HomesteadZone::Forge => "E — Open forge (soon)",
+            HomesteadZone::Crops => "Crop plots ready for planting",
+            HomesteadZone::Animals => "Feed and tend your livestock",
+            HomesteadZone::ForestTrail => "Walk north up the trail to enter the woods",
             HomesteadZone::DungeonGate => {
                 if distance_to_zone(position, &zone.bounds) <= INTERACT_DISTANCE * 2.0 {
-                    prompt = "E — Enter the dungeon".to_string();
                     if keyboard.just_pressed(KeyCode::KeyE) {
                         next_state.set(GameState::Dungeon);
                     }
+                    "E — Enter the dungeon"
                 } else {
-                    prompt = "Approach the gate to enter the dungeon".to_string();
+                    "Approach the gate to enter the dungeon"
                 }
             }
-            HomesteadZone::Yard => {}
-        }
+        };
     }
 
     if cooldown.0.finished()
@@ -64,12 +64,9 @@ pub fn overworld_interaction(
         next_state.set(GameState::Title);
     }
 
-    if let Ok(mut text) = prompt_label.get_single_mut() {
-        text.0 = prompt;
-    }
+    set_exploration_prompt(&mut prompt_label, prompt);
 }
 
 fn distance_to_zone(position: Vec2, bounds: &Rect) -> f32 {
-    let center = bounds.center();
-    position.distance(center)
+    position.distance(bounds.center())
 }

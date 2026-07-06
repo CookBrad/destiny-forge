@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::exploration::EXPLORATION_PROMPT_MOVE_INTERACT;
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::{spawn_homestead, tile_center, OverworldLayout, WORLD_WIDTH};
@@ -84,7 +85,7 @@ pub fn spawn_overworld_hud(mut commands: Commands) {
             ));
             hud.spawn((
                 OverworldPromptLabel,
-                Text::new("WASD move  ·  E interact  ·  Esc title"),
+                Text::new(EXPLORATION_PROMPT_MOVE_INTERACT),
                 TextFont {
                     font_size: 16.0,
                     ..default()
