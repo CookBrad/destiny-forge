@@ -2,6 +2,7 @@ mod audio;
 mod combat;
 mod core;
 mod dungeon;
+mod exploration;
 mod forest;
 mod forging;
 mod graphics;

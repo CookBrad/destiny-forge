@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::graphics::{center_on_surface, stretched_size, world_transform, TILE};
+use crate::exploration::{
+    build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade, zone_at,
+    GridOverlayStyle, ZoneRect,
+};
+use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::sprites::{FORGE_ANVIL_HEIGHT, FORGE_FURNACE_HEIGHT, FORGE_WORKBENCH_HEIGHT};
 
@@ -24,7 +28,6 @@ pub fn homestead_forest_trail(tx: u32, ty: u32) -> bool {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HomesteadZone {
-    Yard,
     House,
     Forge,
     Crops,
@@ -36,14 +39,7 @@ pub enum HomesteadZone {
 #[derive(Resource, Clone)]
 pub struct OverworldLayout {
     pub solids: Vec<Rect>,
-    pub zones: Vec<ZoneRect>,
-}
-
-#[derive(Clone)]
-pub struct ZoneRect {
-    pub zone: HomesteadZone,
-    pub bounds: Rect,
-    pub label: &'static str,
+    pub zones: Vec<ZoneRect<HomesteadZone>>,
 }
 
 impl Default for OverworldLayout {
@@ -88,33 +84,14 @@ impl OverworldLayout {
             label: "Dungeon Entrance",
         });
 
-        build_map_border(&mut solids);
+        build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
 
         Self { solids, zones }
     }
 
-    pub fn zone_at(&self, position: Vec2) -> Option<&ZoneRect> {
-        self.zones
-            .iter()
-            .rev()
-            .find(|zone| zone.bounds.contains(position))
+    pub fn zone_at(&self, position: Vec2) -> Option<&ZoneRect<HomesteadZone>> {
+        zone_at(&self.zones, position)
     }
-}
-
-fn tile_rect(x0: u32, y0: u32, x1: u32, y1: u32) -> Rect {
-    Rect {
-        min: Vec2::new(x0 as f32 * TILE, y0 as f32 * TILE),
-        max: Vec2::new(x1 as f32 * TILE, y1 as f32 * TILE),
-    }
-}
-
-fn build_map_border(solids: &mut Vec<Rect>) {
-    let thickness = TILE;
-    solids.push(tile_rect(0, 0, MAP_TILES_W, 1));
-    solids.push(tile_rect(0, MAP_TILES_H - 1, MAP_TILES_W, MAP_TILES_H));
-    solids.push(tile_rect(0, 0, 1, MAP_TILES_H));
-    solids.push(tile_rect(MAP_TILES_W - 1, 0, MAP_TILES_W, MAP_TILES_H));
-    let _ = thickness;
 }
 
 pub fn spawn_homestead(
@@ -140,7 +117,21 @@ pub fn spawn_homestead(
         }
     }
 
-    spawn_grid_overlay(commands, art);
+    spawn_grid_overlay(
+        commands,
+        art.grid_line.clone(),
+        WORLD_WIDTH,
+        WORLD_HEIGHT,
+        MAP_TILES_W,
+        MAP_TILES_H,
+        GridOverlayStyle {
+            line_color: Color::srgba(0.08, 0.1, 0.06, 0.72),
+            z: 0.08,
+        },
+        |entity| {
+            entity.insert((OverworldGrid, OverworldEntity));
+        },
+    );
 
     spawn_building(
         commands,
@@ -157,54 +148,6 @@ pub fn spawn_homestead(
     spawn_tilled_field(commands, art, tile_rect(4, 7, 20, 17));
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
-}
-
-fn tile_checker_shade(tx: u32, ty: u32) -> f32 {
-    if (tx + ty) % 2 == 0 {
-        1.0
-    } else {
-        0.9
-    }
-}
-
-fn tint_shade(color: Color, shade: f32) -> Color {
-    let c = color.to_srgba();
-    Color::srgba(c.red * shade, c.green * shade, c.blue * shade, c.alpha)
-}
-
-fn spawn_grid_overlay(commands: &mut Commands, art: &OverworldArt) {
-    let line = Color::srgba(0.08, 0.1, 0.06, 0.72);
-    let z = 0.08;
-
-    for tx in 0..=MAP_TILES_W {
-        let x = tx as f32 * TILE;
-        commands.spawn((
-            Sprite {
-                image: art.grid_line.clone(),
-                color: line,
-                custom_size: Some(stretched_size(Vec2::new(1.0, WORLD_HEIGHT))),
-                ..default()
-            },
-            world_transform(Vec2::new(x, WORLD_HEIGHT * 0.5), z),
-            OverworldGrid,
-            OverworldEntity,
-        ));
-    }
-
-    for ty in 0..=MAP_TILES_H {
-        let y = ty as f32 * TILE;
-        commands.spawn((
-            Sprite {
-                image: art.grid_line.clone(),
-                color: line,
-                custom_size: Some(stretched_size(Vec2::new(WORLD_WIDTH, 1.0))),
-                ..default()
-            },
-            world_transform(Vec2::new(WORLD_WIDTH * 0.5, y), z),
-            OverworldGrid,
-            OverworldEntity,
-        ));
-    }
 }
 
 fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) {
@@ -323,10 +266,10 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         Sprite {
             image: art.roof.clone(),
             color: Color::srgb(0.34, 0.3, 0.28),
-            custom_size: Some(stretched_size(Vec2::new(
+            custom_size: Some(Vec2::new(
                 (max_tx - min_tx) as f32 * TILE * 0.85,
                 TILE * 0.7,
-            ))),
+            )),
             ..default()
         },
         world_transform(roof_center, 2.6),
@@ -376,10 +319,10 @@ fn spawn_building(
         Sprite {
             image: roof_tex,
             color: roof_tint,
-            custom_size: Some(stretched_size(Vec2::new(
+            custom_size: Some(Vec2::new(
                 (max_tx - min_tx) as f32 * TILE,
                 TILE * 1.2,
-            ))),
+            )),
             ..default()
         },
         world_transform(roof_center, roof_z),
