@@ -67,7 +67,7 @@ pub fn expand_hit_rect(rect: HitRect, margin: f32) -> HitRect {
     }
 }
 
-fn animation_facing(transform: &Transform) -> f32 {
+pub fn animation_facing(transform: &Transform) -> f32 {
     if transform.scale.x < 0.0 {
         -1.0
     } else {
@@ -75,7 +75,7 @@ fn animation_facing(transform: &Transform) -> f32 {
     }
 }
 
-fn sword_blade_center_local(angle: f32) -> Vec2 {
+pub fn sword_blade_center_local(angle: f32) -> Vec2 {
     let half_height = SWORD_SPRITE_HEIGHT * 0.5;
     Vec2::new(
         half_height * (-angle).sin(),

@@ -5,11 +5,14 @@ use std::f32::consts::FRAC_PI_2;
 use crate::audio::CombatSfx;
 use crate::dungeon::{
     DungeonArt, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
-    Patrol, PlayerAnimation, PlayerVelocity, SWORD_SPRITE_HEIGHT,
+    Patrol, PlayerAnimation, PlayerVelocity,
     PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
 };
 
-use super::hitbox::{enemy_aabb, hitbox_overlaps, sword_swing_aabb, HitRect};
+use super::hitbox::{
+    animation_facing, enemy_aabb, hitbox_overlaps, sword_blade_center_local, sword_swing_aabb,
+    HitRect,
+};
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::{player_is_busy, PlayerSpecialMove};
@@ -71,8 +74,6 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
-/// Handle pivot on the player in local space (matches swing overlay).
-const SWORD_PIVOT_Y: f32 = -10.0;
 /// Visual arc completes faster than the full attack timer (hit window unchanged).
 const SWORD_ARC_SPEED: f32 = 2.2;
 
@@ -359,14 +360,6 @@ fn enemy_bounds(transform: &Transform, half: Vec2) -> HitRect {
     enemy_aabb(transform.translation.truncate(), half)
 }
 
-fn animation_facing(transform: &Transform) -> f32 {
-    if transform.scale.x < 0.0 {
-        -1.0
-    } else {
-        1.0
-    }
-}
-
 fn sword_arc_progress(attack: &PlayerAttack) -> f32 {
     (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs * SWORD_ARC_SPEED).clamp(0.0, 1.0)
 }
@@ -375,14 +368,6 @@ fn sword_arc_progress(attack: &PlayerAttack) -> f32 {
 /// Parent scale flip mirrors the arc when the player faces left.
 fn swing_angle(progress: f32) -> f32 {
     -progress * FRAC_PI_2
-}
-
-fn sword_blade_center_local(angle: f32) -> Vec2 {
-    let half_height = SWORD_SPRITE_HEIGHT * 0.5;
-    Vec2::new(
-        half_height * (-angle).sin(),
-        SWORD_PIVOT_Y + half_height * (-angle).cos(),
-    )
 }
 
 /// Tip traces a circular arc around the waist pivot (not in-place rotation).

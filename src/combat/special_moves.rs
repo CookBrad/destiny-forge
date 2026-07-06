@@ -10,7 +10,10 @@ use crate::dungeon::{
 
 use super::attack::{EnemyCorpse, HitFlash, PlayerAttack};
 use super::health::{damage_amount, Health};
-use super::hitbox::{enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_sprite_hit_rect, HitRect};
+use super::hitbox::{
+    enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local, sword_sprite_hit_rect,
+    HitRect,
+};
 use crate::graphics::{PIXEL_SCALE, TILE};
 use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
@@ -73,8 +76,6 @@ const SPIN_ARM_RADIUS: f32 = TILE * 1.85;
 const SPIN_SWORD_HIT_PADDING: f32 = TILE * 0.85;
 const SPIN_PARRY_PADDING: f32 = TILE * 0.45;
 const SPIN_PIVOT_Y: f32 = 2.0;
-
-const SWORD_PIVOT_Y: f32 = -10.0;
 
 pub fn player_is_busy(
     attack: &PlayerAttack,
@@ -370,12 +371,8 @@ fn charge_weapon_pose(_progress: f32, direction: f32) -> WeaponPose {
     } else {
         FRAC_PI_2 * 0.18
     };
-    let half_height = SWORD_SPRITE_HEIGHT * 0.5;
     let forward = direction * TILE * 0.75;
-    let blade = Vec2::new(
-        half_height * (-angle).sin() + forward,
-        SWORD_PIVOT_Y + half_height * (-angle).cos(),
-    );
+    let blade = sword_blade_center_local(angle) + Vec2::new(forward, 0.0);
 
     WeaponPose {
         translation: Vec3::new(blade.x, blade.y, 0.55),
