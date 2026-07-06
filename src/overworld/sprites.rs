@@ -2,16 +2,41 @@ use bevy::prelude::*;
 
 pub const ENV_ROOT: &str = "dungeon/environment";
 pub const ANIMAL_SHEET: &str = "source/dawnlike/Characters/Quadraped0.png";
+const HOMESTEAD_FRAME_ROOT: &str = "source/0x72_DungeonTilesetII_v1.7/frames";
 
 pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
-pub const PLAYER_IDLE_FRAMES: usize = 4;
+pub const PLAYER_ANIM_FRAMES: usize = 4;
 
-pub fn player_frame_rect(frame: usize) -> Rect {
-    let x = frame as f32 * PLAYER_SPRITE_WIDTH;
-    Rect {
-        min: Vec2::new(x, 0.0),
-        max: Vec2::new(x + PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT),
+#[derive(Clone)]
+pub struct HomesteadPlayerFrames {
+    pub idle: [Handle<Image>; PLAYER_ANIM_FRAMES],
+    pub walk: [Handle<Image>; PLAYER_ANIM_FRAMES],
+}
+
+impl HomesteadPlayerFrames {
+    pub fn load(asset_server: &AssetServer) -> Self {
+        Self {
+            idle: std::array::from_fn(|frame| {
+                asset_server.load(format!(
+                    "{HOMESTEAD_FRAME_ROOT}/dwarf_m_idle_anim_f{frame}.png"
+                ))
+            }),
+            walk: std::array::from_fn(|frame| {
+                asset_server.load(format!(
+                    "{HOMESTEAD_FRAME_ROOT}/dwarf_m_run_anim_f{frame}.png"
+                ))
+            }),
+        }
+    }
+
+    pub fn frame_handle(&self, moving: bool, frame: usize) -> Handle<Image> {
+        let index = frame % PLAYER_ANIM_FRAMES;
+        if moving {
+            self.walk[index].clone()
+        } else {
+            self.idle[index].clone()
+        }
     }
 }
 
@@ -23,7 +48,7 @@ pub struct OverworldArt {
     pub soil: Handle<Image>,
     pub fence: Handle<Image>,
     pub roof: Handle<Image>,
-    pub player_idle: Handle<Image>,
+    pub player: HomesteadPlayerFrames,
     pub animal: Handle<Image>,
 }
 
@@ -36,7 +61,7 @@ impl OverworldArt {
             soil: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             fence: asset_server.load(format!("{ENV_ROOT}/floor_ladder.png")),
             roof: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
-            player_idle: asset_server.load("player/knight_idle_side.png"),
+            player: HomesteadPlayerFrames::load(asset_server),
             animal: asset_server.load(ANIMAL_SHEET),
         }
     }

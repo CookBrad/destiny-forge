@@ -4,7 +4,7 @@ use crate::graphics::{center_on_surface, scaled_transform, PIXEL_SCALE, TILE};
 
 use super::layout::{spawn_homestead, OverworldLayout, WORLD_WIDTH};
 use super::movement::OverworldPlayer;
-use super::sprites::{player_frame_rect, OverworldArt, PLAYER_SPRITE_HEIGHT};
+use super::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
 #[derive(Component)]
 pub struct OverworldHud;
@@ -26,8 +26,7 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt) {
 
     commands.spawn((
         Sprite {
-            image: art.player_idle.clone(),
-            rect: Some(player_frame_rect(0)),
+            image: art.player.idle[0].clone(),
             ..default()
         },
         scaled_transform(Vec2::new(start.x, y), 5.0),

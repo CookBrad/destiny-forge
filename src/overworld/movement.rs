@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::graphics::{DUNGEON_MOVE_SPEED, TILE};
 
 use super::layout::{OverworldLayout, WORLD_HEIGHT, WORLD_WIDTH};
-use super::sprites::{player_frame_rect, PLAYER_IDLE_FRAMES};
+use super::sprites::{OverworldArt, PLAYER_ANIM_FRAMES};
 
 #[derive(Component)]
 pub struct OverworldPlayer;
@@ -64,19 +64,22 @@ pub fn overworld_movement(
 
 pub fn animate_overworld_player(
     time: Res<Time>,
+    art: Res<OverworldArt>,
     mut player: Query<(&OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
 ) {
     let Ok((velocity, mut sprite)) = player.get_single_mut() else {
         return;
     };
 
-    if velocity.x.abs() + velocity.y.abs() < 1.0 {
-        sprite.rect = Some(player_frame_rect(0));
-        return;
-    }
+    let moving = velocity.x.abs() + velocity.y.abs() >= 1.0;
+    let frame = if moving {
+        ((time.elapsed_secs() * 8.0) as usize) % PLAYER_ANIM_FRAMES
+    } else {
+        0
+    };
 
-    let frame = ((time.elapsed_secs() * 8.0) as usize) % PLAYER_IDLE_FRAMES;
-    sprite.rect = Some(player_frame_rect(frame));
+    sprite.image = art.player.frame_handle(moving, frame);
+    sprite.rect = None;
 }
 
 fn resolve_collisions(position: Vec2, delta: Vec2, solids: &[Rect]) -> Vec2 {
