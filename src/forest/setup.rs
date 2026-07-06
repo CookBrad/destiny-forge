@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
-use crate::graphics::{center_on_surface, world_transform, TILE};
+use crate::graphics::{center_on_surface, world_transform};
 use crate::overworld::layout::tile_center;
 use crate::overworld::movement::{
     ExplorationMap, MapTransitionCooldown, OverworldPlayer, OverworldVelocity,
 };
-use crate::overworld::setup::{spawn_overworld_hud, OverworldHud};
+use crate::overworld::setup::OverworldHud;
 use crate::overworld::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
 use super::layout::{spawn_forest, ForestLayout};

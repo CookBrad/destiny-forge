@@ -5,7 +5,6 @@ mod hitbox;
 mod player_block;
 mod player_death;
 mod player_hurt;
-mod plugin;
 mod projectile;
 mod skills;
 mod special_moves;
@@ -42,5 +41,4 @@ pub use health::{
     PLAYER_MAX_HEALTH,
 };
 pub use skills::{SkillBindings, SkillIconAssets, SkillKind, SKILL_SLOT_COUNT};
-pub use plugin::CombatPlugin;
 pub use weapon::{EquippedWeapon, WeaponKind};
