@@ -75,7 +75,7 @@ pub fn spawn_title_menu(mut commands: Commands, picker: Res<ProfilePicker>) {
                 TextColor(Color::srgb(0.45, 0.48, 0.52)),
             ));
             parent.spawn((
-                Text::new("A/D move  ·  Space jump (2x)  ·  1-9 skills  ·  Hold E carve"),
+                Text::new("Homestead: WASD explore  ·  Dungeon: A/D  ·  Space jump  ·  E interact"),
                 TextFont {
                     font_size: 16.0,
                     ..default()
@@ -150,7 +150,7 @@ pub fn spawn_pause_menu(
                 TextColor(Color::srgb(0.78, 0.82, 0.88)),
             ));
             parent.spawn((
-                Text::new("Q — Quit to title"),
+                Text::new("Q — Return to homestead"),
                 TextFont {
                     font_size: 22.0,
                     ..default()
@@ -185,7 +185,7 @@ pub fn pause_menu_input(
     }
 
     if keyboard.just_pressed(KeyCode::KeyQ) {
-        next_game.set(GameState::Title);
+        next_game.set(GameState::Overworld);
     }
 }
 
@@ -195,6 +195,10 @@ pub fn pause_game_time(mut time: ResMut<Time<Virtual>>) {
 
 pub fn resume_game_time(mut time: ResMut<Time<Virtual>>) {
     time.unpause();
+}
+
+pub fn set_title_clear_color(mut clear: ResMut<ClearColor>) {
+    clear.0 = Color::srgb(0.08, 0.07, 0.1);
 }
 
 pub fn ensure_time_running(mut time: ResMut<Time<Virtual>>) {
@@ -236,7 +240,7 @@ pub fn spawn_death_menu(mut commands: Commands) {
                 TextColor(Color::srgb(0.78, 0.82, 0.88)),
             ));
             parent.spawn((
-                Text::new("Q — Quit to title"),
+                Text::new("Q — Return to homestead"),
                 TextFont {
                     font_size: 22.0,
                     ..default()
@@ -257,6 +261,6 @@ pub fn death_menu_input(
     mut next_game: ResMut<NextState<GameState>>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyQ) {
-        next_game.set(GameState::Title);
+        next_game.set(GameState::Overworld);
     }
 }

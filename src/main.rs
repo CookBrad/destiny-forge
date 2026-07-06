@@ -5,6 +5,7 @@ mod dungeon;
 mod forging;
 mod graphics;
 mod items;
+mod overworld;
 mod player;
 mod ui;
 
@@ -22,6 +23,7 @@ fn main() {
         .add_plugins(combat::CombatPlugin)
         .add_plugins(graphics::GraphicsPlugin)
         .add_plugins(dungeon::DungeonPlugin)
+        .add_plugins(overworld::OverworldPlugin)
         .add_plugins(ui::UiPlugin)
         .run();
 }

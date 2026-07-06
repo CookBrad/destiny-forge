@@ -12,7 +12,7 @@ use super::health_bars::{
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
     ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
-    spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_hint,
+    set_title_clear_color, spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_hint,
 };
 use super::title_profiles::{
     handle_profile_rename_input, handle_title_profile_card_clicks,
@@ -45,6 +45,7 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Title),
                 (
                     ensure_time_running,
+                    set_title_clear_color,
                     refresh_profile_picker,
                     spawn_title_menu,
                 )

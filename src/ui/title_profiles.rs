@@ -190,7 +190,7 @@ pub fn handle_title_profile_card_clicks(
             &mut global,
             &mut profile_dirty,
         );
-        next_state.set(GameState::Dungeon);
+        next_state.set(GameState::Overworld);
     }
 }
 
@@ -302,7 +302,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut global,
         &mut profile_dirty,
     );
-    next_state.set(GameState::Dungeon);
+    next_state.set(GameState::Overworld);
 }
 
 pub fn sync_title_profile_cards(
