@@ -43,9 +43,9 @@ pub fn exploration_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     map: Res<ExplorationMap>,
-    mut player: Query<(&mut Transform, &mut OverworldVelocity), With<OverworldPlayer>>,
+    mut player: Query<(&mut Transform, &mut OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
 ) {
-    let Ok((mut transform, mut velocity)) = player.get_single_mut() else {
+    let Ok((mut transform, mut velocity, mut sprite)) = player.get_single_mut() else {
         return;
     };
 
@@ -84,8 +84,7 @@ pub fn exploration_movement(
     transform.translation.y = next.y;
 
     if input.x.abs() > 0.01 {
-        let scale = transform.scale.x.abs();
-        transform.scale.x = if input.x < 0.0 { -scale } else { scale };
+        sprite.flip_x = input.x < 0.0;
     }
 }
 

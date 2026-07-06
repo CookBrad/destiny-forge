@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-/// Gameplay and rendering positions use native sprite pixels; apply `PIXEL_SCALE` on transforms.
+/// Gameplay positions use native sprite pixels. Exploration maps zoom the camera by
+/// [`PIXEL_SCALE`]; dungeon sprites multiply transforms instead.
 pub const TILE: f32 = 16.0;
 pub const PIXEL_SCALE: f32 = 3.0;
 
@@ -30,10 +31,32 @@ pub fn scaled_size(size: Vec2) -> Vec2 {
     size * PIXEL_SCALE
 }
 
+/// Native art size stretched to a non-texture footprint.
+pub fn stretched_size(native: Vec2) -> Vec2 {
+    native
+}
+
+/// Exploration sprites: native texture size; camera zoom supplies [`PIXEL_SCALE`].
+pub fn world_transform(pixels: Vec2, z: f32) -> Transform {
+    Transform {
+        translation: to_world(pixels, z),
+        ..default()
+    }
+}
+
+/// Dungeon sprites: native texture size × [`PIXEL_SCALE`] on the transform.
 pub fn scaled_transform(pixels: Vec2, z: f32) -> Transform {
     Transform {
         translation: to_world(pixels, z),
         scale: Vec3::splat(PIXEL_SCALE),
         ..default()
+    }
+}
+
+pub fn facing_scale(facing_left: bool) -> f32 {
+    if facing_left {
+        -PIXEL_SCALE
+    } else {
+        PIXEL_SCALE
     }
 }

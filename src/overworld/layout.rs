@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::graphics::{scaled_transform, PIXEL_SCALE, TILE};
+use crate::graphics::{center_on_surface, stretched_size, world_transform, TILE};
+
+use super::sprites::{FORGE_ANVIL_HEIGHT, FORGE_FURNACE_HEIGHT, FORGE_WORKBENCH_HEIGHT};
 
 use super::sprites::OverworldArt;
 
@@ -129,10 +131,9 @@ pub fn spawn_homestead(
                 Sprite {
                     image: texture(art),
                     color: tint_shade(tint, shade),
-                    custom_size: Some(Vec2::splat(TILE)),
                     ..default()
                 },
-                scaled_transform(center, 0.0),
+                world_transform(center, 0.0),
                 OverworldTile { tx, ty },
                 OverworldEntity,
             ));
@@ -181,14 +182,10 @@ fn spawn_grid_overlay(commands: &mut Commands, art: &OverworldArt) {
             Sprite {
                 image: art.grid_line.clone(),
                 color: line,
-                custom_size: Some(Vec2::new(1.0, WORLD_HEIGHT)),
+                custom_size: Some(stretched_size(Vec2::new(1.0, WORLD_HEIGHT))),
                 ..default()
             },
-            Transform {
-                translation: Vec3::new(x, WORLD_HEIGHT * 0.5, z),
-                scale: Vec3::splat(PIXEL_SCALE),
-                ..default()
-            },
+            world_transform(Vec2::new(x, WORLD_HEIGHT * 0.5), z),
             OverworldGrid,
             OverworldEntity,
         ));
@@ -200,14 +197,10 @@ fn spawn_grid_overlay(commands: &mut Commands, art: &OverworldArt) {
             Sprite {
                 image: art.grid_line.clone(),
                 color: line,
-                custom_size: Some(Vec2::new(WORLD_WIDTH, 1.0)),
+                custom_size: Some(stretched_size(Vec2::new(WORLD_WIDTH, 1.0))),
                 ..default()
             },
-            Transform {
-                translation: Vec3::new(WORLD_WIDTH * 0.5, y, z),
-                scale: Vec3::splat(PIXEL_SCALE),
-                ..default()
-            },
+            world_transform(Vec2::new(WORLD_WIDTH * 0.5, y), z),
             OverworldGrid,
             OverworldEntity,
         ));
@@ -251,7 +244,7 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
                         color: stone,
                         ..default()
                     },
-                    scaled_transform(center, 1.0),
+                    world_transform(center, 1.0),
                     ForgeEntity,
                     OverworldEntity,
                 ));
@@ -262,7 +255,7 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
                         color: floor,
                         ..default()
                     },
-                    scaled_transform(center, 0.5),
+                    world_transform(center, 0.5),
                     ForgeEntity,
                     OverworldEntity,
                 ));
@@ -270,21 +263,20 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         }
     }
 
-    let back_y = footprint.max.y - TILE * 1.2;
     let center_x = (footprint.min.x + footprint.max.x) * 0.5;
+    let floor_surface = footprint.min.y + TILE;
+    let back_wall = footprint.max.y - TILE;
 
     commands.spawn((
         Sprite {
             image: art.forge_furnace.clone(),
             color: Color::WHITE,
-            custom_size: Some(Vec2::new(17.0, 22.0)),
             ..default()
         },
-        Transform {
-            translation: Vec2::new(center_x, back_y).extend(2.2),
-            scale: Vec3::splat(PIXEL_SCALE),
-            ..default()
-        },
+        world_transform(
+            Vec2::new(center_x, back_wall - FORGE_FURNACE_HEIGHT * 0.5),
+            2.2,
+        ),
         ForgeEntity,
         OverworldEntity,
     ));
@@ -293,14 +285,15 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         Sprite {
             image: art.forge_workbench.clone(),
             color: Color::WHITE,
-            custom_size: Some(Vec2::new(18.0, 28.0)),
             ..default()
         },
-        Transform {
-            translation: Vec2::new(footprint.min.x + TILE * 2.5, back_y - TILE * 1.5).extend(2.1),
-            scale: Vec3::splat(PIXEL_SCALE),
-            ..default()
-        },
+        world_transform(
+            Vec2::new(
+                footprint.min.x + TILE * 3.0,
+                center_on_surface(floor_surface, FORGE_WORKBENCH_HEIGHT),
+            ),
+            2.1,
+        ),
         ForgeEntity,
         OverworldEntity,
     ));
@@ -309,14 +302,15 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         Sprite {
             image: art.forge_anvil.clone(),
             color: Color::WHITE,
-            custom_size: Some(Vec2::new(14.0, 12.0)),
             ..default()
         },
-        Transform {
-            translation: Vec2::new(footprint.max.x - TILE * 2.0, back_y - TILE * 1.2).extend(2.1),
-            scale: Vec3::splat(PIXEL_SCALE),
-            ..default()
-        },
+        world_transform(
+            Vec2::new(
+                footprint.max.x - TILE * 3.0,
+                center_on_surface(floor_surface, FORGE_ANVIL_HEIGHT),
+            ),
+            2.1,
+        ),
         ForgeEntity,
         OverworldEntity,
     ));
@@ -329,17 +323,13 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         Sprite {
             image: art.roof.clone(),
             color: Color::srgb(0.34, 0.3, 0.28),
-            custom_size: Some(Vec2::new(
+            custom_size: Some(stretched_size(Vec2::new(
                 (max_tx - min_tx) as f32 * TILE * 0.85,
                 TILE * 0.7,
-            )),
+            ))),
             ..default()
         },
-        Transform {
-            translation: roof_center.extend(2.6),
-            scale: Vec3::splat(PIXEL_SCALE),
-            ..default()
-        },
+        world_transform(roof_center, 2.6),
         ForgeEntity,
         OverworldEntity,
     ));
@@ -371,7 +361,7 @@ fn spawn_building(
                         color: wall_tint,
                         ..default()
                     },
-                    scaled_transform(center, 1.0),
+                    world_transform(center, 1.0),
                     OverworldEntity,
                 ));
             }
@@ -386,17 +376,13 @@ fn spawn_building(
         Sprite {
             image: roof_tex,
             color: roof_tint,
-            custom_size: Some(Vec2::new(
+            custom_size: Some(stretched_size(Vec2::new(
                 (max_tx - min_tx) as f32 * TILE,
                 TILE * 1.2,
-            )),
+            ))),
             ..default()
         },
-        Transform {
-            translation: roof_center.extend(roof_z),
-            scale: Vec3::splat(PIXEL_SCALE),
-            ..default()
-        },
+        world_transform(roof_center, roof_z),
         OverworldEntity,
     ));
 }
@@ -417,10 +403,9 @@ fn spawn_tilled_field(commands: &mut Commands, art: &OverworldArt, field: Rect) 
                 Sprite {
                     image: art.soil.clone(),
                     color: Color::srgb(0.28, 0.62, 0.22),
-                    custom_size: Some(Vec2::new(TILE * 0.8, TILE * 0.55)),
                     ..default()
                 },
-                scaled_transform(center, 1.2),
+                world_transform(center, 1.2),
                 OverworldEntity,
             ));
         }
@@ -440,6 +425,7 @@ fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
         super::animals::spawn_farm_animal(
             commands,
             art.animal.clone(),
+            art.animal_layout.clone(),
             tile_center(*tx, *ty),
             2.0,
             index,
@@ -449,21 +435,26 @@ fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
 }
 
 fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
-    let center = Vec2::new(
-        (gate.min.x + gate.max.x) * 0.5,
-        (gate.min.y + gate.max.y) * 0.5,
-    );
-    commands.spawn((
-        Sprite {
-            image: art.wall.clone(),
-            color: Color::srgb(0.22, 0.18, 0.28),
-            custom_size: Some(Vec2::new(TILE * 4.5, TILE * 2.5)),
-            ..default()
-        },
-        scaled_transform(center, 1.8),
-        DungeonEntrance,
-        OverworldEntity,
-    ));
+    let min_tx = (gate.min.x / TILE).floor() as u32;
+    let max_tx = (gate.max.x / TILE).ceil() as u32;
+    let min_ty = (gate.min.y / TILE).floor() as u32;
+    let max_ty = (gate.max.y / TILE).ceil() as u32;
+    let tint = Color::srgb(0.22, 0.18, 0.28);
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            commands.spawn((
+                Sprite {
+                    image: art.wall.clone(),
+                    color: tint,
+                    ..default()
+                },
+                world_transform(tile_center(tx, ty), 1.8),
+                DungeonEntrance,
+                OverworldEntity,
+            ));
+        }
+    }
 }
 
 pub fn tile_center(tx: u32, ty: u32) -> Vec2 {

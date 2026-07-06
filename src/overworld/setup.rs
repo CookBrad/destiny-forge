@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::graphics::{center_on_surface, scaled_transform, PIXEL_SCALE, TILE};
+use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::{spawn_homestead, tile_center, OverworldLayout, WORLD_WIDTH};
 use super::movement::{ExplorationMap, MapTransitionCooldown, OverworldPlayer};
@@ -19,9 +19,10 @@ pub struct OverworldHud;
 pub fn setup_overworld(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     entry: Option<Res<OverworldEntry>>,
 ) {
-    let art = OverworldArt::load(&asset_server);
+    let art = OverworldArt::load(&asset_server, &mut atlas_layouts);
     let layout = OverworldLayout::homestead();
     let spawn = entry.map(|entry| *entry).unwrap_or_default();
 
@@ -51,7 +52,7 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt, entry: Ov
             image: art.player.idle[0].clone(),
             ..default()
         },
-        scaled_transform(Vec2::new(start.x, y), 5.0),
+        world_transform(Vec2::new(start.x, y), 5.0),
         OverworldPlayer,
         super::movement::OverworldVelocity::default(),
     ));

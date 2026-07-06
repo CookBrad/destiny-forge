@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::graphics::TILE;
+use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::OverworldEntity;
-use super::sprites::animal_frame_rect;
+use super::sprites::{animal_atlas_index, ANIMAL_DISPLAY_SIZE, PLAYER_SPRITE_HEIGHT};
 
 pub const PEN_MIN: Vec2 = Vec2::new(33.0 * TILE, 7.0 * TILE);
 pub const PEN_MAX: Vec2 = Vec2::new(48.0 * TILE, 17.0 * TILE);
@@ -12,7 +12,9 @@ const ANIMAL_MARGIN: f32 = TILE * 0.6;
 pub const WANDER_SPEED: f32 = 22.0;
 
 #[derive(Component)]
-pub struct FarmAnimal;
+pub struct FarmAnimal {
+    pub creature_index: usize,
+}
 
 #[derive(Component)]
 pub struct AnimalWander {
@@ -37,25 +39,33 @@ impl AnimalWander {
 pub fn spawn_farm_animal(
     commands: &mut Commands,
     image: Handle<Image>,
+    layout: Handle<TextureAtlasLayout>,
     position: Vec2,
     z: f32,
-    sprite_index: usize,
+    creature_index: usize,
     wander: AnimalWander,
 ) -> Entity {
-    let sprite_rect = animal_frame_rect(sprite_index);
+    let ground_y = position.y - TILE * 0.5;
+    let center = Vec2::new(
+        position.x,
+        center_on_surface(ground_y, PLAYER_SPRITE_HEIGHT),
+    );
+
     commands
         .spawn((
             Sprite {
                 image,
-                rect: Some(sprite_rect),
+                texture_atlas: Some(TextureAtlas {
+                    layout,
+                    index: animal_atlas_index(creature_index, 0),
+                }),
+                custom_size: Some(ANIMAL_DISPLAY_SIZE),
                 ..default()
             },
-            Transform {
-                translation: position.extend(z),
-                scale: Vec3::splat(crate::graphics::PIXEL_SCALE),
-                ..default()
+            world_transform(center, z),
+            FarmAnimal {
+                creature_index,
             },
-            FarmAnimal,
             wander,
             OverworldEntity,
         ))
@@ -64,13 +74,13 @@ pub fn spawn_farm_animal(
 
 pub fn move_farm_animals(
     time: Res<Time>,
-    mut animals: Query<(&mut Transform, &mut AnimalWander), With<FarmAnimal>>,
+    mut animals: Query<(&mut Transform, &mut Sprite, &mut AnimalWander), With<FarmAnimal>>,
 ) {
     let mut rng = rand::thread_rng();
     let dt = time.delta_secs();
     let bounds = pen_bounds();
 
-    for (mut transform, mut wander) in &mut animals {
+    for (mut transform, mut sprite, mut wander) in &mut animals {
         wander.graze_timer.tick(time.delta());
 
         if wander.grazing {
@@ -121,8 +131,7 @@ pub fn move_farm_animals(
         transform.translation.y = pos.y;
 
         if wander.direction.x.abs() > 0.01 {
-            let scale = transform.scale.x.abs();
-            transform.scale.x = if wander.direction.x < 0.0 { -scale } else { scale };
+            sprite.flip_x = wander.direction.x < 0.0;
         }
     }
 }

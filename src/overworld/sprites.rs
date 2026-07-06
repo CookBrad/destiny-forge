@@ -4,10 +4,20 @@ pub const ENV_ROOT: &str = "dungeon/environment";
 pub const OVERWORLD_ROOT: &str = "overworld";
 pub const PLAYER_NON_COMBAT_ROOT: &str = "player/non-combat";
 pub const ANIMAL_SHEET: &str = "overworld/animals/quadraped.png";
+pub const ANIMAL_CELL: u32 = 16;
+pub const ANIMAL_SHEET_COLS: u32 = 8;
+pub const ANIMAL_SHEET_ROWS: u32 = 12;
+
+/// Match the homestead player footprint so camera zoom applies uniformly.
+pub const ANIMAL_DISPLAY_SIZE: Vec2 = Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
 
 pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
 pub const PLAYER_ANIM_FRAMES: usize = 4;
+
+pub const FORGE_FURNACE_HEIGHT: f32 = 74.0;
+pub const FORGE_WORKBENCH_HEIGHT: f32 = 160.0;
+pub const FORGE_ANVIL_HEIGHT: f32 = 80.0;
 
 #[derive(Clone)]
 pub struct HomesteadPlayerFrames {
@@ -54,10 +64,20 @@ pub struct OverworldArt {
     pub forge_anvil: Handle<Image>,
     pub player: HomesteadPlayerFrames,
     pub animal: Handle<Image>,
+    pub animal_layout: Handle<TextureAtlasLayout>,
 }
 
 impl OverworldArt {
-    pub fn load(asset_server: &AssetServer) -> Self {
+    pub fn load(asset_server: &AssetServer, layouts: &mut Assets<TextureAtlasLayout>) -> Self {
+        let animal = asset_server.load(ANIMAL_SHEET);
+        let animal_layout = layouts.add(TextureAtlasLayout::from_grid(
+            UVec2::new(ANIMAL_CELL, ANIMAL_CELL),
+            ANIMAL_SHEET_COLS,
+            ANIMAL_SHEET_ROWS,
+            None,
+            None,
+        ));
+
         Self {
             grass: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             path: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
@@ -69,20 +89,14 @@ impl OverworldArt {
             forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
             forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),
             player: HomesteadPlayerFrames::load(asset_server),
-            animal: asset_server.load(ANIMAL_SHEET),
+            animal,
+            animal_layout,
         }
     }
 }
 
-pub fn animal_frame_rect(index: usize) -> Rect {
-    animal_anim_rect(index / 4, index % 4)
-}
-
-pub fn animal_anim_rect(sheet_row: usize, anim_frame: usize) -> Rect {
-    let x = (anim_frame % 4) as f32 * 16.0;
-    let y = sheet_row as f32 * 16.0;
-    Rect {
-        min: Vec2::new(x, y),
-        max: Vec2::new(x + 16.0, y + 16.0),
-    }
+pub fn animal_atlas_index(creature: usize, frame: usize) -> usize {
+    let row = creature;
+    let col = frame % 4;
+    row * ANIMAL_SHEET_COLS as usize + col
 }

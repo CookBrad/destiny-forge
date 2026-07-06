@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::combat::SkillBindings;
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
+use crate::graphics::reset_camera_zoom;
 
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
@@ -31,6 +32,12 @@ fn clear_profile_rename_state(mut rename: ResMut<ProfileRenameState>) {
     rename.active = None;
 }
 
+fn reset_title_camera(mut camera: Query<&mut Projection, With<Camera2d>>) {
+    for mut projection in &mut camera {
+        reset_camera_zoom(&mut projection);
+    }
+}
+
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
@@ -45,6 +52,7 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Title),
                 (
                     ensure_time_running,
+                    reset_title_camera,
                     set_title_clear_color,
                     refresh_profile_picker,
                     spawn_title_menu,

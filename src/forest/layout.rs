@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
-use crate::graphics::{scaled_transform, PIXEL_SCALE, TILE};
+use crate::graphics::{center_on_surface, stretched_size, world_transform, TILE};
 use crate::overworld::layout::tile_center;
 
-use super::sprites::{tree_frame_rect, ForestArt, TREE_TINT};
+use super::sprites::{tree_frame_rect, ForestArt, TREE_CELL_H, TREE_TINT};
 
 pub const MAP_TILES_W: u32 = 44;
 pub const MAP_TILES_H: u32 = 32;
@@ -122,10 +122,9 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
                 Sprite {
                     image: texture,
                     color: tint,
-                    custom_size: Some(Vec2::splat(TILE)),
                     ..default()
                 },
-                scaled_transform(center, 0.0),
+                world_transform(center, 0.0),
                 ForestEntity,
             ));
         }
@@ -138,16 +137,19 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
             let Some(index) = layout.tree_variant(tx, ty) else {
                 continue;
             };
-            let center = tile_center(tx, ty);
+            let center_x = tile_center(tx, ty).x;
+            let ground_y = ty as f32 * TILE;
             commands.spawn((
                 Sprite {
                     image: art.trees.clone(),
                     rect: Some(tree_frame_rect(index)),
                     color: TREE_TINT,
-                    custom_size: Some(Vec2::new(18.0, 24.0)),
                     ..default()
                 },
-                scaled_transform(center, 1.4),
+                world_transform(
+                    Vec2::new(center_x, center_on_surface(ground_y, TREE_CELL_H)),
+                    1.4,
+                ),
                 ForestTree,
                 ForestEntity,
             ));
@@ -159,10 +161,9 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
         Sprite {
             image: art.path.clone(),
             color: Color::srgb(0.62, 0.52, 0.34),
-            custom_size: Some(Vec2::new(TILE * 3.0, TILE * 1.6)),
             ..default()
         },
-        scaled_transform(return_center, 1.8),
+        world_transform(return_center, 1.8),
         HomesteadReturnMarker,
         ForestEntity,
     ));
@@ -183,14 +184,10 @@ fn spawn_grid_overlay(commands: &mut Commands, art: &ForestArt) {
             Sprite {
                 image: art.grid_line.clone(),
                 color: line,
-                custom_size: Some(Vec2::new(1.0, WORLD_HEIGHT)),
+                custom_size: Some(stretched_size(Vec2::new(1.0, WORLD_HEIGHT))),
                 ..default()
             },
-            Transform {
-                translation: Vec3::new(x, WORLD_HEIGHT * 0.5, z),
-                scale: Vec3::splat(PIXEL_SCALE),
-                ..default()
-            },
+            world_transform(Vec2::new(x, WORLD_HEIGHT * 0.5), z),
             ForestEntity,
         ));
     }
@@ -201,14 +198,10 @@ fn spawn_grid_overlay(commands: &mut Commands, art: &ForestArt) {
             Sprite {
                 image: art.grid_line.clone(),
                 color: line,
-                custom_size: Some(Vec2::new(WORLD_WIDTH, 1.0)),
+                custom_size: Some(stretched_size(Vec2::new(WORLD_WIDTH, 1.0))),
                 ..default()
             },
-            Transform {
-                translation: Vec3::new(WORLD_WIDTH * 0.5, y, z),
-                scale: Vec3::splat(PIXEL_SCALE),
-                ..default()
-            },
+            world_transform(Vec2::new(WORLD_WIDTH * 0.5, y), z),
             ForestEntity,
         ));
     }

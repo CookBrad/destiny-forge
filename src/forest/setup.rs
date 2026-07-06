@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::graphics::{center_on_surface, scaled_transform, TILE};
+use crate::graphics::{center_on_surface, world_transform, TILE};
 use crate::overworld::layout::tile_center;
 use crate::overworld::movement::{
     ExplorationMap, MapTransitionCooldown, OverworldPlayer, OverworldVelocity,
@@ -10,9 +10,13 @@ use crate::overworld::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
 use super::layout::{spawn_forest, ForestLayout};
 
-pub fn setup_forest(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_forest(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
     let forest_art = super::sprites::ForestArt::load(&asset_server);
-    let overworld_art = OverworldArt::load(&asset_server);
+    let overworld_art = OverworldArt::load(&asset_server, &mut atlas_layouts);
     let layout = ForestLayout::generate();
 
     spawn_forest(&mut commands, &forest_art, &layout);
@@ -38,7 +42,7 @@ fn spawn_forest_player(commands: &mut Commands, art: &OverworldArt) {
             image: art.player.idle[0].clone(),
             ..default()
         },
-        scaled_transform(Vec2::new(start.x, y), 5.0),
+        world_transform(Vec2::new(start.x, y), 5.0),
         OverworldPlayer,
         OverworldVelocity::default(),
     ));
