@@ -6,9 +6,9 @@ use super::movement::OverworldPlayer;
 const OVERWORLD_CAMERA_Z: f32 = 100.0;
 
 pub fn init_overworld_camera(
-    player: Query<&Transform, With<OverworldPlayer>>,
+    player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
-    mut camera: Query<&mut Transform, With<Camera2d>>,
+    mut camera: Query<&mut Transform, (With<Camera2d>, Without<OverworldPlayer>)>,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -26,9 +26,9 @@ pub fn init_overworld_camera(
 }
 
 pub fn follow_overworld_camera(
-    player: Query<&Transform, With<OverworldPlayer>>,
+    player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
-    mut camera: Query<&mut Transform, With<Camera2d>>,
+    mut camera: Query<&mut Transform, (With<Camera2d>, Without<OverworldPlayer>)>,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
