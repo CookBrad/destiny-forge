@@ -15,12 +15,11 @@ use super::setup::{OverworldPromptLabel, OverworldZoneLabel};
 pub fn overworld_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
     inventory: Res<InventoryWindowOpen>,
-    forge: Res<ForgeWindowOpen>,
     mut commands: Commands,
     game_inventory: Res<crate::items::Inventory>,
     forge_windows: Query<Entity, With<crate::ui::forge_window::ForgeWindow>>,
     mut time: ResMut<Time<Virtual>>,
-    mut forge_open: ResMut<ForgeWindowOpen>,
+    mut forge: ResMut<ForgeWindowOpen>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -53,7 +52,7 @@ pub fn overworld_interaction(
                 if distance_to_zone(position, &zone.bounds) <= INTERACT_DISTANCE * 2.0 {
                     if keyboard.just_pressed(KeyCode::KeyE) && !inventory.0 {
                         open_forge_window(
-                            &mut forge_open,
+                            &mut forge,
                             &mut commands,
                             &game_inventory,
                             &forge_windows,
