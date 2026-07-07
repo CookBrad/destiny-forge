@@ -74,8 +74,8 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::FlexStart,
+                justify_content: JustifyContent::FlexStart,
+                align_items: AlignItems::Center,
                 padding: UiRect::left(Val::Px(PANEL_SCREEN_MARGIN)),
                 ..default()
             },
