@@ -1,10 +1,8 @@
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
-use crate::core::{DungeonPlayState, GameState, ProfileDirty};
-use crate::forging::{can_craft_recipe, try_craft_iron_sword, IRON_SWORD_RECIPE};
+use crate::core::{DungeonPlayState, GameState};
 use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
-use crate::player::Loadout;
 
 const GRID_COLUMNS: usize = 4;
 const SLOT_SIZE: f32 = 52.0;
@@ -58,12 +56,6 @@ pub struct InventoryIconLabel;
 #[derive(Component)]
 pub struct InventoryCloseButton;
 
-#[derive(Component)]
-pub struct ForgeCraftButton;
-
-#[derive(Component)]
-pub struct ForgeStatusLabel;
-
 pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
@@ -107,7 +99,6 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                         .with_children(|panel| {
                             spawn_header(panel);
                             spawn_slot_grid(panel, inventory, grid_width);
-                            spawn_forge_row(panel, inventory);
                             spawn_currency_footer(panel);
                         });
                 });
@@ -281,55 +272,6 @@ fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize
         });
 }
 
-fn spawn_forge_row(parent: &mut ChildBuilder<'_>, inventory: &Inventory) {
-    parent
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            row_gap: Val::Px(4.0),
-            padding: UiRect::horizontal(Val::Px(PANEL_PADDING)),
-            ..default()
-        })
-        .with_children(|row| {
-            row.spawn((
-                Button,
-                ForgeCraftButton,
-                Node {
-                    min_width: Val::Px(140.0),
-                    height: Val::Px(24.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::horizontal(Val::Px(10.0)),
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.12, 0.1, 0.08)),
-                BorderColor(Color::srgb(0.38, 0.3, 0.18)),
-            ))
-            .with_children(|button| {
-                button.spawn((
-                    Text::new(format!("Craft {}", IRON_SWORD_RECIPE.name)),
-                    TextFont {
-                        font_size: 12.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.86, 0.82, 0.72)),
-                ));
-            });
-
-            row.spawn((
-                ForgeStatusLabel,
-                Text::new(forge_status(inventory)),
-                TextFont {
-                    font_size: 10.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.58, 0.54, 0.48)),
-            ));
-        });
-}
-
 fn spawn_currency_footer(parent: &mut ChildBuilder<'_>) {
     parent
         .spawn((
@@ -399,6 +341,7 @@ pub fn cleanup_inventory_window(
 
 pub fn toggle_inventory_window(
     keyboard: Res<ButtonInput<KeyCode>>,
+    forge: Res<crate::ui::forge_window::ForgeWindowOpen>,
     mut open: ResMut<InventoryWindowOpen>,
     mut commands: Commands,
     inventory: Res<Inventory>,
@@ -411,6 +354,10 @@ pub fn toggle_inventory_window(
     let toggle = keyboard.just_pressed(KeyCode::KeyI);
 
     if !close && !toggle {
+        return;
+    }
+
+    if toggle && forge.0 {
         return;
     }
 
@@ -544,14 +491,6 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
     }
 }
 
-fn forge_status(inventory: &Inventory) -> String {
-    if can_craft_recipe(inventory, &IRON_SWORD_RECIPE) {
-        format!("{} ready (5 Gel, 3 Iron)", IRON_SWORD_RECIPE.name)
-    } else {
-        String::new()
-    }
-}
-
 pub fn sync_inventory_display(
     inventory: Res<Inventory>,
     open: Res<InventoryWindowOpen>,
@@ -562,7 +501,6 @@ pub fn sync_inventory_display(
     mut texts: ParamSet<(
         Query<&mut Text, With<InventoryIconLabel>>,
         Query<&mut Text, With<InventorySlotStackText>>,
-        Query<&mut Text, With<ForgeStatusLabel>>,
     )>,
 ) {
     if !open.0 {
@@ -608,38 +546,4 @@ pub fn sync_inventory_display(
         }
     }
 
-    if inventory_changed {
-        if let Ok(mut text) = texts.p2().get_single_mut() {
-            text.0 = forge_status(&inventory);
-        }
-    }
-}
-
-pub fn handle_forge_craft_input(
-    open: Res<InventoryWindowOpen>,
-    mut interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCraftButton>)>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut status: Query<&mut Text, With<ForgeStatusLabel>>,
-) {
-    if !open.0 {
-        return;
-    }
-
-    for interaction in &mut interactions {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
-        let crafted = try_craft_iron_sword(&mut inventory, &mut loadout);
-        if let Ok(mut text) = status.get_single_mut() {
-            text.0 = if crafted {
-                profile_dirty.mark();
-                "Crafted Iron Sword — equip on next dungeon run.".to_string()
-            } else {
-                forge_status(&inventory)
-            };
-        }
-    }
 }

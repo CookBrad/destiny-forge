@@ -1,4 +1,5 @@
 mod health_bars;
+pub mod forge_window;
 pub mod inventory_window;
 mod menu;
 mod pause_audio;

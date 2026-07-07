@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::inventory_closed;
 
 use super::animals::move_farm_animals;
@@ -40,7 +41,8 @@ impl Plugin for OverworldPlugin {
             )
                 .chain()
                 .run_if(in_state(GameState::Overworld))
-                .run_if(inventory_closed),
+                .run_if(inventory_closed)
+                .run_if(forge_closed),
         );
     }
 }

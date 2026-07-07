@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::ui::forge_window::{open_forge_window, ForgeWindowOpen};
 use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::exploration::{
     set_exploration_prompt, set_exploration_zone_label, EXPLORATION_PROMPT_MOVE_INTERACT,
@@ -14,6 +15,12 @@ use super::setup::{OverworldPromptLabel, OverworldZoneLabel};
 pub fn overworld_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
     inventory: Res<InventoryWindowOpen>,
+    forge: Res<ForgeWindowOpen>,
+    mut commands: Commands,
+    game_inventory: Res<crate::items::Inventory>,
+    forge_windows: Query<Entity, With<crate::ui::forge_window::ForgeWindow>>,
+    mut time: ResMut<Time<Virtual>>,
+    mut forge_open: ResMut<ForgeWindowOpen>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -25,7 +32,7 @@ pub fn overworld_interaction(
         return;
     };
 
-    if inventory.0 {
+    if inventory.0 || forge.0 {
         return;
     }
 
@@ -42,7 +49,22 @@ pub fn overworld_interaction(
     if let Some(zone) = zone {
         prompt = match zone.zone {
             HomesteadZone::House => "E — Enter house (soon)",
-            HomesteadZone::Forge => "E — Open forge (soon)",
+            HomesteadZone::Forge => {
+                if distance_to_zone(position, &zone.bounds) <= INTERACT_DISTANCE * 2.0 {
+                    if keyboard.just_pressed(KeyCode::KeyE) && !inventory.0 {
+                        open_forge_window(
+                            &mut forge_open,
+                            &mut commands,
+                            &game_inventory,
+                            &forge_windows,
+                            &mut time,
+                        );
+                    }
+                    "E — Use the forge"
+                } else {
+                    "Approach the forge to craft"
+                }
+            }
             HomesteadZone::Crops => "Crop plots ready for planting",
             HomesteadZone::Animals => "Feed and tend your livestock",
             HomesteadZone::ForestTrail => "Walk north up the trail to enter the woods",
