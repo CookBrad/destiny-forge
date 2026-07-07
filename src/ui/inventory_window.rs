@@ -556,10 +556,12 @@ pub fn sync_inventory_display(
     selected: Res<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &Children, &mut BorderColor)>,
     mut icons: Query<(&mut BackgroundColor, &Children), With<InventorySlotIcon>>,
-    mut icon_labels: Query<&mut Text, With<InventoryIconLabel>>,
     stacks: Query<&Children, With<InventorySlotStack>>,
-    mut stack_texts: Query<&mut Text, With<InventorySlotStackText>>,
-    mut status: Query<&mut Text, (With<ForgeStatusLabel>, Without<InventoryIconLabel>, Without<InventorySlotStackText>)>,
+    mut texts: ParamSet<(
+        Query<&mut Text, With<InventoryIconLabel>>,
+        Query<&mut Text, With<InventorySlotStackText>>,
+        Query<&mut Text, With<ForgeStatusLabel>>,
+    )>,
 ) {
     if !open.0 {
         return;
@@ -588,7 +590,7 @@ pub fn sync_inventory_display(
             if let Ok((mut bg, icon_children)) = icons.get_mut(*child) {
                 *bg = BackgroundColor(icon_color);
                 for icon_child in icon_children.iter() {
-                    if let Ok(mut text) = icon_labels.get_mut(*icon_child) {
+                    if let Ok(mut text) = texts.p0().get_mut(*icon_child) {
                         text.0 = icon_label.clone();
                     }
                 }
@@ -596,7 +598,7 @@ pub fn sync_inventory_display(
 
             if let Ok(stack_children) = stacks.get(*child) {
                 for stack_child in stack_children.iter() {
-                    if let Ok(mut text) = stack_texts.get_mut(*stack_child) {
+                    if let Ok(mut text) = texts.p1().get_mut(*stack_child) {
                         text.0 = stack_label.clone();
                     }
                 }
@@ -605,7 +607,7 @@ pub fn sync_inventory_display(
     }
 
     if inventory_changed {
-        if let Ok(mut text) = status.get_single_mut() {
+        if let Ok(mut text) = texts.p2().get_single_mut() {
             text.0 = forge_status(&inventory);
         }
     }
