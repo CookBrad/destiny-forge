@@ -52,6 +52,9 @@ pub struct InventorySlotStack;
 pub struct InventorySlotStackText;
 
 #[derive(Component)]
+pub struct InventoryIconLabel;
+
+#[derive(Component)]
 pub struct InventoryCloseButton;
 
 #[derive(Component)]
@@ -243,6 +246,7 @@ fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize
             ))
             .with_children(|icon| {
                 icon.spawn((
+                    InventoryIconLabel,
                     Text::new(icon_label),
                     TextFont {
                         font_size: 11.0,
@@ -552,13 +556,10 @@ pub fn sync_inventory_display(
     selected: Res<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &Children, &mut BorderColor)>,
     mut icons: Query<(&mut BackgroundColor, &Children), With<InventorySlotIcon>>,
-    mut icon_labels: Query<
-        &mut Text,
-        (Without<InventorySlotStackText>, Without<ForgeStatusLabel>),
-    >,
+    mut icon_labels: Query<&mut Text, With<InventoryIconLabel>>,
     stacks: Query<&Children, With<InventorySlotStack>>,
     mut stack_texts: Query<&mut Text, With<InventorySlotStackText>>,
-    mut status: Query<&mut Text, With<ForgeStatusLabel>>,
+    mut status: Query<&mut Text, (With<ForgeStatusLabel>, Without<InventoryIconLabel>, Without<InventorySlotStackText>)>,
 ) {
     if !open.0 {
         return;
