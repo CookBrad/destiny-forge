@@ -15,10 +15,7 @@ use super::movement::DungeonPlayer;
 
 const AGGRO_RANGE: f32 = 20.0 * TILE;
 const DEAGGRO_RANGE: f32 = 26.0 * TILE;
-const HIT_AGGRO_LOCK_SECS: f32 = 3.0;
 const BOSS_CHASE_SPEED: f32 = 34.0;
-const KNOCKBACK_FORCE_X: f32 = 130.0;
-const KNOCKBACK_FORCE_Y: f32 = 85.0;
 const KNOCKBACK_DECAY: f32 = 6.0;
 const KNOCKBACK_GRAVITY: f32 = -360.0;
 const KNOCKBACK_STOP_SPEED: f32 = 18.0;

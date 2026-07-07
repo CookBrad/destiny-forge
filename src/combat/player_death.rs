@@ -120,7 +120,7 @@ pub fn tick_player_death(
     >,
     mut visibility: Query<&mut Visibility>,
 ) {
-    let Ok((entity, mut transform, mut velocity, mut death, children)) = player.get_single_mut() else {
+    let Ok((_entity, mut transform, mut velocity, mut death, children)) = player.get_single_mut() else {
         return;
     };
 

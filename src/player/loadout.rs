@@ -11,17 +11,6 @@ pub enum ArmorKind {
     SlimeGreaves,
 }
 
-impl ArmorKind {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::SlimeHelm => "Slime Helm",
-            Self::SlimeMail => "Slime Mail",
-            Self::SlimeGauntlets => "Slime Gauntlets",
-            Self::SlimeGreaves => "Slime Greaves",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArmorSlots {
     pub head: Option<ArmorKind>,

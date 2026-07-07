@@ -9,14 +9,3 @@ pub enum MaterialId {
     IronScrap,
 }
 
-impl MaterialId {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::SlimeGel => "Slime Gel",
-            Self::SlimeCore => "Slime Core",
-            Self::LeatherWing => "Leather Wing",
-            Self::Fang => "Fang",
-            Self::IronScrap => "Iron Scrap",
-        }
-    }
-}

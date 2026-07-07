@@ -12,9 +12,7 @@ const ANIMAL_MARGIN: f32 = TILE * 0.6;
 pub const WANDER_SPEED: f32 = 22.0;
 
 #[derive(Component)]
-pub struct FarmAnimal {
-    pub creature_index: usize,
-}
+pub struct FarmAnimal;
 
 #[derive(Component)]
 pub struct AnimalWander {
@@ -63,9 +61,7 @@ pub fn spawn_farm_animal(
                 ..default()
             },
             world_transform(center, z),
-            FarmAnimal {
-                creature_index,
-            },
+            FarmAnimal,
             wander,
             OverworldEntity,
         ))

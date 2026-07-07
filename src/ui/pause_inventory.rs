@@ -95,7 +95,7 @@ pub fn spawn_pause_inventory_panel(parent: &mut ChildBuilder<'_>, inventory: &In
                 ))
                 .with_children(|button| {
                     button.spawn((
-                        Text::new("Craft Iron Sword"),
+                        Text::new(format!("Craft {}", IRON_SWORD_RECIPE.name)),
                         TextFont {
                             font_size: 15.0,
                             ..default()
@@ -138,9 +138,9 @@ fn abbrev(material: MaterialId) -> &'static str {
 
 fn forge_status(inventory: &Inventory) -> String {
     if can_craft_recipe(inventory, &IRON_SWORD_RECIPE) {
-        "Iron Sword ready to craft (5 Gel, 3 Iron)".to_string()
+        format!("{} ready to craft (5 Gel, 3 Iron)", IRON_SWORD_RECIPE.name)
     } else {
-        "Need 5 Slime Gel + 3 Iron Scrap for Iron Sword".to_string()
+        format!("Need 5 Slime Gel + 3 Iron Scrap for {}", IRON_SWORD_RECIPE.name)
     }
 }
 

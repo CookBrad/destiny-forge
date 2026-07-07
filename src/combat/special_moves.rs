@@ -75,7 +75,6 @@ const SPIN_HIT_END: f32 = 0.42;
 const SPIN_ATTACK_POWER: f32 = 18.0;
 const SPIN_ARM_RADIUS: f32 = TILE * 1.85;
 const SPIN_SWORD_HIT_PADDING: f32 = TILE * 0.85;
-const SPIN_PARRY_PADDING: f32 = TILE * 0.45;
 const SPIN_PIVOT_Y: f32 = 2.0;
 
 pub fn player_is_busy(
@@ -92,17 +91,6 @@ pub fn special_blocks_movement(special: Option<&PlayerSpecialMove>) -> bool {
 
 pub fn charge_speed() -> f32 {
     CHARGE_SPEED
-}
-
-pub fn special_move_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Option<HitRect> {
-    if !special.in_hit_window() {
-        return None;
-    }
-
-    match special.kind {
-        SpecialMoveKind::Charge => Some(charge_hitbox(player, special.charge_direction)),
-        SpecialMoveKind::Spin => spin_parry_hit_rect(player, special),
-    }
 }
 
 /// Whirlwind deflects for the full spin using the blade path plus sweep volume.
@@ -413,10 +401,6 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
         blade_world,
         spin_orbit_angle(progress) - FRAC_PI_2,
     ))
-}
-
-fn spin_parry_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Option<HitRect> {
-    spin_blade_hit_rect(player, special).map(|rect| expand_hit_rect(rect, SPIN_PARRY_PADDING))
 }
 
 fn spin_pivot_world(player: &Transform) -> Vec2 {

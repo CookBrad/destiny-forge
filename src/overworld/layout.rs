@@ -94,11 +94,7 @@ impl OverworldLayout {
     }
 }
 
-pub fn spawn_homestead(
-    commands: &mut Commands,
-    art: &OverworldArt,
-    layout: &OverworldLayout,
-) {
+pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     for ty in 0..MAP_TILES_H {
         for tx in 0..MAP_TILES_W {
             let center = tile_center(tx, ty);
@@ -111,7 +107,7 @@ pub fn spawn_homestead(
                     ..default()
                 },
                 world_transform(center, 0.0),
-                OverworldTile { tx, ty },
+                OverworldTile,
                 OverworldEntity,
             ));
         }
@@ -135,7 +131,6 @@ pub fn spawn_homestead(
 
     spawn_building(
         commands,
-        art,
         tile_rect(4, 30, 13, 38),
         art.wall.clone(),
         Color::srgb(0.62, 0.5, 0.38),
@@ -280,7 +275,6 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
 
 fn spawn_building(
     commands: &mut Commands,
-    art: &OverworldArt,
     footprint: Rect,
     wall_tex: Handle<Image>,
     wall_tint: Color,
@@ -408,10 +402,7 @@ pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
 pub struct OverworldEntity;
 
 #[derive(Component)]
-pub struct OverworldTile {
-    pub tx: u32,
-    pub ty: u32,
-}
+pub struct OverworldTile;
 
 #[derive(Component)]
 pub struct DungeonEntrance;

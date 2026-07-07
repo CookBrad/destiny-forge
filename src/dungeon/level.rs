@@ -96,21 +96,6 @@ pub fn is_on_ground_floor(x: f32, segments: &[PlatformSpec]) -> bool {
     find_ground_segment_at(x, segments).is_some()
 }
 
-pub fn horizontal_move_crosses_pit(from_x: f32, to_x: f32, pitfalls: &[PitfallSpec]) -> bool {
-    if (to_x - from_x).abs() < 0.01 {
-        return false;
-    }
-
-    let min_x = from_x.min(to_x);
-    let max_x = from_x.max(to_x);
-
-    pitfalls.iter().any(|pit| {
-        let pit_left = pit.left;
-        let pit_right = pit.left + pit.width_tiles as f32 * TILE;
-        max_x > pit_left && min_x < pit_right
-    })
-}
-
 /// Keep horizontal movement on the current floor segment; returns `(new_x, hit_edge)`.
 pub fn constrain_ground_walk(current_x: f32, delta_x: f32, segments: &[PlatformSpec]) -> (f32, bool) {
     let proposed = current_x + delta_x;

@@ -230,7 +230,7 @@ pub fn animate_weapon_swing(
 
     let progress = sword_arc_progress(attack);
 
-    for (_, swing, mut transform) in &mut swings {
+    for (_, _swing, mut transform) in &mut swings {
         let pose = swing_pose(progress);
         transform.translation = pose.translation;
         transform.rotation = pose.rotation;

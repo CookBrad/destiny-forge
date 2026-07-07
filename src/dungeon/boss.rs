@@ -24,7 +24,7 @@ const BOSS_COLOR_WINDUP: Color = Color::srgb(1.0, 0.62, 0.18);
 const BOSS_COLOR_RELEASE: Color = Color::srgb(0.72, 1.0, 0.55);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum BossAttackKind {
+pub(crate) enum BossAttackKind {
     SlimeBolt,
     TripleSpread,
     SlimeRain,

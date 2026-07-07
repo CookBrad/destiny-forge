@@ -27,7 +27,7 @@ pub fn setup_overworld(
     let layout = OverworldLayout::homestead();
     let spawn = entry.map(|entry| *entry).unwrap_or_default();
 
-    spawn_homestead(&mut commands, &art, &layout);
+    spawn_homestead(&mut commands, &art);
     spawn_overworld_player(&mut commands, &art, spawn);
 
     commands.insert_resource(ExplorationMap {
