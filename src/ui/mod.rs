@@ -1,7 +1,7 @@
 mod health_bars;
+pub mod inventory_window;
 mod menu;
 mod pause_audio;
-mod pause_inventory;
 mod plugin;
 mod profile_picker;
 mod skill_bar;

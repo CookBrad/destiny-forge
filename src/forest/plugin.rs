@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::ui::inventory_window::inventory_closed;
 use crate::overworld::camera::{follow_exploration_camera, init_exploration_camera};
 use crate::overworld::movement::{
     animate_overworld_player, exploration_movement, tick_map_transition_cooldown,
@@ -39,7 +40,8 @@ impl Plugin for ForestPlugin {
                 forest_interaction,
             )
                 .chain()
-                .run_if(in_state(GameState::Forest)),
+                .run_if(in_state(GameState::Forest))
+                .run_if(inventory_closed),
         );
     }
 }

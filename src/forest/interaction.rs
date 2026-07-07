@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::exploration::{
     set_exploration_prompt, set_exploration_zone_label, EXPLORATION_PROMPT_MOVE,
 };
@@ -11,6 +12,7 @@ use super::layout::{forest_homestead_transition, ForestLayout, ForestZone};
 
 pub fn forest_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
+    inventory: Res<InventoryWindowOpen>,
     layout: Res<ForestLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -22,6 +24,10 @@ pub fn forest_interaction(
     let Ok((transform, velocity)) = player.get_single() else {
         return;
     };
+
+    if inventory.0 {
+        return;
+    }
 
     let position = transform.translation.truncate();
     let zone = layout.zone_at(position);

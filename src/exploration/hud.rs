@@ -1,8 +1,9 @@
 use bevy::ecs::query::QueryFilter;
 use bevy::prelude::*;
 
-pub const EXPLORATION_PROMPT_MOVE: &str = "WASD move  ·  Esc title";
-pub const EXPLORATION_PROMPT_MOVE_INTERACT: &str = "WASD move  ·  E interact  ·  Esc title";
+pub const EXPLORATION_PROMPT_MOVE: &str = "WASD move  ·  I inventory  ·  Esc title";
+pub const EXPLORATION_PROMPT_MOVE_INTERACT: &str =
+    "WASD move  ·  I inventory  ·  E interact  ·  Esc title";
 
 pub fn set_exploration_zone_label<F: QueryFilter>(
     zone_label: &mut Query<'_, '_, &mut Text, F>,

@@ -2,10 +2,8 @@ use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::core::{save_root_display, DungeonPlayState, GameState};
-use crate::items::Inventory;
-
+use super::inventory_window::InventoryWindowOpen;
 use super::pause_audio::spawn_pause_audio_controls;
-use super::pause_inventory::spawn_pause_inventory_panel;
 use super::profile_picker::ProfilePicker;
 use super::title_profiles::spawn_title_profile_cards;
 
@@ -110,11 +108,7 @@ pub fn cleanup_title_menu(mut commands: Commands, menus: Query<Entity, With<Titl
     }
 }
 
-pub fn spawn_pause_menu(
-    mut commands: Commands,
-    settings: Res<AudioSettings>,
-    inventory: Res<Inventory>,
-) {
+pub fn spawn_pause_menu(mut commands: Commands, settings: Res<AudioSettings>) {
     commands
         .spawn((
             Node {
@@ -140,9 +134,8 @@ pub fn spawn_pause_menu(
                 TextColor(Color::srgb(0.92, 0.92, 0.95)),
             ));
             spawn_pause_audio_controls(parent, &settings);
-            spawn_pause_inventory_panel(parent, &inventory);
             parent.spawn((
-                Text::new("Esc — Resume"),
+                Text::new("I — Inventory  ·  Esc — Resume"),
                 TextFont {
                     font_size: 22.0,
                     ..default()
@@ -168,19 +161,21 @@ pub fn cleanup_pause_menu(mut commands: Commands, menus: Query<Entity, With<Paus
 
 pub fn open_pause_menu(
     keyboard: Res<ButtonInput<KeyCode>>,
+    inventory: Res<InventoryWindowOpen>,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if keyboard.just_pressed(KeyCode::Escape) && !inventory.0 {
         next_play.set(DungeonPlayState::Paused);
     }
 }
 
 pub fn pause_menu_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    inventory: Res<InventoryWindowOpen>,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
     mut next_game: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if keyboard.just_pressed(KeyCode::Escape) && !inventory.0 {
         next_play.set(DungeonPlayState::Running);
     }
 

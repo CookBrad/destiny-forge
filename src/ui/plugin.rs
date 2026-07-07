@@ -10,6 +10,10 @@ use super::health_bars::{
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
     update_player_health_bar, HealthBarAssets,
 };
+use super::inventory_window::{
+    cleanup_inventory_window, handle_forge_craft_input, inventory_window_open,
+    sync_inventory_display, toggle_inventory_window, InventoryWindowOpen,
+};
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
     ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
@@ -21,7 +25,6 @@ use super::title_profiles::{
     sync_title_profile_cards, ProfileRenameState,
 };
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
-use super::pause_inventory::{handle_forge_craft_input, sync_pause_inventory_display};
 use super::profile_picker::{refresh_profile_picker, ProfilePicker};
 use super::skill_bar::{
     cleanup_skill_bar, handle_skill_bar_drag, setup_skill_icon_assets, spawn_skill_bar,
@@ -38,12 +41,27 @@ fn reset_title_camera(mut camera: Query<&mut Projection, With<Camera2d>>) {
     }
 }
 
+fn gameplay_active(
+    game: Res<State<GameState>>,
+    dungeon: Res<State<DungeonPlayState>>,
+) -> bool {
+    match game.get() {
+        GameState::Overworld | GameState::Forest => true,
+        GameState::Dungeon => matches!(
+            dungeon.get(),
+            DungeonPlayState::Running | DungeonPlayState::Paused
+        ),
+        GameState::Title => false,
+    }
+}
+
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ProfilePicker::default())
             .init_resource::<ProfileRenameState>()
+            .init_resource::<InventoryWindowOpen>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -86,19 +104,24 @@ impl Plugin for UiPlugin {
             .add_systems(
                 Update,
                 (
+                    toggle_inventory_window,
+                    (
+                        handle_forge_craft_input,
+                        sync_inventory_display,
+                    )
+                        .chain()
+                        .run_if(inventory_window_open),
                     open_pause_menu.run_if(in_state(DungeonPlayState::Running)),
                     pause_menu_input.run_if(in_state(DungeonPlayState::Paused)),
                     (
                         handle_pause_audio_input,
                         sync_pause_audio_display,
-                        handle_forge_craft_input,
-                        sync_pause_inventory_display,
                     )
                         .chain()
                         .run_if(in_state(DungeonPlayState::Paused)),
                     death_menu_input.run_if(in_state(DungeonPlayState::Dead)),
                 )
-                    .run_if(in_state(GameState::Dungeon)),
+                    .run_if(gameplay_active),
             )
             .add_systems(
                 OnEnter(GameState::Dungeon),
@@ -119,9 +142,18 @@ impl Plugin for UiPlugin {
                 (resume_game_time, cleanup_death_menu),
             )
             .add_systems(
+                OnExit(GameState::Overworld),
+                cleanup_inventory_window,
+            )
+            .add_systems(
+                OnExit(GameState::Forest),
+                cleanup_inventory_window,
+            )
+            .add_systems(
                 OnExit(GameState::Dungeon),
                 (
                     ensure_time_running,
+                    cleanup_inventory_window,
                     cleanup_pause_menu,
                     cleanup_death_menu,
                     cleanup_skill_bar,

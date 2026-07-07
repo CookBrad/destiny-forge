@@ -10,6 +10,7 @@ use crate::combat::{
     tick_player_hit_flash, tick_player_special_moves, update_player_block,
 };
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
+use crate::ui::inventory_window::inventory_closed;
 use crate::graphics::{follow_camera, init_dungeon_camera};
 
 use super::animation::animate_player;
@@ -107,7 +108,8 @@ impl Plugin for DungeonPlugin {
                 )
                     .chain()
                     .run_if(in_state(GameState::Dungeon))
-                    .run_if(in_state(DungeonPlayState::Running)),
+                    .run_if(in_state(DungeonPlayState::Running))
+                    .run_if(inventory_closed),
             );
     }
 }

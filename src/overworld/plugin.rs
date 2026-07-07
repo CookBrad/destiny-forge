@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::ui::inventory_window::inventory_closed;
 
 use super::animals::move_farm_animals;
 use super::camera::{follow_exploration_camera, init_exploration_camera};
@@ -38,7 +39,8 @@ impl Plugin for OverworldPlugin {
                 overworld_interaction,
             )
                 .chain()
-                .run_if(in_state(GameState::Overworld)),
+                .run_if(in_state(GameState::Overworld))
+                .run_if(inventory_closed),
         );
     }
 }
