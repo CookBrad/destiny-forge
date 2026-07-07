@@ -26,12 +26,11 @@ A pixelated Rust game that blends **Stardew Valley**-style farming and mining wi
 11. [Coding Standards](#coding-standards)
 12. [Progression](#progression--monster-hunter-style)
 13. [Systems Detail](#systems-detail)
-14. [Tutorial Flow](#tutorial-flow)
-15. [Phase Plan](#phase-plan)
-16. [MVP Content Targets](#mvp-content-targets)
-17. [Art Direction](#art-direction)
-18. [Decisions](#decisions)
-19. [Open Questions](#open-questions)
+14. [Phase Plan](#phase-plan)
+15. [MVP Content Targets](#mvp-content-targets)
+16. [Art Direction](#art-direction)
+17. [Decisions](#decisions)
+18. [Open Questions](#open-questions)
 
 ---
 
@@ -68,7 +67,7 @@ A pixelated Rust game that blends **Stardew Valley**-style farming and mining wi
 
 **MVP success metrics:**
 
-- Player completes one full hunt → carve → craft → re-hunt cycle without guidance
+- Player completes one full hunt → carve → craft → re-hunt cycle
 - Second run feels meaningfully easier with new gear (faster kills or faster carving)
 - No crash or soft-lock across 10 consecutive loops
 
@@ -346,18 +345,6 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 ---
 
-## Tutorial Flow
-
-First-time player guidance through the vertical slice (no quest UI in MVP — use placement and HUD hints):
-
-1. **Hub:** HUD hint — *"Press E at the dungeon door to hunt"*
-2. **Dungeon:** Slime placed near entrance; teaches move → attack
-3. **First kill:** HUD hint — *"Hold E on the corpse to carve"*
-4. **Ladder:** visible at floor end — *"Press E to return to the forge"*
-5. **Forge:** player arrives with enough Slime Gel to craft Iron Sword or first armor piece
-
----
-
 ## Phase Plan
 
 ### Phase 1 — Dungeons & Forging *(current focus)*
@@ -417,7 +404,7 @@ Build in dependency order:
 
 | Monster | Role                 | HP  | Damage | Behavior              | Carve parts           | Carve time |
 | ------- | -------------------- | --- | ------ | --------------------- | --------------------- | ---------- |
-| Slime   | Tutorial enemy       | 30  | 8      | Slow patrol, chase    | Slime Gel, Slime Core | 2.0s       |
+| Slime   | Starter enemy        | 30  | 8      | Slow patrol, chase    | Slime Gel, Slime Core | 2.0s       |
 | Bat     | Light ranged / flyer | 20  | 6      | Hover, swoop attack   | Leather Wing, Fang    | 2.0s       |
 
 *HP, damage, and carve time are initial tuning targets.*
