@@ -6,7 +6,6 @@ use crate::graphics::{world_transform, TILE};
 pub struct ZoneRect<Z> {
     pub zone: Z,
     pub bounds: Rect,
-    pub label: &'static str,
 }
 
 pub fn zone_at<'a, Z>(zones: &'a [ZoneRect<Z>], position: Vec2) -> Option<&'a ZoneRect<Z>> {

@@ -8,7 +8,7 @@ use super::animals::move_farm_animals;
 use super::camera::{follow_exploration_camera, init_exploration_camera};
 use super::interaction::overworld_interaction;
 use super::movement::{animate_overworld_player, exploration_movement, tick_map_transition_cooldown};
-use super::setup::{cleanup_overworld, setup_overworld, spawn_overworld_hud};
+use super::setup::{cleanup_overworld, setup_overworld};
 
 fn set_overworld_clear_color(mut clear: ResMut<ClearColor>) {
     clear.0 = Color::srgb(0.22, 0.28, 0.18);
@@ -24,7 +24,6 @@ impl Plugin for OverworldPlugin {
                 set_overworld_clear_color,
                 setup_overworld,
                 init_exploration_camera,
-                spawn_overworld_hud,
             )
                 .chain(),
         )

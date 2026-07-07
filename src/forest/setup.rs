@@ -5,7 +5,6 @@ use crate::overworld::layout::tile_center;
 use crate::overworld::movement::{
     ExplorationMap, MapTransitionCooldown, OverworldPlayer, OverworldVelocity,
 };
-use crate::overworld::setup::OverworldHud;
 use crate::overworld::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
 use super::layout::{spawn_forest, ForestLayout};
@@ -23,7 +22,7 @@ pub fn setup_forest(
     spawn_forest_player(&mut commands, &overworld_art);
 
     commands.insert_resource(ExplorationMap {
-        solids: layout.solids.clone(),
+        solids: layout.solids(),
         world_width: super::layout::WORLD_WIDTH,
         world_height: super::layout::WORLD_HEIGHT,
     });
@@ -52,9 +51,8 @@ pub fn cleanup_forest(
     mut commands: Commands,
     entities: Query<Entity, With<super::layout::ForestEntity>>,
     players: Query<Entity, With<OverworldPlayer>>,
-    hud: Query<Entity, With<OverworldHud>>,
 ) {
-    for entity in entities.iter().chain(players.iter()).chain(hud.iter()) {
+    for entity in entities.iter().chain(players.iter()) {
         commands.entity(entity).try_despawn_recursive();
     }
     commands.remove_resource::<super::sprites::ForestArt>();

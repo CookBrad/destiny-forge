@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-use crate::exploration::EXPLORATION_PROMPT_MOVE_INTERACT;
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::{spawn_homestead, tile_center, OverworldLayout, WORLD_WIDTH};
@@ -13,9 +12,6 @@ pub enum OverworldEntry {
     Yard,
     ForestTrail,
 }
-
-#[derive(Component)]
-pub struct OverworldHud;
 
 pub fn setup_overworld(
     mut commands: Commands,
@@ -59,55 +55,12 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt, entry: Ov
     ));
 }
 
-pub fn spawn_overworld_hud(mut commands: Commands) {
-    commands
-        .spawn((
-            OverworldHud,
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::SpaceBetween,
-                align_items: AlignItems::FlexStart,
-                padding: UiRect::all(Val::Px(16.0)),
-                ..default()
-            },
-        ))
-        .with_children(|hud| {
-            hud.spawn((
-                OverworldZoneLabel,
-                Text::new("Homestead"),
-                TextFont {
-                    font_size: 24.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.92, 0.94, 0.82)),
-            ));
-            hud.spawn((
-                OverworldPromptLabel,
-                Text::new(EXPLORATION_PROMPT_MOVE_INTERACT),
-                TextFont {
-                    font_size: 16.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.68, 0.72, 0.78)),
-            ));
-        });
-}
-
-#[derive(Component)]
-pub struct OverworldZoneLabel;
-
-#[derive(Component)]
-pub struct OverworldPromptLabel;
-
 pub fn cleanup_overworld(
     mut commands: Commands,
     entities: Query<Entity, With<super::layout::OverworldEntity>>,
     players: Query<Entity, With<OverworldPlayer>>,
-    hud: Query<Entity, With<OverworldHud>>,
 ) {
-    for entity in entities.iter().chain(players.iter()).chain(hud.iter()) {
+    for entity in entities.iter().chain(players.iter()) {
         commands.entity(entity).try_despawn_recursive();
     }
     commands.remove_resource::<OverworldArt>();

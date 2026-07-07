@@ -10,7 +10,6 @@ use crate::player::{Loadout, WorldProgress};
 
 use super::enemy::DungeonProgress;
 use super::generation::{generate_floor, random_seed};
-use super::interaction::LadderPrompt;
 use super::level::DungeonLayout;
 use super::sprites::DungeonArt;
 
@@ -53,7 +52,6 @@ pub fn setup_dungeon_with_seed(
     let seed = seed.unwrap_or_else(random_seed);
     let floor = generate_floor(seed);
 
-    commands.init_resource::<LadderPrompt>();
     let mut progress = DungeonProgress::default();
     world_progress.apply_to_dungeon_progress(&mut progress);
     commands.insert_resource(progress);
@@ -88,7 +86,6 @@ fn despawn_dungeon(
     parents: &Query<&Parent>,
 ) {
     commands.remove_resource::<DungeonArt>();
-    commands.remove_resource::<LadderPrompt>();
     commands.remove_resource::<DungeonProgress>();
     commands.remove_resource::<DungeonScrollBounds>();
     commands.remove_resource::<DungeonLayout>();

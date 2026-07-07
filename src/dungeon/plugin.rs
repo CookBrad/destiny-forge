@@ -18,7 +18,7 @@ use super::boss::{resolve_boss_hazards, tick_boss_attacks};
 use super::carve::carve_corpses;
 use super::enemy::track_boss_defeat;
 use super::enemy_movement::move_enemies;
-use super::interaction::{ladder_interaction, update_ladder_prompt};
+use super::interaction::ladder_interaction;
 use super::movement::dungeon_movement;
 use super::setup::{cleanup_dungeon, retry_dungeon, setup_dungeon};
 
@@ -102,7 +102,6 @@ impl Plugin for DungeonPlugin {
                         tick_player_hit_flash,
                         track_boss_defeat,
                         carve_corpses,
-                        update_ladder_prompt,
                         ladder_interaction,
                     ),
                 )

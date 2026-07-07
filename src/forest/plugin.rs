@@ -6,8 +6,6 @@ use crate::overworld::camera::{follow_exploration_camera, init_exploration_camer
 use crate::overworld::movement::{
     animate_overworld_player, exploration_movement, tick_map_transition_cooldown,
 };
-use crate::overworld::setup::spawn_overworld_hud;
-
 use super::interaction::forest_interaction;
 use super::setup::{cleanup_forest, setup_forest};
 
@@ -25,7 +23,6 @@ impl Plugin for ForestPlugin {
                 set_forest_clear_color,
                 setup_forest,
                 init_exploration_camera,
-                spawn_overworld_hud,
             )
                 .chain(),
         )

@@ -56,32 +56,26 @@ impl OverworldLayout {
         zones.push(ZoneRect {
             zone: HomesteadZone::House,
             bounds: tile_rect(2, 26, 15, 38),
-            label: "Your House",
         });
         zones.push(ZoneRect {
             zone: HomesteadZone::Forge,
             bounds: tile_rect(35, 26, 48, 38),
-            label: "The Forge",
         });
         zones.push(ZoneRect {
             zone: HomesteadZone::Crops,
             bounds: tile_rect(2, 5, 21, 19),
-            label: "Crop Fields",
         });
         zones.push(ZoneRect {
             zone: HomesteadZone::Animals,
             bounds: tile_rect(31, 5, 49, 19),
-            label: "Animal Pens",
         });
         zones.push(ZoneRect {
             zone: HomesteadZone::ForestTrail,
             bounds: tile_rect(1, 22, 8, 40),
-            label: "Forest Trail",
         });
         zones.push(ZoneRect {
             zone: HomesteadZone::DungeonGate,
             bounds: tile_rect(22, 1, 29, 5),
-            label: "Dungeon Entrance",
         });
 
         build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);

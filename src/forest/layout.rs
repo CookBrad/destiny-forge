@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::exploration::{
-    build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade, zone_at,
-    GridOverlayStyle, ZoneRect,
+    build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade,
+    GridOverlayStyle,
 };
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
@@ -21,47 +21,18 @@ pub fn forest_homestead_transition() -> Rect {
     tile_rect(2, 0, 5, 2)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ForestZone {
-    Woods,
-    DeepWoods,
-    HomesteadReturn,
-}
-
 #[derive(Resource, Clone)]
-pub struct ForestLayout {
-    pub solids: Vec<Rect>,
-    pub zones: Vec<ZoneRect<ForestZone>>,
-}
+pub struct ForestLayout;
 
 impl ForestLayout {
     pub fn generate() -> Self {
-        let mut solids = Vec::new();
-        let mut zones = Vec::new();
-
-        zones.push(ZoneRect {
-            zone: ForestZone::HomesteadReturn,
-            bounds: tile_rect(1, 0, 8, 6),
-            label: "Homestead Trail",
-        });
-        zones.push(ZoneRect {
-            zone: ForestZone::DeepWoods,
-            bounds: tile_rect(10, 18, 34, 31),
-            label: "Deep Woods",
-        });
-        zones.push(ZoneRect {
-            zone: ForestZone::Woods,
-            bounds: tile_rect(0, 0, MAP_TILES_W, MAP_TILES_H),
-            label: "Whispering Forest",
-        });
-
-        build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
-
-        Self { solids, zones }
+        Self
     }
 
-    pub fn zone_at(&self, position: Vec2) -> Option<&ZoneRect<ForestZone>> {
-        zone_at(&self.zones, position)
+    pub fn solids(&self) -> Vec<Rect> {
+        let mut solids = Vec::new();
+        build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
+        solids
     }
 
     pub fn tree_variant(&self, tx: u32, ty: u32) -> Option<usize> {
