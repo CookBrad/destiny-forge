@@ -425,14 +425,13 @@ pub fn toggle_inventory_window(
 }
 
 pub fn handle_inventory_close_button(
-    open: Res<InventoryWindowOpen>,
     interactions: Query<&Interaction, (Changed<Interaction>, With<InventoryCloseButton>)>,
     mut commands: Commands,
     windows: Query<Entity, With<InventoryWindow>>,
     game: Res<State<GameState>>,
     dungeon: Option<Res<State<DungeonPlayState>>>,
     mut time: ResMut<Time<Virtual>>,
-    mut window_open: ResMut<InventoryWindowOpen>,
+    mut open: ResMut<InventoryWindowOpen>,
 ) {
     if !open.0 {
         return;
@@ -441,7 +440,7 @@ pub fn handle_inventory_close_button(
     for interaction in &interactions {
         if *interaction == Interaction::Pressed {
             close_inventory(
-                &mut window_open,
+                &mut open,
                 &mut commands,
                 &windows,
                 game.get(),
