@@ -10,6 +10,7 @@ const GRID_COLUMNS: usize = 4;
 const SLOT_SIZE: f32 = 52.0;
 const SLOT_GAP: f32 = 3.0;
 const PANEL_PADDING: f32 = 10.0;
+const PANEL_SCREEN_MARGIN: f32 = 20.0;
 
 const FRAME_BG: Color = Color::srgb(0.14, 0.09, 0.06);
 const FRAME_BORDER: Color = Color::srgb(0.55, 0.4, 0.16);
@@ -74,7 +75,8 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
+                align_items: AlignItems::FlexStart,
+                padding: UiRect::left(Val::Px(PANEL_SCREEN_MARGIN)),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.45)),
