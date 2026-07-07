@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::core::ProfileDirty;
+use crate::core::{DungeonPlayState, GameState, ProfileDirty};
 use crate::forging::{can_craft_recipe, try_craft_iron_sword, IRON_SWORD_RECIPE};
 use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
 use crate::player::Loadout;
@@ -170,7 +170,8 @@ pub fn toggle_inventory_window(
     mut commands: Commands,
     inventory: Res<Inventory>,
     windows: Query<Entity, With<InventoryWindow>>,
-    dungeon: Res<State<crate::core::DungeonPlayState>>,
+    game: Res<State<GameState>>,
+    dungeon: Option<Res<State<DungeonPlayState>>>,
     mut time: ResMut<Time<Virtual>>,
 ) {
     let close = open.0 && keyboard.just_pressed(KeyCode::Escape);
@@ -195,15 +196,28 @@ pub fn toggle_inventory_window(
         for entity in &windows {
             commands.entity(entity).try_despawn_recursive();
         }
-        if !matches!(
-            dungeon.get(),
-            crate::core::DungeonPlayState::Paused
-                | crate::core::DungeonPlayState::Dying
-                | crate::core::DungeonPlayState::Dead
-        ) {
+        if should_resume_time(game.get(), dungeon.as_deref()) {
             time.unpause();
         }
     }
+}
+
+fn should_resume_time(
+    game: &GameState,
+    dungeon: Option<&State<DungeonPlayState>>,
+) -> bool {
+    if !matches!(game, GameState::Dungeon) {
+        return true;
+    }
+
+    let Some(dungeon) = dungeon else {
+        return true;
+    };
+
+    !matches!(
+        dungeon.get(),
+        DungeonPlayState::Paused | DungeonPlayState::Dying | DungeonPlayState::Dead
+    )
 }
 
 fn slot_text(inventory: &Inventory, index: usize) -> String {

@@ -41,20 +41,6 @@ fn reset_title_camera(mut camera: Query<&mut Projection, With<Camera2d>>) {
     }
 }
 
-fn gameplay_active(
-    game: Res<State<GameState>>,
-    dungeon: Res<State<DungeonPlayState>>,
-) -> bool {
-    match game.get() {
-        GameState::Overworld | GameState::Forest => true,
-        GameState::Dungeon => matches!(
-            dungeon.get(),
-            DungeonPlayState::Running | DungeonPlayState::Paused
-        ),
-        GameState::Title => false,
-    }
-}
-
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
@@ -111,6 +97,17 @@ impl Plugin for UiPlugin {
                     )
                         .chain()
                         .run_if(inventory_window_open),
+                )
+                    .run_if(
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(DungeonPlayState::Running))
+                            .or(in_state(DungeonPlayState::Paused)),
+                    ),
+            )
+            .add_systems(
+                Update,
+                (
                     open_pause_menu.run_if(in_state(DungeonPlayState::Running)),
                     pause_menu_input.run_if(in_state(DungeonPlayState::Paused)),
                     (
@@ -121,7 +118,7 @@ impl Plugin for UiPlugin {
                         .run_if(in_state(DungeonPlayState::Paused)),
                     death_menu_input.run_if(in_state(DungeonPlayState::Dead)),
                 )
-                    .run_if(gameplay_active),
+                    .run_if(in_state(GameState::Dungeon)),
             )
             .add_systems(
                 OnEnter(GameState::Dungeon),
