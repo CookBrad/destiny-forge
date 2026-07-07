@@ -11,8 +11,9 @@ use super::health_bars::{
     update_player_health_bar, HealthBarAssets,
 };
 use super::inventory_window::{
-    cleanup_inventory_window, handle_forge_craft_input, inventory_window_open,
-    sync_inventory_display, toggle_inventory_window, InventoryWindowOpen,
+    cleanup_inventory_window, handle_forge_craft_input, handle_inventory_close_button,
+    handle_inventory_slot_click, inventory_window_open, sync_inventory_display,
+    toggle_inventory_window, InventorySelectedSlot, InventoryWindowOpen,
 };
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
@@ -48,6 +49,7 @@ impl Plugin for UiPlugin {
         app.insert_resource(ProfilePicker::default())
             .init_resource::<ProfileRenameState>()
             .init_resource::<InventoryWindowOpen>()
+            .init_resource::<InventorySelectedSlot>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -92,6 +94,8 @@ impl Plugin for UiPlugin {
                 (
                     toggle_inventory_window,
                     (
+                        handle_inventory_close_button,
+                        handle_inventory_slot_click,
                         handle_forge_craft_input,
                         sync_inventory_display,
                     )
