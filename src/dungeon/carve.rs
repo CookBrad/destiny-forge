@@ -12,13 +12,41 @@ use super::movement::DungeonPlayer;
 
 const BASE_CARVE_SECS: f32 = 2.0;
 
-#[derive(Component)]
-pub struct CarvedCorpse;
-
 #[derive(Resource, Default)]
 pub struct CarveState {
     pub target: Option<Entity>,
     pub timer: Timer,
+}
+
+/// Pending loot lines for the dungeon loot log UI.
+#[derive(Resource, Default)]
+pub struct LootLog {
+    pub pending: Vec<LootLogEntry>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LootLogEntry {
+    pub text: String,
+}
+
+impl LootLog {
+    pub fn push_carved(&mut self, display_name: &str, amount: u32) {
+        if amount == 0 {
+            return;
+        }
+        self.pending.push(LootLogEntry {
+            text: format!("Carved {amount}× {display_name}"),
+        });
+    }
+
+    pub fn push_missed(&mut self, display_name: &str, amount: u32) {
+        if amount == 0 {
+            return;
+        }
+        self.pending.push(LootLogEntry {
+            text: format!("Inventory full — lost {amount}× {display_name}"),
+        });
+    }
 }
 
 impl EnemyKind {
@@ -44,9 +72,10 @@ pub fn carve_corpses(
     mut inventory: ResMut<Inventory>,
     mut profile_dirty: ResMut<ProfileDirty>,
     mut carve_state: ResMut<CarveState>,
+    mut loot_log: ResMut<LootLog>,
     mut commands: Commands,
     player: Query<(&Transform, Option<&PlayerHitFlash>), With<DungeonPlayer>>,
-    corpses: Query<(Entity, &Transform, &EnemyKind), (With<EnemyCorpse>, Without<CarvedCorpse>)>,
+    corpses: Query<(Entity, &Transform, &EnemyKind), With<EnemyCorpse>>,
 ) {
     let Ok((player_transform, hit_flash)) = player.get_single() else {
         carve_state.target = None;
@@ -98,13 +127,17 @@ pub fn carve_corpses(
 
     for (material, amount) in kind.carve_loot() {
         let leftover = inventory.try_add(*material, *amount);
+        let received = amount.saturating_sub(leftover);
+        loot_log.push_carved(material.display_name(), received);
         if leftover > 0 {
+            loot_log.push_missed(material.display_name(), leftover);
             warn!("Inventory full — could not store all {material:?}");
         }
     }
 
-    commands.entity(entity).insert(CarvedCorpse);
+    commands.entity(entity).try_despawn_recursive();
     carve_state.target = None;
+    carve_state.timer = carve_timer(loadout.carve_speed_multiplier());
     profile_dirty.mark();
     info!("Carved {} — materials added to inventory.", kind_debug(*kind));
 }

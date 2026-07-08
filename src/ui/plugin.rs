@@ -5,6 +5,10 @@ use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::graphics::reset_camera_zoom;
 
+use super::carve_feedback::{
+    cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
+    sync_carve_progress_ui, tick_loot_log_lines,
+};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -136,6 +140,7 @@ impl Plugin for UiPlugin {
                     spawn_skill_bar,
                     spawn_player_health_bar,
                     spawn_enemy_health_bars,
+                    spawn_carve_feedback_ui,
                 )
                     .chain(),
             )
@@ -176,6 +181,7 @@ impl Plugin for UiPlugin {
                     cleanup_death_menu,
                     cleanup_skill_bar,
                     cleanup_health_bars,
+                    cleanup_carve_feedback_ui,
                 )
                     .chain()
                     .in_set(DungeonUiTeardown),
@@ -190,6 +196,9 @@ impl Plugin for UiPlugin {
                     despawn_orphan_enemy_health_bars,
                     spawn_enemy_health_bars,
                     update_enemy_health_bars.after(move_enemies),
+                    sync_carve_progress_ui,
+                    drain_loot_log_to_ui,
+                    tick_loot_log_lines,
                 )
                     .run_if(in_state(GameState::Dungeon))
                     .run_if(
