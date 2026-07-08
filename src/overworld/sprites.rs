@@ -59,6 +59,8 @@ pub struct OverworldArt {
     pub soil: Handle<Image>,
     pub roof: Handle<Image>,
     pub grid_line: Handle<Image>,
+    /// Cluster of planted seeds for farm plot day-0 visuals.
+    pub seed: Handle<Image>,
     pub forge_furnace: Handle<Image>,
     pub forge_workbench: Handle<Image>,
     pub forge_anvil: Handle<Image>,
@@ -85,6 +87,7 @@ impl OverworldArt {
             soil: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             roof: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
             grid_line: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
+            seed: asset_server.load(format!("{OVERWORLD_ROOT}/seed.png")),
             forge_furnace: asset_server.load(format!("{OVERWORLD_ROOT}/forge_furnace.png")),
             forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
             forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),
