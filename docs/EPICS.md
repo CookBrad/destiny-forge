@@ -97,7 +97,7 @@ Zones, transitions, persistence, menus.
 | 59 | Homestead hub + forge + dungeon gate | ✅ |
 | 60 | Forest zone transition | ✅ |
 | 61 | Profile save/load + autosave + settings | ✅ |
-| 62 | House interior / bed for sleep | 🔧 PR day-sleep |
+| 62 | House interior / bed for sleep | 🔧 [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 63 | Landmarks: mine entrance + fishing dock | ⬜ |
 | 64 | Pause menu + key rebinding polish | ⬜ |
 
@@ -107,7 +107,7 @@ Zones, transitions, persistence, menus.
 
 | # | Ticket | Status |
 | - | ------ | ------ |
-| 15 | Soft day cycle + sleep | 🔧 PR day-sleep |
+| 15 | Soft day cycle + sleep | 🔧 [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 16 | Hunt consumes large share of the day | ⬜ |
 | 17 | Tool energy pool + UI meter | ⬜ |
 | 18 | Homestead tool equip + use | ⬜ |
