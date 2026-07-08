@@ -108,8 +108,8 @@ Zones, transitions, persistence, menus.
 | # | Ticket | Status |
 | - | ------ | ------ |
 | 15 | Soft day cycle + sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
-| 16 | Hunt consumes large share of the day | 🔧 in progress |
-| 17 | Tool energy pool + UI meter | 🔧 in progress |
+| 16 | Hunt consumes large share of the day | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
+| 17 | Tool energy pool + UI meter | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
 | 18 | Homestead tool equip + use | ⬜ |
 | 19 | Crop plots: till/plant/water/harvest | ⬜ |
 | 20 | Starter crops (2–3) | ⬜ |
