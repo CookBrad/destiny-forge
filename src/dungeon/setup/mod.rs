@@ -9,7 +9,7 @@ use crate::graphics::DungeonScrollBounds;
 use crate::player::{Loadout, WorldProgress};
 
 use super::enemy::DungeonProgress;
-use super::floor1::floor_one;
+use super::generation::{generate_floor, random_seed};
 use super::level::DungeonLayout;
 use super::sprites::DungeonArt;
 
@@ -49,9 +49,9 @@ pub fn setup_dungeon_with_seed(
     world_progress: &WorldProgress,
 ) {
     let art = DungeonArt::load(asset_server);
-    let seed = seed.unwrap_or(1);
-    let _ = seed;
-    let floor = floor_one();
+    // Fresh entry gets a random seed; death retry reuses the layout seed.
+    let seed = seed.unwrap_or_else(random_seed);
+    let floor = generate_floor(seed);
 
     let mut progress = DungeonProgress::default();
     world_progress.apply_to_dungeon_progress(&mut progress);
@@ -79,7 +79,13 @@ pub fn setup_dungeon_with_seed(
         spawn_king_slime(commands, &art, floor.boss);
     }
 
-    info!("Loaded dungeon floor 1 ({} tiles)", floor.width_tiles);
+    info!(
+        "Loaded dungeon floor (seed {seed}, {} tiles, {} enemies, {} bats, boss={})",
+        floor.width_tiles,
+        floor.enemies.len(),
+        floor.bats.len(),
+        floor.has_boss
+    );
     commands.insert_resource(art);
 }
 

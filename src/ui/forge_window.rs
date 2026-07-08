@@ -375,11 +375,14 @@ pub fn sync_forge_display(
     loadout: Res<Loadout>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
-    mut recipe_name: Query<&mut Text, (With<ForgeRecipeNameLabel>, Without<ForgeCostsLabel>)>,
-    mut costs: Query<&mut Text, (With<ForgeCostsLabel>, Without<ForgeRecipeNameLabel>)>,
-    mut requirement: Query<&mut Text, (With<ForgeRequirementLabel>, Without<ForgeStatusLabel>)>,
-    mut set_bonus: Query<&mut Text, (With<ForgeSetBonusLabel>, Without<ForgeRequirementLabel>)>,
-    mut status: Query<&mut Text, (With<ForgeStatusLabel>, Without<ForgeSetBonusLabel>)>,
+    // ParamSet: multiple &mut Text queries conflict without full Without chains (B0001).
+    mut texts: ParamSet<(
+        Query<&mut Text, With<ForgeRecipeNameLabel>>,
+        Query<&mut Text, With<ForgeCostsLabel>>,
+        Query<&mut Text, With<ForgeRequirementLabel>>,
+        Query<&mut Text, With<ForgeSetBonusLabel>>,
+        Query<&mut Text, With<ForgeStatusLabel>>,
+    )>,
 ) {
     if !open.0 {
         return;
@@ -391,7 +394,7 @@ pub fn sync_forge_display(
 
     let recipe = ALL_RECIPES[selected.0.min(ALL_RECIPES.len().saturating_sub(1))];
 
-    if let Ok(mut text) = recipe_name.get_single_mut() {
+    if let Ok(mut text) = texts.p0().get_single_mut() {
         text.0 = format!(
             "{} ({}/{})",
             recipe.name,
@@ -399,18 +402,18 @@ pub fn sync_forge_display(
             ALL_RECIPES.len()
         );
     }
-    if let Ok(mut text) = costs.get_single_mut() {
+    if let Ok(mut text) = texts.p1().get_single_mut() {
         text.0 = recipe_costs_text(&inventory, recipe);
     }
-    if let Ok(mut text) = requirement.get_single_mut() {
+    if let Ok(mut text) = texts.p2().get_single_mut() {
         text.0 = recipe_requirement_text(&loadout, recipe).unwrap_or_else(|| " ".to_string());
     }
-    if let Ok(mut text) = set_bonus.get_single_mut() {
+    if let Ok(mut text) = texts.p3().get_single_mut() {
         text.0 = recipe_set_bonus_hint(recipe)
             .unwrap_or(" ")
             .to_string();
     }
-    if let Ok(mut text) = status.get_single_mut() {
+    if let Ok(mut text) = texts.p4().get_single_mut() {
         text.0 = forge_status(&inventory, &loadout, recipe);
     }
 }

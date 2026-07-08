@@ -306,6 +306,8 @@ mod tests {
     fn generated_floor_always_has_boss_and_ladder_at_end() {
         for seed in [1, 42, 999, 12_345, 98_765] {
             let floor = generate_floor(seed);
+            assert!(floor.has_boss);
+            assert!(floor.enemies.len() + floor.bats.len() >= 4);
             assert!(floor.ladder_tile < floor.width_tiles);
             assert!(floor.boss.patrol_max_x < floor.ladder_tile as f32 * TILE);
             assert!(floor.width_tiles >= MIN_WIDTH_TILES);
