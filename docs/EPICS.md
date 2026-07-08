@@ -80,7 +80,7 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 | 53 | Forge station UI: recipe cycle + craft | ✅ |
 | 54 | Weapon tree MVP (Rusty→Iron→Slime + spear) | ✅ |
 | 55 | Sli me armor set (4pc) + set bonuses | ✅ |
-| 56 | Migrate recipes/loot to RON data | 🔧 in progress |
+| 56 | Migrate recipes/loot to RON data | 🔧 [PR #67](https://github.com/CookBrad/destiny-forge/pull/67) |
 | 57 | Forge tool recipes (hoe, pickaxe, rod…) | ⬜ |
 | 58 | Gear storage / multi-weapon stash | ⬜ |
 
