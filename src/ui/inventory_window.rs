@@ -56,6 +56,15 @@ pub struct InventoryIconLabel;
 #[derive(Component)]
 pub struct InventoryCloseButton;
 
+#[derive(Component)]
+pub struct InventoryTooltipRoot;
+
+#[derive(Component)]
+pub struct InventoryTooltipTitle;
+
+#[derive(Component)]
+pub struct InventoryTooltipBody;
+
 pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
@@ -99,9 +108,54 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                         .with_children(|panel| {
                             spawn_header(panel);
                             spawn_slot_grid(panel, inventory, grid_width);
+                            spawn_tooltip_panel(panel, panel_width);
                             spawn_currency_footer(panel);
                         });
                 });
+        });
+}
+
+fn spawn_tooltip_panel(parent: &mut ChildBuilder<'_>, panel_width: f32) {
+    parent
+        .spawn((
+            InventoryTooltipRoot,
+            Node {
+                width: Val::Px(panel_width - PANEL_PADDING * 2.0),
+                min_height: Val::Px(56.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(4.0),
+                margin: UiRect::new(
+                    Val::Px(PANEL_PADDING),
+                    Val::Px(PANEL_PADDING),
+                    Val::Px(0.0),
+                    Val::Px(8.0),
+                ),
+                padding: UiRect::all(Val::Px(8.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.1, 0.07, 0.05)),
+            BorderColor(Color::srgb(0.4, 0.3, 0.16)),
+        ))
+        .with_children(|tip| {
+            tip.spawn((
+                InventoryTooltipTitle,
+                Text::new("Hover an item"),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.92, 0.88, 0.78)),
+            ));
+            tip.spawn((
+                InventoryTooltipBody,
+                Text::new("Item details appear here."),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.7, 0.68, 0.6)),
+            ));
         });
 }
 
@@ -552,5 +606,49 @@ pub fn sync_inventory_display(
             }
         }
     }
+}
 
+/// Hover details under the backpack grid (especially useful for seeds).
+pub fn sync_inventory_hover_tooltip(
+    open: Res<InventoryWindowOpen>,
+    inventory: Res<Inventory>,
+    interactions: Query<(&Interaction, &InventorySlot), With<Button>>,
+    mut titles: Query<&mut Text, (With<InventoryTooltipTitle>, Without<InventoryTooltipBody>)>,
+    mut bodies: Query<&mut Text, (With<InventoryTooltipBody>, Without<InventoryTooltipTitle>)>,
+) {
+    if !open.0 {
+        return;
+    }
+
+    let mut hovered: Option<MaterialId> = None;
+    for (interaction, slot) in &interactions {
+        if *interaction != Interaction::Hovered {
+            continue;
+        }
+        let entry = &inventory.slots[slot.index];
+        if let Some(material) = entry.material {
+            if entry.count > 0 {
+                hovered = Some(material);
+                break;
+            }
+        }
+    }
+
+    let (title, body) = match hovered {
+        Some(material) => (
+            material.display_name().to_string(),
+            material.detail_description().to_string(),
+        ),
+        None => (
+            "Hover an item".to_string(),
+            "Item details appear here. Seeds explain how to plant and grow.".to_string(),
+        ),
+    };
+
+    for mut text in &mut titles {
+        text.0 = title.clone();
+    }
+    for mut text in &mut bodies {
+        text.0 = body.clone();
+    }
 }

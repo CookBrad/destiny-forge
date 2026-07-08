@@ -12,7 +12,10 @@ use super::carve_feedback::{
 };
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::energy_hud::{cleanup_energy_hud, setup_energy_hud, sync_energy_hud};
-use super::tool_hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
+use super::hotbar::{
+    cleanup_hotbar, handle_hotbar_slot_clicks, select_hotbar_slot_input, setup_hotbar,
+    sync_hotbar_ui,
+};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -28,8 +31,8 @@ use super::interaction_prompt::{
 };
 use super::inventory_window::{
     cleanup_inventory_window, handle_inventory_close_button, handle_inventory_slot_click,
-    inventory_window_open, sync_inventory_display, toggle_inventory_window,
-    InventorySelectedSlot, InventoryWindowOpen,
+    inventory_window_open, sync_inventory_display, sync_inventory_hover_tooltip,
+    toggle_inventory_window, InventorySelectedSlot, InventoryWindowOpen,
 };
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
@@ -84,7 +87,7 @@ impl Plugin for UiPlugin {
                     spawn_title_menu,
                     cleanup_day_hud,
                     cleanup_energy_hud,
-                    cleanup_tool_hud,
+                    cleanup_hotbar,
                     cleanup_interaction_prompt,
                 )
                     .chain(),
@@ -98,7 +101,7 @@ impl Plugin for UiPlugin {
                 (
                     setup_day_hud,
                     setup_energy_hud,
-                    setup_tool_hud,
+                    setup_hotbar,
                     setup_interaction_prompt,
                 ),
             )
@@ -112,7 +115,7 @@ impl Plugin for UiPlugin {
                 (
                     cleanup_day_hud,
                     cleanup_energy_hud,
-                    cleanup_tool_hud,
+                    cleanup_hotbar,
                     cleanup_interaction_prompt,
                 ),
             )
@@ -129,7 +132,12 @@ impl Plugin for UiPlugin {
                     sync_energy_hud.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Forest)),
                     ),
-                    sync_tool_hud.run_if(in_state(GameState::Overworld)),
+                    (
+                        select_hotbar_slot_input,
+                        handle_hotbar_slot_clicks,
+                        sync_hotbar_ui,
+                    )
+                        .run_if(in_state(GameState::Overworld)),
                     sync_interaction_prompt_ui.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
                     ),
@@ -163,6 +171,7 @@ impl Plugin for UiPlugin {
                         handle_inventory_close_button,
                         handle_inventory_slot_click,
                         sync_inventory_display,
+                        sync_inventory_hover_tooltip,
                     )
                         .chain()
                         .run_if(inventory_window_open),
