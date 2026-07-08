@@ -128,11 +128,64 @@ impl Loadout {
         }
     }
 
+    /// 2pc combat skill: special cooldowns resolve slightly faster.
+    pub fn special_cooldown_multiplier(&self) -> f32 {
+        if self.slime_set_pieces() >= 2 {
+            0.9
+        } else {
+            1.0
+        }
+    }
+
     pub fn knockback_resist(&self) -> f32 {
         if self.slime_set_pieces() >= 4 {
             0.35
         } else {
             0.0
         }
+    }
+
+    /// 4pc combat skill: +10% attack power on weapons and specials.
+    pub fn attack_power_multiplier(&self) -> f32 {
+        if self.slime_set_pieces() >= 4 {
+            1.1
+        } else {
+            1.0
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn full_slime() -> Loadout {
+        let mut loadout = Loadout::default();
+        loadout.armor.head = Some(ArmorKind::SlimeHelm);
+        loadout.armor.chest = Some(ArmorKind::SlimeMail);
+        loadout.armor.arms = Some(ArmorKind::SlimeGauntlets);
+        loadout.armor.legs = Some(ArmorKind::SlimeGreaves);
+        loadout
+    }
+
+    #[test]
+    fn two_piece_gives_carve_and_special_cd() {
+        let mut loadout = Loadout::default();
+        loadout.armor.head = Some(ArmorKind::SlimeHelm);
+        loadout.armor.chest = Some(ArmorKind::SlimeMail);
+        assert_eq!(loadout.slime_set_pieces(), 2);
+        assert!((loadout.carve_speed_multiplier() - 1.1).abs() < f32::EPSILON);
+        assert!((loadout.special_cooldown_multiplier() - 0.9).abs() < f32::EPSILON);
+        assert!((loadout.attack_power_multiplier() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn four_piece_includes_attack_and_knockback() {
+        let loadout = full_slime();
+        assert_eq!(loadout.slime_set_pieces(), 4);
+        assert!((loadout.knockback_resist() - 0.35).abs() < f32::EPSILON);
+        assert!((loadout.attack_power_multiplier() - 1.1).abs() < f32::EPSILON);
+        // 4pc keeps 2pc carve bonus
+        assert!((loadout.carve_speed_multiplier() - 1.1).abs() < f32::EPSILON);
     }
 }

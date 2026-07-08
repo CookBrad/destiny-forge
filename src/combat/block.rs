@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 
 use crate::audio::CombatSfx;
-use crate::dungeon::{DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES};
+use crate::dungeon::{
+    DungeonArt, DungeonPlayer, PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
+};
 
 use super::attack::PlayerAttack;
+use super::hit_stop::HitStop;
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::PlayerSpecialMove;
@@ -21,14 +24,20 @@ const IDLE_BLOCK_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
 const RUN_BLOCK_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
 
 pub fn update_player_block(
+    time: Res<Time>,
     bindings: Res<SkillBindings>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    hit_stop: Res<HitStop>,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
         (&PlayerAttack, &mut PlayerBlock, Option<&PlayerSpecialMove>),
         With<DungeonPlayer>,
     >,
 ) {
+    if hit_stop.is_active() {
+        return;
+    }
+
     let Ok((attack, mut block, special)) = player.get_single_mut() else {
         return;
     };
@@ -40,9 +49,13 @@ pub fn update_player_block(
 
     if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Block) {
         sfx.send(CombatSfx::Block);
+        block.begin_parry_window();
     }
 
     block.active = SkillBindings::skill_pressed(&keyboard, &bindings, SkillKind::Block);
+    if block.active {
+        block.tick_parry(time.delta());
+    }
 }
 
 pub fn sync_block_weapon(
@@ -62,7 +75,8 @@ pub fn sync_block_weapon(
     >,
     mut blocks: Query<&mut Transform, With<WeaponBlockFx>>,
 ) {
-    let Ok((entity, weapon, block, attack, special, animation, velocity)) = player.get_single() else {
+    let Ok((entity, weapon, block, attack, special, animation, velocity)) = player.get_single()
+    else {
         return;
     };
 
@@ -71,7 +85,10 @@ pub fn sync_block_weapon(
         && !special.is_some_and(|m| m.is_active())
         && matches!(
             weapon.0,
-            WeaponKind::RustySword | WeaponKind::IronSword | WeaponKind::SlimeBlade
+            WeaponKind::RustySword
+                | WeaponKind::IronSword
+                | WeaponKind::SlimeBlade
+                | WeaponKind::RustySpear
         );
     let bob = block_bob_offset(animation, velocity);
     let pose = block_pose(bob);

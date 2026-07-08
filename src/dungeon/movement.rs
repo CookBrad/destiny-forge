@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    charge_speed, special_blocks_movement, Health, PlayerAttack, PlayerBlock, PlayerFallDeath,
+    special_blocks_movement, special_move_speed, Health, PlayerAttack, PlayerBlock,
+    PlayerFallDeath,
     PlayerKnockback, PlayerSpecialMove, SpecialMoveKind,
 };
 use crate::graphics::{
@@ -101,7 +102,7 @@ pub fn dungeon_movement(
 
     if movement_locked {
         if let Some(special) = special {
-            velocity.x = special.charge_direction * charge_speed();
+            velocity.x = special_move_speed(special);
         }
     } else {
         let mut move_input = 0.0;
@@ -121,7 +122,13 @@ pub fn dungeon_movement(
 
     let jump_blocked = attack.is_active()
         || block.is_active()
-        || special.is_some_and(|m| m.is_active() && m.kind == SpecialMoveKind::Charge);
+        || special.is_some_and(|m| {
+            m.is_active()
+                && matches!(
+                    m.kind,
+                    crate::combat::SpecialMoveKind::Charge | crate::combat::SpecialMoveKind::Thrust
+                )
+        });
 
     if !under_knockback && !jump_blocked && keyboard.just_pressed(KeyCode::Space) {
         if velocity.grounded {

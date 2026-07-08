@@ -77,7 +77,9 @@ pub const ALL_RECIPES: &[&Recipe] = &[
 pub fn recipe_set_bonus_hint(recipe: &Recipe) -> Option<&'static str> {
     match recipe.output {
         RecipeOutput::Armor(_, _) => {
-            Some("Set bonus: 2pc +10% carve speed · 4pc 35% knockback resist")
+            Some(
+                "Set: 2pc +10% carve & −10% special CD · 4pc 35% KB resist & +10% attack",
+            )
         }
         _ => None,
     }

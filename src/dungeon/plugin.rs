@@ -6,15 +6,16 @@ use crate::combat::{
     enemy_shoot_projectiles, finish_player_death, hide_death_weapons, move_enemy_projectiles,
     resolve_deflected_projectile_hits, resolve_enemy_projectiles, resolve_special_move_hits,
     resolve_weapon_hits, start_player_attack, start_player_special_moves, sync_block_weapon,
-    sync_sheathed_weapon, tick_hit_flash, tick_player_attack, tick_player_death,
-    tick_player_hit_flash, tick_player_special_moves, update_player_block,
+    sync_sheathed_weapon, tick_hit_flash, tick_hit_stop, tick_player_attack, tick_player_death,
+    tick_player_hit_flash, tick_player_special_moves, tick_special_cooldowns, update_player_block,
+    HitStop, SpecialCooldownState,
 };
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::ui::inventory_window::inventory_closed;
 use crate::graphics::{follow_camera, init_dungeon_camera};
 
 use super::animation::animate_player;
-use super::boss::{resolve_boss_hazards, tick_boss_attacks};
+use super::boss::{resolve_boss_hazards, tick_boss_attacks, tick_boss_phase_flash};
 use super::carve::carve_corpses;
 use super::enemy::track_boss_defeat;
 use super::enemy_movement::move_enemies;
@@ -27,6 +28,8 @@ pub struct DungeonPlugin;
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<super::carve::CarveState>()
+            .init_resource::<HitStop>()
+            .init_resource::<SpecialCooldownState>()
             .add_systems(
             OnEnter(GameState::Dungeon),
             (
@@ -71,6 +74,8 @@ impl Plugin for DungeonPlugin {
                 Update,
                 (
                     (
+                        tick_hit_stop,
+                        tick_special_cooldowns,
                         update_player_block,
                         start_player_attack,
                         start_player_special_moves,
@@ -92,6 +97,7 @@ impl Plugin for DungeonPlugin {
                         apply_enemy_contact_damage,
                         tick_hit_flash,
                         tick_boss_attacks,
+                        tick_boss_phase_flash,
                         move_enemies,
                         resolve_boss_hazards,
                         enemy_shoot_projectiles,

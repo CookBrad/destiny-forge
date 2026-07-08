@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use super::weapon::{WeaponFamily, WeaponKind};
+
 pub const SKILL_SLOT_COUNT: usize = 9;
 const ICON_TILE: f32 = 16.0;
 
@@ -19,6 +21,14 @@ impl SkillKind {
             Self::Block => "Block",
             Self::Charge => "Charge",
             Self::Spin => "Spin",
+        }
+    }
+
+    /// Label adjusted for equipped weapon (Spin → Thrust on spears).
+    pub fn label_for_weapon(&self, weapon: WeaponKind) -> &'static str {
+        match (self, weapon.family()) {
+            (Self::Spin, WeaponFamily::Spear) => "Thrust",
+            _ => self.label(),
         }
     }
 

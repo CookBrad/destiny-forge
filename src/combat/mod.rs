@@ -3,6 +3,7 @@ mod block;
 mod health;
 mod hits;
 mod hitbox;
+mod hit_stop;
 mod player_block;
 mod player_death;
 mod player_hurt;
@@ -16,11 +17,13 @@ pub use attack::{
     sync_sheathed_weapon, tick_hit_flash, tick_player_attack, EnemyCorpse, PlayerAttack,
 };
 pub use block::{despawn_block_weapon, sync_block_weapon, update_player_block};
+pub use hit_stop::{tick_hit_stop, HitStop};
 pub use player_block::PlayerBlock;
 pub use special_moves::{
-    animate_special_weapon, charge_speed, cleanup_special_weapon, special_blocks_movement,
-    resolve_special_move_hits, start_player_special_moves, tick_player_special_moves,
-    PlayerSpecialMove, SpecialMoveKind,
+    animate_special_weapon, charge_speed, cleanup_special_weapon, resolve_special_move_hits,
+    special_blocks_movement, special_move_speed, start_player_special_moves,
+    tick_player_special_moves, tick_special_cooldowns, PlayerSpecialMove, SpecialCooldownState,
+    SpecialMoveKind,
 };
 pub use player_death::{
     animate_player_death, detect_player_death, finish_player_death, hide_death_weapons,

@@ -303,8 +303,15 @@ pub fn resolve_enemy_projectiles(
         ),
         (With<DungeonPlayer>, Without<EnemyProjectile>),
     >,
-    projectiles: Query<
-        (Entity, &Transform, &EnemyProjectile, &DeflectedProjectile),
+    mut projectiles: Query<
+        (
+            Entity,
+            &mut Transform,
+            &EnemyProjectile,
+            &mut ProjectileVelocity,
+            &mut Sprite,
+            &mut DeflectedProjectile,
+        ),
         (With<EnemyProjectile>, Without<DungeonPlayer>),
     >,
 ) {
@@ -324,7 +331,9 @@ pub fn resolve_enemy_projectiles(
     let guard = sword_guard_aabb(player_transform);
     let mut took_damage_this_frame = false;
 
-    for (projectile_entity, transform, projectile, deflected) in &projectiles {
+    for (projectile_entity, mut transform, projectile, mut velocity, mut sprite, mut deflected) in
+        &mut projectiles
+    {
         if deflected.active {
             continue;
         }
@@ -333,8 +342,18 @@ pub fn resolve_enemy_projectiles(
         let projectile_hit = projectile_rect(center);
 
         if block.is_active() && hitbox_overlaps(guard, projectile_hit) {
-            commands.entity(projectile_entity).try_despawn();
-            sfx.send(CombatSfx::Parry);
+            if block.in_parry_window() {
+                velocity.0 = -velocity.0 * DEFLECT_SPEED_MULT;
+                let angle = velocity.0.y.atan2(velocity.0.x) - FRAC_PI_2;
+                transform.rotation = Quat::from_rotation_z(angle);
+                sprite.color = Color::srgb(1.0, 0.95, 0.55);
+                deflected.active = true;
+                deflected.hit_entities.clear();
+                sfx.send(CombatSfx::Parry);
+            } else {
+                commands.entity(projectile_entity).try_despawn();
+                sfx.send(CombatSfx::Block);
+            }
             continue;
         }
 

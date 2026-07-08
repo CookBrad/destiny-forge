@@ -72,7 +72,13 @@ pub fn apply_enemy_contact_damage(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
-        (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
+        (
+            Entity,
+            &Transform,
+            &mut Health,
+            &mut ContactDamageCooldown,
+            &super::player_block::PlayerBlock,
+        ),
         (With<crate::dungeon::DungeonPlayer>, Without<PlayerHitFlash>),
     >,
     enemies: Query<
@@ -88,7 +94,8 @@ pub fn apply_enemy_contact_damage(
         ),
     >,
 ) {
-    let Ok((entity, player_transform, mut health, mut cooldown)) = player.get_single_mut() else {
+    let Ok((entity, player_transform, mut health, mut cooldown, block)) = player.get_single_mut()
+    else {
         return;
     };
 
@@ -126,16 +133,34 @@ pub fn apply_enemy_contact_damage(
     if touching {
         cooldown.0.tick(time.delta());
         if cooldown.0.finished() {
-            health.take_damage(damage_amount(contact_damage, loadout.total_defense()));
+            // Perfect parry nullifies one contact hit.
+            if block.in_parry_window() {
+                sfx.send(CombatSfx::Parry);
+                cooldown.0 = Timer::from_seconds(CONTACT_DAMAGE_INTERVAL, TimerMode::Once);
+                return;
+            }
+
+            // Guard reduces contact damage while held.
+            let defense_bonus = if block.is_active() {
+                loadout.total_defense() + contact_damage * 0.5
+            } else {
+                loadout.total_defense()
+            };
+
+            health.take_damage(damage_amount(contact_damage, defense_bonus));
             apply_player_hurt(
                 &mut commands,
                 entity,
                 player_transform,
                 hurt_source,
-                1.0,
+                if block.is_active() { 0.45 } else { 1.0 },
                 loadout.knockback_resist(),
             );
-            sfx.send(CombatSfx::EnemyMelee);
+            sfx.send(if block.is_active() {
+                CombatSfx::Block
+            } else {
+                CombatSfx::EnemyMelee
+            });
             cooldown.0 = Timer::from_seconds(CONTACT_DAMAGE_INTERVAL, TimerMode::Once);
         }
     } else {

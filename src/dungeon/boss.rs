@@ -17,11 +17,8 @@ use super::setup::DungeonEntity;
 use super::sprites::DungeonArt;
 
 const BOSS_ATTACK_RANGE: f32 = 22.0 * TILE;
-const BOSS_REST_MIN: f32 = 2.0;
-const BOSS_REST_MAX: f32 = 3.4;
 
 const BOSS_COLOR_IDLE: Color = Color::srgb(0.55, 0.95, 0.45);
-const BOSS_COLOR_WINDUP: Color = Color::srgb(1.0, 0.62, 0.18);
 const BOSS_COLOR_RELEASE: Color = Color::srgb(0.72, 1.0, 0.55);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +61,8 @@ pub struct BossAttackController {
     pub windup_timer: Option<Timer>,
     pub pending: Option<BossAttackKind>,
     pub last_kind: Option<BossAttackKind>,
+    /// 1 = openers only, 2 = mid patterns, 3 = all + aggressive rest.
+    pub phase: u8,
 }
 
 impl BossAttackController {
@@ -73,7 +72,32 @@ impl BossAttackController {
             windup_timer: None,
             pending: None,
             last_kind: None,
+            phase: 1,
         }
+    }
+}
+
+/// Brief white flash when King Slime changes phase.
+#[derive(Component)]
+pub struct BossPhaseFlash {
+    pub timer: Timer,
+}
+
+fn phase_for_health(health_ratio: f32) -> u8 {
+    if health_ratio > 0.66 {
+        1
+    } else if health_ratio > 0.33 {
+        2
+    } else {
+        3
+    }
+}
+
+fn rest_range_for_phase(phase: u8) -> (f32, f32) {
+    match phase {
+        1 => (2.2, 3.6),
+        2 => (1.7, 2.9),
+        _ => (1.15, 2.1),
     }
 }
 
@@ -126,6 +150,16 @@ pub fn tick_boss_attacks(
             continue;
         }
 
+        let health_ratio = health.fraction();
+        let new_phase = phase_for_health(health_ratio);
+        if new_phase > controller.phase {
+            controller.phase = new_phase;
+            commands.entity(entity).insert(BossPhaseFlash {
+                timer: Timer::from_seconds(0.35, TimerMode::Once),
+            });
+            sfx.send(CombatSfx::BossCharge);
+        }
+
         let boss_pos = transform.translation.truncate();
         let to_player = player_pos - boss_pos;
         let distance = to_player.length();
@@ -146,7 +180,13 @@ pub fn tick_boss_attacks(
 
         if let Some(windup) = controller.windup_timer.as_mut() {
             windup.tick(time.delta());
-            sprite.color = BOSS_COLOR_WINDUP;
+            // Stronger telegraph: pulse orange during windup.
+            let pulse = ((time.elapsed_secs() * 10.0).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
+            sprite.color = Color::srgb(
+                1.0,
+                0.45 + 0.25 * pulse,
+                0.12 + 0.1 * pulse,
+            );
 
             if windup.finished() {
                 if let Some(kind) = controller.pending.take() {
@@ -164,8 +204,9 @@ pub fn tick_boss_attacks(
                     sprite.color = BOSS_COLOR_RELEASE;
                 }
                 controller.windup_timer = None;
+                let (lo, hi) = rest_range_for_phase(controller.phase);
                 controller.rest_timer =
-                    Timer::from_seconds(rand::thread_rng().gen_range(BOSS_REST_MIN..=BOSS_REST_MAX), TimerMode::Once);
+                    Timer::from_seconds(rand::thread_rng().gen_range(lo..=hi), TimerMode::Once);
             }
             continue;
         }
@@ -177,11 +218,31 @@ pub fn tick_boss_attacks(
             continue;
         }
 
-        let health_ratio = health.fraction();
-        let kind = pick_attack(controller.last_kind, health_ratio);
+        let kind = pick_attack(controller.last_kind, controller.phase);
         controller.pending = Some(kind);
-        controller.windup_timer = Some(Timer::from_seconds(kind.windup_secs(), TimerMode::Once));
+        // Phase 3 winds up slightly faster for pressure.
+        let windup = if controller.phase >= 3 {
+            kind.windup_secs() * 0.85
+        } else {
+            kind.windup_secs()
+        };
+        controller.windup_timer = Some(Timer::from_seconds(windup, TimerMode::Once));
         controller.rest_timer.reset();
+    }
+}
+
+pub fn tick_boss_phase_flash(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut flashes: Query<(Entity, &mut BossPhaseFlash, &mut Sprite), With<KingSlimeBoss>>,
+) {
+    for (entity, mut flash, mut sprite) in &mut flashes {
+        flash.timer.tick(time.delta());
+        sprite.color = Color::srgb(1.0, 1.0, 1.0);
+        if flash.timer.finished() {
+            sprite.color = BOSS_COLOR_IDLE;
+            commands.entity(entity).remove::<BossPhaseFlash>();
+        }
     }
 }
 
@@ -249,25 +310,47 @@ pub fn resolve_boss_hazards(
     }
 }
 
-fn pick_attack(last: Option<BossAttackKind>, health_ratio: f32) -> BossAttackKind {
+fn pick_attack(last: Option<BossAttackKind>, phase: u8) -> BossAttackKind {
     let mut rng = rand::thread_rng();
-    let candidates: Vec<BossAttackKind> = BossAttackKind::all()
-        .into_iter()
+
+    let phase_pool: &[BossAttackKind] = match phase {
+        1 => &[BossAttackKind::SlimeBolt, BossAttackKind::TripleSpread],
+        2 => &[
+            BossAttackKind::SlimeBolt,
+            BossAttackKind::TripleSpread,
+            BossAttackKind::SlimeRain,
+            BossAttackKind::RingBurst,
+            BossAttackKind::GroundSlam,
+        ],
+        _ => &[
+            BossAttackKind::SlimeBolt,
+            BossAttackKind::TripleSpread,
+            BossAttackKind::SlimeRain,
+            BossAttackKind::RingBurst,
+            BossAttackKind::GroundSlam,
+            BossAttackKind::RoyalCharge,
+        ],
+    };
+
+    let mut pool: Vec<BossAttackKind> = phase_pool
+        .iter()
+        .copied()
         .filter(|kind| Some(*kind) != last)
         .collect();
 
-    let mut pool = if candidates.is_empty() {
-        BossAttackKind::all().to_vec()
-    } else {
-        candidates
-    };
+    if pool.is_empty() {
+        pool = phase_pool.to_vec();
+    }
 
-    if health_ratio < 0.45 {
+    // Weight heavier patterns more in late phases.
+    if phase >= 3 {
         pool.extend([
-            BossAttackKind::RingBurst,
-            BossAttackKind::SlimeRain,
             BossAttackKind::GroundSlam,
+            BossAttackKind::RoyalCharge,
+            BossAttackKind::SlimeRain,
         ]);
+    } else if phase == 2 {
+        pool.extend([BossAttackKind::GroundSlam, BossAttackKind::RingBurst]);
     }
 
     pool[rng.gen_range(0..pool.len())]

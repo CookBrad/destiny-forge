@@ -77,8 +77,8 @@ pub fn animate_player(
     if attack.is_active() {
         preserve_facing(&mut animation, &transform);
 
-        let progress =
-            (attack.timer.elapsed_secs() / attack.weapon.stats().swing_secs).clamp(0.0, 1.0);
+        let step_duration = attack.step().duration.max(0.01);
+        let progress = (attack.timer.elapsed_secs() / step_duration).clamp(0.0, 1.0);
         let frame = (progress * PLAYER_ATTACK_FRAMES as f32)
             .floor()
             .min((PLAYER_ATTACK_FRAMES - 1) as f32) as usize;

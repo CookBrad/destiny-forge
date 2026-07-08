@@ -2,8 +2,11 @@ use bevy::prelude::*;
 use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
 
-use crate::combat::{SkillBindings, SkillIconAssets, SKILL_SLOT_COUNT};
+use crate::combat::{
+    SkillBindings, SkillIconAssets, SkillKind, SpecialCooldownState, SKILL_SLOT_COUNT,
+};
 use crate::core::ProfileDirty;
+use crate::player::Loadout;
 
 #[derive(Component)]
 pub struct SkillBarHud;
@@ -20,6 +23,11 @@ pub struct SkillSlotImage {
 
 #[derive(Component, Clone, Copy)]
 pub struct SkillSlotNameLabel {
+    pub slot_index: usize,
+}
+
+#[derive(Component, Clone, Copy)]
+pub struct SkillSlotCooldownOverlay {
     pub slot_index: usize,
 }
 
@@ -87,6 +95,8 @@ fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
                 align_items: AlignItems::Center,
                 padding: UiRect::all(Val::Px(3.0)),
                 border: UiRect::all(Val::Px(2.0)),
+                // Absolute cooldown overlay is positioned relative to this slot.
+                overflow: Overflow::clip(),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.08, 0.08, 0.12, 0.92)),
@@ -116,6 +126,18 @@ fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
                 Visibility::Hidden,
             ));
             slot.spawn((
+                SkillSlotCooldownOverlay { slot_index: index },
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Px(ICON_SIZE),
+                    height: Val::Px(0.0),
+                    bottom: Val::Px(16.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.05, 0.06, 0.1, 0.72)),
+                Visibility::Hidden,
+            ));
+            slot.spawn((
                 SkillSlotNameLabel { slot_index: index },
                 Text::new(""),
                 TextFont {
@@ -130,6 +152,8 @@ fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
 
 pub fn sync_skill_bar(
     bindings: Res<SkillBindings>,
+    cooldowns: Res<SpecialCooldownState>,
+    loadout: Res<Loadout>,
     drag: Res<SkillBarDrag>,
     icon_assets: Res<SkillIconAssets>,
     mut slots: Query<
@@ -149,6 +173,18 @@ pub fn sync_skill_bar(
         (&SkillSlotNameLabel, &mut Text, &mut Visibility),
         (With<SkillSlotNameLabel>, Without<SkillSlotImage>),
     >,
+    mut overlays: Query<
+        (
+            &SkillSlotCooldownOverlay,
+            &mut Node,
+            &mut Visibility,
+        ),
+        (
+            With<SkillSlotCooldownOverlay>,
+            Without<SkillSlotImage>,
+            Without<SkillSlotNameLabel>,
+        ),
+    >,
 ) {
     for (slot, interaction, mut bg, mut border) in &mut slots {
         apply_slot_highlight(slot, interaction, drag.from_slot, &mut bg, &mut border);
@@ -159,7 +195,13 @@ pub fn sync_skill_bar(
         if let Some(skill) = bindings.slots[image.slot_index] {
             node.image = icon_assets.handle_for(skill);
             node.rect = Some(skill.icon_rect());
-            node.color = Color::WHITE;
+            let on_cd = matches!(skill, SkillKind::Charge | SkillKind::Spin)
+                && cooldowns.remaining_for_skill(skill) > 0.0;
+            node.color = if on_cd {
+                Color::srgba(0.55, 0.55, 0.6, 0.85)
+            } else {
+                Color::WHITE
+            };
             *visibility = if dragging {
                 Visibility::Hidden
             } else {
@@ -170,11 +212,32 @@ pub fn sync_skill_bar(
         }
     }
 
+    for (overlay, mut node, mut visibility) in &mut overlays {
+        let skill = bindings.slots[overlay.slot_index];
+        let remaining = skill
+            .map(|s| cooldowns.remaining_for_skill(s))
+            .unwrap_or(0.0);
+        let is_special = matches!(skill, Some(SkillKind::Charge) | Some(SkillKind::Spin));
+        if is_special && remaining > 0.0 {
+            // Approximate max CD for fill (Charge 4s / Spin 5s base).
+            let max_cd = match skill {
+                Some(SkillKind::Charge) => 4.0,
+                Some(SkillKind::Spin) => 5.0,
+                _ => 4.0,
+            };
+            let fraction = (remaining / max_cd).clamp(0.0, 1.0);
+            node.height = Val::Px(ICON_SIZE * fraction);
+            *visibility = Visibility::Visible;
+        } else {
+            node.height = Val::Px(0.0);
+            *visibility = Visibility::Hidden;
+        }
+    }
+
     for (label, mut text, mut visibility) in &mut names {
         let dragging = drag.from_slot == Some(label.slot_index);
-        let next = bindings
-            .slots[label.slot_index]
-            .map(|skill| skill.label())
+        let next = bindings.slots[label.slot_index]
+            .map(|skill| skill.label_for_weapon(loadout.weapon))
             .unwrap_or("");
         if text.as_str() != next {
             text.0 = next.to_string();
