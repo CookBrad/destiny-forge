@@ -51,6 +51,7 @@ pub struct GeneratedFloor {
     pub enemies: Vec<EnemySpawn>,
     pub bats: Vec<BatSpawn>,
     pub boss: BossSpawn,
+    pub has_boss: bool,
     pub player_start_x: f32,
     pub ladder_tile: u32,
 }

@@ -12,7 +12,7 @@ use super::health_bars::{
 };
 use super::forge_window::{
     cleanup_forge_window, forge_window_open, handle_forge_close_input, handle_forge_craft_input,
-    sync_forge_display, ForgeWindowOpen,
+    handle_forge_recipe_cycle, sync_forge_display, ForgeSelectedRecipe, ForgeWindowOpen,
 };
 use super::inventory_window::{
     cleanup_inventory_window, handle_inventory_close_button, handle_inventory_slot_click,
@@ -55,6 +55,7 @@ impl Plugin for UiPlugin {
             .init_resource::<InventoryWindowOpen>()
             .init_resource::<InventorySelectedSlot>()
             .init_resource::<ForgeWindowOpen>()
+            .init_resource::<ForgeSelectedRecipe>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -150,6 +151,7 @@ impl Plugin for UiPlugin {
                 Update,
                 (
                     handle_forge_close_input,
+                    handle_forge_recipe_cycle,
                     handle_forge_craft_input,
                     sync_forge_display,
                 )

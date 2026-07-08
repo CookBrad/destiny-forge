@@ -59,10 +59,9 @@ pub fn player_sword_hit_rect(player: &Transform, attack: &PlayerAttack) -> Optio
     }
 
     match attack.weapon {
-        WeaponKind::RustySword | WeaponKind::IronSword => Some(sword_swing_aabb(
-            player,
-            swing_angle(sword_arc_progress(attack)),
-        )),
+        WeaponKind::RustySword | WeaponKind::IronSword | WeaponKind::SlimeBlade => Some(
+            sword_swing_aabb(player, swing_angle(sword_arc_progress(attack))),
+        ),
         WeaponKind::RustySpear => None,
     }
 }
@@ -184,7 +183,10 @@ pub fn sync_sheathed_weapon(
     };
 
     let visible = !player_is_busy(attack, block, special)
-        && matches!(weapon.0, WeaponKind::RustySword | WeaponKind::IronSword);
+        && matches!(
+            weapon.0,
+            WeaponKind::RustySword | WeaponKind::IronSword | WeaponKind::SlimeBlade
+        );
     let bob = sheathed_bob_offset(animation, velocity);
 
     for (mut transform, mut visibility) in &mut sheathed {
@@ -326,7 +328,7 @@ pub fn tick_hit_flash(
 
 fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> HitRect {
     match attack.weapon {
-        WeaponKind::RustySword | WeaponKind::IronSword => {
+        WeaponKind::RustySword | WeaponKind::IronSword | WeaponKind::SlimeBlade => {
             sword_swing_hitbox(player, attack, facing)
         }
         WeaponKind::RustySpear => spear_swing_hitbox(player, attack.weapon.stats(), facing),

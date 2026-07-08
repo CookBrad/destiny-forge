@@ -14,7 +14,9 @@ use super::attack::{player_sword_hit_rect, HitFlash, PlayerAttack};
 use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
 use super::hitbox::{enemy_aabb, hitbox_overlaps, player_body_rect, sword_guard_aabb, HitRect};
 use super::player_block::PlayerBlock;
-use super::health::{ContactDamageCooldown, Health};
+use crate::player::Loadout;
+
+use super::health::{damage_amount, ContactDamageCooldown, Health};
 use super::player_hurt::{apply_player_hurt, PlayerHitFlash};
 
 #[derive(Component)]
@@ -287,6 +289,7 @@ pub fn resolve_deflected_projectile_hits(
 
 pub fn resolve_enemy_projectiles(
     time: Res<Time>,
+    loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -337,13 +340,14 @@ pub fn resolve_enemy_projectiles(
 
         if hitbox_overlaps(body, projectile_hit) {
             if hit_flash.is_none() && !took_damage_this_frame && cooldown.0.finished() {
-                health.take_damage(projectile.damage);
+                health.take_damage(damage_amount(projectile.damage, loadout.total_defense()));
                 apply_player_hurt(
                     &mut commands,
                     player_entity,
                     player_transform,
                     center,
                     0.85,
+                    loadout.knockback_resist(),
                 );
                 sfx.send(CombatSfx::PlayerHurt);
                 cooldown.0 = Timer::from_seconds(PROJECTILE_DAMAGE_INTERVAL, TimerMode::Once);

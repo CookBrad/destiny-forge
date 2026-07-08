@@ -351,15 +351,15 @@ Armor is organized in **sets** with **slot pieces** and **set bonuses**:
 
 Build in dependency order:
 
-1. [ ] Greenfield Bevy project structure (see [Architecture](#architecture))
-2. [ ] App states: Hub ↔ Dungeon transitions
-3. [ ] Side-scroller dungeon: one floor, platforms, player controller
-4. [ ] Basic combat: attack, damage, death, respawn at hub
-5. [ ] 1–2 monster types with carve loot tables
-6. [ ] Carve interaction + material inventory
-7. [ ] Hub stub: spawn, forge, dungeon entrance
-8. [ ] Forge: craft Sword line (Rusty → Iron → Slime Blade)
-9. [ ] Forge: craft Spear line (Rusty Spear) + Slime Set (4 pieces, set bonuses)
+1. [x] Greenfield Bevy project structure (see [Architecture](#architecture))
+2. [x] App states: Hub ↔ Dungeon transitions
+3. [x] Side-scroller dungeon: one floor, platforms, player controller
+4. [x] Basic combat: attack, damage, death, respawn at hub
+5. [x] 1–2 monster types with carve loot tables
+6. [x] Carve interaction + material inventory
+7. [x] Hub stub: spawn, forge, dungeon entrance
+8. [x] Forge: craft Sword line (Rusty → Iron → Slime Blade)
+9. [x] Forge: craft Spear line (Rusty Spear) + Slime Set (4 pieces, set bonuses)
 
 **Done when:** [Vertical Slice](#vertical-slice) is playable end-to-end.
 

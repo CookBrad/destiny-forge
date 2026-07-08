@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::audio::CombatSfx;
+use crate::player::Loadout;
 
 use super::player_hurt::{apply_player_hurt, PlayerHitFlash};
 
@@ -67,6 +68,7 @@ impl Default for ContactDamageCooldown {
 
 pub fn apply_enemy_contact_damage(
     time: Res<Time>,
+    loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -124,8 +126,15 @@ pub fn apply_enemy_contact_damage(
     if touching {
         cooldown.0.tick(time.delta());
         if cooldown.0.finished() {
-            health.take_damage(contact_damage);
-            apply_player_hurt(&mut commands, entity, player_transform, hurt_source, 1.0);
+            health.take_damage(damage_amount(contact_damage, loadout.total_defense()));
+            apply_player_hurt(
+                &mut commands,
+                entity,
+                player_transform,
+                hurt_source,
+                1.0,
+                loadout.knockback_resist(),
+            );
             sfx.send(CombatSfx::EnemyMelee);
             cooldown.0 = Timer::from_seconds(CONTACT_DAMAGE_INTERVAL, TimerMode::Once);
         }

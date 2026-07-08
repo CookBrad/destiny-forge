@@ -11,6 +11,14 @@ pub enum ArmorKind {
     SlimeGreaves,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ArmorSlot {
+    Head,
+    Chest,
+    Arms,
+    Legs,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArmorSlots {
     pub head: Option<ArmorKind>,
@@ -34,6 +42,46 @@ impl Default for Loadout {
     }
 }
 
+impl ArmorKind {
+    pub fn slot(self) -> ArmorSlot {
+        match self {
+            Self::SlimeHelm => ArmorSlot::Head,
+            Self::SlimeMail => ArmorSlot::Chest,
+            Self::SlimeGauntlets => ArmorSlot::Arms,
+            Self::SlimeGreaves => ArmorSlot::Legs,
+        }
+    }
+
+    pub fn defense(self) -> f32 {
+        match self {
+            Self::SlimeHelm => 2.0,
+            Self::SlimeMail => 4.0,
+            Self::SlimeGauntlets => 1.0,
+            Self::SlimeGreaves => 2.0,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::SlimeHelm => "Slime Helm",
+            Self::SlimeMail => "Slime Mail",
+            Self::SlimeGauntlets => "Slime Gauntlets",
+            Self::SlimeGreaves => "Slime Greaves",
+        }
+    }
+}
+
+impl ArmorSlots {
+    pub fn set(&mut self, kind: ArmorKind) {
+        match kind.slot() {
+            ArmorSlot::Head => self.head = Some(kind),
+            ArmorSlot::Chest => self.chest = Some(kind),
+            ArmorSlot::Arms => self.arms = Some(kind),
+            ArmorSlot::Legs => self.legs = Some(kind),
+        }
+    }
+}
+
 impl Loadout {
     pub fn equipped_weapon(&self) -> EquippedWeapon {
         EquippedWeapon(self.weapon)
@@ -44,6 +92,47 @@ impl Loadout {
             WeaponKind::RustySword => "Rusty Sword",
             WeaponKind::RustySpear => "Rusty Spear",
             WeaponKind::IronSword => "Iron Sword",
+            WeaponKind::SlimeBlade => "Slime Blade",
+        }
+    }
+
+    pub fn total_defense(&self) -> f32 {
+        let mut total = 0.0;
+        if let Some(kind) = self.armor.head {
+            total += kind.defense();
+        }
+        if let Some(kind) = self.armor.chest {
+            total += kind.defense();
+        }
+        if let Some(kind) = self.armor.arms {
+            total += kind.defense();
+        }
+        if let Some(kind) = self.armor.legs {
+            total += kind.defense();
+        }
+        total
+    }
+
+    pub fn slime_set_pieces(&self) -> u32 {
+        [self.armor.head, self.armor.chest, self.armor.arms, self.armor.legs]
+            .into_iter()
+            .filter(|piece| piece.is_some())
+            .count() as u32
+    }
+
+    pub fn carve_speed_multiplier(&self) -> f32 {
+        if self.slime_set_pieces() >= 2 {
+            1.1
+        } else {
+            1.0
+        }
+    }
+
+    pub fn knockback_resist(&self) -> f32 {
+        if self.slime_set_pieces() >= 4 {
+            0.35
+        } else {
+            0.0
         }
     }
 }

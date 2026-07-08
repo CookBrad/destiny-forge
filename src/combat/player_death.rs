@@ -2,7 +2,8 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::core::DungeonPlayState;
+use crate::core::{DungeonPlayState, GameState, ProfileDirty};
+use crate::overworld::setup::OverworldEntry;
 use crate::dungeon::{
     player_frame_rect, player_half_extents, DungeonArt, DungeonPlayer, PlatformCollider,
     PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES,
@@ -52,6 +53,8 @@ impl PlayerDeath {
 pub fn detect_player_death(
     mut commands: Commands,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
+    mut next_game: ResMut<NextState<GameState>>,
+    mut profile_dirty: ResMut<ProfileDirty>,
     player: Query<
         (
             Entity,
@@ -82,7 +85,9 @@ pub fn detect_player_death(
             PlayerHitFlash,
             PlayerFallDeath,
         )>();
-        next_play.set(DungeonPlayState::Dead);
+        profile_dirty.mark();
+        commands.insert_resource(OverworldEntry::DungeonReturn);
+        next_game.set(GameState::Overworld);
         return;
     }
 
@@ -230,15 +235,19 @@ pub fn animate_player_death(
 }
 
 pub fn finish_player_death(
+    mut commands: Commands,
     player: Query<&PlayerDeath, With<DungeonPlayer>>,
-    mut next_play: ResMut<NextState<DungeonPlayState>>,
+    mut next_game: ResMut<NextState<GameState>>,
+    mut profile_dirty: ResMut<ProfileDirty>,
 ) {
     let Ok(death) = player.get_single() else {
         return;
     };
 
     if death.is_finished() {
-        next_play.set(DungeonPlayState::Dead);
+        profile_dirty.mark();
+        commands.insert_resource(OverworldEntry::DungeonReturn);
+        next_game.set(GameState::Overworld);
     }
 }
 

@@ -68,6 +68,7 @@ pub fn generate_floor(seed: u64) -> GeneratedFloor {
         enemies,
         bats,
         boss,
+        has_boss: true,
         player_start_x: PLAYER_START_X,
         ladder_tile,
     }

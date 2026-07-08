@@ -53,10 +53,12 @@ pub fn apply_player_hurt(
     player_transform: &Transform,
     source: Vec2,
     knockback_strength: f32,
+    knockback_resist: f32,
 ) {
+    let strength = knockback_strength * (1.0 - knockback_resist.clamp(0.0, 0.95));
     commands.entity(player).insert((
         PlayerHitFlash::new(),
-        PlayerKnockback::away_from(source, player_transform, knockback_strength),
+        PlayerKnockback::away_from(source, player_transform, strength),
     ));
 }
 

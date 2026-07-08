@@ -35,7 +35,8 @@ pub use projectile::{
     EnemyProjectile, ProjectileLifetime, ProjectileVelocity,
 };
 pub use health::{
-    apply_enemy_contact_damage, health_bar_color, ContactDamageCooldown, Health, PLAYER_MAX_HEALTH,
+    apply_enemy_contact_damage, damage_amount, health_bar_color, ContactDamageCooldown, Health,
+    PLAYER_MAX_HEALTH,
 };
 pub use skills::{SkillBindings, SkillIconAssets, SkillKind, SKILL_SLOT_COUNT};
 pub use weapon::{EquippedWeapon, WeaponKind};

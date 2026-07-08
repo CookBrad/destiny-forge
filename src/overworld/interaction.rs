@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
-use crate::ui::forge_window::{open_forge_window, ForgeWindowOpen};
+use crate::player::Loadout;
+use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::graphics::INTERACT_DISTANCE;
 
@@ -16,6 +17,8 @@ pub fn overworld_interaction(
     forge_windows: Query<Entity, With<crate::ui::forge_window::ForgeWindow>>,
     mut time: ResMut<Time<Virtual>>,
     mut forge: ResMut<ForgeWindowOpen>,
+    mut forge_recipe: ResMut<ForgeSelectedRecipe>,
+    loadout: Res<Loadout>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -37,8 +40,10 @@ pub fn overworld_interaction(
             HomesteadZone::Forge if near && keyboard.just_pressed(KeyCode::KeyE) => {
                 open_forge_window(
                     &mut forge,
+                    &mut forge_recipe,
                     &mut commands,
                     &game_inventory,
+                    &loadout,
                     &forge_windows,
                     &mut time,
                 );

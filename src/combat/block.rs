@@ -69,7 +69,10 @@ pub fn sync_block_weapon(
     let show = block.is_active()
         && !attack.is_active()
         && !special.is_some_and(|m| m.is_active())
-        && matches!(weapon.0, WeaponKind::RustySword | WeaponKind::IronSword);
+        && matches!(
+            weapon.0,
+            WeaponKind::RustySword | WeaponKind::IronSword | WeaponKind::SlimeBlade
+        );
     let bob = block_bob_offset(animation, velocity);
     let pose = block_pose(bob);
 

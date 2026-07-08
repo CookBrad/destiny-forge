@@ -10,6 +10,7 @@ pub enum WeaponKind {
     RustySword,
     RustySpear,
     IronSword,
+    SlimeBlade,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -45,6 +46,13 @@ impl WeaponKind {
                 swing_secs: 0.28,
                 hit_start: 0.08,
                 hit_end: 0.18,
+            },
+            Self::SlimeBlade => WeaponStats {
+                attack_power: 18.0,
+                reach: 30.0,
+                swing_secs: 0.26,
+                hit_start: 0.07,
+                hit_end: 0.17,
             },
         }
     }

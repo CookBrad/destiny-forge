@@ -5,9 +5,10 @@ use std::f32::consts::FRAC_PI_2;
 
 use crate::audio::CombatSfx;
 use crate::combat::{
-    apply_player_hurt, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse, EnemyProjectile,
-    Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
+    apply_player_hurt, damage_amount, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse,
+    EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
+use crate::player::Loadout;
 use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
@@ -186,6 +187,7 @@ pub fn tick_boss_attacks(
 
 pub fn resolve_boss_hazards(
     time: Res<Time>,
+    loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -231,13 +233,14 @@ pub fn resolve_boss_hazards(
         if overlaps {
             cooldown.0.tick(time.delta());
             if cooldown.0.finished() {
-                health.take_damage(hazard.damage);
+                health.take_damage(damage_amount(hazard.damage, loadout.total_defense()));
                 apply_player_hurt(
                     &mut commands,
                     player_entity,
                     player_transform,
                     center,
                     1.1,
+                    loadout.knockback_resist(),
                 );
                 sfx.send(CombatSfx::GroundSlam);
                 cooldown.0 = Timer::from_seconds(0.5, TimerMode::Once);

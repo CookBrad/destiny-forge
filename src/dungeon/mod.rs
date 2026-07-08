@@ -4,6 +4,7 @@ mod carve;
 mod enemy;
 mod enemy_movement;
 mod enemy_stats;
+mod floor1;
 mod generation;
 mod interaction;
 mod level;
