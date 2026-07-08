@@ -16,6 +16,9 @@ pub enum MaterialId {
     PotatoSeed,
     Turnip,
     Potato,
+    // Homestead tools (inventory + hotbar)
+    Hoe,
+    WateringCan,
 }
 
 impl MaterialId {
@@ -33,6 +36,8 @@ impl MaterialId {
             Self::PotatoSeed => "Potato Seed",
             Self::Turnip => "Turnip",
             Self::Potato => "Potato",
+            Self::Hoe => "Hoe",
+            Self::WateringCan => "Watering Can",
         }
     }
 
@@ -48,18 +53,65 @@ impl MaterialId {
             Self::RotFlesh => "Unpleasant but useful zombie tissue.",
             Self::RoyalSlimeCore => "King Slime core. Gates the Slime Blade.",
             Self::TurnipSeed => {
-                "Plant on tilled soil (Seeds tool or hotbar). Grows in 2 watered days. Harvest with Hand."
+                "Drag to hotbar, select slot, Space on tilled soil. Grows in 2 watered days."
             }
             Self::PotatoSeed => {
-                "Plant on tilled soil. Grows in 3 watered days. Hearty crop for later cooking."
+                "Drag to hotbar, select slot, Space on tilled soil. Grows in 3 watered days."
             }
             Self::Turnip => "Fresh turnip harvest. Cooking uses this later for food buffs.",
             Self::Potato => "Starchy potato harvest. Good cooking ingredient (coming soon).",
+            Self::Hoe => "Drag to hotbar. Select slot, then Space to till soil for planting.",
+            Self::WateringCan => {
+                "Drag to hotbar. Select slot, then Space to water planted crops (3 energy)."
+            }
         }
     }
 
     pub fn is_seed(self) -> bool {
         matches!(self, Self::TurnipSeed | Self::PotatoSeed)
+    }
+
+    pub fn is_tool(self) -> bool {
+        matches!(self, Self::Hoe | Self::WateringCan)
+    }
+
+    /// Tools are not consumed on use; seeds/crops are stackables.
+    pub fn consumed_on_use(self) -> bool {
+        self.is_seed()
+    }
+
+    pub fn short_label(self) -> &'static str {
+        match self {
+            Self::Hoe => "Hoe",
+            Self::WateringCan => "Water",
+            Self::TurnipSeed => "T.Sd",
+            Self::PotatoSeed => "P.Sd",
+            Self::Turnip => "Trnp",
+            Self::Potato => "Pota",
+            other => {
+                // Fall back to first word of display name for hotbar.
+                match other {
+                    Self::SlimeGel => "Gel",
+                    Self::SlimeCore => "Core",
+                    Self::LeatherWing => "Wing",
+                    Self::Fang => "Fang",
+                    Self::IronScrap => "Iron",
+                    Self::BoneShard => "Bone",
+                    Self::RotFlesh => "Rot",
+                    Self::RoyalSlimeCore => "Royal",
+                    _ => "?",
+                }
+            }
+        }
+    }
+
+    pub fn energy_cost(self) -> f32 {
+        match self {
+            Self::Hoe => 5.0,
+            Self::WateringCan => 3.0,
+            m if m.is_seed() => 1.0,
+            _ => 0.0,
+        }
     }
 }
 

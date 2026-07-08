@@ -10,3 +10,5 @@ pub use hotbar::{HomesteadHotbar, HotbarEntry, HOTBAR_SLOT_COUNT};
 pub use plots::{advance_all_plots_on_sleep, spawn_crop_plots, CropPlot, PlayerFacing};
 pub use plugin::FarmingPlugin;
 pub use tools::{EquippedTool, HomesteadTool};
+
+// HomesteadTool remains for any legacy references; actions are inventory materials on the hotbar.

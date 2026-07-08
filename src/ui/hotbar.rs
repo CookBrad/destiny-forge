@@ -1,9 +1,10 @@
-//! Homestead inventory/action bar (overworld) — mirrors combat skill bar layout.
+//! Homestead hotbar — empty slots, drag items from inventory; selected = action.
 
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 
 use crate::farming::{HomesteadHotbar, HotbarEntry, HOTBAR_SLOT_COUNT};
-use crate::items::Inventory;
+use crate::items::{Inventory, MaterialId};
 
 #[derive(Component)]
 pub struct HotbarHud;
@@ -33,10 +34,24 @@ pub struct HotbarSlotCount {
     pub slot_index: usize,
 }
 
+#[derive(Component)]
+pub struct HotbarDragGhost;
+
+#[derive(Component)]
+pub struct HotbarDragGhostLabel;
+
+/// Drag payload from backpack → hotbar.
+#[derive(Resource, Default)]
+pub struct InventoryHotbarDrag {
+    pub material: Option<MaterialId>,
+    pub ghost: Option<Entity>,
+}
+
 const SLOT_WIDTH: f32 = 54.0;
 const SLOT_HEIGHT: f32 = 68.0;
 const SLOT_GAP: f32 = 6.0;
 const BAR_BOTTOM: f32 = 14.0;
+const GHOST_SIZE: f32 = 40.0;
 
 pub fn setup_hotbar(mut commands: Commands, hotbar: Res<HomesteadHotbar>) {
     spawn_hotbar(&mut commands, &hotbar);
@@ -86,7 +101,7 @@ fn spawn_hotbar_slot(
                 justify_content: JustifyContent::SpaceBetween,
                 align_items: AlignItems::Center,
                 padding: UiRect::all(Val::Px(3.0)),
-                border: UiRect::all(Val::Px(if selected { 2.0 } else { 2.0 })),
+                border: UiRect::all(Val::Px(2.0)),
                 overflow: Overflow::clip(),
                 ..default()
             },
@@ -145,7 +160,12 @@ fn spawn_hotbar_slot(
         });
 }
 
-pub fn cleanup_hotbar(mut commands: Commands, roots: Query<Entity, With<HotbarHud>>) {
+pub fn cleanup_hotbar(
+    mut commands: Commands,
+    roots: Query<Entity, With<HotbarHud>>,
+    mut drag: ResMut<InventoryHotbarDrag>,
+) {
+    clear_drag(&mut commands, &mut drag);
     for entity in &roots {
         commands.entity(entity).try_despawn_recursive();
     }
@@ -173,14 +193,123 @@ pub fn select_hotbar_slot_input(
     }
 }
 
+/// Click empty/assigned slot to select (highlighted = active action).
+/// Dropping a dragged inventory item assigns it.
+/// Right-click clears a slot.
 pub fn handle_hotbar_slot_clicks(
+    mouse: Res<ButtonInput<MouseButton>>,
     mut hotbar: ResMut<HomesteadHotbar>,
+    mut drag: ResMut<InventoryHotbarDrag>,
+    mut commands: Commands,
     interactions: Query<(&Interaction, &HotbarSlot), Changed<Interaction>>,
 ) {
     for (interaction, slot) in &interactions {
-        if *interaction == Interaction::Pressed {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+
+        if mouse.pressed(MouseButton::Right) {
+            hotbar.clear_slot(slot.index);
+            clear_drag(&mut commands, &mut drag);
+            continue;
+        }
+
+        if let Some(material) = drag.material.take() {
+            hotbar.assign(slot.index, material);
+            clear_drag(&mut commands, &mut drag);
+        } else {
             hotbar.select(slot.index);
         }
+    }
+}
+
+pub fn cancel_hotbar_drag_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut drag: ResMut<InventoryHotbarDrag>,
+    mut commands: Commands,
+) {
+    if drag.material.is_none() {
+        return;
+    }
+    if keyboard.just_pressed(KeyCode::Escape) || mouse.just_released(MouseButton::Right) {
+        clear_drag(&mut commands, &mut drag);
+    }
+}
+
+pub fn update_hotbar_drag_ghost(
+    mut commands: Commands,
+    mut drag: ResMut<InventoryHotbarDrag>,
+    window: Query<&Window, With<PrimaryWindow>>,
+    mut ghosts: Query<&mut Node, With<HotbarDragGhost>>,
+    mut labels: Query<&mut Text, With<HotbarDragGhostLabel>>,
+) {
+    let Ok(window) = window.get_single() else {
+        return;
+    };
+
+    let Some(material) = drag.material else {
+        clear_drag(&mut commands, &mut drag);
+        return;
+    };
+
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let left = cursor.x - GHOST_SIZE * 0.5;
+    let top = cursor.y - GHOST_SIZE * 0.5;
+
+    if drag.ghost.is_none() {
+        let ghost = commands
+            .spawn((
+                HotbarDragGhost,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Px(GHOST_SIZE),
+                    height: Val::Px(GHOST_SIZE),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    left: Val::Px(left),
+                    top: Val::Px(top),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                BackgroundColor(HotbarEntry::Item(material).icon_color()),
+                BorderColor(Color::srgb(0.95, 0.85, 0.4)),
+                GlobalZIndex(250),
+            ))
+            .with_children(|g| {
+                g.spawn((
+                    HotbarDragGhostLabel,
+                    Text::new(material.short_label()),
+                    TextFont {
+                        font_size: 11.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
+            })
+            .id();
+        drag.ghost = Some(ghost);
+        return;
+    }
+
+    if let Ok(mut node) = ghosts.get_single_mut() {
+        node.left = Val::Px(left);
+        node.top = Val::Px(top);
+    }
+    if let Ok(mut text) = labels.get_single_mut() {
+        let label = material.short_label();
+        if text.as_str() != label {
+            text.0 = label.to_string();
+        }
+    }
+}
+
+fn clear_drag(commands: &mut Commands, drag: &mut InventoryHotbarDrag) {
+    drag.material = None;
+    if let Some(entity) = drag.ghost.take() {
+        commands.entity(entity).try_despawn_recursive();
     }
 }
 
@@ -225,13 +354,14 @@ pub fn sync_hotbar_ui(
         text.0 = match entry {
             HotbarEntry::Item(material) => {
                 let n = inventory.count(material);
-                if n > 0 {
+                if material.is_tool() {
+                    String::new()
+                } else if n > 0 {
                     n.to_string()
                 } else {
                     "0".to_string()
                 }
             }
-            HotbarEntry::Tool(_) => String::new(),
             HotbarEntry::Empty => String::new(),
         };
     }

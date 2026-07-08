@@ -1,4 +1,4 @@
-//! Use selected homestead hotbar entry on a nearby crop plot.
+//! Use selected hotbar inventory item on a nearby crop plot.
 
 use bevy::prelude::*;
 
@@ -14,9 +14,7 @@ use super::crops::{
 };
 use super::hotbar::{HomesteadHotbar, HotbarEntry};
 use super::plots::{facing_tile, tile_coords_from_world, CropPlot, PlayerFacing};
-use super::tools::HomesteadTool;
 
-/// Max distance (world pixels) to auto-target a plot when facing misses.
 const PLOT_TARGET_RANGE: f32 = TILE * 1.35;
 
 pub fn update_player_facing(
@@ -31,17 +29,28 @@ pub fn update_player_facing(
     }
 }
 
-/// Ensure older saves still have seeds so planting is possible.
+/// Ensure tools + seeds exist for older saves.
 pub fn ensure_starter_seeds(mut inventory: ResMut<Inventory>, mut dirty: ResMut<ProfileDirty>) {
-    let has_any_seed = inventory.count(MaterialId::TurnipSeed) > 0
-        || inventory.count(MaterialId::PotatoSeed) > 0;
-    if has_any_seed {
-        return;
+    let mut changed = false;
+    if inventory.count(MaterialId::Hoe) == 0 {
+        inventory.try_add(MaterialId::Hoe, 1);
+        changed = true;
     }
-    inventory.try_add(MaterialId::TurnipSeed, 8);
-    inventory.try_add(MaterialId::PotatoSeed, 4);
-    dirty.mark();
-    info!("Granted starter seeds (turnip ×8, potato ×4).");
+    if inventory.count(MaterialId::WateringCan) == 0 {
+        inventory.try_add(MaterialId::WateringCan, 1);
+        changed = true;
+    }
+    let has_seed = inventory.count(MaterialId::TurnipSeed) > 0
+        || inventory.count(MaterialId::PotatoSeed) > 0;
+    if !has_seed {
+        inventory.try_add(MaterialId::TurnipSeed, 8);
+        inventory.try_add(MaterialId::PotatoSeed, 4);
+        changed = true;
+    }
+    if changed {
+        dirty.mark();
+        info!("Restocked homestead tools/seeds in inventory — drag them onto the hotbar.");
+    }
 }
 
 pub fn use_homestead_tool(
@@ -67,8 +76,23 @@ pub fn use_homestead_tool(
     }
 
     let entry = hotbar.selected_entry();
-    if matches!(entry, HotbarEntry::Empty) {
-        info!("Hotbar slot empty — pick a tool or seed (1–5).");
+    let Some(material) = entry.material() else {
+        // Empty highlighted slot: harvest only.
+        try_harvest_only(
+            &player,
+            &mut plots,
+            &mut inventory,
+            &mut dirty,
+        );
+        return;
+    };
+
+    if inventory.count(material) == 0 && !material.is_tool() {
+        info!("No {} left — restock from inventory.", material.display_name());
+        return;
+    }
+    if material.is_tool() && inventory.count(material) == 0 {
+        info!("{} not in inventory.", material.display_name());
         return;
     }
 
@@ -79,8 +103,8 @@ pub fn use_homestead_tool(
     let player_pos = transform.translation.truncate();
     let Some(plot_index) = find_target_plot_index(player_pos, facing.dir, &plots) else {
         info!(
-            "No crop plot in range (stand on the field). Selected: {}.",
-            entry.label()
+            "No crop plot in range. Selected: {}.",
+            material.display_name()
         );
         return;
     };
@@ -97,13 +121,24 @@ pub fn use_homestead_tool(
         return;
     };
 
-    let cost = entry.energy_cost();
+    // Ready crops: harvest with empty slot only (see try_harvest_only). With an item
+    // selected, try normal use first; seeds fail on ready unless we harvest.
+    if matches!(plot.stage, PlotStage::Ready { .. }) {
+        if let Ok((stage, action)) = harvest_with_hand(plot.stage, &mut inventory) {
+            plot.stage = stage;
+            dirty.mark();
+            log_action(action);
+            return;
+        }
+    }
+
+    let cost = material.energy_cost();
     if cost > 0.0 && !energy.try_spend(cost) {
-        info!("Not enough energy for {}.", entry.label());
+        info!("Not enough energy for {}.", material.display_name());
         return;
     }
 
-    let result = apply_hotbar_entry(entry, plot.stage, &mut inventory);
+    let result = apply_material(material, plot.stage, &mut inventory);
     match result {
         Ok((stage, action)) => {
             plot.stage = stage;
@@ -116,6 +151,41 @@ pub fn use_homestead_tool(
             }
             info!("{message}");
         }
+    }
+}
+
+fn try_harvest_only(
+    player: &Query<(&Transform, &PlayerFacing), With<OverworldPlayer>>,
+    plots: &mut Query<&mut CropPlot>,
+    inventory: &mut Inventory,
+    dirty: &mut ProfileDirty,
+) {
+    let Ok((transform, facing)) = player.get_single() else {
+        info!("Hotbar slot empty — drag a tool or seed from inventory (I). Empty slot harvests ready crops.");
+        return;
+    };
+    let player_pos = transform.translation.truncate();
+    let Some(plot_index) = find_target_plot_index(player_pos, facing.dir, plots) else {
+        info!("Hotbar empty — drag items from inventory onto the bar. Empty slot can harvest.");
+        return;
+    };
+    let target = {
+        let plot = plots.iter().nth(plot_index).expect("plot");
+        (plot.tile_x, plot.tile_y)
+    };
+    let Some(mut plot) = plots
+        .iter_mut()
+        .find(|p| p.tile_x == target.0 && p.tile_y == target.1)
+    else {
+        return;
+    };
+    match harvest_with_hand(plot.stage, inventory) {
+        Ok((stage, action)) => {
+            plot.stage = stage;
+            dirty.mark();
+            log_action(action);
+        }
+        Err(msg) => info!("{msg} (empty hotbar harvests ready crops only)"),
     }
 }
 
@@ -159,41 +229,31 @@ fn plot_center(tile_x: u32, tile_y: u32) -> Vec2 {
     )
 }
 
-fn apply_hotbar_entry(
-    entry: HotbarEntry,
+fn apply_material(
+    material: MaterialId,
     stage: PlotStage,
     inventory: &mut Inventory,
 ) -> Result<(PlotStage, FarmActionResult), &'static str> {
-    match entry {
-        HotbarEntry::Empty => Err("empty hotbar slot"),
-        HotbarEntry::Tool(HomesteadTool::Hoe) => {
+    match material {
+        MaterialId::Hoe => {
             let (next, result) = till_plot(stage);
             match result {
                 FarmActionResult::Failed(msg) => Err(msg),
                 other => Ok((next, other)),
             }
         }
-        HotbarEntry::Tool(HomesteadTool::WateringCan) => {
+        MaterialId::WateringCan => {
             let (next, result) = water_plot(stage);
             match result {
                 FarmActionResult::Failed(msg) => Err(msg),
                 other => Ok((next, other)),
             }
         }
-        HotbarEntry::Tool(HomesteadTool::Seeds) => {
-            let crop = super::tools::first_available_seed_crop(|m| inventory.count(m) > 0)
-                .ok_or("no seeds in inventory")?;
+        m if m.is_seed() => {
+            let crop = CropKind::from_seed(m).ok_or("not a plantable seed")?;
             plant_with_crop(stage, crop, inventory)
         }
-        HotbarEntry::Tool(HomesteadTool::Hand) => harvest_with_hand(stage, inventory),
-        HotbarEntry::Item(material) if material.is_seed() => {
-            let crop = CropKind::from_seed(material).ok_or("not a plantable seed")?;
-            if inventory.count(material) == 0 {
-                return Err("out of that seed");
-            }
-            plant_with_crop(stage, crop, inventory)
-        }
-        HotbarEntry::Item(_) => Err("that item is not usable on plots"),
+        _ => Err("that item is not usable on plots"),
     }
 }
 
@@ -252,25 +312,16 @@ mod tests {
     #[test]
     fn plant_requires_tilled_soil() {
         let mut inv = Inventory::with_starter_seeds();
-        let err = apply_hotbar_entry(
-            HotbarEntry::Item(MaterialId::TurnipSeed),
-            PlotStage::Soil,
-            &mut inv,
-        )
-        .unwrap_err();
+        let err = apply_material(MaterialId::TurnipSeed, PlotStage::Soil, &mut inv).unwrap_err();
         assert!(err.contains("till"));
         assert_eq!(inv.count(MaterialId::TurnipSeed), 8);
     }
 
     #[test]
-    fn plant_specific_seed_from_hotbar() {
+    fn plant_specific_seed() {
         let mut inv = Inventory::with_starter_seeds();
-        let (stage, result) = apply_hotbar_entry(
-            HotbarEntry::Item(MaterialId::PotatoSeed),
-            PlotStage::Tilled,
-            &mut inv,
-        )
-        .unwrap();
+        let (stage, result) =
+            apply_material(MaterialId::PotatoSeed, PlotStage::Tilled, &mut inv).unwrap();
         assert!(matches!(
             stage,
             PlotStage::Growing {
@@ -281,5 +332,14 @@ mod tests {
         ));
         assert!(matches!(result, FarmActionResult::Planted(CropKind::Potato)));
         assert_eq!(inv.count(MaterialId::PotatoSeed), 3);
+    }
+
+    #[test]
+    fn hoe_tills_soil() {
+        let mut inv = Inventory::with_starter_seeds();
+        let (stage, result) = apply_material(MaterialId::Hoe, PlotStage::Soil, &mut inv).unwrap();
+        assert_eq!(stage, PlotStage::Tilled);
+        assert_eq!(result, FarmActionResult::Tilled);
+        assert_eq!(inv.count(MaterialId::Hoe), 1);
     }
 }

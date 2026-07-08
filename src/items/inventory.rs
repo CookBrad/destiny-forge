@@ -35,9 +35,11 @@ impl Default for Inventory {
 }
 
 impl Inventory {
-    /// Starter seeds for a new homestead profile.
+    /// Starter tools + seeds for a new homestead profile.
     pub fn with_starter_seeds() -> Self {
         let mut inventory = Self::default();
+        inventory.try_add(MaterialId::Hoe, 1);
+        inventory.try_add(MaterialId::WateringCan, 1);
         inventory.try_add(MaterialId::TurnipSeed, 8);
         inventory.try_add(MaterialId::PotatoSeed, 4);
         inventory

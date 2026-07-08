@@ -13,8 +13,8 @@ use super::carve_feedback::{
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::energy_hud::{cleanup_energy_hud, setup_energy_hud, sync_energy_hud};
 use super::hotbar::{
-    cleanup_hotbar, handle_hotbar_slot_clicks, select_hotbar_slot_input, setup_hotbar,
-    sync_hotbar_ui,
+    cancel_hotbar_drag_input, cleanup_hotbar, handle_hotbar_slot_clicks, select_hotbar_slot_input,
+    setup_hotbar, sync_hotbar_ui, update_hotbar_drag_ghost, InventoryHotbarDrag,
 };
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
@@ -72,6 +72,7 @@ impl Plugin for UiPlugin {
             .init_resource::<ForgeWindowOpen>()
             .init_resource::<ForgeSelectedRecipe>()
             .init_resource::<InteractionPrompt>()
+            .init_resource::<InventoryHotbarDrag>()
             .init_resource::<RecipeBook>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
@@ -135,6 +136,8 @@ impl Plugin for UiPlugin {
                     (
                         select_hotbar_slot_input,
                         handle_hotbar_slot_clicks,
+                        cancel_hotbar_drag_input,
+                        update_hotbar_drag_ghost,
                         sync_hotbar_ui,
                     )
                         .run_if(in_state(GameState::Overworld)),

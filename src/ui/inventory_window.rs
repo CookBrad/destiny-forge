@@ -466,6 +466,8 @@ pub fn handle_inventory_slot_click(
     >,
     mut selected: ResMut<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &mut BorderColor)>,
+    inventory: Res<Inventory>,
+    mut drag: ResMut<super::hotbar::InventoryHotbarDrag>,
 ) {
     for (interaction, slot) in &mut interactions {
         if *interaction != Interaction::Pressed {
@@ -478,6 +480,14 @@ pub fn handle_inventory_slot_click(
                 *border = BorderColor(SLOT_SELECTED);
             } else {
                 *border = BorderColor(SLOT_BORDER);
+            }
+        }
+
+        // Start drag to hotbar when the slot has an item.
+        let entry = &inventory.slots[slot.index];
+        if let Some(material) = entry.material {
+            if entry.count > 0 {
+                drag.material = Some(material);
             }
         }
     }
@@ -549,6 +559,8 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
         MaterialId::PotatoSeed => (Color::srgb(0.55, 0.42, 0.22), "P.Seed"),
         MaterialId::Turnip => (Color::srgb(0.72, 0.55, 0.78), "Turnip"),
         MaterialId::Potato => (Color::srgb(0.78, 0.68, 0.42), "Potato"),
+        MaterialId::Hoe => (Color::srgb(0.55, 0.4, 0.22), "Hoe"),
+        MaterialId::WateringCan => (Color::srgb(0.28, 0.48, 0.72), "Water"),
     }
 }
 
@@ -641,7 +653,8 @@ pub fn sync_inventory_hover_tooltip(
         ),
         None => (
             "Hover an item".to_string(),
-            "Item details appear here. Seeds explain how to plant and grow.".to_string(),
+            "Click an item to drag it onto the bottom hotbar (1–5). Selected hotbar slot is your action."
+                .to_string(),
         ),
     };
 
