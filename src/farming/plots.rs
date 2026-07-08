@@ -49,10 +49,7 @@ pub fn spawn_crop_plots(commands: &mut Commands, art: &OverworldArt, field: Rect
 
     for ty in min_ty..max_ty {
         for tx in min_tx..max_tx {
-            // Sparse grid of workable plots.
-            if (tx + ty) % 2 != 0 {
-                continue;
-            }
+            // Every field tile is a workable plot (easier targeting).
             let center = tile_center(tx, ty);
             let stage = PlotStage::Soil;
             let soil = soil_visual(stage);
