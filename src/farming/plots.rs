@@ -1,4 +1,4 @@
-//! Crop plot entities and visuals on the homestead.
+//! Crop plot entities and layered stage visuals on the homestead.
 
 use bevy::prelude::*;
 
@@ -6,7 +6,7 @@ use crate::graphics::{world_transform, TILE};
 use crate::overworld::layout::{tile_center, OverworldEntity};
 use crate::overworld::sprites::OverworldArt;
 
-use super::crops::{advance_plot_day, PlotStage};
+use super::crops::{advance_plot_day, CropKind, PlotStage};
 
 #[derive(Component, Clone, Debug)]
 pub struct CropPlot {
@@ -14,6 +14,18 @@ pub struct CropPlot {
     pub tile_y: u32,
     pub stage: PlotStage,
 }
+
+/// Soil / tilled base layer (parent plot entity).
+#[derive(Component)]
+pub struct CropSoilSprite;
+
+/// Plant / seed growth layer (child).
+#[derive(Component)]
+pub struct CropPlantSprite;
+
+/// Water sheen when the plot was watered today (child).
+#[derive(Component)]
+pub struct CropWaterSprite;
 
 /// Facing direction for tool use (unit-ish axis).
 #[derive(Component, Clone, Copy, Debug)]
@@ -43,47 +55,222 @@ pub fn spawn_crop_plots(commands: &mut Commands, art: &OverworldArt, field: Rect
             }
             let center = tile_center(tx, ty);
             let stage = PlotStage::Soil;
-            commands.spawn((
-                Sprite {
-                    image: art.soil.clone(),
-                    color: plot_color(stage),
-                    custom_size: Some(Vec2::splat(TILE * 0.9)),
-                    ..default()
-                },
-                world_transform(center, 1.15),
-                CropPlot {
-                    tile_x: tx,
-                    tile_y: ty,
-                    stage,
-                },
-                OverworldEntity,
-            ));
+            let soil = soil_visual(stage);
+
+            commands
+                .spawn((
+                    Sprite {
+                        image: art.soil.clone(),
+                        color: soil.color,
+                        custom_size: Some(soil.size),
+                        ..default()
+                    },
+                    world_transform(center, 1.15),
+                    CropPlot {
+                        tile_x: tx,
+                        tile_y: ty,
+                        stage,
+                    },
+                    CropSoilSprite,
+                    OverworldEntity,
+                ))
+                .with_children(|parent| {
+                    // Plant layer (hidden until planted / ready).
+                    parent.spawn((
+                        Sprite {
+                            image: art.grass.clone(),
+                            color: Color::NONE,
+                            custom_size: Some(Vec2::splat(4.0)),
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, 0.0, 0.2)),
+                        Visibility::Hidden,
+                        CropPlantSprite,
+                        OverworldEntity,
+                    ));
+                    // Water sheen (hidden until watered).
+                    parent.spawn((
+                        Sprite {
+                            image: art.path.clone(),
+                            color: Color::srgba(0.35, 0.55, 0.85, 0.55),
+                            custom_size: Some(Vec2::new(TILE * 0.75, TILE * 0.22)),
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, -TILE * 0.22, 0.15)),
+                        Visibility::Hidden,
+                        CropWaterSprite,
+                        OverworldEntity,
+                    ));
+                });
         }
     }
 }
 
-pub fn plot_color(stage: PlotStage) -> Color {
+struct LayerVisual {
+    color: Color,
+    size: Vec2,
+    /// Local offset for plant layer (y up).
+    offset_y: f32,
+    visible: bool,
+}
+
+fn soil_visual(stage: PlotStage) -> LayerVisual {
     match stage {
-        PlotStage::Soil => Color::srgb(0.38, 0.26, 0.16),
-        PlotStage::Tilled => Color::srgb(0.28, 0.18, 0.1),
-        PlotStage::Growing {
-            watered: true,
-            days,
-            ..
-        } => {
-            let t = (days as f32 * 0.15).min(0.5);
-            Color::srgb(0.22 + t, 0.55 + t * 0.2, 0.28)
-        }
-        PlotStage::Growing {
-            watered: false, ..
-        } => Color::srgb(0.32, 0.48, 0.24),
-        PlotStage::Ready { .. } => Color::srgb(0.82, 0.72, 0.28),
+        PlotStage::Soil => LayerVisual {
+            // Untilled: warm packed earth, full tile.
+            color: Color::srgb(0.42, 0.32, 0.2),
+            size: Vec2::splat(TILE * 0.92),
+            offset_y: 0.0,
+            visible: true,
+        },
+        PlotStage::Tilled => LayerVisual {
+            // Tilled: darker, slightly smaller = furrowed beds.
+            color: Color::srgb(0.22, 0.14, 0.08),
+            size: Vec2::new(TILE * 0.88, TILE * 0.78),
+            offset_y: 0.0,
+            visible: true,
+        },
+        PlotStage::Growing { watered: true, .. } => LayerVisual {
+            // Wet soil reads cooler / darker.
+            color: Color::srgb(0.16, 0.14, 0.18),
+            size: Vec2::new(TILE * 0.88, TILE * 0.78),
+            offset_y: 0.0,
+            visible: true,
+        },
+        PlotStage::Growing { watered: false, .. } | PlotStage::Ready { .. } => LayerVisual {
+            color: Color::srgb(0.24, 0.15, 0.09),
+            size: Vec2::new(TILE * 0.88, TILE * 0.78),
+            offset_y: 0.0,
+            visible: true,
+        },
     }
 }
 
-pub fn sync_plot_visuals(mut plots: Query<(&CropPlot, &mut Sprite), Changed<CropPlot>>) {
-    for (plot, mut sprite) in &mut plots {
-        sprite.color = plot_color(plot.stage);
+fn watered_stage(stage: PlotStage) -> bool {
+    matches!(stage, PlotStage::Growing { watered: true, .. })
+}
+
+fn plant_visual(stage: PlotStage) -> LayerVisual {
+    match stage {
+        PlotStage::Soil | PlotStage::Tilled => LayerVisual {
+            color: Color::NONE,
+            size: Vec2::splat(1.0),
+            offset_y: 0.0,
+            visible: false,
+        },
+        PlotStage::Growing {
+            crop,
+            days,
+            watered,
+        } => {
+            let (color, size, offset_y) = match (crop, days) {
+                // Just planted: tiny seed.
+                (_, 0) => (
+                    if watered {
+                        Color::srgb(0.45, 0.32, 0.18)
+                    } else {
+                        Color::srgb(0.55, 0.4, 0.22)
+                    },
+                    Vec2::new(TILE * 0.22, TILE * 0.14),
+                    -TILE * 0.05,
+                ),
+                // Sprout.
+                (CropKind::Turnip, 1) => (
+                    Color::srgb(0.35, 0.72, 0.32),
+                    Vec2::new(TILE * 0.28, TILE * 0.38),
+                    TILE * 0.08,
+                ),
+                (CropKind::Potato, 1) => (
+                    Color::srgb(0.28, 0.62, 0.28),
+                    Vec2::new(TILE * 0.3, TILE * 0.32),
+                    TILE * 0.06,
+                ),
+                // Mid growth (potato day 2).
+                (CropKind::Potato, 2) => (
+                    Color::srgb(0.32, 0.7, 0.3),
+                    Vec2::new(TILE * 0.42, TILE * 0.48),
+                    TILE * 0.12,
+                ),
+                // Fallback growth.
+                (CropKind::Turnip, _) => (
+                    Color::srgb(0.4, 0.78, 0.35),
+                    Vec2::new(TILE * 0.4, TILE * 0.5),
+                    TILE * 0.12,
+                ),
+                (CropKind::Potato, _) => (
+                    Color::srgb(0.35, 0.72, 0.32),
+                    Vec2::new(TILE * 0.45, TILE * 0.52),
+                    TILE * 0.14,
+                ),
+            };
+            LayerVisual {
+                color,
+                size,
+                offset_y,
+                visible: true,
+            }
+        }
+        PlotStage::Ready { crop } => {
+            let (color, size) = match crop {
+                // Mature turnip: purple bulb + leaf top feel via tall shape.
+                CropKind::Turnip => (Color::srgb(0.72, 0.42, 0.78), Vec2::new(TILE * 0.48, TILE * 0.55)),
+                // Mature potato: tan tuber cluster.
+                CropKind::Potato => (Color::srgb(0.82, 0.68, 0.38), Vec2::new(TILE * 0.55, TILE * 0.42)),
+            };
+            LayerVisual {
+                color,
+                size,
+                offset_y: TILE * 0.1,
+                visible: true,
+            }
+        }
+    }
+}
+
+pub fn sync_plot_visuals(
+    mut plots: Query<(&CropPlot, &Children, &mut Sprite), (With<CropSoilSprite>, Changed<CropPlot>)>,
+    mut plants: Query<
+        (&mut Sprite, &mut Transform, &mut Visibility),
+        (With<CropPlantSprite>, Without<CropSoilSprite>, Without<CropWaterSprite>),
+    >,
+    mut waters: Query<
+        (&mut Sprite, &mut Visibility),
+        (With<CropWaterSprite>, Without<CropSoilSprite>, Without<CropPlantSprite>),
+    >,
+) {
+    for (plot, children, mut soil_sprite) in &mut plots {
+        let soil = soil_visual(plot.stage);
+        soil_sprite.color = soil.color;
+        soil_sprite.custom_size = Some(soil.size);
+
+        let plant = plant_visual(plot.stage);
+        let show_water = watered_stage(plot.stage);
+
+        for child in children.iter() {
+            if let Ok((mut sprite, mut transform, mut visibility)) = plants.get_mut(*child) {
+                sprite.color = plant.color;
+                sprite.custom_size = Some(plant.size);
+                transform.translation.y = plant.offset_y;
+                *visibility = if plant.visible {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                };
+            }
+            if let Ok((mut sprite, mut visibility)) = waters.get_mut(*child) {
+                // Stronger sheen when just watered.
+                sprite.color = if show_water {
+                    Color::srgba(0.4, 0.65, 0.95, 0.65)
+                } else {
+                    Color::NONE
+                };
+                *visibility = if show_water {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                };
+            }
+        }
     }
 }
 
@@ -107,4 +294,60 @@ pub fn facing_tile(player_pos: Vec2, facing: Vec2) -> (u32, u32) {
     };
     let target = player_pos + dir * TILE * 0.85;
     tile_coords_from_world(target)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_stage_has_distinct_plant_visibility() {
+        assert!(!plant_visual(PlotStage::Soil).visible);
+        assert!(!plant_visual(PlotStage::Tilled).visible);
+        assert!(plant_visual(PlotStage::Growing {
+            crop: CropKind::Turnip,
+            days: 0,
+            watered: false,
+        })
+        .visible);
+        assert!(plant_visual(PlotStage::Ready {
+            crop: CropKind::Potato
+        })
+        .visible);
+    }
+
+    #[test]
+    fn ready_crops_differ_by_kind_color() {
+        let turnip = plant_visual(PlotStage::Ready {
+            crop: CropKind::Turnip,
+        });
+        let potato = plant_visual(PlotStage::Ready {
+            crop: CropKind::Potato,
+        });
+        assert_ne!(turnip.color, potato.color);
+        assert!(turnip.size.y > potato.size.y || turnip.size.x < potato.size.x);
+    }
+
+    #[test]
+    fn growth_days_increase_plant_size() {
+        let seed = plant_visual(PlotStage::Growing {
+            crop: CropKind::Turnip,
+            days: 0,
+            watered: false,
+        });
+        let sprout = plant_visual(PlotStage::Growing {
+            crop: CropKind::Turnip,
+            days: 1,
+            watered: true,
+        });
+        assert!(sprout.size.length() > seed.size.length());
+    }
+
+    #[test]
+    fn tilled_soil_darker_than_untilled() {
+        let soil = soil_visual(PlotStage::Soil);
+        let tilled = soil_visual(PlotStage::Tilled);
+        // Tilled uses lower luminance browns.
+        assert!(tilled.color.to_srgba().red < soil.color.to_srgba().red);
+    }
 }
