@@ -5,7 +5,7 @@ use crate::combat::SkillBindings;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::super::day_cycle::DayClock;
+use super::super::day_cycle::{DayClock, ToolEnergy};
 
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::save_profile;
@@ -48,6 +48,7 @@ pub fn debounced_autosave(
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
+    tool_energy: Res<ToolEnergy>,
     mut profile: ResMut<PlayerProfile>,
 ) {
     if !profile_dirty.0 {
@@ -64,6 +65,7 @@ pub fn debounced_autosave(
         &loadout,
         &progress,
         &day_clock,
+        &tool_energy,
         &audio,
         &bindings,
         &mut profile,
@@ -82,6 +84,7 @@ pub fn flush_saves_on_exit(
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
+    tool_energy: Res<ToolEnergy>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
 ) {
@@ -94,6 +97,7 @@ pub fn flush_saves_on_exit(
         &loadout,
         &progress,
         &day_clock,
+        &tool_energy,
         &audio,
         &bindings,
         &mut profile,

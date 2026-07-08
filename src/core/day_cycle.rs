@@ -7,6 +7,13 @@ use serde::{Deserialize, Serialize};
 /// Real seconds spent in each phase before advancing (evening holds until sleep).
 pub const PHASE_DURATION_SECS: f32 = 90.0;
 
+/// How many soft-day phase steps a dungeon hunt consumes (large share of the day).
+/// Morning → Evening (2 steps). Afternoon → Evening (1 step used of 2). Evening stays.
+pub const HUNT_DAY_COST_STEPS: u8 = 2;
+
+/// Default max for the homestead tool energy pool.
+pub const TOOL_ENERGY_MAX: f32 = 100.0;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DayPhase {
     #[default]
@@ -111,9 +118,25 @@ impl DayClock {
     pub fn phase_progress(&self) -> f32 {
         (self.phase_elapsed_secs / PHASE_DURATION_SECS).clamp(0.0, 1.0)
     }
+
+    /// Entering a dungeon hunt costs a large share of the day.
+    /// Returns true when the phase actually changed.
+    pub fn apply_hunt_day_cost(&mut self) -> bool {
+        let before = self.phase;
+        for _ in 0..HUNT_DAY_COST_STEPS {
+            match self.phase.next() {
+                Some(next) => {
+                    self.phase = next;
+                    self.phase_elapsed_secs = 0.0;
+                }
+                None => break,
+            }
+        }
+        self.phase != before
+    }
 }
 
-/// Homestead tool energy pool (restored on sleep). Full tool use lands in #17.
+/// Homestead tool energy pool (hoe / water / pick / rod). Combat never drains this.
 #[derive(Resource, Clone, Debug, PartialEq)]
 pub struct ToolEnergy {
     pub current: f32,
@@ -123,19 +146,51 @@ pub struct ToolEnergy {
 impl Default for ToolEnergy {
     fn default() -> Self {
         Self {
-            current: 100.0,
-            max: 100.0,
+            current: TOOL_ENERGY_MAX,
+            max: TOOL_ENERGY_MAX,
         }
     }
 }
 
 impl ToolEnergy {
+    pub fn from_saved(current: f32, max: f32) -> Self {
+        let max = if max <= 0.0 { TOOL_ENERGY_MAX } else { max };
+        Self {
+            current: current.clamp(0.0, max),
+            max,
+        }
+    }
+
     pub fn restore_full(&mut self) {
         self.current = self.max;
     }
 
     pub fn is_full(&self) -> bool {
         self.current >= self.max
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.current <= 0.0
+    }
+
+    pub fn fraction(&self) -> f32 {
+        if self.max <= 0.0 {
+            0.0
+        } else {
+            (self.current / self.max).clamp(0.0, 1.0)
+        }
+    }
+
+    /// Spend tool energy. Returns false when the pool cannot cover the cost (no spend).
+    pub fn try_spend(&mut self, amount: f32) -> bool {
+        if amount <= 0.0 {
+            return true;
+        }
+        if self.current + f32::EPSILON < amount {
+            return false;
+        }
+        self.current = (self.current - amount).max(0.0);
+        true
     }
 }
 
@@ -218,5 +273,46 @@ mod tests {
     fn hud_label_includes_day_and_phase() {
         let clock = DayClock::from_saved(2, DayPhase::Afternoon);
         assert_eq!(clock.hud_label(), "Day 2 · Afternoon");
+    }
+
+    #[test]
+    fn hunt_day_cost_skips_most_of_morning_day() {
+        let mut clock = DayClock::default();
+        assert!(clock.apply_hunt_day_cost());
+        assert_eq!(clock.phase, DayPhase::Evening);
+    }
+
+    #[test]
+    fn hunt_from_afternoon_ends_in_evening() {
+        let mut clock = DayClock {
+            calendar_day: 1,
+            phase: DayPhase::Afternoon,
+            phase_elapsed_secs: 10.0,
+        };
+        assert!(clock.apply_hunt_day_cost());
+        assert_eq!(clock.phase, DayPhase::Evening);
+    }
+
+    #[test]
+    fn hunt_from_evening_does_not_change_phase() {
+        let mut clock = DayClock {
+            calendar_day: 1,
+            phase: DayPhase::Evening,
+            phase_elapsed_secs: 5.0,
+        };
+        assert!(!clock.apply_hunt_day_cost());
+        assert_eq!(clock.phase, DayPhase::Evening);
+    }
+
+    #[test]
+    fn tool_energy_spend_and_refuse() {
+        let mut energy = ToolEnergy::default();
+        assert!(energy.try_spend(40.0));
+        assert!((energy.current - 60.0).abs() < 0.01);
+        assert!(!energy.try_spend(70.0));
+        assert!((energy.current - 60.0).abs() < 0.01);
+        assert!(energy.try_spend(60.0));
+        assert!(energy.is_empty());
+        assert!(!energy.try_spend(1.0));
     }
 }

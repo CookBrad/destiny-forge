@@ -9,11 +9,15 @@ use super::super::day_cycle::DayPhase;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 4;
+pub const PROFILE_VERSION: u32 = 5;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 fn default_calendar_day() -> u32 {
     1
+}
+
+fn default_tool_energy() -> f32 {
+    super::super::day_cycle::TOOL_ENERGY_MAX
 }
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -38,6 +42,9 @@ pub struct PlayerProfile {
     pub calendar_day: u32,
     #[serde(default)]
     pub day_phase: DayPhase,
+    /// Homestead tool energy (0..=max). Restored on sleep.
+    #[serde(default = "default_tool_energy")]
+    pub tool_energy: f32,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -52,6 +59,7 @@ impl Default for PlayerProfile {
             progress: WorldProgress::default(),
             calendar_day: 1,
             day_phase: DayPhase::Morning,
+            tool_energy: default_tool_energy(),
             settings: ProfileSettings::default(),
         }
     }

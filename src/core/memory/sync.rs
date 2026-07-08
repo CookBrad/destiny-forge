@@ -5,7 +5,7 @@ use crate::combat::SkillBindings;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::super::day_cycle::{DayClock, ToolEnergy};
+use super::super::day_cycle::{DayClock, ToolEnergy, TOOL_ENERGY_MAX};
 
 use super::profile::{ActiveProfile, PlayerProfile, PROFILE_COUNT};
 use super::settings::GameSettings;
@@ -52,6 +52,7 @@ pub fn capture_profile_from_runtime(
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
+    tool_energy: Res<ToolEnergy>,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
@@ -61,6 +62,7 @@ pub fn capture_profile_from_runtime(
         && !inventory.is_changed()
         && !loadout.is_changed()
         && !progress.is_changed()
+        && !tool_energy.is_changed()
     {
         return;
     }
@@ -70,6 +72,7 @@ pub fn capture_profile_from_runtime(
         &loadout,
         &progress,
         &day_clock,
+        &tool_energy,
         &audio,
         &bindings,
         &mut profile,
@@ -82,6 +85,7 @@ pub fn snapshot_profile(
     loadout: &Loadout,
     progress: &WorldProgress,
     day_clock: &DayClock,
+    tool_energy: &ToolEnergy,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     profile: &mut PlayerProfile,
@@ -91,6 +95,7 @@ pub fn snapshot_profile(
     profile.progress = progress.clone();
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
+    profile.tool_energy = tool_energy.current;
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -101,6 +106,7 @@ pub fn activate_profile(
     loadout: &Loadout,
     progress: &WorldProgress,
     day_clock: &DayClock,
+    tool_energy: &ToolEnergy,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     active: &mut ActiveProfile,
@@ -118,6 +124,7 @@ pub fn activate_profile(
         loadout,
         progress,
         day_clock,
+        tool_energy,
         audio,
         bindings,
         profile,
@@ -152,8 +159,7 @@ pub fn apply_profile_to_runtime(
     *loadout = profile.loadout.clone();
     *progress = profile.progress.clone();
     *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    // Energy is session-soft for now; sleep restores. Persist with #17 if needed.
-    *tool_energy = ToolEnergy::default();
+    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
 }

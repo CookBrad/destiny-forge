@@ -19,7 +19,7 @@ impl PromptKind {
             Self::Carve => "Hold E — Carve",
             Self::OpenForge => "E — Open forge",
             Self::ClimbLadder => "E — Climb ladder",
-            Self::EnterDungeon => "E — Enter dungeon",
+            Self::EnterDungeon => "E — Enter dungeon (costs time)",
         }
     }
 
