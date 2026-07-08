@@ -26,7 +26,7 @@ Complete map of **all game functionality** from GDD v1.0.
 | **Hunt Loot & Carving** | [#40](https://github.com/CookBrad/destiny-forge/issues/40) | MH materials | ✅ baseline; ⬜ depth |
 | **Forging & Gear Progression** | [#41](https://github.com/CookBrad/destiny-forge/issues/41) | MH gear trees | ✅ baseline; ⬜ expand |
 | **World, Saves & Meta** | [#42](https://github.com/CookBrad/destiny-forge/issues/42) | Hub, zones, profiles | ✅ mostly; ⬜ sleep/landmarks |
-| **Homestead Spine** | [#2](https://github.com/CookBrad/destiny-forge/issues/2) | Day, energy, farm, food | ⬜ |
+| **Homestead Spine** | [#2](https://github.com/CookBrad/destiny-forge/issues/2) | Day, energy, farm, food | 🔧 day/sleep started |
 | **Mining** | [#3](https://github.com/CookBrad/destiny-forge/issues/3) | Ore → metal spine | ⬜ |
 | **Fishing** | [#4](https://github.com/CookBrad/destiny-forge/issues/4) | Minigame, fish food/reagents | ⬜ |
 | **Content & Balance** | [#5](https://github.com/CookBrad/destiny-forge/issues/5) | Floor 2, sets, polish | ⬜ |
@@ -97,7 +97,7 @@ Zones, transitions, persistence, menus.
 | 59 | Homestead hub + forge + dungeon gate | ✅ |
 | 60 | Forest zone transition | ✅ |
 | 61 | Profile save/load + autosave + settings | ✅ |
-| 62 | House interior / bed for sleep | ⬜ |
+| 62 | House interior / bed for sleep | 🔧 PR day-sleep |
 | 63 | Landmarks: mine entrance + fishing dock | ⬜ |
 | 64 | Pause menu + key rebinding polish | ⬜ |
 
@@ -107,7 +107,7 @@ Zones, transitions, persistence, menus.
 
 | # | Ticket | Status |
 | - | ------ | ------ |
-| 15 | Soft day cycle + sleep | ⬜ |
+| 15 | Soft day cycle + sleep | 🔧 PR day-sleep |
 | 16 | Hunt consumes large share of the day | ⬜ |
 | 17 | Tool energy pool + UI meter | ⬜ |
 | 18 | Homestead tool equip + use | ⬜ |

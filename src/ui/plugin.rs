@@ -5,6 +5,7 @@ use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::graphics::reset_camera_zoom;
 
+use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -68,12 +69,35 @@ impl Plugin for UiPlugin {
                     set_title_clear_color,
                     refresh_profile_picker,
                     spawn_title_menu,
+                    cleanup_day_hud,
                 )
                     .chain(),
             )
             .add_systems(
                 OnExit(GameState::Title),
                 (cleanup_title_menu, clear_profile_rename_state),
+            )
+            .add_systems(
+                OnEnter(GameState::Overworld),
+                setup_day_hud,
+            )
+            .add_systems(
+                OnEnter(GameState::Forest),
+                setup_day_hud,
+            )
+            .add_systems(
+                OnExit(GameState::Overworld),
+                cleanup_day_hud,
+            )
+            .add_systems(
+                OnExit(GameState::Forest),
+                cleanup_day_hud,
+            )
+            .add_systems(
+                Update,
+                sync_day_hud.run_if(
+                    in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                ),
             )
             .add_systems(
                 Update,

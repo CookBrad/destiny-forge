@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, GameSettings, GameState,
-    PlayerProfile, ProfileDirty, PROFILE_COUNT,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings, GameState,
+    PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -162,6 +162,8 @@ pub fn handle_title_profile_card_clicks(
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
     mut progress: ResMut<WorldProgress>,
+    mut day_clock: ResMut<DayClock>,
+    mut tool_energy: ResMut<ToolEnergy>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -183,6 +185,8 @@ pub fn handle_title_profile_card_clicks(
             &mut inventory,
             &mut loadout,
             &mut progress,
+            &mut day_clock,
+            &mut tool_energy,
             &mut audio,
             &mut bindings,
             &mut active,
@@ -265,6 +269,8 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
     mut progress: ResMut<WorldProgress>,
+    mut day_clock: ResMut<DayClock>,
+    mut tool_energy: ResMut<ToolEnergy>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -295,6 +301,8 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut inventory,
         &mut loadout,
         &mut progress,
+        &mut day_clock,
+        &mut tool_energy,
         &mut audio,
         &mut bindings,
         &mut active,

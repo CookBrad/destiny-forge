@@ -5,6 +5,8 @@ use crate::combat::SkillBindings;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
+use super::super::day_cycle::DayClock;
+
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::save_profile;
 use super::sync::snapshot_profile;
@@ -45,6 +47,7 @@ pub fn debounced_autosave(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
+    day_clock: Res<DayClock>,
     mut profile: ResMut<PlayerProfile>,
 ) {
     if !profile_dirty.0 {
@@ -56,7 +59,15 @@ pub fn debounced_autosave(
         return;
     }
 
-    snapshot_profile(&inventory, &loadout, &progress, &audio, &bindings, &mut profile);
+    snapshot_profile(
+        &inventory,
+        &loadout,
+        &progress,
+        &day_clock,
+        &audio,
+        &bindings,
+        &mut profile,
+    );
     match save_profile(active.index(), &profile) {
         Ok(()) => profile_dirty.0 = false,
         Err(error) => warn!("Failed to save profile {}: {error}", active.index()),
@@ -70,6 +81,7 @@ pub fn flush_saves_on_exit(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
+    day_clock: Res<DayClock>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
 ) {
@@ -77,7 +89,15 @@ pub fn flush_saves_on_exit(
         return;
     }
 
-    snapshot_profile(&inventory, &loadout, &progress, &audio, &bindings, &mut profile);
+    snapshot_profile(
+        &inventory,
+        &loadout,
+        &progress,
+        &day_clock,
+        &audio,
+        &bindings,
+        &mut profile,
+    );
     if let Err(error) = save_profile(active.index(), &profile) {
         warn!("Failed to flush profile on exit: {error}");
     } else {
