@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use super::day_cycle::{tick_day_clock, DayClock, ToolEnergy};
+use super::hunt_day_cost::apply_hunt_day_cost_on_dungeon_enter;
 use super::memory::MemoryPlugin;
 use super::{DungeonPlayState, GameState};
 
@@ -18,6 +19,10 @@ impl Plugin for CorePlugin {
                 tick_day_clock.run_if(
                     in_state(GameState::Overworld).or(in_state(GameState::Forest)),
                 ),
+            )
+            .add_systems(
+                OnEnter(GameState::Dungeon),
+                apply_hunt_day_cost_on_dungeon_enter,
             );
     }
 }

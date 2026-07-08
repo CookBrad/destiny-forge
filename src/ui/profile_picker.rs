@@ -93,6 +93,7 @@ pub fn begin_profile_run(
         loadout,
         progress,
         day_clock,
+        tool_energy,
         audio,
         bindings,
         active,

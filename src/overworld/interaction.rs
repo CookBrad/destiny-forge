@@ -58,6 +58,7 @@ pub fn overworld_interaction(
                 );
             }
             HomesteadZone::DungeonGate if near && keyboard.just_pressed(KeyCode::KeyE) => {
+                // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
             _ => {}
@@ -104,6 +105,7 @@ pub fn try_sleep_at_bed(
     let day = perform_sleep(&mut day_clock, &mut tool_energy);
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
+    profile.tool_energy = tool_energy.current;
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
     info!("Slept — morning of day {day}. Tool energy restored.");
