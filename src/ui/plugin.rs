@@ -12,6 +12,7 @@ use super::carve_feedback::{
 };
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::energy_hud::{cleanup_energy_hud, setup_energy_hud, sync_energy_hud};
+use super::tool_hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -83,6 +84,7 @@ impl Plugin for UiPlugin {
                     spawn_title_menu,
                     cleanup_day_hud,
                     cleanup_energy_hud,
+                    cleanup_tool_hud,
                     cleanup_interaction_prompt,
                 )
                     .chain(),
@@ -93,7 +95,12 @@ impl Plugin for UiPlugin {
             )
             .add_systems(
                 OnEnter(GameState::Overworld),
-                (setup_day_hud, setup_energy_hud, setup_interaction_prompt),
+                (
+                    setup_day_hud,
+                    setup_energy_hud,
+                    setup_tool_hud,
+                    setup_interaction_prompt,
+                ),
             )
             .add_systems(
                 OnEnter(GameState::Forest),
@@ -105,6 +112,7 @@ impl Plugin for UiPlugin {
                 (
                     cleanup_day_hud,
                     cleanup_energy_hud,
+                    cleanup_tool_hud,
                     cleanup_interaction_prompt,
                 ),
             )
@@ -121,6 +129,7 @@ impl Plugin for UiPlugin {
                     sync_energy_hud.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Forest)),
                     ),
+                    sync_tool_hud.run_if(in_state(GameState::Overworld)),
                     sync_interaction_prompt_ui.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
                     ),

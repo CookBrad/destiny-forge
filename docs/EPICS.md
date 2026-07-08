@@ -26,7 +26,7 @@ Complete map of **all game functionality** from GDD v1.0.
 | **Hunt Loot & Carving** | [#40](https://github.com/CookBrad/destiny-forge/issues/40) | MH materials | ✅ baseline; ⬜ depth |
 | **Forging & Gear Progression** | [#41](https://github.com/CookBrad/destiny-forge/issues/41) | MH gear trees | ✅ baseline; ⬜ expand |
 | **World, Saves & Meta** | [#42](https://github.com/CookBrad/destiny-forge/issues/42) | Hub, zones, profiles | ✅ mostly; ⬜ sleep/landmarks |
-| **Homestead Spine** | [#2](https://github.com/CookBrad/destiny-forge/issues/2) | Day, energy, farm, food | 🔧 day/sleep started |
+| **Homestead Spine** | [#2](https://github.com/CookBrad/destiny-forge/issues/2) | Day, energy, farm, food | 🔧 tools + farming |
 | **Mining** | [#3](https://github.com/CookBrad/destiny-forge/issues/3) | Ore → metal spine | ⬜ |
 | **Fishing** | [#4](https://github.com/CookBrad/destiny-forge/issues/4) | Minigame, fish food/reagents | ⬜ |
 | **Content & Balance** | [#5](https://github.com/CookBrad/destiny-forge/issues/5) | Floor 2, sets, polish | ⬜ |
@@ -108,11 +108,11 @@ Zones, transitions, persistence, menus.
 | # | Ticket | Status |
 | - | ------ | ------ |
 | 15 | Soft day cycle + sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
-| 16 | Hunt consumes large share of the day | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
-| 17 | Tool energy pool + UI meter | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
-| 18 | Homestead tool equip + use | ⬜ |
-| 19 | Crop plots: till/plant/water/harvest | ⬜ |
-| 20 | Starter crops (2–3) | ⬜ |
+| 16 | Hunt consumes large share of the day | ✅ [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
+| 17 | Tool energy pool + UI meter | ✅ [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
+| 18 | Homestead tool equip + use | 🔧 in progress |
+| 19 | Crop plots: till/plant/water/harvest | 🔧 in progress |
+| 20 | Starter crops (2–3) | 🔧 turnip + potato |
 | 21 | Cooking + pre-hunt food buffs | ⬜ |
 | 22 | Inventory UX for crops/food/ore | ⬜ |
 

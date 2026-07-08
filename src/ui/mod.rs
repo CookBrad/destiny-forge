@@ -2,6 +2,7 @@ pub mod carve_feedback;
 mod day_hud;
 mod energy_hud;
 mod health_bars;
+mod tool_hud;
 pub mod forge_window;
 pub mod interaction_prompt;
 pub mod inventory_window;

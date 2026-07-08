@@ -491,6 +491,10 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
         MaterialId::BoneShard => (Color::srgb(0.78, 0.76, 0.7), "Bone"),
         MaterialId::RotFlesh => (Color::srgb(0.55, 0.32, 0.28), "Rot"),
         MaterialId::RoyalSlimeCore => (Color::srgb(0.95, 0.75, 0.2), "Royal"),
+        MaterialId::TurnipSeed => (Color::srgb(0.45, 0.55, 0.28), "T.Seed"),
+        MaterialId::PotatoSeed => (Color::srgb(0.55, 0.42, 0.22), "P.Seed"),
+        MaterialId::Turnip => (Color::srgb(0.72, 0.55, 0.78), "Turnip"),
+        MaterialId::Potato => (Color::srgb(0.78, 0.68, 0.42), "Potato"),
     }
 }
 

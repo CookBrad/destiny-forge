@@ -54,7 +54,7 @@ impl Default for PlayerProfile {
         Self {
             version: PROFILE_VERSION,
             name: String::new(),
-            inventory: Inventory::default(),
+            inventory: Inventory::with_starter_seeds(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
             calendar_day: 1,

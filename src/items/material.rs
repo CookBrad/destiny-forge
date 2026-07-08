@@ -11,6 +11,11 @@ pub enum MaterialId {
     RotFlesh,
     /// Guaranteed King Slime carve; gates Slime Blade.
     RoyalSlimeCore,
+    // Farm goods
+    TurnipSeed,
+    PotatoSeed,
+    Turnip,
+    Potato,
 }
 
 impl MaterialId {
@@ -24,6 +29,10 @@ impl MaterialId {
             Self::BoneShard => "Bone Shard",
             Self::RotFlesh => "Rot Flesh",
             Self::RoyalSlimeCore => "Royal Slime Core",
+            Self::TurnipSeed => "Turnip Seed",
+            Self::PotatoSeed => "Potato Seed",
+            Self::Turnip => "Turnip",
+            Self::Potato => "Potato",
         }
     }
 }

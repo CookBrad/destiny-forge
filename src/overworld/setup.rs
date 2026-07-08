@@ -54,6 +54,7 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt, entry: Ov
         world_transform(Vec2::new(start.x, y), 5.0),
         OverworldPlayer,
         super::movement::OverworldVelocity::default(),
+        crate::farming::PlayerFacing::default(),
     ));
 }
 

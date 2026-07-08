@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::core::{
     perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
 };
+use crate::farming::advance_all_plots_on_sleep;
 use crate::forging::RecipeBook;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
@@ -89,6 +90,7 @@ pub fn try_sleep_at_bed(
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
     mut clear: ResMut<ClearColor>,
+    mut plots: Query<&mut crate::farming::CropPlot>,
 ) {
     if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
         return;
@@ -103,12 +105,13 @@ pub fn try_sleep_at_bed(
     }
 
     let day = perform_sleep(&mut day_clock, &mut tool_energy);
+    advance_all_plots_on_sleep(plots);
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored.");
+    info!("Slept — morning of day {day}. Tool energy restored; crops advanced.");
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
