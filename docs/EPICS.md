@@ -22,7 +22,7 @@ Complete map of **all game functionality** from GDD v1.0.
 | Epic | GitHub | Pillar | Status |
 | ---- | ------ | ------ | ------ |
 | **Foundation — Core Loop** | [#39](https://github.com/CookBrad/destiny-forge/issues/39) | Hunt→carve→forge shell | ✅ mostly shipped |
-| **Weapon Mastery** | [#1](https://github.com/CookBrad/destiny-forge/issues/1) | Combat skill ceiling | 🔧 implemented; tickets open for formal close |
+| **Weapon Mastery** | [#1](https://github.com/CookBrad/destiny-forge/issues/1) | Combat skill ceiling | ✅ shipped |
 | **Hunt Loot & Carving** | [#40](https://github.com/CookBrad/destiny-forge/issues/40) | MH materials | ✅ baseline; ⬜ depth |
 | **Forging & Gear Progression** | [#41](https://github.com/CookBrad/destiny-forge/issues/41) | MH gear trees | ✅ baseline; ⬜ expand |
 | **World, Saves & Meta** | [#42](https://github.com/CookBrad/destiny-forge/issues/42) | Hub, zones, profiles | ✅ mostly; ⬜ sleep/landmarks |
@@ -53,7 +53,7 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 
 | # | Ticket | Status |
 | - | ------ | ------ |
-| 6–14 | Combo, spear/sword, specials, parry, boss, set skills, juice | 🔧 code landed; close after playtest |
+| 6–14 | Combo, spear/sword, specials, parry, boss, set skills, juice | ✅ shipped (`80f88a6`) |
 
 ---
 
@@ -64,8 +64,8 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 | # | Ticket | Status |
 | - | ------ | ------ |
 | 48 | Hold-to-carve corpses (interruptible) | ✅ |
-| 49 | Per-monster carve loot tables (MVP) | 🔧 PR loot tables |
-| 50 | Boss carve: rare parts for set unlocks | 🔧 PR loot tables |
+| 49 | Per-monster carve loot tables (MVP) | 🔧 [PR #66](https://github.com/CookBrad/destiny-forge/pull/66) |
+| 50 | Boss carve: rare parts for set unlocks | 🔧 [PR #66](https://github.com/CookBrad/destiny-forge/pull/66) |
 | 51 | Carve UX: progress feedback | 🔧 [PR #65](https://github.com/CookBrad/destiny-forge/pull/65) |
 | 52 | Expanded loot tables + rarity tiers | 🔧 partial (bonus chance rolls in tables) |
 
@@ -80,7 +80,7 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 | 53 | Forge station UI: recipe cycle + craft | ✅ |
 | 54 | Weapon tree MVP (Rusty→Iron→Slime + spear) | ✅ |
 | 55 | Sli me armor set (4pc) + set bonuses | ✅ |
-| 56 | Migrate recipes/loot to RON data | ⬜ |
+| 56 | Migrate recipes/loot to RON data | 🔧 in progress |
 | 57 | Forge tool recipes (hoe, pickaxe, rod…) | ⬜ |
 | 58 | Gear storage / multi-weapon stash | ⬜ |
 

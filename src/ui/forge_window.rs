@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::core::ProfileDirty;
 use crate::forging::{
     forge_status, recipe_costs_text, recipe_requirement_text, recipe_set_bonus_hint, try_craft_recipe,
-    ALL_RECIPES,
+    Recipe, RecipeBook,
 };
 use crate::items::Inventory;
 use crate::player::Loadout;
@@ -61,21 +61,30 @@ pub fn open_forge_window(
     commands: &mut Commands,
     inventory: &Inventory,
     loadout: &Loadout,
+    recipes: &RecipeBook,
     windows: &Query<Entity, With<ForgeWindow>>,
     time: &mut Time<Virtual>,
 ) {
-    if open.0 || !windows.is_empty() {
+    if open.0 || !windows.is_empty() || recipes.is_empty() {
         return;
     }
 
     open.0 = true;
     selected.0 = 0;
-    spawn_forge_window(commands, inventory, loadout, selected.0);
+    spawn_forge_window(commands, inventory, loadout, recipes, selected.0);
     time.pause();
 }
 
-pub fn spawn_forge_window(commands: &mut Commands, inventory: &Inventory, loadout: &Loadout, index: usize) {
-    let recipe = ALL_RECIPES[index.min(ALL_RECIPES.len().saturating_sub(1))];
+pub fn spawn_forge_window(
+    commands: &mut Commands,
+    inventory: &Inventory,
+    loadout: &Loadout,
+    recipes: &RecipeBook,
+    index: usize,
+) {
+    let Some(recipe) = recipes.get(index.min(recipes.len().saturating_sub(1))) else {
+        return;
+    };
 
     commands
         .spawn((
@@ -116,7 +125,7 @@ pub fn spawn_forge_window(commands: &mut Commands, inventory: &Inventory, loadou
                         ))
                         .with_children(|panel| {
                             spawn_header(panel);
-                            spawn_recipe_panel(panel, inventory, loadout, recipe);
+                            spawn_recipe_panel(panel, inventory, loadout, recipe, recipes.len());
                         });
                 });
         });
@@ -180,7 +189,8 @@ fn spawn_recipe_panel(
     parent: &mut ChildBuilder<'_>,
     inventory: &Inventory,
     loadout: &Loadout,
-    recipe: &crate::forging::Recipe,
+    recipe: &Recipe,
+    recipe_count: usize,
 ) {
     parent
         .spawn(Node {
@@ -192,7 +202,7 @@ fn spawn_recipe_panel(
         .with_children(|panel| {
             panel.spawn((
                 ForgeRecipeNameLabel,
-                Text::new(format!("{} ({}/{})", recipe.name, 1, ALL_RECIPES.len())),
+                Text::new(format!("{} ({}/{})", recipe.name, 1, recipe_count)),
                 TextFont {
                     font_size: 18.0,
                     ..default()
@@ -347,18 +357,19 @@ pub fn handle_forge_recipe_cycle(
     windows: Query<Entity, With<ForgeWindow>>,
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
+    recipes: Res<RecipeBook>,
 ) {
-    if !open.0 || ALL_RECIPES.is_empty() {
+    if !open.0 || recipes.is_empty() {
         return;
     }
 
     let mut changed = false;
     if keyboard.just_pressed(KeyCode::ArrowUp) {
-        selected.0 = selected.0.checked_sub(1).unwrap_or(ALL_RECIPES.len() - 1);
+        selected.0 = selected.0.checked_sub(1).unwrap_or(recipes.len() - 1);
         changed = true;
     }
     if keyboard.just_pressed(KeyCode::ArrowDown) {
-        selected.0 = (selected.0 + 1) % ALL_RECIPES.len();
+        selected.0 = (selected.0 + 1) % recipes.len();
         changed = true;
     }
 
@@ -366,7 +377,7 @@ pub fn handle_forge_recipe_cycle(
         for entity in &windows {
             commands.entity(entity).try_despawn_recursive();
         }
-        spawn_forge_window(&mut commands, &inventory, &loadout, selected.0);
+        spawn_forge_window(&mut commands, &inventory, &loadout, &recipes, selected.0);
     }
 }
 
@@ -375,6 +386,7 @@ pub fn sync_forge_display(
     loadout: Res<Loadout>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
+    recipes: Res<RecipeBook>,
     // ParamSet: multiple &mut Text queries conflict without full Without chains (B0001).
     mut texts: ParamSet<(
         Query<&mut Text, With<ForgeRecipeNameLabel>>,
@@ -384,7 +396,7 @@ pub fn sync_forge_display(
         Query<&mut Text, With<ForgeStatusLabel>>,
     )>,
 ) {
-    if !open.0 {
+    if !open.0 || recipes.is_empty() {
         return;
     }
 
@@ -392,14 +404,16 @@ pub fn sync_forge_display(
         return;
     }
 
-    let recipe = ALL_RECIPES[selected.0.min(ALL_RECIPES.len().saturating_sub(1))];
+    let Some(recipe) = recipes.get(selected.0.min(recipes.len().saturating_sub(1))) else {
+        return;
+    };
 
     if let Ok(mut text) = texts.p0().get_single_mut() {
         text.0 = format!(
             "{} ({}/{})",
             recipe.name,
             selected.0 + 1,
-            ALL_RECIPES.len()
+            recipes.len()
         );
     }
     if let Ok(mut text) = texts.p1().get_single_mut() {
@@ -421,9 +435,10 @@ pub fn sync_forge_display(
 fn craft_selected_recipe(
     inventory: &mut Inventory,
     loadout: &mut Loadout,
+    recipes: &RecipeBook,
     selected: usize,
 ) -> Option<String> {
-    let recipe = ALL_RECIPES.get(selected)?;
+    let recipe = recipes.get(selected)?;
     if try_craft_recipe(inventory, loadout, recipe) {
         Some(format!(
             "Forged {} — equipped for your next dungeon run.",
@@ -438,6 +453,7 @@ pub fn handle_forge_craft_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
+    recipes: Res<RecipeBook>,
     mut interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCraftButton>)>,
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
@@ -457,13 +473,16 @@ pub fn handle_forge_craft_input(
         return;
     }
 
-    if let Some(message) = craft_selected_recipe(&mut inventory, &mut loadout, selected.0) {
+    if let Some(message) =
+        craft_selected_recipe(&mut inventory, &mut loadout, &recipes, selected.0)
+    {
         profile_dirty.mark();
         if let Ok(mut text) = status.get_single_mut() {
             text.0 = message;
         }
     } else if let Ok(mut text) = status.get_single_mut() {
-        let recipe = ALL_RECIPES[selected.0.min(ALL_RECIPES.len().saturating_sub(1))];
-        text.0 = forge_status(&inventory, &loadout, recipe);
+        if let Some(recipe) = recipes.get(selected.0.min(recipes.len().saturating_sub(1))) {
+            text.0 = forge_status(&inventory, &loadout, recipe);
+        }
     }
 }

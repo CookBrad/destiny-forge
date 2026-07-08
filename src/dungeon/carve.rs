@@ -9,7 +9,7 @@ use crate::graphics::INTERACT_DISTANCE;
 use crate::items::Inventory;
 use crate::player::Loadout;
 
-use super::carve_loot::{roll_carve_loot, CarveTarget};
+use super::carve_loot::{roll_carve_loot, CarveLootBook, CarveTarget};
 use super::enemy::{EnemyKind, KingSlimeBoss};
 use super::movement::DungeonPlayer;
 
@@ -56,6 +56,7 @@ pub fn carve_corpses(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     loadout: Res<Loadout>,
+    loot_book: Res<CarveLootBook>,
     mut inventory: ResMut<Inventory>,
     mut profile_dirty: ResMut<ProfileDirty>,
     mut carve_state: ResMut<CarveState>,
@@ -124,6 +125,7 @@ pub fn carve_corpses(
     }
 
     grant_carve_loot(
+        &loot_book,
         &mut inventory,
         &mut loot_log,
         target,
@@ -144,12 +146,13 @@ fn carve_target(kind: Option<&EnemyKind>, boss: Option<&KingSlimeBoss>) -> Optio
 }
 
 fn grant_carve_loot(
+    loot_book: &CarveLootBook,
     inventory: &mut Inventory,
     loot_log: &mut LootLog,
     target: CarveTarget,
     rng: &mut impl rand::Rng,
 ) {
-    for (material, amount) in roll_carve_loot(target, rng) {
+    for (material, amount) in roll_carve_loot(loot_book, target, rng) {
         let leftover = inventory.try_add(material, amount);
         let received = amount.saturating_sub(leftover);
         loot_log.push_carved(material.display_name(), received);
