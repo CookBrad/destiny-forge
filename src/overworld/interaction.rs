@@ -5,11 +5,15 @@ use crate::core::{
 };
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
+use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::graphics::INTERACT_DISTANCE;
 
 use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
+
+const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
+const BED_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 1.5;
 
 pub fn overworld_interaction(
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -37,7 +41,7 @@ pub fn overworld_interaction(
     let position = transform.translation.truncate();
 
     if let Some(zone) = layout.zone_at(position) {
-        let near = distance_to_zone(position, &zone.bounds) <= INTERACT_DISTANCE * 2.0;
+        let near = distance_to_zone(position, &zone.bounds) <= ZONE_INTERACT_RANGE;
         match zone.zone {
             HomesteadZone::Forge if near && keyboard.just_pressed(KeyCode::KeyE) => {
                 open_forge_window(
@@ -90,9 +94,7 @@ pub fn try_sleep_at_bed(
         return;
     };
     let position = player_transform.translation.truncate();
-    if !beds.iter().any(|bed| {
-        position.distance(bed.translation.truncate()) <= INTERACT_DISTANCE * 1.5
-    }) {
+    if !near_any_bed(position, &beds) {
         return;
     }
 
@@ -102,6 +104,58 @@ pub fn try_sleep_at_bed(
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
     info!("Slept — morning of day {day}. Tool energy restored.");
+}
+
+/// Show tooltip for forge / dungeon gate / bed when in range.
+pub fn update_overworld_interaction_prompt(
+    inventory: Res<InventoryWindowOpen>,
+    forge: Res<ForgeWindowOpen>,
+    layout: Res<OverworldLayout>,
+    player: Query<&Transform, With<OverworldPlayer>>,
+    beds: Query<&Transform, With<Bed>>,
+    mut prompt: ResMut<InteractionPrompt>,
+) {
+    if inventory.0 || forge.0 {
+        prompt.clear();
+        return;
+    }
+
+    let Ok(player_transform) = player.get_single() else {
+        prompt.clear();
+        return;
+    };
+    let position = player_transform.translation.truncate();
+    let kind = best_prompt(&overworld_prompt_candidates(position, &layout, &beds));
+    prompt.set(kind);
+}
+
+fn overworld_prompt_candidates(
+    position: Vec2,
+    layout: &OverworldLayout,
+    beds: &Query<&Transform, With<Bed>>,
+) -> Vec<PromptKind> {
+    let mut candidates = Vec::with_capacity(3);
+
+    if near_any_bed(position, beds) {
+        candidates.push(PromptKind::Sleep);
+    }
+
+    if let Some(zone) = layout.zone_at(position) {
+        if distance_to_zone(position, &zone.bounds) <= ZONE_INTERACT_RANGE {
+            match zone.zone {
+                HomesteadZone::Forge => candidates.push(PromptKind::OpenForge),
+                HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
+                _ => {}
+            }
+        }
+    }
+
+    candidates
+}
+
+fn near_any_bed(position: Vec2, beds: &Query<&Transform, With<Bed>>) -> bool {
+    beds.iter()
+        .any(|bed| position.distance(bed.translation.truncate()) <= BED_INTERACT_RANGE)
 }
 
 fn distance_to_zone(position: Vec2, bounds: &Rect) -> f32 {

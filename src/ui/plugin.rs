@@ -15,6 +15,10 @@ use super::forge_window::{
     cleanup_forge_window, forge_window_open, handle_forge_close_input, handle_forge_craft_input,
     handle_forge_recipe_cycle, sync_forge_display, ForgeSelectedRecipe, ForgeWindowOpen,
 };
+use super::interaction_prompt::{
+    cleanup_interaction_prompt, setup_interaction_prompt, sync_interaction_prompt_ui,
+    InteractionPrompt,
+};
 use super::inventory_window::{
     cleanup_inventory_window, handle_inventory_close_button, handle_inventory_slot_click,
     inventory_window_open, sync_inventory_display, toggle_inventory_window,
@@ -57,6 +61,7 @@ impl Plugin for UiPlugin {
             .init_resource::<InventorySelectedSlot>()
             .init_resource::<ForgeWindowOpen>()
             .init_resource::<ForgeSelectedRecipe>()
+            .init_resource::<InteractionPrompt>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -70,6 +75,7 @@ impl Plugin for UiPlugin {
                     refresh_profile_picker,
                     spawn_title_menu,
                     cleanup_day_hud,
+                    cleanup_interaction_prompt,
                 )
                     .chain(),
             )
@@ -79,15 +85,19 @@ impl Plugin for UiPlugin {
             )
             .add_systems(
                 OnEnter(GameState::Overworld),
-                setup_day_hud,
+                (setup_day_hud, setup_interaction_prompt),
             )
             .add_systems(
                 OnEnter(GameState::Forest),
                 setup_day_hud,
             )
             .add_systems(
+                OnEnter(GameState::Dungeon),
+                setup_interaction_prompt,
+            )
+            .add_systems(
                 OnExit(GameState::Overworld),
-                cleanup_day_hud,
+                (cleanup_day_hud, cleanup_interaction_prompt),
             )
             .add_systems(
                 OnExit(GameState::Forest),
@@ -95,8 +105,13 @@ impl Plugin for UiPlugin {
             )
             .add_systems(
                 Update,
-                sync_day_hud.run_if(
-                    in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                (
+                    sync_day_hud.run_if(
+                        in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                    ),
+                    sync_interaction_prompt_ui.run_if(
+                        in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
+                    ),
                 ),
             )
             .add_systems(
@@ -200,6 +215,7 @@ impl Plugin for UiPlugin {
                     cleanup_death_menu,
                     cleanup_skill_bar,
                     cleanup_health_bars,
+                    cleanup_interaction_prompt,
                 )
                     .chain()
                     .in_set(DungeonUiTeardown),

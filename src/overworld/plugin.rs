@@ -6,7 +6,9 @@ use crate::ui::inventory_window::inventory_closed;
 
 use super::animals::move_farm_animals;
 use super::camera::{follow_exploration_camera, init_exploration_camera};
-use super::interaction::{overworld_interaction, try_sleep_at_bed};
+use super::interaction::{
+    overworld_interaction, try_sleep_at_bed, update_overworld_interaction_prompt,
+};
 use super::movement::{animate_overworld_player, exploration_movement, tick_map_transition_cooldown};
 use super::setup::{cleanup_overworld, setup_overworld};
 
@@ -47,6 +49,7 @@ impl Plugin for OverworldPlugin {
             Update,
             (
                 try_sleep_at_bed,
+                update_overworld_interaction_prompt,
                 sync_overworld_ambient,
             )
                 .run_if(in_state(GameState::Overworld)),
