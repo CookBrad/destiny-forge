@@ -110,9 +110,9 @@ Zones, transitions, persistence, menus.
 | 15 | Soft day cycle + sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 16 | Hunt consumes large share of the day | ✅ [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
 | 17 | Tool energy pool + UI meter | ✅ [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
-| 18 | Homestead tool equip + use | 🔧 in progress |
-| 19 | Crop plots: till/plant/water/harvest | 🔧 in progress |
-| 20 | Starter crops (2–3) | 🔧 turnip + potato |
+| 18 | Homestead tool equip + use | 🔧 [PR #70](https://github.com/CookBrad/destiny-forge/pull/70) |
+| 19 | Crop plots: till/plant/water/harvest | 🔧 [PR #70](https://github.com/CookBrad/destiny-forge/pull/70) |
+| 20 | Starter crops (2–3) | 🔧 [PR #70](https://github.com/CookBrad/destiny-forge/pull/70) turnip + potato |
 | 21 | Cooking + pre-hunt food buffs | ⬜ |
 | 22 | Inventory UX for crops/food/ore | ⬜ |
 
