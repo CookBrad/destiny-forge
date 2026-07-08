@@ -4,11 +4,17 @@ use serde::{Deserialize, Serialize};
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
+use super::super::day_cycle::DayPhase;
+
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 3;
+pub const PROFILE_VERSION: u32 = 4;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
+
+fn default_calendar_day() -> u32 {
+    1
+}
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ActiveProfile(pub u8);
@@ -27,6 +33,11 @@ pub struct PlayerProfile {
     pub inventory: Inventory,
     pub loadout: Loadout,
     pub progress: WorldProgress,
+    /// Soft day cycle calendar (persisted).
+    #[serde(default = "default_calendar_day")]
+    pub calendar_day: u32,
+    #[serde(default)]
+    pub day_phase: DayPhase,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -39,6 +50,8 @@ impl Default for PlayerProfile {
             inventory: Inventory::default(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
+            calendar_day: 1,
+            day_phase: DayPhase::Morning,
             settings: ProfileSettings::default(),
         }
     }

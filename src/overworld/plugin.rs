@@ -1,17 +1,19 @@
 use bevy::prelude::*;
 
-use crate::core::GameState;
+use crate::core::{sync_overworld_ambient, DayClock, GameState};
 use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::inventory_closed;
 
 use super::animals::move_farm_animals;
 use super::camera::{follow_exploration_camera, init_exploration_camera};
-use super::interaction::overworld_interaction;
+use super::interaction::{
+    overworld_interaction, try_sleep_at_bed, update_overworld_interaction_prompt,
+};
 use super::movement::{animate_overworld_player, exploration_movement, tick_map_transition_cooldown};
 use super::setup::{cleanup_overworld, setup_overworld};
 
-fn set_overworld_clear_color(mut clear: ResMut<ClearColor>) {
-    clear.0 = Color::srgb(0.22, 0.28, 0.18);
+fn set_overworld_clear_color(mut clear: ResMut<ClearColor>, clock: Res<DayClock>) {
+    clear.0 = clock.phase.ambient_clear_color();
 }
 
 pub struct OverworldPlugin;
@@ -42,6 +44,15 @@ impl Plugin for OverworldPlugin {
                 .run_if(in_state(GameState::Overworld))
                 .run_if(inventory_closed)
                 .run_if(forge_closed),
+        )
+        .add_systems(
+            Update,
+            (
+                try_sleep_at_bed,
+                update_overworld_interaction_prompt,
+                sync_overworld_ambient,
+            )
+                .run_if(in_state(GameState::Overworld)),
         );
     }
 }

@@ -5,6 +5,8 @@ use crate::combat::SkillBindings;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
+use super::super::day_cycle::{DayClock, ToolEnergy};
+
 use super::profile::{ActiveProfile, PlayerProfile, PROFILE_COUNT};
 use super::settings::GameSettings;
 use super::storage::{load_profile, save_profile, save_settings, save_root_display};
@@ -18,15 +20,27 @@ pub fn hydrate_runtime_from_memory(
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
     mut progress: ResMut<WorldProgress>,
+    mut day_clock: ResMut<DayClock>,
+    mut tool_energy: ResMut<ToolEnergy>,
 ) {
-    apply_profile_to_runtime(&profile, &mut inventory, &mut loadout, &mut progress, &mut audio, &mut bindings);
+    apply_profile_to_runtime(
+        &profile,
+        &mut inventory,
+        &mut loadout,
+        &mut progress,
+        &mut day_clock,
+        &mut tool_energy,
+        &mut audio,
+        &mut bindings,
+    );
 
     info!(
-        "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}",
+        "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
         active.index() + 1,
         profile.summary_weapon(),
         profile.summary_material_count(),
-        profile.summary_boss_cleared()
+        profile.summary_boss_cleared(),
+        day_clock.hud_label(),
     );
     info!("Save directory: {}", save_root_display());
 }
@@ -37,9 +51,11 @@ pub fn capture_profile_from_runtime(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
     progress: Res<WorldProgress>,
+    day_clock: Res<DayClock>,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
+    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
     if !audio.is_changed()
         && !bindings.is_changed()
         && !inventory.is_changed()
@@ -53,6 +69,7 @@ pub fn capture_profile_from_runtime(
         &inventory,
         &loadout,
         &progress,
+        &day_clock,
         &audio,
         &bindings,
         &mut profile,
@@ -64,6 +81,7 @@ pub fn snapshot_profile(
     inventory: &Inventory,
     loadout: &Loadout,
     progress: &WorldProgress,
+    day_clock: &DayClock,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     profile: &mut PlayerProfile,
@@ -71,6 +89,8 @@ pub fn snapshot_profile(
     profile.inventory = inventory.clone();
     profile.loadout = loadout.clone();
     profile.progress = progress.clone();
+    profile.calendar_day = day_clock.calendar_day;
+    profile.day_phase = day_clock.phase;
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -80,6 +100,7 @@ pub fn activate_profile(
     inventory: &Inventory,
     loadout: &Loadout,
     progress: &WorldProgress,
+    day_clock: &DayClock,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     active: &mut ActiveProfile,
@@ -92,7 +113,15 @@ pub fn activate_profile(
         return;
     }
 
-    snapshot_profile(inventory, loadout, progress, audio, bindings, profile);
+    snapshot_profile(
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        audio,
+        bindings,
+        profile,
+    );
     if let Err(error) = save_profile(active.index(), profile) {
         warn!("Failed to save profile before switch: {error}");
     } else {
@@ -114,12 +143,17 @@ pub fn apply_profile_to_runtime(
     inventory: &mut Inventory,
     loadout: &mut Loadout,
     progress: &mut WorldProgress,
+    day_clock: &mut DayClock,
+    tool_energy: &mut ToolEnergy,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
 ) {
     *inventory = profile.inventory.clone();
     *loadout = profile.loadout.clone();
     *progress = profile.progress.clone();
+    *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    // Energy is session-soft for now; sleep restores. Persist with #17 if needed.
+    *tool_energy = ToolEnergy::default();
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
 }

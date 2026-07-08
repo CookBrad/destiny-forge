@@ -19,7 +19,7 @@ use super::boss::{resolve_boss_hazards, tick_boss_attacks, tick_boss_phase_flash
 use super::carve::carve_corpses;
 use super::enemy::track_boss_defeat;
 use super::enemy_movement::move_enemies;
-use super::interaction::ladder_interaction;
+use super::interaction::{ladder_interaction, update_dungeon_interaction_prompt};
 use super::movement::dungeon_movement;
 use super::setup::{cleanup_dungeon, retry_dungeon, setup_dungeon};
 
@@ -111,6 +111,7 @@ impl Plugin for DungeonPlugin {
                         track_boss_defeat,
                         carve_corpses,
                         ladder_interaction,
+                        update_dungeon_interaction_prompt,
                     ),
                 )
                     .chain()
