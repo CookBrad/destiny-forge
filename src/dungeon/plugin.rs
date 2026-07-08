@@ -28,6 +28,8 @@ pub struct DungeonPlugin;
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<super::carve::CarveState>()
+            .init_resource::<super::carve::LootLog>()
+            .init_resource::<super::carve_loot::CarveLootBook>()
             .init_resource::<HitStop>()
             .init_resource::<SpecialCooldownState>()
             .add_systems(

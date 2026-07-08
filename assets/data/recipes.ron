@@ -1,0 +1,64 @@
+// Forge recipes — edit here, restart game (or cargo run) to pick up changes.
+// Enum variants match Rust: MaterialId, WeaponKind, ArmorKind.
+[
+    (
+        name: "Iron Sword",
+        costs: [
+            (SlimeGel, 5),
+            (IronScrap, 3),
+        ],
+        output: Weapon(IronSword),
+        requires_weapon: None,
+    ),
+    (
+        name: "Rusty Spear",
+        costs: [
+            (SlimeGel, 3),
+            (Fang, 2),
+        ],
+        output: Weapon(RustySpear),
+        requires_weapon: None,
+    ),
+    (
+        name: "Slime Blade",
+        costs: [
+            (SlimeCore, 2),
+            (RoyalSlimeCore, 1),
+        ],
+        output: Weapon(SlimeBlade),
+        requires_weapon: Some(IronSword),
+    ),
+    (
+        name: "Slime Helm",
+        costs: [
+            (SlimeGel, 4),
+        ],
+        output: Armor(SlimeHelm),
+        requires_weapon: None,
+    ),
+    (
+        name: "Slime Mail",
+        costs: [
+            (SlimeGel, 6),
+            (SlimeCore, 1),
+        ],
+        output: Armor(SlimeMail),
+        requires_weapon: None,
+    ),
+    (
+        name: "Slime Gauntlets",
+        costs: [
+            (SlimeGel, 3),
+        ],
+        output: Armor(SlimeGauntlets),
+        requires_weapon: None,
+    ),
+    (
+        name: "Slime Greaves",
+        costs: [
+            (SlimeGel, 3),
+        ],
+        output: Armor(SlimeGreaves),
+        requires_weapon: None,
+    ),
+]

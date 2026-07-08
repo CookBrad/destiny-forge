@@ -8,7 +8,6 @@ use crate::overworld::setup::OverworldEntry;
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 
-use super::carve::CarvedCorpse;
 use super::movement::DungeonPlayer;
 use super::setup::DungeonExit;
 
@@ -38,7 +37,7 @@ pub fn update_dungeon_interaction_prompt(
     inventory: Res<InventoryWindowOpen>,
     player: Query<&Transform, With<DungeonPlayer>>,
     exits: Query<&Transform, With<DungeonExit>>,
-    corpses: Query<&Transform, (With<EnemyCorpse>, Without<CarvedCorpse>)>,
+    corpses: Query<&Transform, With<EnemyCorpse>>,
     mut prompt: ResMut<InteractionPrompt>,
 ) {
     if inventory.0 {
@@ -68,10 +67,7 @@ fn near_exit(player: &Transform, exits: &Query<&Transform, With<DungeonExit>>) -
     })
 }
 
-fn near_corpse(
-    player: &Transform,
-    corpses: &Query<&Transform, (With<EnemyCorpse>, Without<CarvedCorpse>)>,
-) -> bool {
+fn near_corpse(player: &Transform, corpses: &Query<&Transform, With<EnemyCorpse>>) -> bool {
     corpses.iter().any(|corpse| {
         player.translation.distance(corpse.translation) <= INTERACT_DISTANCE
     })

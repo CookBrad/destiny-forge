@@ -3,8 +3,13 @@ use bevy::prelude::*;
 use crate::combat::SkillBindings;
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
+use crate::forging::RecipeBook;
 use crate::graphics::reset_camera_zoom;
 
+use super::carve_feedback::{
+    cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
+    sync_carve_progress_ui, tick_loot_log_lines,
+};
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
@@ -62,6 +67,7 @@ impl Plugin for UiPlugin {
             .init_resource::<ForgeWindowOpen>()
             .init_resource::<ForgeSelectedRecipe>()
             .init_resource::<InteractionPrompt>()
+            .init_resource::<RecipeBook>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
@@ -87,22 +93,13 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Overworld),
                 (setup_day_hud, setup_interaction_prompt),
             )
-            .add_systems(
-                OnEnter(GameState::Forest),
-                setup_day_hud,
-            )
-            .add_systems(
-                OnEnter(GameState::Dungeon),
-                setup_interaction_prompt,
-            )
+            .add_systems(OnEnter(GameState::Forest), setup_day_hud)
+            .add_systems(OnEnter(GameState::Dungeon), setup_interaction_prompt)
             .add_systems(
                 OnExit(GameState::Overworld),
                 (cleanup_day_hud, cleanup_interaction_prompt),
             )
-            .add_systems(
-                OnExit(GameState::Forest),
-                cleanup_day_hud,
-            )
+            .add_systems(OnExit(GameState::Forest), cleanup_day_hud)
             .add_systems(
                 Update,
                 (
@@ -175,6 +172,7 @@ impl Plugin for UiPlugin {
                     spawn_skill_bar,
                     spawn_player_health_bar,
                     spawn_enemy_health_bars,
+                    spawn_carve_feedback_ui,
                 )
                     .chain(),
             )
@@ -202,10 +200,7 @@ impl Plugin for UiPlugin {
                 OnExit(GameState::Overworld),
                 (cleanup_inventory_window, cleanup_forge_window),
             )
-            .add_systems(
-                OnExit(GameState::Forest),
-                cleanup_inventory_window,
-            )
+            .add_systems(OnExit(GameState::Forest), cleanup_inventory_window)
             .add_systems(
                 OnExit(GameState::Dungeon),
                 (
@@ -216,6 +211,7 @@ impl Plugin for UiPlugin {
                     cleanup_skill_bar,
                     cleanup_health_bars,
                     cleanup_interaction_prompt,
+                    cleanup_carve_feedback_ui,
                 )
                     .chain()
                     .in_set(DungeonUiTeardown),
@@ -230,6 +226,9 @@ impl Plugin for UiPlugin {
                     despawn_orphan_enemy_health_bars,
                     spawn_enemy_health_bars,
                     update_enemy_health_bars.after(move_enemies),
+                    sync_carve_progress_ui,
+                    drain_loot_log_to_ui,
+                    tick_loot_log_lines,
                 )
                     .run_if(in_state(GameState::Dungeon))
                     .run_if(

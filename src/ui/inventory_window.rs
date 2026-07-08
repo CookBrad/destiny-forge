@@ -488,6 +488,9 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
         MaterialId::LeatherWing => (Color::srgb(0.52, 0.28, 0.62), "Wing"),
         MaterialId::Fang => (Color::srgb(0.86, 0.84, 0.78), "Fang"),
         MaterialId::IronScrap => (Color::srgb(0.48, 0.5, 0.54), "Iron"),
+        MaterialId::BoneShard => (Color::srgb(0.78, 0.76, 0.7), "Bone"),
+        MaterialId::RotFlesh => (Color::srgb(0.55, 0.32, 0.28), "Rot"),
+        MaterialId::RoyalSlimeCore => (Color::srgb(0.95, 0.75, 0.2), "Royal"),
     }
 }
 

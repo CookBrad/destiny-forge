@@ -1,3 +1,4 @@
+pub mod data_load;
 pub mod day_cycle;
 mod memory;
 mod plugin;

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::core::{
     perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
 };
+use crate::forging::RecipeBook;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
@@ -25,6 +26,7 @@ pub fn overworld_interaction(
     mut forge: ResMut<ForgeWindowOpen>,
     mut forge_recipe: ResMut<ForgeSelectedRecipe>,
     loadout: Res<Loadout>,
+    recipes: Res<RecipeBook>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -50,6 +52,7 @@ pub fn overworld_interaction(
                     &mut commands,
                     &game_inventory,
                     &loadout,
+                    &recipes,
                     &forge_windows,
                     &mut time,
                 );

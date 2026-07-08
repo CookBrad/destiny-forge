@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::combat::Health;
 use crate::graphics::ENEMY_DISPLAY_SIZE;
@@ -7,7 +8,7 @@ const HIT_AGGRO_LOCK_SECS: f32 = 3.0;
 const KNOCKBACK_FORCE_X: f32 = 130.0;
 const KNOCKBACK_FORCE_Y: f32 = 85.0;
 
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EnemyKind {
     Slime,
     Bat,
