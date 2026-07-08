@@ -64,10 +64,10 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 | # | Ticket | Status |
 | - | ------ | ------ |
 | 48 | Hold-to-carve corpses (interruptible) | ✅ |
-| 49 | Per-monster carve loot tables (MVP) | 🔧 partial (fixed lists exist; tables still placeholder-y) |
-| 50 | Boss carve: rare parts for set unlocks | ⬜ |
-| 51 | Carve UX: progress feedback | ⬜ |
-| 52 | Expanded loot tables + rarity tiers | ⬜ |
+| 49 | Per-monster carve loot tables (MVP) | 🔧 PR loot tables |
+| 50 | Boss carve: rare parts for set unlocks | 🔧 PR loot tables |
+| 51 | Carve UX: progress feedback | 🔧 [PR #65](https://github.com/CookBrad/destiny-forge/pull/65) |
+| 52 | Expanded loot tables + rarity tiers | 🔧 partial (bonus chance rolls in tables) |
 
 ---
 

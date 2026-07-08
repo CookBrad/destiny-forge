@@ -1,6 +1,7 @@
 mod animation;
 mod boss;
 pub mod carve;
+mod carve_loot;
 mod enemy;
 mod enemy_movement;
 mod enemy_stats;

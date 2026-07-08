@@ -31,7 +31,10 @@ pub const RUSTY_SPEAR_RECIPE: Recipe = Recipe {
 
 pub const SLIME_BLADE_RECIPE: Recipe = Recipe {
     name: "Slime Blade",
-    costs: &[(MaterialId::SlimeCore, 2)],
+    costs: &[
+        (MaterialId::SlimeCore, 2),
+        (MaterialId::RoyalSlimeCore, 1),
+    ],
     output: RecipeOutput::Weapon(WeaponKind::SlimeBlade),
     requires_weapon: Some(WeaponKind::IronSword),
 };
@@ -123,13 +126,7 @@ pub fn try_craft_iron_sword(inventory: &mut Inventory, loadout: &mut Loadout) ->
 }
 
 pub fn material_name(material: MaterialId) -> &'static str {
-    match material {
-        MaterialId::SlimeGel => "Slime Gel",
-        MaterialId::SlimeCore => "Slime Core",
-        MaterialId::LeatherWing => "Leather Wing",
-        MaterialId::Fang => "Fang",
-        MaterialId::IronScrap => "Iron Scrap",
-    }
+    material.display_name()
 }
 
 pub fn recipe_costs_text(inventory: &Inventory, recipe: &Recipe) -> String {
@@ -195,16 +192,26 @@ mod tests {
     }
 
     #[test]
-    fn slime_blade_requires_iron_sword_equipped() {
+    fn slime_blade_requires_iron_sword_and_royal_core() {
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         inventory.try_add(MaterialId::SlimeCore, 2);
+        inventory.try_add(MaterialId::RoyalSlimeCore, 1);
 
-        assert!(!try_craft_recipe(&mut inventory, &mut loadout, &SLIME_BLADE_RECIPE));
+        assert!(!try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &SLIME_BLADE_RECIPE
+        ));
 
         loadout.weapon = WeaponKind::IronSword;
-        assert!(try_craft_recipe(&mut inventory, &mut loadout, &SLIME_BLADE_RECIPE));
+        assert!(try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &SLIME_BLADE_RECIPE
+        ));
         assert_eq!(loadout.weapon, WeaponKind::SlimeBlade);
+        assert_eq!(inventory.count(MaterialId::RoyalSlimeCore), 0);
     }
 
     #[test]
