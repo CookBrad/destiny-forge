@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::combat::SkillBindings;
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
+use crate::forging::RecipeBook;
 use crate::graphics::reset_camera_zoom;
 
 use super::carve_feedback::{
@@ -60,6 +61,7 @@ impl Plugin for UiPlugin {
             .init_resource::<InventorySelectedSlot>()
             .init_resource::<ForgeWindowOpen>()
             .init_resource::<ForgeSelectedRecipe>()
+            .init_resource::<RecipeBook>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()

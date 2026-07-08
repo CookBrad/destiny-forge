@@ -1,0 +1,69 @@
+// Per-species carve loot tables.
+// guaranteed: always granted; bonus: (material, amount, chance 0.0..=1.0)
+[
+    (
+        target: Pack(Slime),
+        guaranteed: [
+            (SlimeGel, 2),
+        ],
+        bonus: [
+            (SlimeGel, 2, 0.55),
+            (SlimeCore, 1, 0.35),
+            (IronScrap, 1, 0.25),
+        ],
+    ),
+    (
+        target: Pack(Bat),
+        guaranteed: [
+            (LeatherWing, 1),
+        ],
+        bonus: [
+            (Fang, 1, 0.65),
+            (LeatherWing, 1, 0.3),
+        ],
+    ),
+    (
+        target: Pack(Goblin),
+        guaranteed: [
+            (Fang, 1),
+        ],
+        bonus: [
+            (IronScrap, 1, 0.5),
+            (Fang, 1, 0.25),
+        ],
+    ),
+    (
+        target: Pack(Skeleton),
+        guaranteed: [
+            (BoneShard, 2),
+        ],
+        bonus: [
+            (BoneShard, 1, 0.4),
+            (IronScrap, 1, 0.45),
+        ],
+    ),
+    (
+        target: Pack(Zombie),
+        guaranteed: [
+            (RotFlesh, 1),
+        ],
+        bonus: [
+            (RotFlesh, 1, 0.4),
+            (IronScrap, 1, 0.35),
+            (SlimeGel, 1, 0.15),
+        ],
+    ),
+    (
+        target: KingSlime,
+        guaranteed: [
+            (SlimeGel, 5),
+            (SlimeCore, 2),
+            (RoyalSlimeCore, 1),
+        ],
+        bonus: [
+            (SlimeGel, 3, 0.5),
+            (RoyalSlimeCore, 1, 0.15),
+            (IronScrap, 2, 0.4),
+        ],
+    ),
+]
