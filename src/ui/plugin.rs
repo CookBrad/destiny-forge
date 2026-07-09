@@ -5,6 +5,7 @@ use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::forging::RecipeBook;
 use crate::graphics::reset_camera_zoom;
+use crate::items::ItemIconAssets;
 
 use super::carve_feedback::{
     cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
@@ -74,6 +75,7 @@ impl Plugin for UiPlugin {
             .init_resource::<InteractionPrompt>()
             .init_resource::<InventoryHotbarDrag>()
             .init_resource::<RecipeBook>()
+            .init_resource::<ItemIconAssets>()
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()

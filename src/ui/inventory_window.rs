@@ -1,8 +1,9 @@
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
+use bevy::ui::widget::{ImageNode, NodeImageMode};
 
 use crate::core::{DungeonPlayState, GameState};
-use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
+use crate::items::{Inventory, ItemIconAssets, MaterialId, INVENTORY_SLOT_COUNT};
 
 const GRID_COLUMNS: usize = 4;
 const SLOT_SIZE: f32 = 52.0;
@@ -51,9 +52,6 @@ pub struct InventorySlotStack;
 pub struct InventorySlotStackText;
 
 #[derive(Component)]
-pub struct InventoryIconLabel;
-
-#[derive(Component)]
 pub struct InventoryCloseButton;
 
 #[derive(Component)]
@@ -65,7 +63,11 @@ pub struct InventoryTooltipTitle;
 #[derive(Component)]
 pub struct InventoryTooltipBody;
 
-pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
+pub fn spawn_inventory_window(
+    commands: &mut Commands,
+    inventory: &Inventory,
+    icons: &ItemIconAssets,
+) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
 
@@ -107,7 +109,7 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                         ))
                         .with_children(|panel| {
                             spawn_header(panel);
-                            spawn_slot_grid(panel, inventory, grid_width);
+                            spawn_slot_grid(panel, inventory, icons, grid_width);
                             spawn_currency_footer(panel);
                         });
                 });
@@ -239,7 +241,12 @@ fn spawn_header(parent: &mut ChildBuilder<'_>) {
         });
 }
 
-fn spawn_slot_grid(parent: &mut ChildBuilder<'_>, inventory: &Inventory, grid_width: f32) {
+fn spawn_slot_grid(
+    parent: &mut ChildBuilder<'_>,
+    inventory: &Inventory,
+    icons: &ItemIconAssets,
+    grid_width: f32,
+) {
     parent
         .spawn(Node {
             width: Val::Px(grid_width),
@@ -251,13 +258,18 @@ fn spawn_slot_grid(parent: &mut ChildBuilder<'_>, inventory: &Inventory, grid_wi
         })
         .with_children(|grid| {
             for index in 0..INVENTORY_SLOT_COUNT {
-                spawn_slot(grid, inventory, index);
+                spawn_slot(grid, inventory, icons, index);
             }
         });
 }
 
-fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize) {
-    let (icon_color, icon_label, stack) = slot_visuals(inventory, index);
+fn spawn_slot(
+    parent: &mut ChildBuilder<'_>,
+    inventory: &Inventory,
+    icons: &ItemIconAssets,
+    index: usize,
+) {
+    let (image, visible, stack) = slot_icon(inventory, icons, index);
     let selected = index == 0;
 
     parent
@@ -282,28 +294,22 @@ fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize
         .with_children(|slot| {
             slot.spawn((
                 InventorySlotIcon,
-                Node {
-                    width: Val::Px(38.0),
-                    height: Val::Px(38.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    border: UiRect::all(Val::Px(1.0)),
+                ImageNode {
+                    image,
+                    image_mode: NodeImageMode::Stretch,
+                    color: if visible {
+                        Color::WHITE
+                    } else {
+                        Color::NONE
+                    },
                     ..default()
                 },
-                BackgroundColor(icon_color),
-                BorderColor(Color::srgba(0.0, 0.0, 0.0, 0.35)),
-            ))
-            .with_children(|icon| {
-                icon.spawn((
-                    InventoryIconLabel,
-                    Text::new(icon_label),
-                    TextFont {
-                        font_size: 11.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.95, 0.95, 0.98)),
-                ));
-            });
+                Node {
+                    width: Val::Px(32.0),
+                    height: Val::Px(32.0),
+                    ..default()
+                },
+            ));
 
             slot.spawn((
                 InventorySlotStack,
@@ -405,6 +411,7 @@ pub fn toggle_inventory_window(
     mut open: ResMut<InventoryWindowOpen>,
     mut commands: Commands,
     inventory: Res<Inventory>,
+    icons: Res<ItemIconAssets>,
     windows: Query<Entity, With<InventoryWindow>>,
     tooltips: Query<Entity, With<InventoryTooltipRoot>>,
     game: Res<State<GameState>>,
@@ -434,7 +441,7 @@ pub fn toggle_inventory_window(
         );
     } else {
         open.0 = true;
-        spawn_inventory_window(&mut commands, &inventory);
+        spawn_inventory_window(&mut commands, &inventory, &icons);
         time.pause();
     }
 }
@@ -564,56 +571,34 @@ fn should_resume_time(game: &GameState, dungeon: Option<&State<DungeonPlayState>
     )
 }
 
-fn slot_visuals(inventory: &Inventory, index: usize) -> (Color, String, String) {
+fn slot_icon(
+    inventory: &Inventory,
+    icons: &ItemIconAssets,
+    index: usize,
+) -> (Handle<Image>, bool, String) {
     let slot = &inventory.slots[index];
     match slot.material {
         Some(material) if slot.count > 0 => {
-            let (color, label) = material_visual(material);
             let stack = if slot.count > 1 {
                 slot.count.to_string()
             } else {
                 String::new()
             };
-            (color, label.to_string(), stack)
+            (icons.handle_for(material), true, stack)
         }
-        _ => (
-            Color::srgba(0.0, 0.0, 0.0, 0.0),
-            String::new(),
-            String::new(),
-        ),
-    }
-}
-
-fn material_visual(material: MaterialId) -> (Color, &'static str) {
-    match material {
-        MaterialId::SlimeGel => (Color::srgb(0.2, 0.45, 0.82), "Gel"),
-        MaterialId::SlimeCore => (Color::srgb(0.28, 0.72, 0.34), "Core"),
-        MaterialId::LeatherWing => (Color::srgb(0.52, 0.28, 0.62), "Wing"),
-        MaterialId::Fang => (Color::srgb(0.86, 0.84, 0.78), "Fang"),
-        MaterialId::IronScrap => (Color::srgb(0.48, 0.5, 0.54), "Iron"),
-        MaterialId::BoneShard => (Color::srgb(0.78, 0.76, 0.7), "Bone"),
-        MaterialId::RotFlesh => (Color::srgb(0.55, 0.32, 0.28), "Rot"),
-        MaterialId::RoyalSlimeCore => (Color::srgb(0.95, 0.75, 0.2), "Royal"),
-        MaterialId::TurnipSeed => (Color::srgb(0.45, 0.55, 0.28), "T.Seed"),
-        MaterialId::PotatoSeed => (Color::srgb(0.55, 0.42, 0.22), "P.Seed"),
-        MaterialId::Turnip => (Color::srgb(0.72, 0.55, 0.78), "Turnip"),
-        MaterialId::Potato => (Color::srgb(0.78, 0.68, 0.42), "Potato"),
-        MaterialId::Hoe => (Color::srgb(0.55, 0.4, 0.22), "Hoe"),
-        MaterialId::WateringCan => (Color::srgb(0.28, 0.48, 0.72), "Water"),
+        _ => (icons.slime_gel.clone(), false, String::new()),
     }
 }
 
 pub fn sync_inventory_display(
     inventory: Res<Inventory>,
+    icons: Res<ItemIconAssets>,
     open: Res<InventoryWindowOpen>,
     selected: Res<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &Children, &mut BorderColor)>,
-    mut icons: Query<(&mut BackgroundColor, &Children), With<InventorySlotIcon>>,
+    mut icon_images: Query<&mut ImageNode, With<InventorySlotIcon>>,
     stacks: Query<&Children, With<InventorySlotStack>>,
-    mut texts: ParamSet<(
-        Query<&mut Text, With<InventoryIconLabel>>,
-        Query<&mut Text, With<InventorySlotStackText>>,
-    )>,
+    mut stack_texts: Query<&mut Text, With<InventorySlotStackText>>,
 ) {
     if !open.0 {
         return;
@@ -637,20 +622,16 @@ pub fn sync_inventory_display(
             continue;
         }
 
-        let (icon_color, icon_label, stack_label) = slot_visuals(&inventory, slot.index);
+        let (image, visible, stack_label) = slot_icon(&inventory, &icons, slot.index);
         for child in children.iter() {
-            if let Ok((mut bg, icon_children)) = icons.get_mut(*child) {
-                *bg = BackgroundColor(icon_color);
-                for icon_child in icon_children.iter() {
-                    if let Ok(mut text) = texts.p0().get_mut(*icon_child) {
-                        text.0 = icon_label.clone();
-                    }
-                }
+            if let Ok(mut node) = icon_images.get_mut(*child) {
+                node.image = image.clone();
+                node.color = if visible { Color::WHITE } else { Color::NONE };
             }
 
             if let Ok(stack_children) = stacks.get(*child) {
                 for stack_child in stack_children.iter() {
-                    if let Ok(mut text) = texts.p1().get_mut(*stack_child) {
+                    if let Ok(mut text) = stack_texts.get_mut(*stack_child) {
                         text.0 = stack_label.clone();
                     }
                 }

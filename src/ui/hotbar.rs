@@ -1,10 +1,11 @@
 //! Homestead hotbar — empty slots, drag items from inventory; selected = action.
 
 use bevy::prelude::*;
+use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
 
 use crate::farming::{HomesteadHotbar, HotbarEntry, HOTBAR_SLOT_COUNT};
-use crate::items::{Inventory, MaterialId};
+use crate::items::{Inventory, ItemIconAssets, MaterialId};
 
 #[derive(Component)]
 pub struct HotbarHud;
@@ -16,11 +17,6 @@ pub struct HotbarSlot {
 
 #[derive(Component, Clone, Copy)]
 pub struct HotbarSlotIcon {
-    pub slot_index: usize,
-}
-
-#[derive(Component, Clone, Copy)]
-pub struct HotbarSlotLabel {
     pub slot_index: usize,
 }
 
@@ -54,12 +50,17 @@ const SLOT_HEIGHT: f32 = 68.0;
 const SLOT_GAP: f32 = 6.0;
 const BAR_BOTTOM: f32 = 14.0;
 const GHOST_SIZE: f32 = 40.0;
+const ICON_SIZE: f32 = 30.0;
 
-pub fn setup_hotbar(mut commands: Commands, hotbar: Res<HomesteadHotbar>) {
-    spawn_hotbar(&mut commands, &hotbar);
+pub fn setup_hotbar(
+    mut commands: Commands,
+    hotbar: Res<HomesteadHotbar>,
+    icons: Res<ItemIconAssets>,
+) {
+    spawn_hotbar(&mut commands, &hotbar, &icons);
 }
 
-pub fn spawn_hotbar(commands: &mut Commands, hotbar: &HomesteadHotbar) {
+pub fn spawn_hotbar(commands: &mut Commands, hotbar: &HomesteadHotbar, icons: &ItemIconAssets) {
     commands
         .spawn((
             HotbarHud,
@@ -80,7 +81,13 @@ pub fn spawn_hotbar(commands: &mut Commands, hotbar: &HomesteadHotbar) {
             })
             .with_children(|row| {
                 for index in 0..HOTBAR_SLOT_COUNT {
-                    spawn_hotbar_slot(row, index, hotbar.slots[index], hotbar.selected == index);
+                    spawn_hotbar_slot(
+                        row,
+                        index,
+                        hotbar.slots[index],
+                        hotbar.selected == index,
+                        icons,
+                    );
                 }
             });
         });
@@ -91,7 +98,10 @@ fn spawn_hotbar_slot(
     index: usize,
     entry: HotbarEntry,
     selected: bool,
+    icons: &ItemIconAssets,
 ) {
+    let (image, visible) = entry_image(entry, icons);
+
     parent
         .spawn((
             HotbarSlot { index },
@@ -127,28 +137,18 @@ fn spawn_hotbar_slot(
 
             slot.spawn((
                 HotbarSlotIcon { slot_index: index },
-                Node {
-                    width: Val::Px(30.0),
-                    height: Val::Px(30.0),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    border: UiRect::all(Val::Px(1.0)),
+                ImageNode {
+                    image,
+                    image_mode: NodeImageMode::Stretch,
+                    color: if visible { Color::WHITE } else { Color::NONE },
                     ..default()
                 },
-                BackgroundColor(entry.icon_color()),
-                BorderColor(Color::srgba(0.0, 0.0, 0.0, 0.4)),
-            ))
-            .with_children(|icon| {
-                icon.spawn((
-                    HotbarSlotLabel { slot_index: index },
-                    Text::new(entry.short_label()),
-                    TextFont {
-                        font_size: 9.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.95, 0.96, 0.9)),
-                ));
-            });
+                Node {
+                    width: Val::Px(ICON_SIZE),
+                    height: Val::Px(ICON_SIZE),
+                    ..default()
+                },
+            ));
 
             slot.spawn((
                 HotbarSlotCount { slot_index: index },
@@ -160,6 +160,13 @@ fn spawn_hotbar_slot(
                 TextColor(Color::srgb(0.85, 0.88, 0.8)),
             ));
         });
+}
+
+fn entry_image(entry: HotbarEntry, icons: &ItemIconAssets) -> (Handle<Image>, bool) {
+    match entry {
+        HotbarEntry::Item(material) => (icons.handle_for(material), true),
+        HotbarEntry::Empty => (icons.slime_gel.clone(), false),
+    }
 }
 
 pub fn cleanup_hotbar(
@@ -242,9 +249,10 @@ pub fn cancel_hotbar_drag_input(
 pub fn update_hotbar_drag_ghost(
     mut commands: Commands,
     mut drag: ResMut<InventoryHotbarDrag>,
+    icons: Res<ItemIconAssets>,
     window: Query<&Window, With<PrimaryWindow>>,
     mut ghosts: Query<&mut Node, With<HotbarDragGhost>>,
-    mut labels: Query<&mut Text, With<HotbarDragGhostLabel>>,
+    mut ghost_images: Query<&mut ImageNode, With<HotbarDragGhostLabel>>,
 ) {
     let Ok(window) = window.get_single() else {
         return;
@@ -276,19 +284,24 @@ pub fn update_hotbar_drag_ghost(
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                BackgroundColor(HotbarEntry::Item(material).icon_color()),
+                BackgroundColor(Color::srgba(0.08, 0.08, 0.1, 0.85)),
                 BorderColor(Color::srgb(0.95, 0.85, 0.4)),
                 GlobalZIndex(250),
             ))
             .with_children(|g| {
                 g.spawn((
                     HotbarDragGhostLabel,
-                    Text::new(material.short_label()),
-                    TextFont {
-                        font_size: 11.0,
+                    ImageNode {
+                        image: icons.handle_for(material),
+                        image_mode: NodeImageMode::Stretch,
+                        color: Color::WHITE,
                         ..default()
                     },
-                    TextColor(Color::WHITE),
+                    Node {
+                        width: Val::Px(ICON_SIZE),
+                        height: Val::Px(ICON_SIZE),
+                        ..default()
+                    },
                 ));
             })
             .id();
@@ -300,11 +313,8 @@ pub fn update_hotbar_drag_ghost(
         node.left = Val::Px(left);
         node.top = Val::Px(top);
     }
-    if let Ok(mut text) = labels.get_single_mut() {
-        let label = material.short_label();
-        if text.as_str() != label {
-            text.0 = label.to_string();
-        }
+    if let Ok(mut image) = ghost_images.get_single_mut() {
+        image.image = icons.handle_for(material);
     }
 }
 
@@ -323,10 +333,10 @@ fn clear_drag(commands: &mut Commands, drag: &mut InventoryHotbarDrag) {
 pub fn sync_hotbar_ui(
     hotbar: Res<HomesteadHotbar>,
     inventory: Res<Inventory>,
+    icons: Res<ItemIconAssets>,
     mut slots: Query<(&HotbarSlot, &mut BorderColor, &mut BackgroundColor)>,
-    mut icons: Query<(&HotbarSlotIcon, &mut BackgroundColor), Without<HotbarSlot>>,
-    mut labels: Query<(&HotbarSlotLabel, &mut Text)>,
-    mut counts: Query<(&HotbarSlotCount, &mut Text), Without<HotbarSlotLabel>>,
+    mut icon_images: Query<(&HotbarSlotIcon, &mut ImageNode)>,
+    mut counts: Query<(&HotbarSlotCount, &mut Text)>,
 ) {
     if !hotbar.is_changed() && !inventory.is_changed() {
         return;
@@ -346,14 +356,11 @@ pub fn sync_hotbar_ui(
         };
     }
 
-    for (icon, mut bg) in &mut icons {
+    for (icon, mut image_node) in &mut icon_images {
         let entry = hotbar.slots[icon.slot_index];
-        bg.0 = entry.icon_color();
-    }
-
-    for (label, mut text) in &mut labels {
-        let entry = hotbar.slots[label.slot_index];
-        text.0 = entry.short_label().to_string();
+        let (handle, visible) = entry_image(entry, &icons);
+        image_node.image = handle;
+        image_node.color = if visible { Color::WHITE } else { Color::NONE };
     }
 
     for (count, mut text) in &mut counts {
