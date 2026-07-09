@@ -476,30 +476,55 @@ pub fn handle_inventory_slot_click(
     >,
     mut selected: ResMut<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &mut BorderColor)>,
-    inventory: Res<Inventory>,
+    mut inventory: ResMut<Inventory>,
     mut drag: ResMut<super::hotbar::InventoryHotbarDrag>,
+    mut commands: Commands,
+    mut profile_dirty: ResMut<crate::core::ProfileDirty>,
 ) {
     for (interaction, slot) in &mut interactions {
         if *interaction != Interaction::Pressed {
             continue;
         }
 
-        selected.0 = slot.index;
-        for (entry, mut border) in &mut slots {
-            if entry.index == selected.0 {
-                *border = BorderColor(SLOT_SELECTED);
-            } else {
-                *border = BorderColor(SLOT_BORDER);
+        // Drop onto another backpack slot → reorganize (swap / merge / move).
+        if let Some(from) = drag.from_slot {
+            if from != slot.index {
+                if inventory.reorganize_slots(from, slot.index) {
+                    profile_dirty.mark();
+                }
+                selected.0 = slot.index;
+                super::hotbar::clear_inventory_drag(&mut commands, &mut drag);
+                highlight_selected(&mut slots, selected.0);
+                continue;
             }
+            // Clicked same source slot again — cancel drag, keep selection.
+            selected.0 = slot.index;
+            super::hotbar::clear_inventory_drag(&mut commands, &mut drag);
+            highlight_selected(&mut slots, selected.0);
+            continue;
         }
 
-        // Start drag to hotbar when the slot has an item.
+        selected.0 = slot.index;
+        highlight_selected(&mut slots, selected.0);
+
+        // Start drag for reorganize / hotbar assign when the slot has an item.
         let entry = &inventory.slots[slot.index];
         if let Some(material) = entry.material {
             if entry.count > 0 {
+                drag.from_slot = Some(slot.index);
                 drag.material = Some(material);
             }
         }
+    }
+}
+
+fn highlight_selected(slots: &mut Query<(&InventorySlot, &mut BorderColor)>, selected: usize) {
+    for (entry, mut border) in slots.iter_mut() {
+        *border = if entry.index == selected {
+            BorderColor(SLOT_SELECTED)
+        } else {
+            BorderColor(SLOT_BORDER)
+        };
     }
 }
 

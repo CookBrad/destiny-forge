@@ -40,9 +40,11 @@ pub struct HotbarDragGhost;
 #[derive(Component)]
 pub struct HotbarDragGhostLabel;
 
-/// Drag payload from backpack → hotbar.
+/// Drag payload from backpack → inventory slot (reorganize) or hotbar.
 #[derive(Resource, Default)]
 pub struct InventoryHotbarDrag {
+    /// Source backpack slot index.
+    pub from_slot: Option<usize>,
     pub material: Option<MaterialId>,
     pub ghost: Option<Entity>,
 }
@@ -214,7 +216,7 @@ pub fn handle_hotbar_slot_clicks(
             continue;
         }
 
-        if let Some(material) = drag.material.take() {
+        if let Some(material) = drag.material {
             hotbar.assign(slot.index, material);
             clear_drag(&mut commands, &mut drag);
         } else {
@@ -306,11 +308,16 @@ pub fn update_hotbar_drag_ghost(
     }
 }
 
-fn clear_drag(commands: &mut Commands, drag: &mut InventoryHotbarDrag) {
+pub fn clear_inventory_drag(commands: &mut Commands, drag: &mut InventoryHotbarDrag) {
+    drag.from_slot = None;
     drag.material = None;
     if let Some(entity) = drag.ghost.take() {
         commands.entity(entity).try_despawn_recursive();
     }
+}
+
+fn clear_drag(commands: &mut Commands, drag: &mut InventoryHotbarDrag) {
+    clear_inventory_drag(commands, drag);
 }
 
 pub fn sync_hotbar_ui(

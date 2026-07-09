@@ -125,6 +125,49 @@ impl Inventory {
             .iter()
             .all(|(material, amount)| self.count(*material) >= *amount)
     }
+
+    /// Move stack `from` onto `to`: swap, merge same stacks, or move into empty.
+    /// Returns true if anything changed.
+    pub fn reorganize_slots(&mut self, from: usize, to: usize) -> bool {
+        if from == to || from >= INVENTORY_SLOT_COUNT || to >= INVENTORY_SLOT_COUNT {
+            return false;
+        }
+
+        let source = self.slots[from];
+        let dest = self.slots[to];
+
+        if source.material.is_none() || source.count == 0 {
+            return false;
+        }
+
+        // Empty destination — move whole stack.
+        if dest.material.is_none() || dest.count == 0 {
+            self.slots[to] = source;
+            self.slots[from] = MaterialStack::default();
+            return true;
+        }
+
+        // Same material — merge into dest up to MAX_STACK.
+        if dest.material == source.material {
+            let space = MAX_STACK.saturating_sub(dest.count);
+            if space == 0 {
+                // Full stack: swap so player can still reorganize.
+                self.slots.swap(from, to);
+                return true;
+            }
+            let moved = source.count.min(space);
+            self.slots[to].count += moved;
+            self.slots[from].count -= moved;
+            if self.slots[from].count == 0 {
+                self.slots[from] = MaterialStack::default();
+            }
+            return true;
+        }
+
+        // Different materials — swap.
+        self.slots.swap(from, to);
+        true
+    }
 }
 
 #[cfg(test)]
@@ -147,6 +190,48 @@ mod tests {
         assert_eq!(inventory.try_add(MaterialId::Fang, 99), 0);
         assert_eq!(inventory.count(MaterialId::Fang), 99);
         assert_eq!(inventory.try_add(MaterialId::Fang, 1), 0);
+        // Second stack for overflow beyond MAX_STACK.
         assert_eq!(inventory.count(MaterialId::Fang), 100);
+    }
+
+    #[test]
+    fn reorganize_moves_to_empty_slot() {
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::Hoe, 1);
+        assert!(inventory.reorganize_slots(0, 5));
+        assert!(inventory.slots[0].material.is_none());
+        assert_eq!(inventory.slots[5].material, Some(MaterialId::Hoe));
+    }
+
+    #[test]
+    fn reorganize_swaps_different_items() {
+        let mut inventory = Inventory::default();
+        inventory.slots[0] = MaterialStack {
+            material: Some(MaterialId::Hoe),
+            count: 1,
+        };
+        inventory.slots[1] = MaterialStack {
+            material: Some(MaterialId::WateringCan),
+            count: 1,
+        };
+        assert!(inventory.reorganize_slots(0, 1));
+        assert_eq!(inventory.slots[0].material, Some(MaterialId::WateringCan));
+        assert_eq!(inventory.slots[1].material, Some(MaterialId::Hoe));
+    }
+
+    #[test]
+    fn reorganize_merges_same_material() {
+        let mut inventory = Inventory::default();
+        inventory.slots[0] = MaterialStack {
+            material: Some(MaterialId::TurnipSeed),
+            count: 3,
+        };
+        inventory.slots[2] = MaterialStack {
+            material: Some(MaterialId::TurnipSeed),
+            count: 4,
+        };
+        assert!(inventory.reorganize_slots(0, 2));
+        assert!(inventory.slots[0].material.is_none());
+        assert_eq!(inventory.slots[2].count, 7);
     }
 }
