@@ -6,6 +6,7 @@ use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile, ActiveProfile, DayClock, GameSettings,
     PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
 };
+use crate::farming::HomesteadHotbar;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
@@ -80,6 +81,7 @@ pub fn begin_profile_run(
     progress: &mut WorldProgress,
     day_clock: &mut DayClock,
     tool_energy: &mut ToolEnergy,
+    hotbar: &mut HomesteadHotbar,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
     active: &mut ActiveProfile,
@@ -94,6 +96,7 @@ pub fn begin_profile_run(
         progress,
         day_clock,
         tool_energy,
+        hotbar,
         audio,
         bindings,
         active,
@@ -108,6 +111,7 @@ pub fn begin_profile_run(
         progress,
         day_clock,
         tool_energy,
+        hotbar,
         audio,
         bindings,
     );

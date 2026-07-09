@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
+use crate::farming::HomesteadHotbar;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
@@ -22,6 +23,7 @@ pub fn hydrate_runtime_from_memory(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut hotbar: ResMut<HomesteadHotbar>,
 ) {
     apply_profile_to_runtime(
         &profile,
@@ -30,6 +32,7 @@ pub fn hydrate_runtime_from_memory(
         &mut progress,
         &mut day_clock,
         &mut tool_energy,
+        &mut hotbar,
         &mut audio,
         &mut bindings,
     );
@@ -53,6 +56,7 @@ pub fn capture_profile_from_runtime(
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
+    hotbar: Res<HomesteadHotbar>,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
@@ -63,6 +67,7 @@ pub fn capture_profile_from_runtime(
         && !loadout.is_changed()
         && !progress.is_changed()
         && !tool_energy.is_changed()
+        && !hotbar.is_changed()
     {
         return;
     }
@@ -73,6 +78,7 @@ pub fn capture_profile_from_runtime(
         &progress,
         &day_clock,
         &tool_energy,
+        &hotbar,
         &audio,
         &bindings,
         &mut profile,
@@ -86,6 +92,7 @@ pub fn snapshot_profile(
     progress: &WorldProgress,
     day_clock: &DayClock,
     tool_energy: &ToolEnergy,
+    hotbar: &HomesteadHotbar,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     profile: &mut PlayerProfile,
@@ -96,6 +103,7 @@ pub fn snapshot_profile(
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
+    profile.hotbar = hotbar.clone();
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -107,6 +115,7 @@ pub fn activate_profile(
     progress: &WorldProgress,
     day_clock: &DayClock,
     tool_energy: &ToolEnergy,
+    hotbar: &HomesteadHotbar,
     audio: &AudioSettings,
     bindings: &SkillBindings,
     active: &mut ActiveProfile,
@@ -125,6 +134,7 @@ pub fn activate_profile(
         progress,
         day_clock,
         tool_energy,
+        hotbar,
         audio,
         bindings,
         profile,
@@ -152,6 +162,7 @@ pub fn apply_profile_to_runtime(
     progress: &mut WorldProgress,
     day_clock: &mut DayClock,
     tool_energy: &mut ToolEnergy,
+    hotbar: &mut HomesteadHotbar,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
 ) {
@@ -160,6 +171,7 @@ pub fn apply_profile_to_runtime(
     *progress = profile.progress.clone();
     *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
     *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *hotbar = profile.hotbar.clone();
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
 }

@@ -59,10 +59,11 @@ impl HotbarEntry {
 }
 
 /// Bottom quickbar for overworld. Starts empty; player assigns via drag.
-#[derive(Resource, Clone, Debug, PartialEq, Eq)]
+#[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HomesteadHotbar {
     pub slots: [HotbarEntry; HOTBAR_SLOT_COUNT],
     /// Selected slot (highlighted) — this is the active action.
+    #[serde(default)]
     pub selected: usize,
 }
 

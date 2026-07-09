@@ -108,53 +108,55 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                         .with_children(|panel| {
                             spawn_header(panel);
                             spawn_slot_grid(panel, inventory, grid_width);
-                            spawn_tooltip_panel(panel, panel_width);
                             spawn_currency_footer(panel);
                         });
                 });
         });
+
+    // Separate floating window — does not resize the backpack panel.
+    let tooltip_left = PANEL_SCREEN_MARGIN + panel_width + 20.0;
+    spawn_floating_tooltip(commands, tooltip_left);
 }
 
-fn spawn_tooltip_panel(parent: &mut ChildBuilder<'_>, panel_width: f32) {
-    parent
+fn spawn_floating_tooltip(commands: &mut Commands, left: f32) {
+    commands
         .spawn((
             InventoryTooltipRoot,
             Node {
-                width: Val::Px(panel_width - PANEL_PADDING * 2.0),
-                min_height: Val::Px(56.0),
+                position_type: PositionType::Absolute,
+                left: Val::Px(left),
+                top: Val::Px(120.0),
+                width: Val::Px(240.0),
+                min_height: Val::Px(72.0),
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(4.0),
-                margin: UiRect::new(
-                    Val::Px(PANEL_PADDING),
-                    Val::Px(PANEL_PADDING),
-                    Val::Px(0.0),
-                    Val::Px(8.0),
-                ),
-                padding: UiRect::all(Val::Px(8.0)),
-                border: UiRect::all(Val::Px(1.0)),
+                row_gap: Val::Px(6.0),
+                padding: UiRect::all(Val::Px(12.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                display: Display::None,
                 ..default()
             },
-            BackgroundColor(Color::srgb(0.1, 0.07, 0.05)),
-            BorderColor(Color::srgb(0.4, 0.3, 0.16)),
+            BackgroundColor(Color::srgba(0.1, 0.07, 0.05, 0.96)),
+            BorderColor(Color::srgb(0.55, 0.42, 0.2)),
+            GlobalZIndex(120),
         ))
         .with_children(|tip| {
             tip.spawn((
                 InventoryTooltipTitle,
-                Text::new("Hover an item"),
+                Text::new(""),
                 TextFont {
-                    font_size: 14.0,
+                    font_size: 15.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.92, 0.88, 0.78)),
+                TextColor(Color::srgb(0.94, 0.9, 0.8)),
             ));
             tip.spawn((
                 InventoryTooltipBody,
-                Text::new("Item details appear here."),
+                Text::new(""),
                 TextFont {
                     font_size: 12.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.7, 0.68, 0.6)),
+                TextColor(Color::srgb(0.72, 0.7, 0.62)),
             ));
         });
 }
@@ -385,10 +387,14 @@ pub fn cleanup_inventory_window(
     mut open: ResMut<InventoryWindowOpen>,
     mut selected: ResMut<InventorySelectedSlot>,
     windows: Query<Entity, With<InventoryWindow>>,
+    tooltips: Query<Entity, With<InventoryTooltipRoot>>,
 ) {
     open.0 = false;
     selected.0 = 0;
     for entity in &windows {
+        commands.entity(entity).try_despawn_recursive();
+    }
+    for entity in &tooltips {
         commands.entity(entity).try_despawn_recursive();
     }
 }
@@ -400,6 +406,7 @@ pub fn toggle_inventory_window(
     mut commands: Commands,
     inventory: Res<Inventory>,
     windows: Query<Entity, With<InventoryWindow>>,
+    tooltips: Query<Entity, With<InventoryTooltipRoot>>,
     game: Res<State<GameState>>,
     dungeon: Option<Res<State<DungeonPlayState>>>,
     mut time: ResMut<Time<Virtual>>,
@@ -420,6 +427,7 @@ pub fn toggle_inventory_window(
             &mut open,
             &mut commands,
             &windows,
+            &tooltips,
             game.get(),
             dungeon.as_deref(),
             &mut time,
@@ -435,6 +443,7 @@ pub fn handle_inventory_close_button(
     interactions: Query<&Interaction, (Changed<Interaction>, With<InventoryCloseButton>)>,
     mut commands: Commands,
     windows: Query<Entity, With<InventoryWindow>>,
+    tooltips: Query<Entity, With<InventoryTooltipRoot>>,
     game: Res<State<GameState>>,
     dungeon: Option<Res<State<DungeonPlayState>>>,
     mut time: ResMut<Time<Virtual>>,
@@ -450,6 +459,7 @@ pub fn handle_inventory_close_button(
                 &mut open,
                 &mut commands,
                 &windows,
+                &tooltips,
                 game.get(),
                 dungeon.as_deref(),
                 &mut time,
@@ -497,12 +507,16 @@ fn close_inventory(
     open: &mut InventoryWindowOpen,
     commands: &mut Commands,
     windows: &Query<Entity, With<InventoryWindow>>,
+    tooltips: &Query<Entity, With<InventoryTooltipRoot>>,
     game: &GameState,
     dungeon: Option<&State<DungeonPlayState>>,
     time: &mut Time<Virtual>,
 ) {
     open.0 = false;
     for entity in windows.iter() {
+        commands.entity(entity).try_despawn_recursive();
+    }
+    for entity in tooltips.iter() {
         commands.entity(entity).try_despawn_recursive();
     }
     if should_resume_time(game, dungeon) {
@@ -620,11 +634,12 @@ pub fn sync_inventory_display(
     }
 }
 
-/// Hover details under the backpack grid (especially useful for seeds).
+/// Floating tooltip window next to the backpack (hidden when not hovering an item).
 pub fn sync_inventory_hover_tooltip(
     open: Res<InventoryWindowOpen>,
     inventory: Res<Inventory>,
     interactions: Query<(&Interaction, &InventorySlot), With<Button>>,
+    mut roots: Query<&mut Node, With<InventoryTooltipRoot>>,
     mut titles: Query<&mut Text, (With<InventoryTooltipTitle>, Without<InventoryTooltipBody>)>,
     mut bodies: Query<&mut Text, (With<InventoryTooltipBody>, Without<InventoryTooltipTitle>)>,
 ) {
@@ -646,18 +661,21 @@ pub fn sync_inventory_hover_tooltip(
         }
     }
 
-    let (title, body) = match hovered {
-        Some(material) => (
-            material.display_name().to_string(),
-            material.detail_description().to_string(),
-        ),
-        None => (
-            "Hover an item".to_string(),
-            "Click an item to drag it onto the bottom hotbar (1–5). Selected hotbar slot is your action."
-                .to_string(),
-        ),
+    let visible = hovered.is_some();
+    for mut node in &mut roots {
+        node.display = if visible {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    let Some(material) = hovered else {
+        return;
     };
 
+    let title = material.display_name().to_string();
+    let body = material.detail_description().to_string();
     for mut text in &mut titles {
         text.0 = title.clone();
     }
