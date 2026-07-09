@@ -67,19 +67,24 @@ pub struct InteractionPromptRoot;
 #[derive(Component)]
 pub struct InteractionPromptLabel;
 
+/// Sit above the homestead hotbar (~14px + 68px slots) so prompts stay readable.
+const PROMPT_BOTTOM_ABOVE_HOTBAR: f32 = 100.0;
+
 pub fn setup_interaction_prompt(mut commands: Commands) {
     commands
         .spawn((
             InteractionPromptRoot,
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(48.0),
+                bottom: Val::Px(PROMPT_BOTTOM_ABOVE_HOTBAR),
                 width: Val::Percent(100.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 display: Display::None,
                 ..default()
             },
+            // Above world UI chrome; below drag ghosts.
+            GlobalZIndex(50),
         ))
         .with_children(|root| {
             root.spawn((
