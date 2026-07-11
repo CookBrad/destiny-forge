@@ -487,8 +487,32 @@ fn step_visual_progress(attack: &PlayerAttack) -> f32 {
 }
 
 /// Vertical sword starts raised and sweeps 90° downward in local space.
-fn swing_angle(progress: f32) -> f32 {
-    -progress * FRAC_PI_2
+/// Progress 0 → angle 0 (blade vertical); progress 1 → angle -π/2 (blade horizontal forward).
+pub fn swing_angle(progress: f32) -> f32 {
+    -progress.clamp(0.0, 1.0) * FRAC_PI_2
+}
+
+/// Body-sheet attack phases for `knight_attack_side.png` (4 cells).
+/// f0 wind-up / f1 mid-swing / f2 strike / f3 recovery — hands use empty two-handed hilt grip.
+/// Swing frames f0–f2 track the raised→horizontal arc of [`swing_angle`]; f3 is recovery.
+pub fn attack_body_frame_phase(frame: usize) -> &'static str {
+    match frame {
+        0 => "wind_up",
+        1 => "mid_swing",
+        2 => "strike",
+        _ => "recovery",
+    }
+}
+
+/// Arc progress for body frames that participate in the slash (not recovery).
+/// Maps f0→0.0, f1→0.5, f2→1.0 so poses align with [`swing_angle`]'s 90° path.
+pub fn attack_body_frame_arc_progress(frame: usize) -> Option<f32> {
+    match frame {
+        0 => Some(0.0),
+        1 => Some(0.5),
+        2 => Some(1.0),
+        _ => None, // recovery is post-arc
+    }
 }
 
 fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
@@ -520,7 +544,35 @@ fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dungeon::PLAYER_ATTACK_FRAMES;
     use crate::player::Loadout;
+    use std::f32::consts::FRAC_PI_2;
+
+    #[test]
+    fn swing_angle_is_vertical_to_horizontal_quarter_turn() {
+        assert!((swing_angle(0.0) - 0.0).abs() < 1e-5);
+        assert!((swing_angle(1.0) + FRAC_PI_2).abs() < 1e-5);
+        assert!((swing_angle(0.5) + FRAC_PI_2 * 0.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn attack_body_frames_cover_windup_strike_and_recovery() {
+        assert_eq!(PLAYER_ATTACK_FRAMES, 4);
+        assert_eq!(attack_body_frame_phase(0), "wind_up");
+        assert_eq!(attack_body_frame_phase(1), "mid_swing");
+        assert_eq!(attack_body_frame_phase(2), "strike");
+        assert_eq!(attack_body_frame_phase(3), "recovery");
+
+        // Slash phases follow swing_angle raised→horizontal; recovery has no arc sample.
+        let a0 = swing_angle(attack_body_frame_arc_progress(0).unwrap());
+        let a1 = swing_angle(attack_body_frame_arc_progress(1).unwrap());
+        let a2 = swing_angle(attack_body_frame_arc_progress(2).unwrap());
+        assert!((a0 - 0.0).abs() < 1e-5);
+        assert!((a1 + FRAC_PI_2 * 0.5).abs() < 1e-5);
+        assert!((a2 + FRAC_PI_2).abs() < 1e-5);
+        assert!(a1 < a0 && a2 < a1);
+        assert!(attack_body_frame_arc_progress(3).is_none());
+    }
 
     #[test]
     fn combo_chains_within_window() {

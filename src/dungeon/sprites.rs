@@ -79,9 +79,23 @@ pub fn player_frame_rect(frame: usize) -> Rect {
     }
 }
 
+/// Expected pixel size of idle/run/attack combat strips (width × height).
+pub fn player_strip_pixel_size() -> (u32, u32) {
+    (
+        (PLAYER_SPRITE_WIDTH * PLAYER_IDLE_FRAMES as f32) as u32,
+        PLAYER_SPRITE_HEIGHT as u32,
+    )
+}
+
+/// Expected pixel size of one combat/homestead frame cell.
+pub fn player_cell_pixel_size() -> (u32, u32) {
+    (PLAYER_SPRITE_WIDTH as u32, PLAYER_SPRITE_HEIGHT as u32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn player_frame_rects_tile_across_strip() {
@@ -110,6 +124,9 @@ mod tests {
         assert!((SWORD_SPRITE_WIDTH - 48.0).abs() < f32::EPSILON);
         assert!((SWORD_SPRITE_HEIGHT - 120.0).abs() < f32::EPSILON);
         assert!((PLAYER_STRIP_WIDTH - 256.0).abs() < f32::EPSILON);
+        assert_eq!(PLAYER_IDLE_FRAMES, 4);
+        assert_eq!(PLAYER_RUN_FRAMES, 4);
+        assert_eq!(PLAYER_ATTACK_FRAMES, 4);
     }
 
     #[test]
@@ -117,5 +134,88 @@ mod tests {
         let half = player_half_extents();
         assert!((half.x - 32.0).abs() < f32::EPSILON);
         assert!((half.y - 56.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn strip_and_cell_pixel_helpers_match_constants() {
+        assert_eq!(player_cell_pixel_size(), (64, 112));
+        assert_eq!(player_strip_pixel_size(), (256, 112));
+    }
+
+    #[test]
+    fn shipped_combat_strips_match_frame_rect_contract() {
+        // Drive real on-disk assets the game loads (not reimplemented layout math).
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/player/combat");
+        let (cell_w, cell_h) = player_cell_pixel_size();
+        let (strip_w, strip_h) = player_strip_pixel_size();
+
+        for name in [
+            "knight_idle_side.png",
+            "knight_run_side.png",
+            "knight_attack_side.png",
+        ] {
+            let path = root.join(name);
+            assert!(path.is_file(), "missing combat strip {name}");
+            let bytes = std::fs::read(&path).expect("read strip");
+            let (w, h) = png_dimensions(&bytes).expect("png header");
+            assert_eq!((w, h), (strip_w, strip_h), "{name} strip size");
+
+            // Every frame rect from the shipped helper must lie inside the strip.
+            for frame in 0..PLAYER_IDLE_FRAMES {
+                let rect = player_frame_rect(frame);
+                assert!(rect.min.x >= 0.0);
+                assert!(rect.min.y >= 0.0);
+                assert!(rect.max.x <= w as f32 + f32::EPSILON);
+                assert!(rect.max.y <= h as f32 + f32::EPSILON);
+                assert!((rect.max.x - rect.min.x - cell_w as f32).abs() < f32::EPSILON);
+                assert!((rect.max.y - rect.min.y - cell_h as f32).abs() < f32::EPSILON);
+            }
+        }
+    }
+
+    #[test]
+    fn shipped_weapon_overlay_exists_separate_from_body() {
+        let weapon = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join(WEAPON_ANIME_SWORD);
+        assert!(
+            weapon.is_file(),
+            "weapon overlay must remain the only sword graphic at {}",
+            weapon.display()
+        );
+        // Body attack strip is a different path — sword is not baked into body load path.
+        assert_ne!(
+            format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png"),
+            WEAPON_ANIME_SWORD
+        );
+    }
+
+    #[test]
+    fn shipped_homestead_frames_match_cell_size() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/player/non-combat");
+        let (cell_w, cell_h) = player_cell_pixel_size();
+        for prefix in ["dwarf_m_idle_anim_f", "dwarf_m_run_anim_f"] {
+            for i in 0..PLAYER_IDLE_FRAMES {
+                let path = root.join(format!("{prefix}{i}.png"));
+                assert!(path.is_file(), "missing {prefix}{i}");
+                let bytes = std::fs::read(&path).expect("read frame");
+                let (w, h) = png_dimensions(&bytes).expect("png header");
+                assert_eq!((w, h), (cell_w, cell_h), "{prefix}{i}");
+            }
+        }
+    }
+
+    /// Minimal PNG IHDR reader — exercises real shipped files without extra deps.
+    fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+        if bytes.len() < 24 || &bytes[0..8] != b"\x89PNG\r\n\x1a\n" {
+            return None;
+        }
+        // IHDR chunk: length(4) + "IHDR"(4) + width(4) + height(4)
+        if &bytes[12..16] != b"IHDR" {
+            return None;
+        }
+        let w = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+        let h = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+        Some((w, h))
     }
 }

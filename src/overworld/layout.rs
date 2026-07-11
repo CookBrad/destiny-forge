@@ -354,6 +354,8 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
 }
 
 fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
+    use super::sprites::AnimalKind;
+
     let animal_spots = [
         (36, 10),
         (40, 12),
@@ -362,13 +364,14 @@ fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
         (42, 11),
     ];
     for (index, (tx, ty)) in animal_spots.iter().enumerate() {
+        let kind = AnimalKind::from_index(index);
         super::animals::spawn_farm_animal(
             commands,
-            art.animal.clone(),
+            art.animal_image(kind),
             art.animal_layout.clone(),
             tile_center(*tx, *ty),
             2.0,
-            index,
+            kind,
             super::animals::AnimalWander::new(super::animals::WANDER_SPEED + index as f32 * 2.0),
         );
     }

@@ -24,6 +24,6 @@ pub use setup::{DungeonEntity, PlatformCollider};
 pub use movement::{DungeonPlayer, PlayerVelocity};
 pub use plugin::DungeonPlugin;
 pub use sprites::{
-    player_frame_rect, player_half_extents, DungeonArt, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
-    SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
+    player_frame_rect, player_half_extents, DungeonArt, PLAYER_ATTACK_FRAMES, PLAYER_IDLE_FRAMES,
+    PLAYER_RUN_FRAMES, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
 };

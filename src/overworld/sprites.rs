@@ -3,10 +3,12 @@ use bevy::prelude::*;
 pub const ENV_ROOT: &str = "dungeon/environment";
 pub const OVERWORLD_ROOT: &str = "overworld";
 pub const PLAYER_NON_COMBAT_ROOT: &str = "player/non-combat";
-pub const ANIMAL_SHEET: &str = "overworld/animals/quadraped.png";
+
+/// Per-species farm animal walk strips (4 frames × 64px).
 pub const ANIMAL_CELL: u32 = 64;
-pub const ANIMAL_SHEET_COLS: u32 = 8;
-pub const ANIMAL_SHEET_ROWS: u32 = 12;
+pub const ANIMAL_WALK_FRAMES: u32 = 4;
+pub const ANIMAL_SHEET_COLS: u32 = ANIMAL_WALK_FRAMES;
+pub const ANIMAL_SHEET_ROWS: u32 = 1;
 
 /// Match the homestead player footprint; shared camera zoom applies uniformly.
 pub const ANIMAL_DISPLAY_SIZE: Vec2 = Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
@@ -18,6 +20,29 @@ pub const PLAYER_ANIM_FRAMES: usize = 4;
 pub const FORGE_FURNACE_HEIGHT: f32 = 160.0;
 pub const FORGE_WORKBENCH_HEIGHT: f32 = 320.0;
 pub const FORGE_ANVIL_HEIGHT: f32 = 128.0;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AnimalKind {
+    Cow,
+    Goat,
+    Sheep,
+}
+
+impl AnimalKind {
+    pub const ALL: [Self; 3] = [Self::Cow, Self::Goat, Self::Sheep];
+
+    pub fn sheet_path(self) -> &'static str {
+        match self {
+            Self::Cow => "overworld/animals/cow.png",
+            Self::Goat => "overworld/animals/goat.png",
+            Self::Sheep => "overworld/animals/sheep.png",
+        }
+    }
+
+    pub fn from_index(index: usize) -> Self {
+        Self::ALL[index % Self::ALL.len()]
+    }
+}
 
 #[derive(Clone)]
 pub struct HomesteadPlayerFrames {
@@ -65,13 +90,15 @@ pub struct OverworldArt {
     pub forge_workbench: Handle<Image>,
     pub forge_anvil: Handle<Image>,
     pub player: HomesteadPlayerFrames,
-    pub animal: Handle<Image>,
+    pub cow: Handle<Image>,
+    pub goat: Handle<Image>,
+    pub sheep: Handle<Image>,
+    /// Shared 4-frame horizontal layout for each animal strip.
     pub animal_layout: Handle<TextureAtlasLayout>,
 }
 
 impl OverworldArt {
     pub fn load(asset_server: &AssetServer, layouts: &mut Assets<TextureAtlasLayout>) -> Self {
-        let animal = asset_server.load(ANIMAL_SHEET);
         let animal_layout = layouts.add(TextureAtlasLayout::from_grid(
             UVec2::new(ANIMAL_CELL, ANIMAL_CELL),
             ANIMAL_SHEET_COLS,
@@ -92,16 +119,25 @@ impl OverworldArt {
             forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
             forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),
             player: HomesteadPlayerFrames::load(asset_server),
-            animal,
+            cow: asset_server.load(AnimalKind::Cow.sheet_path()),
+            goat: asset_server.load(AnimalKind::Goat.sheet_path()),
+            sheep: asset_server.load(AnimalKind::Sheep.sheet_path()),
             animal_layout,
+        }
+    }
+
+    pub fn animal_image(&self, kind: AnimalKind) -> Handle<Image> {
+        match kind {
+            AnimalKind::Cow => self.cow.clone(),
+            AnimalKind::Goat => self.goat.clone(),
+            AnimalKind::Sheep => self.sheep.clone(),
         }
     }
 }
 
-pub fn animal_atlas_index(creature: usize, frame: usize) -> usize {
-    let row = creature;
-    let col = frame % 4;
-    row * ANIMAL_SHEET_COLS as usize + col
+/// Frame index within a single-species 4-frame walk strip.
+pub fn animal_frame_index(frame: usize) -> usize {
+    frame % ANIMAL_WALK_FRAMES as usize
 }
 
 #[cfg(test)]
@@ -109,21 +145,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn animal_cell_matches_higher_res_sheet() {
-        assert_eq!(ANIMAL_CELL, 64);
-        assert_eq!(ANIMAL_SHEET_COLS, 8);
-        assert_eq!(ANIMAL_SHEET_ROWS, 12);
-        // Sheet contract: 512×768
-        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_COLS, 512);
-        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_ROWS, 768);
+    fn animal_species_have_distinct_sheets() {
+        let paths: Vec<_> = AnimalKind::ALL.iter().map(|k| k.sheet_path()).collect();
+        assert_eq!(paths.len(), 3);
+        assert!(paths.contains(&"overworld/animals/cow.png"));
+        assert!(paths.contains(&"overworld/animals/goat.png"));
+        assert!(paths.contains(&"overworld/animals/sheep.png"));
+        assert_ne!(AnimalKind::Cow.sheet_path(), AnimalKind::Goat.sheet_path());
+        assert_ne!(AnimalKind::Goat.sheet_path(), AnimalKind::Sheep.sheet_path());
     }
 
     #[test]
-    fn animal_atlas_index_layout() {
-        assert_eq!(animal_atlas_index(0, 0), 0);
-        assert_eq!(animal_atlas_index(0, 3), 3);
-        assert_eq!(animal_atlas_index(1, 0), 8);
-        assert_eq!(animal_atlas_index(2, 2), 18);
+    fn animal_sheet_contract_four_walk_frames() {
+        assert_eq!(ANIMAL_CELL, 64);
+        assert_eq!(ANIMAL_WALK_FRAMES, 4);
+        assert_eq!(ANIMAL_SHEET_COLS, 4);
+        assert_eq!(ANIMAL_SHEET_ROWS, 1);
+        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_COLS, 256);
+        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_ROWS, 64);
+    }
+
+    #[test]
+    fn animal_frame_index_wraps() {
+        assert_eq!(animal_frame_index(0), 0);
+        assert_eq!(animal_frame_index(3), 3);
+        assert_eq!(animal_frame_index(4), 0);
+        assert_eq!(animal_frame_index(5), 1);
+    }
+
+    #[test]
+    fn animal_kind_cycles_from_index() {
+        assert_eq!(AnimalKind::from_index(0), AnimalKind::Cow);
+        assert_eq!(AnimalKind::from_index(1), AnimalKind::Goat);
+        assert_eq!(AnimalKind::from_index(2), AnimalKind::Sheep);
+        assert_eq!(AnimalKind::from_index(3), AnimalKind::Cow);
     }
 
     #[test]

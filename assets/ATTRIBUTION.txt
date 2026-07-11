@@ -13,7 +13,11 @@ glow). Generated for Destiny Forge gameplay paths; filenames kept stable for loa
 
 Layout contracts (native sizes):
   env tiles 64x64 · player cells 64x112 · combat strips 256x112 · sword 48x120
-  enemies 64x64 · animal cells 64 · tree cells 128x192 · UI items 64x64 · skills 128x128
+  enemies 64x64 · farm animals cow/goat/sheep strips 256x64 · tree cells 128x192
+  UI items 64x64 · skills 128x128
+
+Player combat/non-combat sheets are unarmed (weapon is a separate overlay sprite).
+Farm animals: overworld/animals/cow.png, goat.png, sheep.png (distinct species).
 
 Historical source packs (assets/source/) remain available for reference:
   Pixel Crawler, 0x72 DungeonTileset II, Dawnlike, Kenney, etc. — see each pack README.
