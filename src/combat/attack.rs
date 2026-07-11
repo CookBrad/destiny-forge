@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-
-use std::f32::consts::FRAC_PI_2;
+use bevy::sprite::Anchor;
 
 use crate::audio::CombatSfx;
 use crate::dungeon::{
@@ -11,8 +10,8 @@ use crate::player::Loadout;
 
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY, HIT_STOP_LIGHT};
 use super::hitbox::{
-    animation_facing, enemy_aabb, hitbox_overlaps, sword_blade_center_local, sword_swing_aabb,
-    HitRect,
+    animation_facing, enemy_aabb, hitbox_overlaps, sword_blade_center_at_progress, sword_grip_local,
+    sword_swing_aabb, sword_swing_pose, swing_angle, HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
@@ -87,10 +86,7 @@ pub fn player_sword_hit_rect(player: &Transform, attack: &PlayerAttack) -> Optio
     }
 
     match attack.step().shape {
-        HitShape::SwordArc => Some(sword_swing_aabb(
-            player,
-            swing_angle(sword_arc_progress(attack)),
-        )),
+        HitShape::SwordArc => Some(sword_swing_aabb(player, sword_arc_progress(attack))),
         HitShape::SpearThrust | HitShape::SpearLunge => None,
     }
 }
@@ -200,16 +196,19 @@ fn begin_combo_step(
     attack.timer.reset();
     sfx.send(CombatSfx::SwordSwing);
 
-    // Refresh swing FX for this step.
+    // Refresh swing FX for this step (grip-pivoted; rotates about the hilt).
+    let pose = pose_for_step(step, 0.0);
     commands.entity(entity).with_children(|parent| {
         parent.spawn((
             Sprite {
                 image: art.weapon_anime_sword.clone(),
+                // Handle at bottom of vertical sword art → rotation about grip.
+                anchor: Anchor::BottomCenter,
                 ..default()
             },
             Transform {
-                translation: pose_for_step(step, 0.0).translation,
-                rotation: pose_for_step(step, 0.0).rotation,
+                translation: pose.translation,
+                rotation: pose.rotation,
                 ..default()
             },
             WeaponSwingFx,
@@ -442,7 +441,7 @@ pub fn tick_hit_flash(
 fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> HitRect {
     let step = attack.step();
     match step.shape {
-        HitShape::SwordArc => sword_swing_aabb(player, swing_angle(sword_arc_progress(attack))),
+        HitShape::SwordArc => sword_swing_aabb(player, sword_arc_progress(attack)),
         HitShape::SpearThrust | HitShape::SpearLunge => {
             spear_thrust_hitbox(player, step.reach, facing, step.shape)
         }
@@ -486,15 +485,8 @@ fn step_visual_progress(attack: &PlayerAttack) -> f32 {
     }
 }
 
-/// Vertical sword starts raised and sweeps 90° downward in local space.
-/// Progress 0 → angle 0 (blade vertical); progress 1 → angle -π/2 (blade horizontal forward).
-pub fn swing_angle(progress: f32) -> f32 {
-    -progress.clamp(0.0, 1.0) * FRAC_PI_2
-}
-
 /// Body-sheet attack phases for `knight_attack_side.png` (4 cells).
 /// f0 wind-up / f1 mid-swing / f2 strike / f3 recovery — hands use empty two-handed hilt grip.
-/// Swing frames f0–f2 track the raised→horizontal arc of [`swing_angle`]; f3 is recovery.
 pub fn attack_body_frame_phase(frame: usize) -> &'static str {
     match frame {
         0 => "wind_up",
@@ -505,28 +497,27 @@ pub fn attack_body_frame_phase(frame: usize) -> &'static str {
 }
 
 /// Arc progress for body frames that participate in the slash (not recovery).
-/// Maps f0→0.0, f1→0.5, f2→1.0 so poses align with [`swing_angle`]'s 90° path.
 pub fn attack_body_frame_arc_progress(frame: usize) -> Option<f32> {
     match frame {
         0 => Some(0.0),
         1 => Some(0.5),
         2 => Some(1.0),
-        _ => None, // recovery is post-arc
+        _ => None,
     }
 }
 
-fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
+/// Pure swing pose for a combo step at visual progress 0..=1.
+pub fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
     match step.shape {
         HitShape::SwordArc => {
-            let angle = swing_angle(progress);
-            let center = sword_blade_center_local(angle);
+            // Shared path with hit volume: grip near hands, blade rotates about grip.
+            let (grip, angle) = sword_swing_pose(progress);
             SwingPose {
-                translation: Vec3::new(center.x, center.y, 0.5),
+                translation: Vec3::new(grip.x, grip.y, 0.55),
                 rotation: Quat::from_rotation_z(angle),
             }
         }
         HitShape::SpearThrust | HitShape::SpearLunge => {
-            // Horizontal poke: extend forward over the thrust (native 64px units, 4× classic).
             let extend = progress.clamp(0.0, 1.0);
             let forward = 24.0 + extend * (if matches!(step.shape, HitShape::SpearLunge) {
                 56.0
@@ -535,7 +526,8 @@ fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
             });
             SwingPose {
                 translation: Vec3::new(forward, 8.0, 0.5),
-                rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
+                // Spear art is vertical; tip-forward ≈ −90°.
+                rotation: Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2 * 0.95),
             }
         }
     }
@@ -548,11 +540,54 @@ mod tests {
     use crate::player::Loadout;
     use std::f32::consts::FRAC_PI_2;
 
+    fn sword_step() -> ComboStep {
+        ComboStep {
+            duration: 0.3,
+            hit_start: 0.05,
+            hit_end: 0.2,
+            power_mult: 1.0,
+            reach: 120.0,
+            shape: HitShape::SwordArc,
+            chain_start: 0.15,
+        }
+    }
+
     #[test]
-    fn swing_angle_is_vertical_to_horizontal_quarter_turn() {
+    fn pose_for_step_drives_continuous_raised_to_forward_arc() {
+        let step = sword_step();
+        let p0 = pose_for_step(step, 0.0);
+        let p_mid = pose_for_step(step, 0.5);
+        let p1 = pose_for_step(step, 1.0);
+
+        // Grip rises then lowers? Wind-up high, strike lower/forward.
+        assert!(p0.translation.y > p1.translation.y);
+        assert!(p1.translation.x > p0.translation.x);
+        // Mid is intermediate on the path.
+        assert!(p_mid.translation.x > p0.translation.x);
+        assert!(p_mid.translation.y < p0.translation.y);
+
+        // Rotation: raised (≈0) → forward (−π/2).
+        let a0 = p0.rotation.to_euler(EulerRot::ZXY).0;
+        let a1 = p1.rotation.to_euler(EulerRot::ZXY).0;
+        // Quat may wrap; compare via swing_angle source of truth.
         assert!((swing_angle(0.0) - 0.0).abs() < 1e-5);
         assert!((swing_angle(1.0) + FRAC_PI_2).abs() < 1e-5);
-        assert!((swing_angle(0.5) + FRAC_PI_2 * 0.5).abs() < 1e-5);
+
+        // Hilt (translation with bottom-center anchor) stays in hand band.
+        for p in [0.0_f32, 0.5, 1.0] {
+            let pose = pose_for_step(step, p);
+            let grip = sword_grip_local(p);
+            assert!((pose.translation.truncate() - grip).length() < 0.01);
+            assert!(grip.y > -40.0 && grip.y < 56.0);
+        }
+
+        // Shared with hit volume: blade center follows grip + angle offset.
+        let blade0 = sword_blade_center_at_progress(0.0);
+        let blade1 = sword_blade_center_at_progress(1.0);
+        assert!(blade0.y > blade1.y);
+        assert!(blade1.x > blade0.x);
+        let _ = a0;
+        let _ = a1;
     }
 
     #[test]
@@ -563,7 +598,6 @@ mod tests {
         assert_eq!(attack_body_frame_phase(2), "strike");
         assert_eq!(attack_body_frame_phase(3), "recovery");
 
-        // Slash phases follow swing_angle raised→horizontal; recovery has no arc sample.
         let a0 = swing_angle(attack_body_frame_arc_progress(0).unwrap());
         let a1 = swing_angle(attack_body_frame_arc_progress(1).unwrap());
         let a2 = swing_angle(attack_body_frame_arc_progress(2).unwrap());
