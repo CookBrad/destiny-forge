@@ -7,7 +7,7 @@ use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
     KingSlimeBoss, PlayerAnimation, PlayerVelocity,
 };
-use crate::graphics::{PIXEL_SCALE, TILE};
+use crate::graphics::TILE;
 use crate::player::Loadout;
 
 use super::attack::{EnemyCorpse, PlayerAttack};
@@ -565,8 +565,8 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
     let facing = special.charge_direction.signum();
     let pose = spin_weapon_pose(progress, facing);
     let center = player.translation.truncate();
-    let blade_world =
-        center + Vec2::new(facing * pose.translation.x, pose.translation.y) * PIXEL_SCALE;
+    // Native world units; camera zoom handles on-screen size.
+    let blade_world = center + Vec2::new(facing * pose.translation.x, pose.translation.y);
 
     Some(sword_sprite_hit_rect(
         blade_world,
@@ -576,11 +576,11 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
 
 fn spin_pivot_world(player: &Transform) -> Vec2 {
     let center = player.translation.truncate();
-    center + Vec2::new(0.0, SPIN_PIVOT_Y * PIXEL_SCALE)
+    center + Vec2::new(0.0, SPIN_PIVOT_Y)
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS * PIXEL_SCALE + SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE + TILE * 0.35
+    SPIN_ARM_RADIUS + SWORD_SPRITE_HEIGHT * 0.5 + TILE * 0.35
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {

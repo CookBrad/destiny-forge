@@ -38,7 +38,7 @@ Combat is the main challenge; the homestead is the calm half of the day that fun
 
 ## Vision & Pillars
 
-**Destiny Forge** is a pixel action-homestead game: you tend a cozy farm above ground, then descend into side-scrolling hunts where weapon mastery and loadout decide whether you carve the parts you need. Better gear and tools make both halves of the day feel more powerful.
+**Destiny Forge** is a higher-resolution 2D action-homestead game: you tend a cozy farm above ground, then descend into side-scrolling hunts where weapon mastery and loadout decide whether you carve the parts you need. Better gear and tools make both halves of the day feel more powerful.
 
 | Pillar | Inspiration | Role in Destiny Forge |
 | ------ | ----------- | --------------------- |
@@ -548,9 +548,9 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 | Spec | Value |
 | ---- | ----- |
-| Tile size | 16×16 |
+| Tile size | 16×16 native art units |
 | Character frames | 16×32 (readable Stardew-like proportions) |
-| Render scale | ~3×, no smoothing |
+| Display | ~3× camera zoom, linear filtering (higher-res 2D, not nearest-pixel) |
 | Palette | Warm, earthy greens, wood, soft highlights |
 | Combat VFX | Readable silhouettes; wind-ups readable at a glance |
 | Buildings | Cozy; forge, mine, dungeon gate distinct |
@@ -573,7 +573,7 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 ```text
 src/
 ├── core/        # States, save/load, teardown
-├── graphics/    # Camera, world units, pixel scale
+├── graphics/    # Camera, world units, display scale
 ├── dungeon/     # Floors, enemies, boss, carve hooks
 ├── combat/      # Attack, block, specials, health, skills
 ├── forging/     # Recipes, craft validation

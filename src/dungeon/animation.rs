@@ -116,11 +116,8 @@ fn apply_sheet_frame(sprite: &mut Sprite, image: &Handle<Image>, frame: usize) {
 }
 
 fn apply_facing(transform: &mut Transform, facing: f32) {
-    transform.scale = Vec3::new(
-        facing * crate::graphics::PIXEL_SCALE,
-        crate::graphics::PIXEL_SCALE,
-        crate::graphics::PIXEL_SCALE,
-    );
+    // Display size comes from camera zoom; only flip X for facing.
+    transform.scale = crate::graphics::facing_scale(facing);
 }
 
 fn preserve_facing(animation: &mut PlayerAnimation, transform: &Transform) {

@@ -8,7 +8,7 @@ pub const ANIMAL_CELL: u32 = 16;
 pub const ANIMAL_SHEET_COLS: u32 = 8;
 pub const ANIMAL_SHEET_ROWS: u32 = 12;
 
-/// Match the homestead player footprint so camera zoom applies uniformly.
+/// Match the homestead player footprint; shared camera zoom applies uniformly.
 pub const ANIMAL_DISPLAY_SIZE: Vec2 = Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
 
 pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;

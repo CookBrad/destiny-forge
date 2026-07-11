@@ -8,7 +8,7 @@ use crate::dungeon::{
     player_frame_rect, player_half_extents, DungeonArt, DungeonPlayer, PlatformCollider,
     PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES,
 };
-use crate::graphics::{DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, PIXEL_SCALE, TILE};
+use crate::graphics::{facing_scale, DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, TILE};
 
 use super::attack::{WeaponOnBack, WeaponSwingFx};
 use super::block::WeaponBlockFx;
@@ -212,11 +212,7 @@ pub fn animate_player_death(
     sprite.rect = Some(player_frame_rect(frame));
 
     let facing = animation.facing.signum().max(-1.0).min(1.0);
-    transform.scale = Vec3::new(
-        facing * PIXEL_SCALE,
-        PIXEL_SCALE,
-        PIXEL_SCALE,
-    );
+    transform.scale = facing_scale(facing);
 
     let fall = ((t - 0.18) / 0.55).clamp(0.0, 1.0);
     let tilt = -facing * fall * FRAC_PI_2 * 0.9;

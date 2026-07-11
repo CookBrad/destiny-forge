@@ -8,7 +8,7 @@ use crate::dungeon::{
     DungeonArt, DungeonEntity, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback,
     EnemyShootCooldown, KingSlimeBoss, Patrol,
 };
-use crate::graphics::{PIXEL_SCALE, TILE};
+use crate::graphics::TILE;
 
 use super::attack::{player_sword_hit_rect, HitFlash, PlayerAttack};
 use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
@@ -115,7 +115,6 @@ pub fn enemy_shoot_projectiles(
             Transform {
                 translation: Vec3::new(spawn.x, spawn.y, PROJECTILE_Z),
                 rotation: Quat::from_rotation_z(angle),
-                scale: Vec3::splat(PIXEL_SCALE),
                 ..default()
             },
             EnemyProjectile {

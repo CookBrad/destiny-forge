@@ -9,7 +9,7 @@ use crate::combat::{
     EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
 use crate::player::Loadout;
-use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
+use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
 use super::movement::DungeonPlayer;
@@ -423,7 +423,7 @@ fn fire_slime_bolt(commands: &mut Commands, art: &DungeonArt, origin: Vec2, to_t
         origin + dir * TILE * 0.9,
         dir * speed,
         damage,
-        PIXEL_SCALE,
+        1.0,
         Vec2::new(3.5, 10.5),
     );
 }
@@ -447,7 +447,7 @@ fn fire_slime_blob(
         origin + dir * TILE * 0.75,
         dir * speed,
         damage,
-        PIXEL_SCALE * scale,
+        scale,
         Vec2::new(8.0, 8.0),
     );
 }
@@ -460,7 +460,7 @@ fn spawn_falling_blob(commands: &mut Commands, art: &DungeonArt, origin: Vec2, d
         origin,
         Vec2::new(0.0, -210.0),
         damage,
-        PIXEL_SCALE * 0.9,
+        0.9,
         Vec2::new(7.0, 7.0),
     );
 }
@@ -511,7 +511,7 @@ fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, target_x: f32) {
         },
         Transform {
             translation: Vec3::new(target_x, y, 2.0),
-            scale: Vec3::new(PIXEL_SCALE * 3.2, PIXEL_SCALE * 0.55, 1.0),
+            scale: Vec3::new(3.2, 0.55, 1.0),
             ..default()
         },
         BossGroundHazard {

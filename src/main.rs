@@ -16,7 +16,8 @@ use bevy::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        // Default linear sampling for higher-resolution 2D (not forced nearest/pixel look).
+        .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(Color::srgb(0.08, 0.07, 0.1)))
         .add_plugins(core::CorePlugin)
         .add_plugins(audio::GameAudioPlugin)

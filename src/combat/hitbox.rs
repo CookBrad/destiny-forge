@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::dungeon::{player_half_extents, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
-use crate::graphics::PIXEL_SCALE;
 
 #[derive(Clone, Copy, Debug)]
 pub struct HitRect {
@@ -20,8 +19,8 @@ pub fn sword_guard_aabb(player: &Transform) -> HitRect {
     let facing = animation_facing(player);
     let player_center = player.translation.truncate();
     let blade_local = sword_blade_center_local(SWORD_GUARD_ANGLE);
-    let blade_world =
-        player_center + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
+    // World units match native art; display zoom is camera-only.
+    let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
     sword_sprite_aabb(blade_world, SWORD_GUARD_ANGLE)
 }
 
@@ -29,8 +28,7 @@ pub fn sword_swing_aabb(player: &Transform, angle: f32) -> HitRect {
     let facing = animation_facing(player);
     let player_center = player.translation.truncate();
     let blade_local = sword_blade_center_local(angle);
-    let blade_world =
-        player_center + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
+    let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
     sword_sprite_aabb(blade_world, angle)
 }
 
@@ -88,8 +86,8 @@ pub fn sword_sprite_hit_rect(center: Vec2, angle: f32) -> HitRect {
 }
 
 fn sword_sprite_aabb(center: Vec2, angle: f32) -> HitRect {
-    let half_w = SWORD_SPRITE_WIDTH * 0.5 * PIXEL_SCALE;
-    let half_h = SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE;
+    let half_w = SWORD_SPRITE_WIDTH * 0.5;
+    let half_h = SWORD_SPRITE_HEIGHT * 0.5;
     let c = angle.cos().abs();
     let s = angle.sin().abs();
     let extent_x = c * half_w + s * half_h;
@@ -100,5 +98,31 @@ fn sword_sprite_aabb(center: Vec2, angle: f32) -> HitRect {
         max_x: center.x + extent_x,
         min_y: center.y - extent_y,
         max_y: center.y + extent_y,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graphics::{facing_scale, world_transform};
+
+    #[test]
+    fn sword_aabb_uses_native_sprite_extents() {
+        // Angle 0: AABB half-size matches native sword pixels (not a baked display scale).
+        let rect = sword_sprite_aabb(Vec2::ZERO, 0.0);
+        assert!((rect.max_x - rect.min_x - SWORD_SPRITE_WIDTH).abs() < 0.01);
+        assert!((rect.max_y - rect.min_y - SWORD_SPRITE_HEIGHT).abs() < 0.01);
+    }
+
+    #[test]
+    fn swing_aabb_offsets_from_player_in_native_units() {
+        let player = world_transform(Vec2::new(100.0, 50.0), 0.0);
+        let mut facing_right = player;
+        facing_right.scale = facing_scale(1.0);
+        let rect = sword_swing_aabb(&facing_right, 0.0);
+        // Blade center is above pivot in local space; rect must sit near player X.
+        let mid_x = (rect.min_x + rect.max_x) * 0.5;
+        assert!((mid_x - 100.0).abs() < SWORD_SPRITE_HEIGHT);
+        assert!(rect.max_y > 50.0 - SWORD_SPRITE_HEIGHT);
     }
 }

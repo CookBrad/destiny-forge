@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::graphics::{scaled_transform, DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
+use crate::graphics::{scaled_transform, DUNGEON_FLOOR_Y, TILE};
 
 use super::{DungeonEntity, DungeonExit, Pitfall, PlatformCollider};
 use super::super::level::{GeneratedFloor, PitfallSpec, PlatformSpec};
@@ -73,7 +73,7 @@ fn spawn_pit_warning_stake(commands: &mut Commands, art: &DungeonArt, x: f32) {
         },
         Transform {
             translation: Vec3::new(x, DUNGEON_FLOOR_Y + TILE * 0.55, 0.65),
-            scale: Vec3::new(PIXEL_SCALE * 0.28, PIXEL_SCALE * 1.35, PIXEL_SCALE),
+            scale: Vec3::new(0.28, 1.35, 1.0),
             ..default()
         },
         Pitfall,
@@ -90,7 +90,7 @@ fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32) {
         },
         Transform {
             translation: Vec3::new(x, DUNGEON_FLOOR_Y - TILE * 1.1, 0.5),
-            scale: Vec3::new(PIXEL_SCALE * 0.75, PIXEL_SCALE * 0.55, PIXEL_SCALE),
+            scale: Vec3::new(0.75, 0.55, 1.0),
             ..default()
         },
         Pitfall,

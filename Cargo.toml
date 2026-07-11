@@ -3,7 +3,7 @@ name = "destiny_forge"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
-description = "A pixel farming and dungeon-crawling game with Monster Hunter-style forging"
+description = "A higher-resolution 2D farming and dungeon-crawling game with Monster Hunter-style forging"
 
 [dependencies]
 bevy = { version = "0.15", features = ["mp3", "wav"] }

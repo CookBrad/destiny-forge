@@ -6,7 +6,7 @@ use crate::combat::{
     spawn_sheathed_sword, ContactDamageCooldown, Health, PlayerAttack, PlayerBlock, PLAYER_MAX_HEALTH,
 };
 use crate::graphics::{
-    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, PIXEL_SCALE, TILE,
+    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE,
 };
 use crate::player::Loadout;
 
@@ -128,7 +128,6 @@ fn enemy_texture(art: &DungeonArt, kind: EnemyKind) -> Handle<Image> {
 
 pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
     let y = center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y);
-    let boss_scale = PIXEL_SCALE * BOSS_DISPLAY_SCALE;
 
     commands.spawn((
         Sprite {
@@ -138,7 +137,8 @@ pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpa
         },
         Transform {
             translation: Vec3::new(spec.x, y, 6.0),
-            scale: Vec3::splat(boss_scale),
+            // Relative size only; shared camera zoom supplies DISPLAY_SCALE.
+            scale: Vec3::splat(BOSS_DISPLAY_SCALE),
             ..default()
         },
         KingSlimeBoss,
