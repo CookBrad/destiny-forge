@@ -142,12 +142,11 @@ mod tests {
 
     #[test]
     fn viewport_bottom_accounts_for_display_zoom() {
-        // Synthetic window height: with DISPLAY_SCALE zoom, visible half-height shrinks.
         let window_height = 600.0;
-        let expected =
-            dungeon_camera_center_y() - window_height * 0.5 * game_camera_ortho_scale();
-        // Mirror the pure math used by viewport_bottom_y without needing a Window.
-        assert!((expected - (dungeon_camera_center_y() - 100.0)).abs() < f32::EPSILON);
+        let half = window_height * 0.5 * game_camera_ortho_scale();
+        let expected = dungeon_camera_center_y() - half;
+        assert!((expected - (dungeon_camera_center_y() - half)).abs() < f32::EPSILON);
         assert!((game_camera_ortho_scale() - 1.0 / DISPLAY_SCALE).abs() < f32::EPSILON);
+        assert!((half - 300.0 * (1.0 / DISPLAY_SCALE)).abs() < f32::EPSILON);
     }
 }

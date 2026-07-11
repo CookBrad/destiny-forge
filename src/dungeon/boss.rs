@@ -390,7 +390,7 @@ fn execute_attack(
             let base = to_player.y.atan2(to_player.x);
             for offset in [-0.72, -0.48, -0.24, 0.0, 0.24, 0.48, 0.72] {
                 let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
-                fire_slime_blob(commands, art, boss_pos, dir, 5.0, 165.0, 0.85);
+                fire_slime_blob(commands, art, boss_pos, dir, 5.0, 660.0, 0.85);
             }
             sfx.send(CombatSfx::SlimeBurst);
         }
@@ -402,7 +402,7 @@ fn execute_attack(
             let dx = to_player.x.signum();
             if dx != 0.0 {
                 commands.entity(boss_entity).insert(BossCharging {
-                    velocity: Vec2::new(dx * 140.0, 0.0),
+                    velocity: Vec2::new(dx * 560.0, 0.0),
                     timer: Timer::from_seconds(0.65, TimerMode::Once),
                 });
                 sfx.send(CombatSfx::BossCharge);
@@ -458,10 +458,10 @@ fn spawn_falling_blob(commands: &mut Commands, art: &DungeonArt, origin: Vec2, d
         art.slime.clone(),
         Color::srgb(0.35, 0.85, 0.95),
         origin,
-        Vec2::new(0.0, -210.0),
+        Vec2::new(0.0, -840.0),
         damage,
         0.9,
-        Vec2::new(7.0, 7.0),
+        Vec2::new(28.0, 28.0),
     );
 }
 

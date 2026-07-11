@@ -9,7 +9,7 @@ use super::sprites::{animal_atlas_index, ANIMAL_DISPLAY_SIZE, PLAYER_SPRITE_HEIG
 pub const PEN_MIN: Vec2 = Vec2::new(33.0 * TILE, 7.0 * TILE);
 pub const PEN_MAX: Vec2 = Vec2::new(48.0 * TILE, 17.0 * TILE);
 const ANIMAL_MARGIN: f32 = TILE * 0.6;
-pub const WANDER_SPEED: f32 = 22.0;
+pub const WANDER_SPEED: f32 = 88.0;
 
 #[derive(Component)]
 pub struct FarmAnimal;

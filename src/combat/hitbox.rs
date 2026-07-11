@@ -13,7 +13,7 @@ pub struct HitRect {
 /// Raised guard pose used while blocking with the sword.
 pub const SWORD_GUARD_ANGLE: f32 = -0.55;
 
-const SWORD_PIVOT_Y: f32 = -10.0;
+const SWORD_PIVOT_Y: f32 = -40.0;
 
 pub fn sword_guard_aabb(player: &Transform) -> HitRect {
     let facing = animation_facing(player);

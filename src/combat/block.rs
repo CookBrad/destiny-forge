@@ -15,13 +15,14 @@ use super::weapon::{EquippedWeapon, WeaponKind};
 #[derive(Component)]
 pub struct WeaponBlockFx;
 
-const BLOCK_SWORD_X: f32 = 5.0;
-const BLOCK_SWORD_Y: f32 = -4.0;
+// Local weapon offsets in native sprite pixels (4× classic 16px art).
+const BLOCK_SWORD_X: f32 = 20.0;
+const BLOCK_SWORD_Y: f32 = -16.0;
 const BLOCK_SWORD_Z: f32 = 0.5;
 const BLOCK_SWORD_ANGLE: f32 = -0.55;
 
-const IDLE_BLOCK_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
-const RUN_BLOCK_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
+const IDLE_BLOCK_BOB: [f32; 4] = [0.0, -2.0, -4.0, -2.0];
+const RUN_BLOCK_BOB: [f32; 4] = [-6.0, 2.0, 6.0, -4.0];
 
 pub fn update_player_block(
     time: Res<Time>,

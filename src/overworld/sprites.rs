@@ -4,20 +4,20 @@ pub const ENV_ROOT: &str = "dungeon/environment";
 pub const OVERWORLD_ROOT: &str = "overworld";
 pub const PLAYER_NON_COMBAT_ROOT: &str = "player/non-combat";
 pub const ANIMAL_SHEET: &str = "overworld/animals/quadraped.png";
-pub const ANIMAL_CELL: u32 = 16;
+pub const ANIMAL_CELL: u32 = 64;
 pub const ANIMAL_SHEET_COLS: u32 = 8;
 pub const ANIMAL_SHEET_ROWS: u32 = 12;
 
 /// Match the homestead player footprint; shared camera zoom applies uniformly.
 pub const ANIMAL_DISPLAY_SIZE: Vec2 = Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
 
-pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
-pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
+pub const PLAYER_SPRITE_WIDTH: f32 = 64.0;
+pub const PLAYER_SPRITE_HEIGHT: f32 = 112.0;
 pub const PLAYER_ANIM_FRAMES: usize = 4;
 
-pub const FORGE_FURNACE_HEIGHT: f32 = 74.0;
-pub const FORGE_WORKBENCH_HEIGHT: f32 = 160.0;
-pub const FORGE_ANVIL_HEIGHT: f32 = 80.0;
+pub const FORGE_FURNACE_HEIGHT: f32 = 160.0;
+pub const FORGE_WORKBENCH_HEIGHT: f32 = 320.0;
+pub const FORGE_ANVIL_HEIGHT: f32 = 128.0;
 
 #[derive(Clone)]
 pub struct HomesteadPlayerFrames {
@@ -102,4 +102,33 @@ pub fn animal_atlas_index(creature: usize, frame: usize) -> usize {
     let row = creature;
     let col = frame % 4;
     row * ANIMAL_SHEET_COLS as usize + col
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animal_cell_matches_higher_res_sheet() {
+        assert_eq!(ANIMAL_CELL, 64);
+        assert_eq!(ANIMAL_SHEET_COLS, 8);
+        assert_eq!(ANIMAL_SHEET_ROWS, 12);
+        // Sheet contract: 512×768
+        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_COLS, 512);
+        assert_eq!(ANIMAL_CELL * ANIMAL_SHEET_ROWS, 768);
+    }
+
+    #[test]
+    fn animal_atlas_index_layout() {
+        assert_eq!(animal_atlas_index(0, 0), 0);
+        assert_eq!(animal_atlas_index(0, 3), 3);
+        assert_eq!(animal_atlas_index(1, 0), 8);
+        assert_eq!(animal_atlas_index(2, 2), 18);
+    }
+
+    #[test]
+    fn homestead_player_matches_combat_height_ratio() {
+        assert!((PLAYER_SPRITE_WIDTH - 64.0).abs() < f32::EPSILON);
+        assert!((PLAYER_SPRITE_HEIGHT - 112.0).abs() < f32::EPSILON);
+    }
 }

@@ -146,7 +146,7 @@ pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpa
         EnemyHitbox::scaled(BOSS_DISPLAY_SCALE),
         Health::new(BOSS_MAX_HEALTH),
         EnemyContactDamage(12.0),
-        Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),
+        Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 88.0),
         DungeonEntity,
     ));
 }

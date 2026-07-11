@@ -39,8 +39,8 @@ pub struct DeflectedProjectile {
     pub hit_entities: Vec<Entity>,
 }
 
-const ARROW_WIDTH: f32 = 7.0;
-const ARROW_HEIGHT: f32 = 21.0;
+const ARROW_WIDTH: f32 = 28.0;
+const ARROW_HEIGHT: f32 = 84.0;
 const PROJECTILE_LIFETIME: f32 = 4.0;
 const PROJECTILE_Z: f32 = 4.5;
 const PROJECTILE_HIT_HALF: Vec2 = Vec2::new(ARROW_WIDTH * 0.5, ARROW_HEIGHT * 0.5);

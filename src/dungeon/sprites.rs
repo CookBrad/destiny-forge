@@ -8,16 +8,20 @@ pub const PLAYER_COMBAT_ROOT: &str = "player/combat";
 pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
 /// Native pixel size of `weapon_anime_sword.png` (width × height).
-pub const SWORD_SPRITE_WIDTH: f32 = 12.0;
-pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
+pub const SWORD_SPRITE_WIDTH: f32 = 48.0;
+pub const SWORD_SPRITE_HEIGHT: f32 = 120.0;
 
-/// Native pixel size of each knight_m frame (width × height).
-pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
-pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
+/// Native pixel size of each combat frame cell (width × height).
+/// Combat strips are [`PLAYER_IDLE_FRAMES`] cells wide at this size.
+pub const PLAYER_SPRITE_WIDTH: f32 = 64.0;
+pub const PLAYER_SPRITE_HEIGHT: f32 = 112.0;
 
 pub const PLAYER_IDLE_FRAMES: usize = 4;
 pub const PLAYER_RUN_FRAMES: usize = 4;
 pub const PLAYER_ATTACK_FRAMES: usize = 4;
+
+/// Expected strip width for idle/run/attack sheets.
+pub const PLAYER_STRIP_WIDTH: f32 = PLAYER_SPRITE_WIDTH * PLAYER_IDLE_FRAMES as f32;
 
 #[derive(Resource)]
 pub struct DungeonArt {
@@ -66,10 +70,52 @@ pub fn player_half_extents() -> Vec2 {
     player_sprite_size() * 0.5
 }
 
+/// UV/source rect for combat strip frame `frame` (0..N).
 pub fn player_frame_rect(frame: usize) -> Rect {
     let x = frame as f32 * PLAYER_SPRITE_WIDTH;
     Rect {
         min: Vec2::new(x, 0.0),
         max: Vec2::new(x + PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_frame_rects_tile_across_strip() {
+        let r0 = player_frame_rect(0);
+        let r1 = player_frame_rect(1);
+        let r3 = player_frame_rect(3);
+
+        assert!((r0.min.x - 0.0).abs() < f32::EPSILON);
+        assert!((r0.max.x - PLAYER_SPRITE_WIDTH).abs() < f32::EPSILON);
+        assert!((r0.max.y - PLAYER_SPRITE_HEIGHT).abs() < f32::EPSILON);
+
+        assert!((r1.min.x - PLAYER_SPRITE_WIDTH).abs() < f32::EPSILON);
+        assert!((r1.max.x - PLAYER_SPRITE_WIDTH * 2.0).abs() < f32::EPSILON);
+
+        assert!((r3.min.x - PLAYER_SPRITE_WIDTH * 3.0).abs() < f32::EPSILON);
+        assert!((r3.max.x - PLAYER_STRIP_WIDTH).abs() < f32::EPSILON);
+
+        // Frames do not overlap.
+        assert!(r0.max.x <= r1.min.x + f32::EPSILON);
+    }
+
+    #[test]
+    fn higher_res_frame_size_contract() {
+        assert!((PLAYER_SPRITE_WIDTH - 64.0).abs() < f32::EPSILON);
+        assert!((PLAYER_SPRITE_HEIGHT - 112.0).abs() < f32::EPSILON);
+        assert!((SWORD_SPRITE_WIDTH - 48.0).abs() < f32::EPSILON);
+        assert!((SWORD_SPRITE_HEIGHT - 120.0).abs() < f32::EPSILON);
+        assert!((PLAYER_STRIP_WIDTH - 256.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn half_extents_match_sprite_size() {
+        let half = player_half_extents();
+        assert!((half.x - 32.0).abs() < f32::EPSILON);
+        assert!((half.y - 56.0).abs() < f32::EPSILON);
     }
 }

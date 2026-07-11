@@ -3,19 +3,22 @@ use bevy::prelude::*;
 /// Gameplay positions use native sprite pixels as world units (one tile = [`TILE`]).
 /// On-screen size is controlled by camera orthographic scale via [`DISPLAY_SCALE`],
 /// not by baking multi-pixel scale into entity transforms.
-pub const TILE: f32 = 16.0;
+///
+/// Higher-res art: tiles are 64×64 (4× classic 16px pixel tiles).
+pub const TILE: f32 = 64.0;
 
 /// Higher-resolution 2D on-screen magnification.
-/// Applied uniformly through the camera for exploration and dungeon
-/// (single display approach — not dual camera-zoom vs transform-scale pipelines).
-pub const DISPLAY_SCALE: f32 = 3.0;
+/// Applied uniformly through the camera for exploration and dungeon.
+/// With 64px native art, 1.0 keeps readable on-screen size without extra zoom.
+pub const DISPLAY_SCALE: f32 = 1.0;
 
-pub const PLAYER_WALK_SPEED: f32 = 138.0;
-pub const DUNGEON_JUMP_SPEED: f32 = 385.0;
+// Physics scaled with TILE so feel matches the classic 16px world (×4).
+pub const PLAYER_WALK_SPEED: f32 = 552.0;
+pub const DUNGEON_JUMP_SPEED: f32 = 1_540.0;
 pub const DUNGEON_AIR_JUMP_MULT: f32 = 0.88;
-pub const DUNGEON_GRAVITY: f32 = -760.0;
-pub const DUNGEON_FLOOR_Y: f32 = 64.0;
-pub const INTERACT_DISTANCE: f32 = 20.0;
+pub const DUNGEON_GRAVITY: f32 = -3_040.0;
+pub const DUNGEON_FLOOR_Y: f32 = 256.0;
+pub const INTERACT_DISTANCE: f32 = 80.0;
 
 pub const ENEMY_DISPLAY_SIZE: Vec2 = Vec2::new(TILE, TILE);
 
@@ -87,8 +90,6 @@ mod tests {
         assert_eq!(a.translation, Vec3::new(48.0, 64.0, 5.0));
         assert_eq!(a.scale, Vec3::ONE);
         assert_eq!(b.scale, Vec3::ONE);
-        // Display magnification is not baked into entity transforms.
-        assert_ne!(a.scale, Vec3::splat(DISPLAY_SCALE));
     }
 
     #[test]
@@ -100,12 +101,18 @@ mod tests {
 
     #[test]
     fn center_on_surface_places_feet_on_ground() {
-        let y = center_on_surface(64.0, 28.0);
-        assert!((y - 78.0).abs() < f32::EPSILON);
+        let y = center_on_surface(256.0, 112.0);
+        assert!((y - 312.0).abs() < f32::EPSILON);
     }
 
     #[test]
     fn to_world_preserves_xy_and_z() {
         assert_eq!(to_world(Vec2::new(10.0, 20.0), 3.0), Vec3::new(10.0, 20.0, 3.0));
+    }
+
+    #[test]
+    fn tile_matches_higher_res_art_contract() {
+        // Shipped env tiles are 64×64; world tile must match.
+        assert!((TILE - 64.0).abs() < f32::EPSILON);
     }
 }

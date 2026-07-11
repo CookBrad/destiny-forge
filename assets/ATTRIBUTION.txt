@@ -1,71 +1,23 @@
 Destiny Forge — Asset Attribution
 ==================================
 
-Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/environment/
-Source packs and archives: assets/source/
+Gameplay sprites: assets/player/, assets/dungeon/, assets/overworld/, assets/forest/, assets/ui/
+Source packs and archives: assets/source/ (historical pixel packs; not the shipped look)
 
-Primary stack (recommended)
----------------------------
+Shipped gameplay art (current)
+------------------------------
 
-Pixel Crawler — Free Pack 2.1
-  Author: Anokolisa
-  URL: https://anokolisa.itch.io/free-pixel-art-asset-pack-topdown-tileset-rpg-16x16-sprites
-  License: Free for commercial/non-commercial use; do not redistribute or resell
-  Used for: homestead forge sprites (curated in overworld/)
+Higher-resolution 2D sprites regenerated in an anime / cel-shaded cyber-fantasy style
+inspired by the project's character concept reference (brown coat, purple trim, cyan tech
+glow). Generated for Destiny Forge gameplay paths; filenames kept stable for loaders.
 
-  overworld/forge_furnace.png   — Pixel Crawler Furnace sheet (brick forge with chimney)
-  overworld/forge_workbench.png — Pixel Crawler Anvil sheet (workbench station)
-  overworld/forge_anvil.png     — Pixel Crawler Anvil sheet (anvil platform)
+Layout contracts (native sizes):
+  env tiles 64x64 · player cells 64x112 · combat strips 256x112 · sword 48x120
+  enemies 64x64 · animal cells 64 · tree cells 128x192 · UI items 64x64 · skills 128x128
 
-  forest/trees.png              — Pixel Crawler tree props (Model_02 Size_02)
+Historical source packs (assets/source/) remain available for reference:
+  Pixel Crawler, 0x72 DungeonTileset II, Dawnlike, Kenney, etc. — see each pack README.
 
-  player/non-combat/dwarf_m_idle_anim_f0..3.png — 0x72 dwarf_m idle (overworld player)
-  player/non-combat/dwarf_m_run_anim_f0..3.png  — 0x72 dwarf_m run (overworld player)
-
-  overworld/animals/quadraped.png — Dawnlike Quadraped0 sheet (farm animals)
-
-0x72 knight_m (dungeon player)
-  Curated from 0x72 DungeonTileset II frames into assets/player/combat/
-
-0x72 — 16x16 DungeonTileset II v1.7
-  Author: Robert (0x72)
-  URL: https://0x72.itch.io/dungeontileset-ii
-  License: CC0 1.0 (public domain)
-  Used for: dungeon environment tiles, slime and bat enemies
-
-Stealthix — Animated Slimes
-  Author: Stealthix
-  URL: https://stealthix.itch.io/animated-slimes
-  License: CC0 1.0
-  Used for: alternate slime sprites (future)
-
-Rebuild third-party source packs
---------------------------------
-
-  python3 tools/download_assets.py
-
-Downloads itch.io packs into assets/source/ and extracts to:
-  source/pixel_crawler/
-  source/0x72/
-  source/slimes/
-
-Curate gameplay files from source into player/, dungeon/enemies/, and dungeon/environment/.
-
-Gameplay sprite map
--------------------
-
-  player/combat/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
-  player/combat/knight_run_side.png    — 0x72 knight_m run (4 frames)
-  player/combat/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
-  player/weapons/weapon_anime_sword.png — 0x72 swing arc overlay (rotates 90° on attack)
-
-  dungeon/environment/floor_ground.png   — 0x72 floor tile
-  dungeon/environment/floor_platform.png   — 0x72 platform tile
-  dungeon/environment/floor_ladder.png     — 0x72 ladder tile
-  dungeon/environment/wall.png             — 0x72 wall tile
-
-  dungeon/enemies/slime.png   — 0x72 tiny slug
-  dungeon/enemies/bat.png     — 0x72 imp (flying enemy stand-in)
 
 Audio
 -----

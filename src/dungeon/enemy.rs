@@ -5,8 +5,8 @@ use crate::combat::Health;
 use crate::graphics::ENEMY_DISPLAY_SIZE;
 
 const HIT_AGGRO_LOCK_SECS: f32 = 3.0;
-const KNOCKBACK_FORCE_X: f32 = 130.0;
-const KNOCKBACK_FORCE_Y: f32 = 85.0;
+const KNOCKBACK_FORCE_X: f32 = 520.0;
+const KNOCKBACK_FORCE_Y: f32 = 340.0;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EnemyKind {
@@ -154,8 +154,8 @@ impl EnemyKnockback {
     /// Launches enemies farther than a full player charge dash travels.
     pub fn from_charge(direction: f32, is_boss: bool, airborne: bool) -> Self {
         let dir = direction.signum();
-        // Decay-integrated travel ≈ speed / KNOCKBACK_DECAY; charge dash ≈ 124px.
-        let speed = if is_boss { 780.0 } else { 1_020.0 };
+        // Decay-integrated travel ≈ speed / KNOCKBACK_DECAY; charge dash ≈ 496 world units (4×).
+        let speed = if is_boss { 3_120.0 } else { 4_080.0 };
         Self {
             velocity: Vec2::new(
                 dir * speed,

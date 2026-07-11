@@ -151,11 +151,13 @@ impl PlayerSpecialMove {
 #[derive(Component)]
 pub struct WeaponSpecialFx;
 
-const CHARGE_SPEED: f32 = 310.0;
+const CHARGE_SPEED: f32 = 1_240.0;
 const CHARGE_SECS: f32 = 0.4;
 const CHARGE_HIT_START: f32 = 0.04;
 const CHARGE_HIT_END: f32 = 0.36;
 const CHARGE_ATTACK_POWER: f32 = 22.0;
+/// Thrust lunge speed (4× classic 95 so travel stays ~2+ tiles at TILE=64).
+const THRUST_SPEED: f32 = 380.0;
 
 const SPIN_SECS: f32 = 0.5;
 const SPIN_HIT_START: f32 = 0.1;
@@ -163,13 +165,13 @@ const SPIN_HIT_END: f32 = 0.42;
 const SPIN_ATTACK_POWER: f32 = 18.0;
 const SPIN_ARM_RADIUS: f32 = TILE * 1.85;
 const SPIN_SWORD_HIT_PADDING: f32 = TILE * 0.85;
-const SPIN_PIVOT_Y: f32 = 2.0;
+const SPIN_PIVOT_Y: f32 = 8.0;
 
 const THRUST_SECS: f32 = 0.38;
 const THRUST_HIT_START: f32 = 0.06;
 const THRUST_HIT_END: f32 = 0.3;
 const THRUST_ATTACK_POWER: f32 = 24.0;
-const THRUST_REACH: f32 = 64.0;
+const THRUST_REACH: f32 = 256.0;
 
 pub fn player_is_busy(
     attack: &PlayerAttack,
@@ -193,7 +195,7 @@ pub fn special_blocks_movement(special: Option<&PlayerSpecialMove>) -> bool {
 pub fn special_move_speed(special: &PlayerSpecialMove) -> f32 {
     match special.kind {
         SpecialMoveKind::Charge => special.charge_direction * CHARGE_SPEED,
-        SpecialMoveKind::Thrust => special.charge_direction * 95.0,
+        SpecialMoveKind::Thrust => special.charge_direction * THRUST_SPEED,
         SpecialMoveKind::Spin => 0.0,
     }
 }
@@ -529,7 +531,7 @@ fn charge_weapon_pose(_progress: f32, direction: f32) -> WeaponPose {
 fn thrust_weapon_pose(progress: f32) -> WeaponPose {
     let extend = progress.clamp(0.0, 1.0);
     WeaponPose {
-        translation: Vec3::new(8.0 + extend * 16.0, 2.0, 0.55),
+        translation: Vec3::new(32.0 + extend * 64.0, 8.0, 0.55),
         rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
     }
 }
@@ -670,5 +672,36 @@ mod tests {
             special_for_weapon(WeaponKind::IronSword, SkillKind::Spin),
             Some(SpecialMoveKind::Spin)
         );
+    }
+
+    #[test]
+    fn thrust_lunge_speed_matches_higher_res_world() {
+        let special = PlayerSpecialMove {
+            kind: SpecialMoveKind::Thrust,
+            timer: Timer::from_seconds(THRUST_SECS, TimerMode::Once),
+            charge_direction: 1.0,
+            hit_entities: Vec::new(),
+        };
+        let speed = special_move_speed(&special);
+        assert!((speed - THRUST_SPEED).abs() < 0.01);
+        // ~2+ tiles of travel over thrust duration at TILE=64 (not the unscaled 95).
+        let travel = THRUST_SPEED * THRUST_SECS;
+        assert!(
+            travel > TILE * 2.0,
+            "thrust travel {travel} should exceed 2 tiles"
+        );
+        assert!(THRUST_SPEED > CHARGE_SPEED * 0.2);
+    }
+
+    #[test]
+    fn charge_speed_still_dominant_dash() {
+        let special = PlayerSpecialMove {
+            kind: SpecialMoveKind::Charge,
+            timer: Timer::from_seconds(CHARGE_SECS, TimerMode::Once),
+            charge_direction: -1.0,
+            hit_entities: Vec::new(),
+        };
+        assert!((special_move_speed(&special) + CHARGE_SPEED).abs() < 0.01);
+        assert!(CHARGE_SPEED > THRUST_SPEED);
     }
 }

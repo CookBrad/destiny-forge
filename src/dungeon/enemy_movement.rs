@@ -15,13 +15,13 @@ use super::movement::DungeonPlayer;
 
 const AGGRO_RANGE: f32 = 20.0 * TILE;
 const DEAGGRO_RANGE: f32 = 26.0 * TILE;
-const BOSS_CHASE_SPEED: f32 = 34.0;
+const BOSS_CHASE_SPEED: f32 = 136.0;
 const KNOCKBACK_DECAY: f32 = 6.0;
-const KNOCKBACK_GRAVITY: f32 = -360.0;
-const KNOCKBACK_STOP_SPEED: f32 = 18.0;
-const GOBLIN_JUMP_SPEED: f32 = 430.0;
-const GOBLIN_JUMP_HSPEED: f32 = 132.0;
-const GOBLIN_GRAVITY: f32 = -700.0;
+const KNOCKBACK_GRAVITY: f32 = -1_440.0;
+const KNOCKBACK_STOP_SPEED: f32 = 72.0;
+const GOBLIN_JUMP_SPEED: f32 = 1_720.0;
+const GOBLIN_JUMP_HSPEED: f32 = 528.0;
+const GOBLIN_GRAVITY: f32 = -2_800.0;
 const GOBLIN_PIT_CLEARANCE_Y: f32 = TILE * 1.1;
 
 pub fn move_enemies(

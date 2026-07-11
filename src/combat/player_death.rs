@@ -19,8 +19,9 @@ use super::special_moves::{PlayerSpecialMove, WeaponSpecialFx};
 use super::PlayerAttack;
 
 const DEATH_DURATION: f32 = 1.45;
-const DEATH_KNOCKBACK_X: f32 = 185.0;
-const DEATH_KNOCKBACK_Y: f32 = 165.0;
+// World units match 64px TILE (4× classic); keep death fling proportional.
+const DEATH_KNOCKBACK_X: f32 = 740.0;
+const DEATH_KNOCKBACK_Y: f32 = 660.0;
 
 #[derive(Component)]
 pub struct PlayerFallDeath;
@@ -270,5 +271,26 @@ pub fn hide_death_weapons(
                 *vis = Visibility::Hidden;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn death_knockback_scales_with_higher_res_world() {
+        let death = PlayerDeath::new(1.0, DUNGEON_FLOOR_Y);
+        // Facing right → fling left.
+        assert!(death.knockback.x < 0.0);
+        assert!((death.knockback.x.abs() - DEATH_KNOCKBACK_X).abs() < 0.01);
+        assert!((death.knockback.y - DEATH_KNOCKBACK_Y).abs() < 0.01);
+        // Must be multi-tile impulse on TILE=64 (classic 185 was ~11.5 tiles of 16px).
+        assert!(
+            DEATH_KNOCKBACK_X > TILE * 10.0,
+            "death X {} should exceed 10 tiles of speed",
+            DEATH_KNOCKBACK_X
+        );
+        assert!(DEATH_KNOCKBACK_Y > TILE * 5.0);
     }
 }

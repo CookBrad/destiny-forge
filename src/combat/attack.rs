@@ -113,14 +113,14 @@ pub struct WeaponSwingFx;
 pub struct WeaponOnBack;
 
 /// Sheathed sword pose in player-local pixels (parent scale mirrors with facing).
-const SHEATHED_SWORD_X: f32 = -4.0;
-const SHEATHED_SWORD_Y: f32 = 8.0;
+const SHEATHED_SWORD_X: f32 = -16.0;
+const SHEATHED_SWORD_Y: f32 = 32.0;
 const SHEATHED_SWORD_Z: f32 = -0.2;
 const SHEATHED_SWORD_ANGLE: f32 = 0.45;
 
 /// Per-frame Y offsets matching knight idle/run sprite bob (native pixels).
-const IDLE_SHEATHED_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
-const RUN_SHEATHED_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
+const IDLE_SHEATHED_BOB: [f32; 4] = [0.0, -2.0, -4.0, -2.0];
+const RUN_SHEATHED_BOB: [f32; 4] = [-6.0, 2.0, 6.0, -4.0];
 
 struct SwingPose {
     translation: Vec3,
@@ -502,15 +502,15 @@ fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
             }
         }
         HitShape::SpearThrust | HitShape::SpearLunge => {
-            // Horizontal poke: extend forward over the thrust.
+            // Horizontal poke: extend forward over the thrust (native 64px units, 4× classic).
             let extend = progress.clamp(0.0, 1.0);
-            let forward = 6.0 + extend * (if matches!(step.shape, HitShape::SpearLunge) {
-                14.0
+            let forward = 24.0 + extend * (if matches!(step.shape, HitShape::SpearLunge) {
+                56.0
             } else {
-                10.0
+                40.0
             });
             SwingPose {
-                translation: Vec3::new(forward, 2.0, 0.5),
+                translation: Vec3::new(forward, 8.0, 0.5),
                 rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
             }
         }

@@ -31,7 +31,7 @@ pub struct PlayerAirJumps {
 
 const MAX_AIR_JUMPS: u8 = 1;
 const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
-const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
+const PLAYER_KNOCKBACK_STOP: f32 = 88.0;
 
 pub fn dungeon_movement(
     keyboard: Res<ButtonInput<KeyCode>>,

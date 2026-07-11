@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use super::weapon::{WeaponFamily, WeaponKind};
 
 pub const SKILL_SLOT_COUNT: usize = 9;
-const ICON_TILE: f32 = 16.0;
+/// Full icon size for higher-res single-subject skill PNGs (128×128).
+const ICON_SIZE: f32 = 128.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SkillKind {
@@ -42,15 +43,10 @@ impl SkillKind {
     }
 
     pub fn icon_rect(&self) -> Rect {
-        let (x, y) = match self {
-            Self::Attack => (0.0, 0.0),
-            Self::Block => (0.0, 0.0),
-            Self::Charge => (16.0, 0.0),
-            Self::Spin => (32.0, 16.0),
-        };
+        // Each skill path is a full 128×128 icon (no atlas crop).
         Rect {
-            min: Vec2::new(x, y),
-            max: Vec2::new(x + ICON_TILE, y + ICON_TILE),
+            min: Vec2::ZERO,
+            max: Vec2::splat(ICON_SIZE),
         }
     }
 }

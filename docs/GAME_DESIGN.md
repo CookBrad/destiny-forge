@@ -548,9 +548,9 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 | Spec | Value |
 | ---- | ----- |
-| Tile size | 16×16 native art units |
-| Character frames | 16×32 (readable Stardew-like proportions) |
-| Display | ~3× camera zoom, linear filtering (higher-res 2D, not nearest-pixel) |
+| Tile size | 64×64 native art units (higher-res 2D) |
+| Character frames | 64×112 combat / homestead cells |
+| Display | Linear filtering; anime/painterly cyber-fantasy style (style ref inspired) |
 | Palette | Warm, earthy greens, wood, soft highlights |
 | Combat VFX | Readable silhouettes; wind-ups readable at a glance |
 | Buildings | Cozy; forge, mine, dungeon gate distinct |
