@@ -1,190 +1,253 @@
-//! On-screen fishing timing bar: cursor, perfect/good zones, result feedback.
+//! Vertical Stardew-style fishing UI: track, green bar, fish marker, progress.
 
 use bevy::prelude::*;
 
 use super::cast::ActiveCast;
-use super::logic::{
-    CastPhase, DEFAULT_ZONE_CENTER, GOOD_ZONE_HALF, PERFECT_ZONE_HALF,
-};
+use super::logic::{CastPhase, FightSim};
 
-const BAR_WIDTH: f32 = 280.0;
-const BAR_HEIGHT: f32 = 22.0;
-const CURSOR_WIDTH: f32 = 4.0;
+const TRACK_W: f32 = 36.0;
+const TRACK_H: f32 = 220.0;
+const FISH_SIZE: f32 = 14.0;
 
 #[derive(Component)]
 pub struct FishingBarRoot;
 
 #[derive(Component)]
-pub struct FishingBarCursor;
+pub struct FishingGreenBar;
+
+#[derive(Component)]
+pub struct FishingFishMarker;
+
+#[derive(Component)]
+pub struct FishingProgressFill;
 
 #[derive(Component)]
 pub struct FishingBarLabel;
 
 #[derive(Component)]
-pub struct FishingGoodZone;
+pub struct FishingHintLabel;
 
-#[derive(Component)]
-pub struct FishingPerfectZone;
-
-/// Spawn the bar when a cast becomes visible; despawn when idle.
 pub fn sync_fishing_bar_ui(
     mut commands: Commands,
     cast: Res<ActiveCast>,
     roots: Query<Entity, With<FishingBarRoot>>,
-    mut cursor_q: Query<&mut Node, With<FishingBarCursor>>,
-    mut label_q: Query<&mut Text, With<FishingBarLabel>>,
-    mut good_q: Query<&mut Node, (With<FishingGoodZone>, Without<FishingBarCursor>, Without<FishingPerfectZone>)>,
-    mut perfect_q: Query<&mut Node, (With<FishingPerfectZone>, Without<FishingBarCursor>, Without<FishingGoodZone>)>,
+    mut green_q: Query<&mut Node, With<FishingGreenBar>>,
+    mut fish_q: Query<&mut Node, (With<FishingFishMarker>, Without<FishingGreenBar>)>,
+    mut prog_q: Query<&mut Node, (With<FishingProgressFill>, Without<FishingGreenBar>, Without<FishingFishMarker>)>,
+    mut label_q: Query<&mut Text, (With<FishingBarLabel>, Without<FishingHintLabel>)>,
+    mut hint_q: Query<&mut Text, (With<FishingHintLabel>, Without<FishingBarLabel>)>,
 ) {
-    let visible = cast.bar_visible();
+    let show_full = cast.bar_visible();
+    let show_phase = cast.minigame_active();
     let has_root = !roots.is_empty();
 
-    if visible && !has_root {
-        spawn_fishing_bar(&mut commands, &cast);
+    if show_phase && !has_root {
+        spawn_fishing_ui(&mut commands, &cast);
         return;
     }
-
-    if !visible {
+    if !show_phase {
         for entity in &roots {
             commands.entity(entity).try_despawn_recursive();
         }
         return;
     }
 
-    // Sync cursor + zones + label while active.
-    let zone_center = cast.state.zone_center().unwrap_or(DEFAULT_ZONE_CENTER);
-    let cursor = cast.state.cursor().unwrap_or(zone_center);
-
-    for mut node in &mut good_q {
-        let left = ((zone_center - GOOD_ZONE_HALF) * BAR_WIDTH).max(0.0);
-        let width = (GOOD_ZONE_HALF * 2.0 * BAR_WIDTH).min(BAR_WIDTH - left);
-        node.left = Val::Px(left);
-        node.width = Val::Px(width);
-    }
-    for mut node in &mut perfect_q {
-        let left = ((zone_center - PERFECT_ZONE_HALF) * BAR_WIDTH).max(0.0);
-        let width = (PERFECT_ZONE_HALF * 2.0 * BAR_WIDTH).min(BAR_WIDTH - left);
-        node.left = Val::Px(left);
-        node.width = Val::Px(width);
-    }
-    for mut node in &mut cursor_q {
-        // Hide cursor during result phase; show mid-wait.
-        let show = matches!(cast.state.phase, CastPhase::Waiting { .. });
-        if show {
-            let left = (cursor * BAR_WIDTH - CURSOR_WIDTH * 0.5).clamp(0.0, BAR_WIDTH - CURSOR_WIDTH);
-            node.left = Val::Px(left);
-            node.width = Val::Px(CURSOR_WIDTH);
-            node.display = Display::Flex;
-        } else {
-            node.display = Display::None;
-        }
-    }
+    // Phase label always.
     if let Some(label) = cast.state.result_label() {
         for mut text in &mut label_q {
             text.0 = label.to_string();
         }
     }
+
+    // Full vertical contest only during fight / result with fight data.
+    if let Some(sim) = cast.state.fight() {
+        sync_fight_widgets(sim, &mut green_q, &mut fish_q, &mut prog_q);
+        for mut text in &mut hint_q {
+            text.0 = format!("Catch meter {:.0}%", sim.progress * 100.0);
+        }
+    } else if matches!(cast.state.phase, CastPhase::ShowingResult { .. }) {
+        for mut text in &mut hint_q {
+            text.0 = " ".to_string();
+        }
+    } else {
+        // Casting / waiting: hide green bar widgets via zero size
+        for mut node in &mut green_q {
+            node.height = Val::Px(0.0);
+        }
+        for mut text in &mut hint_q {
+            text.0 = match cast.state.phase {
+                CastPhase::Casting { .. } => "Line out…".to_string(),
+                CastPhase::WaitingBite { .. } => "…nibble…".to_string(),
+                _ => String::new(),
+            };
+        }
+    }
+
+    let _ = show_full;
 }
 
-fn spawn_fishing_bar(commands: &mut Commands, cast: &ActiveCast) {
-    let zone_center = cast.state.zone_center().unwrap_or(DEFAULT_ZONE_CENTER);
-    let cursor = cast.state.cursor().unwrap_or(0.0);
-    let label = cast
-        .state
-        .result_label()
-        .unwrap_or("Space — Reel · Esc/Q — Cancel");
+fn sync_fight_widgets(
+    sim: &FightSim,
+    green_q: &mut Query<&mut Node, With<FishingGreenBar>>,
+    fish_q: &mut Query<&mut Node, (With<FishingFishMarker>, Without<FishingGreenBar>)>,
+    prog_q: &mut Query<
+        &mut Node,
+        (
+            With<FishingProgressFill>,
+            Without<FishingGreenBar>,
+            Without<FishingFishMarker>,
+        ),
+    >,
+) {
+    // UI Y grows downward; game axis has 0 at bottom → invert for `bottom` positioning.
+    for mut node in green_q.iter_mut() {
+        let bottom_px = sim.bar_bottom * TRACK_H;
+        let height_px = sim.bar_height * TRACK_H;
+        node.bottom = Val::Px(bottom_px);
+        node.height = Val::Px(height_px.max(4.0));
+        node.width = Val::Px(TRACK_W - 4.0);
+        node.display = Display::Flex;
+    }
+    for mut node in fish_q.iter_mut() {
+        let bottom_px = sim.fish_y * TRACK_H - FISH_SIZE * 0.5;
+        node.bottom = Val::Px(bottom_px.clamp(0.0, TRACK_H - FISH_SIZE));
+        node.display = Display::Flex;
+    }
+    for mut node in prog_q.iter_mut() {
+        node.height = Val::Px((sim.progress * TRACK_H).clamp(0.0, TRACK_H));
+    }
+}
 
-    let good_left = ((zone_center - GOOD_ZONE_HALF) * BAR_WIDTH).max(0.0);
-    let good_width = (GOOD_ZONE_HALF * 2.0 * BAR_WIDTH).min(BAR_WIDTH - good_left);
-    let perfect_left = ((zone_center - PERFECT_ZONE_HALF) * BAR_WIDTH).max(0.0);
-    let perfect_width =
-        (PERFECT_ZONE_HALF * 2.0 * BAR_WIDTH).min(BAR_WIDTH - perfect_left);
-    let cursor_left =
-        (cursor * BAR_WIDTH - CURSOR_WIDTH * 0.5).clamp(0.0, BAR_WIDTH - CURSOR_WIDTH);
+fn spawn_fishing_ui(commands: &mut Commands, cast: &ActiveCast) {
+    let label = cast.state.result_label().unwrap_or("Fishing");
+    let sim = cast.state.fight().cloned().unwrap_or_default();
 
     commands
         .spawn((
             FishingBarRoot,
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(118.0),
-                width: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
+                bottom: Val::Px(100.0),
+                right: Val::Px(28.0),
                 flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
                 row_gap: Val::Px(8.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                border: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
-            GlobalZIndex(60),
+            BackgroundColor(Color::srgba(0.05, 0.08, 0.12, 0.88)),
+            BorderColor(Color::srgb(0.35, 0.55, 0.7)),
+            GlobalZIndex(70),
         ))
         .with_children(|root| {
             root.spawn((
                 FishingBarLabel,
                 Text::new(label),
                 TextFont {
-                    font_size: 15.0,
+                    font_size: 14.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.88, 0.92, 0.95)),
+                TextColor(Color::srgb(0.9, 0.94, 0.98)),
             ));
 
-            // Track
-            root.spawn((
-                Node {
-                    width: Val::Px(BAR_WIDTH),
-                    height: Val::Px(BAR_HEIGHT),
-                    border: UiRect::all(Val::Px(2.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.1, 0.12, 0.16)),
-                BorderColor(Color::srgb(0.45, 0.55, 0.65)),
-            ))
-            .with_children(|track| {
-                // Good (yellow) zone
-                track.spawn((
-                    FishingGoodZone,
+            // Horizontal row: progress | track
+            root.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(8.0),
+                align_items: AlignItems::FlexEnd,
+                height: Val::Px(TRACK_H),
+                ..default()
+            })
+            .with_children(|row| {
+                // Progress meter (fills from bottom)
+                row.spawn((
                     Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(good_left),
-                        width: Val::Px(good_width),
-                        height: Val::Percent(100.0),
+                        width: Val::Px(10.0),
+                        height: Val::Px(TRACK_H),
+                        border: UiRect::all(Val::Px(1.0)),
+                        justify_content: JustifyContent::FlexEnd,
+                        flex_direction: FlexDirection::Column,
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.85, 0.72, 0.2, 0.55)),
-                ));
-                // Perfect (green) zone
-                track.spawn((
-                    FishingPerfectZone,
+                    BackgroundColor(Color::srgb(0.12, 0.14, 0.16)),
+                    BorderColor(Color::srgb(0.3, 0.35, 0.4)),
+                ))
+                .with_children(|track| {
+                    track.spawn((
+                        FishingProgressFill,
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Px(sim.progress * TRACK_H),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.95, 0.75, 0.2)),
+                    ));
+                });
+
+                // Main vertical track
+                row.spawn((
                     Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(perfect_left),
-                        width: Val::Px(perfect_width),
-                        height: Val::Percent(100.0),
+                        width: Val::Px(TRACK_W),
+                        height: Val::Px(TRACK_H),
+                        border: UiRect::all(Val::Px(2.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.25, 0.85, 0.4, 0.75)),
-                ));
-                // Cursor
-                track.spawn((
-                    FishingBarCursor,
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(cursor_left),
-                        width: Val::Px(CURSOR_WIDTH),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.98, 0.98, 1.0)),
-                ));
+                    BackgroundColor(Color::srgb(0.15, 0.28, 0.4)),
+                    BorderColor(Color::srgb(0.4, 0.6, 0.75)),
+                ))
+                .with_children(|track| {
+                    let bottom_px = sim.bar_bottom * TRACK_H;
+                    let height_px = sim.bar_height * TRACK_H;
+                    track.spawn((
+                        FishingGreenBar,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(2.0),
+                            bottom: Val::Px(bottom_px),
+                            width: Val::Px(TRACK_W - 4.0),
+                            height: Val::Px(height_px.max(4.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.2, 0.85, 0.35, 0.85)),
+                    ));
+
+                    let fish_bottom = (sim.fish_y * TRACK_H - FISH_SIZE * 0.5)
+                        .clamp(0.0, TRACK_H - FISH_SIZE);
+                    track.spawn((
+                        FishingFishMarker,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px((TRACK_W - FISH_SIZE) * 0.5),
+                            bottom: Val::Px(fish_bottom),
+                            width: Val::Px(FISH_SIZE),
+                            height: Val::Px(FISH_SIZE),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.95, 0.55, 0.2)),
+                        BorderColor(Color::srgb(1.0, 0.9, 0.7)),
+                    ));
+                });
             });
 
             root.spawn((
-                Text::new("Yellow = good · Green = perfect"),
+                FishingHintLabel,
+                Text::new("Hold Space to raise the green bar"),
                 TextFont {
                     font_size: 11.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.55, 0.6, 0.65)),
+                TextColor(Color::srgb(0.65, 0.72, 0.78)),
+            ));
+
+            root.spawn((
+                Text::new("Esc / Q — cancel"),
+                TextFont {
+                    font_size: 10.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.5, 0.55, 0.6)),
             ));
         });
 }

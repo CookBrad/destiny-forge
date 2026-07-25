@@ -1,100 +1,111 @@
-//! Pure fishing rules: cast state machine, timing cursor, catch resolution.
+//! Stardew Valley–style fishing: vertical green bar vs moving fish + catch progress.
+//! Pure simulation only — no Bevy types.
 
 use crate::items::MaterialId;
 
-/// Center of the perfect catch zone on the 0..=1 timing bar.
-pub const DEFAULT_ZONE_CENTER: f32 = 0.55;
-/// Half-width of the perfect (green) zone.
-pub const PERFECT_ZONE_HALF: f32 = 0.08;
-/// Half-width of the good (yellow) zone.
-pub const GOOD_ZONE_HALF: f32 = 0.18;
-/// How long one full timing sweep takes (seconds).
-pub const TIMING_PERIOD_SECS: f32 = 1.4;
-/// How long the result banner stays before returning to idle.
-pub const RESULT_DISPLAY_SECS: f32 = 1.35;
+/// Default height of the player's green catch bar (0..=1 axis).
+pub const BAR_HEIGHT: f32 = 0.22;
+/// How fast the bar rises while holding (units per second).
+pub const BAR_RAISE_SPEED: f32 = 0.95;
+/// How fast the bar falls when not holding.
+pub const BAR_FALL_SPEED: f32 = 0.75;
+/// Progress fill rate while fish is inside the bar.
+pub const PROGRESS_FILL_RATE: f32 = 0.28;
+/// Progress drain rate while fish is outside the bar.
+pub const PROGRESS_DRAIN_RATE: f32 = 0.22;
+/// Starting catch progress when the fight begins (room for one mistake).
+pub const INITIAL_PROGRESS: f32 = 0.28;
+/// Cast animation / cast phase duration.
+pub const CAST_PHASE_SECS: f32 = 0.55;
+/// Wait-for-bite phase duration before the fight starts.
+pub const BITE_WAIT_SECS: f32 = 0.9;
+/// Result banner duration.
+pub const RESULT_DISPLAY_SECS: f32 = 1.4;
+/// Base fish swim speed magnitude.
+pub const FISH_SPEED: f32 = 0.55;
 
 /// Energy spent when casting (mirrors FishingRod).
 pub fn rod_energy_cost() -> f32 {
     MaterialId::FishingRod.energy_cost()
 }
 
-/// True when the player can spend energy to cast.
 pub fn can_afford_cast(current_energy: f32, cost: f32) -> bool {
     cost <= 0.0 || current_energy + f32::EPSILON >= cost
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CatchQuality {
-    Perfect,
-    Good,
-    Miss,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum CatchResult {
-    Caught {
-        fish: MaterialId,
-        amount: u32,
-        quality: CatchQuality,
-    },
-    Miss,
-}
-
-impl CatchResult {
-    pub fn quality(&self) -> CatchQuality {
-        match self {
-            Self::Caught { quality, .. } => *quality,
-            Self::Miss => CatchQuality::Miss,
-        }
-    }
-
-    pub fn feedback_label(&self) -> &'static str {
-        match self {
-            Self::Caught {
-                quality: CatchQuality::Perfect,
-                ..
-            } => "Perfect catch!",
-            Self::Caught {
-                quality: CatchQuality::Good,
-                ..
-            } => "Good catch!",
-            Self::Miss
-            | Self::Caught {
-                quality: CatchQuality::Miss,
-                ..
-            } => "Miss — fish got away",
-        }
-    }
-}
-
-/// Terminal outcome shown on the result banner (includes cancel).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum CastOutcome {
-    Catch(CatchResult),
+pub enum FishOutcome {
+    Caught,
+    Escaped,
     Cancelled,
 }
 
-impl CastOutcome {
-    pub fn feedback_label(&self) -> &'static str {
+impl FishOutcome {
+    pub fn feedback_label(self) -> &'static str {
         match self {
-            Self::Catch(result) => result.feedback_label(),
+            Self::Caught => "Caught! River Fish",
+            Self::Escaped => "The fish got away…",
             Self::Cancelled => "Cast cancelled",
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Caught)
+    }
 }
 
-/// Explicit minigame phase — prevents stuck "active" flags.
+/// Live contest numbers (axis: 0 = bottom, 1 = top).
+#[derive(Clone, Debug, PartialEq)]
+pub struct FightSim {
+    /// Bottom edge of the green bar.
+    pub bar_bottom: f32,
+    pub bar_height: f32,
+    /// Fish center Y on the axis.
+    pub fish_y: f32,
+    pub fish_vel: f32,
+    /// Catch meter 0..=1.
+    pub progress: f32,
+    pub elapsed: f32,
+}
+
+impl FightSim {
+    pub fn new() -> Self {
+        Self {
+            bar_bottom: 0.35,
+            bar_height: BAR_HEIGHT,
+            fish_y: 0.5,
+            fish_vel: FISH_SPEED,
+            progress: INITIAL_PROGRESS,
+            elapsed: 0.0,
+        }
+    }
+
+    pub fn bar_top(&self) -> f32 {
+        (self.bar_bottom + self.bar_height).min(1.0)
+    }
+
+    pub fn fish_in_bar(&self) -> bool {
+        fish_inside_bar(self.fish_y, self.bar_bottom, self.bar_height)
+    }
+}
+
+impl Default for FightSim {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum CastPhase {
     Idle,
-    /// Line is out; timing cursor moves until reel or cancel.
-    Waiting {
-        elapsed: f32,
-        zone_center: f32,
-    },
-    /// Brief result feedback before returning to idle.
+    /// Line going out / cast animation.
+    Casting { remaining: f32 },
+    /// Bobber in water, waiting for bite.
+    WaitingBite { remaining: f32 },
+    /// Active Stardew-style contest.
+    Fighting(FightSim),
     ShowingResult {
-        outcome: CastOutcome,
+        outcome: FishOutcome,
         remaining: f32,
     },
 }
@@ -105,7 +116,6 @@ impl Default for CastPhase {
     }
 }
 
-/// Pure cast state machine (no Bevy types).
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CastState {
     pub phase: CastPhase,
@@ -116,162 +126,228 @@ impl CastState {
         matches!(self.phase, CastPhase::Idle)
     }
 
-    pub fn is_waiting(&self) -> bool {
-        matches!(self.phase, CastPhase::Waiting { .. })
+    pub fn is_fighting(&self) -> bool {
+        matches!(self.phase, CastPhase::Fighting(_))
     }
 
-    pub fn is_showing_result(&self) -> bool {
-        matches!(self.phase, CastPhase::ShowingResult { .. })
-    }
-
-    /// True while the timing bar should be on screen (waiting or result).
-    pub fn bar_visible(&self) -> bool {
+    pub fn is_busy(&self) -> bool {
         !self.is_idle()
     }
 
-    /// Cursor 0..=1 while waiting; None otherwise.
-    pub fn cursor(&self) -> Option<f32> {
-        match self.phase {
-            CastPhase::Waiting { elapsed, .. } => {
-                Some(timing_cursor(elapsed, TIMING_PERIOD_SECS))
-            }
-            _ => None,
-        }
+    /// True while minigame UI should show (fight or result; cast/bite use lighter UI).
+    pub fn bar_visible(&self) -> bool {
+        matches!(
+            self.phase,
+            CastPhase::Fighting(_) | CastPhase::ShowingResult { .. }
+        )
     }
 
-    pub fn zone_center(&self) -> Option<f32> {
-        match self.phase {
-            CastPhase::Waiting { zone_center, .. } => Some(zone_center),
+    /// Any active cast (including cast/bite wait) — blocks title Esc, etc.
+    pub fn minigame_active(&self) -> bool {
+        self.is_busy()
+    }
+
+    pub fn fight(&self) -> Option<&FightSim> {
+        match &self.phase {
+            CastPhase::Fighting(sim) => Some(sim),
             _ => None,
         }
     }
 
     pub fn result_label(&self) -> Option<&'static str> {
         match &self.phase {
+            CastPhase::Casting { .. } => Some("Casting…"),
+            CastPhase::WaitingBite { .. } => Some("Waiting for a bite…"),
+            CastPhase::Fighting(_) => Some("Hold Space — raise bar · release — lower"),
             CastPhase::ShowingResult { outcome, .. } => Some(outcome.feedback_label()),
-            CastPhase::Waiting { .. } => Some("Space — Reel · Esc/Q — Cancel"),
             CastPhase::Idle => None,
         }
     }
+
+    pub fn anim_kind(&self) -> FishingAnimKind {
+        match self.phase {
+            CastPhase::Idle => FishingAnimKind::None,
+            CastPhase::Casting { .. } => FishingAnimKind::Cast,
+            CastPhase::WaitingBite { .. } => FishingAnimKind::Waiting,
+            CastPhase::Fighting(_) => FishingAnimKind::Fighting,
+            CastPhase::ShowingResult {
+                outcome: FishOutcome::Caught,
+                ..
+            } => FishingAnimKind::Success,
+            CastPhase::ShowingResult { .. } => FishingAnimKind::Fail,
+        }
+    }
 }
 
-/// Start a cast from idle. Returns false if already mid-minigame.
-pub fn start_cast(state: &mut CastState, zone_center: f32) -> bool {
+/// Visual phase for cast/bite animation hooks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FishingAnimKind {
+    None,
+    Cast,
+    Waiting,
+    Fighting,
+    Success,
+    Fail,
+}
+
+// --- pure geometry / motion -------------------------------------------------
+
+pub fn fish_inside_bar(fish_y: f32, bar_bottom: f32, bar_height: f32) -> bool {
+    let y = fish_y.clamp(0.0, 1.0);
+    let top = (bar_bottom + bar_height).min(1.0);
+    y >= bar_bottom && y <= top
+}
+
+/// Raise (hold) or lower (release) the green bar; keeps it fully on the 0..=1 axis.
+pub fn apply_bar_input(sim: &mut FightSim, holding: bool, dt: f32) {
+    if dt <= 0.0 {
+        return;
+    }
+    if holding {
+        sim.bar_bottom += BAR_RAISE_SPEED * dt;
+    } else {
+        sim.bar_bottom -= BAR_FALL_SPEED * dt;
+    }
+    let max_bottom = (1.0 - sim.bar_height).max(0.0);
+    sim.bar_bottom = sim.bar_bottom.clamp(0.0, max_bottom);
+}
+
+/// Deterministic fish motion: constant velocity with periodic velocity flips.
+pub fn tick_fish_motion(sim: &mut FightSim, dt: f32) {
+    if dt <= 0.0 {
+        return;
+    }
+    sim.elapsed += dt;
+
+    // Flip direction on a predictable schedule so tests are stable.
+    let flip_period = 0.85;
+    let flips = (sim.elapsed / flip_period).floor() as i32;
+    let sign = if flips % 2 == 0 { 1.0 } else { -1.0 };
+    // Slight speed pulse for readability.
+    let pulse = 1.0 + 0.15 * (sim.elapsed * 3.0).sin();
+    sim.fish_vel = FISH_SPEED * sign * pulse;
+
+    sim.fish_y += sim.fish_vel * dt;
+    if sim.fish_y < 0.0 {
+        sim.fish_y = 0.0;
+        sim.fish_vel = sim.fish_vel.abs();
+    } else if sim.fish_y > 1.0 {
+        sim.fish_y = 1.0;
+        sim.fish_vel = -sim.fish_vel.abs();
+    }
+}
+
+/// Update progress from fish-in-bar; returns Some(outcome) when fight ends.
+pub fn tick_progress(sim: &mut FightSim, dt: f32) -> Option<FishOutcome> {
+    if dt <= 0.0 {
+        return None;
+    }
+    if sim.fish_in_bar() {
+        sim.progress += PROGRESS_FILL_RATE * dt;
+    } else {
+        sim.progress -= PROGRESS_DRAIN_RATE * dt;
+    }
+    if sim.progress >= 1.0 {
+        sim.progress = 1.0;
+        return Some(FishOutcome::Caught);
+    }
+    if sim.progress <= 0.0 {
+        sim.progress = 0.0;
+        return Some(FishOutcome::Escaped);
+    }
+    None
+}
+
+/// One fight frame: bar input + fish + progress.
+pub fn tick_fight(sim: &mut FightSim, holding: bool, dt: f32) -> Option<FishOutcome> {
+    apply_bar_input(sim, holding, dt);
+    tick_fish_motion(sim, dt);
+    tick_progress(sim, dt)
+}
+
+// --- state machine ----------------------------------------------------------
+
+/// Begin cast from idle. Returns false if already mid-minigame.
+pub fn start_cast(state: &mut CastState) -> bool {
     if !state.is_idle() {
         return false;
     }
-    state.phase = CastPhase::Waiting {
-        elapsed: 0.0,
-        zone_center: zone_center.clamp(0.15, 0.85),
+    state.phase = CastPhase::Casting {
+        remaining: CAST_PHASE_SECS,
     };
     true
 }
 
-/// Cancel an active wait; shows cancelled result briefly. No-op if not waiting.
+/// Cancel any non-idle phase into a cancelled result (or idle if already result).
 pub fn cancel_cast(state: &mut CastState) -> bool {
-    if !state.is_waiting() {
-        return false;
-    }
-    state.phase = CastPhase::ShowingResult {
-        outcome: CastOutcome::Cancelled,
-        remaining: RESULT_DISPLAY_SECS,
-    };
-    true
-}
-
-/// Reel during Waiting. Transitions to ShowingResult and returns the catch.
-/// Returns None if not waiting (no soft-lock side effects).
-pub fn reel_cast(state: &mut CastState) -> Option<CatchResult> {
-    let (elapsed, zone_center) = match state.phase {
-        CastPhase::Waiting {
-            elapsed,
-            zone_center,
-        } => (elapsed, zone_center),
-        _ => return None,
-    };
-    let cursor = timing_cursor(elapsed, TIMING_PERIOD_SECS);
-    let result = resolve_catch(
-        cursor,
-        zone_center,
-        PERFECT_ZONE_HALF,
-        GOOD_ZONE_HALF,
-    );
-    state.phase = CastPhase::ShowingResult {
-        outcome: CastOutcome::Catch(result.clone()),
-        remaining: RESULT_DISPLAY_SECS,
-    };
-    Some(result)
-}
-
-/// Advance timers. When result duration elapses, return to Idle.
-pub fn tick_cast(state: &mut CastState, delta_secs: f32) {
-    if delta_secs <= 0.0 {
-        return;
-    }
-    match &mut state.phase {
-        CastPhase::Waiting { elapsed, .. } => {
-            *elapsed += delta_secs;
+    match state.phase {
+        CastPhase::Idle | CastPhase::ShowingResult { .. } => false,
+        _ => {
+            state.phase = CastPhase::ShowingResult {
+                outcome: FishOutcome::Cancelled,
+                remaining: RESULT_DISPLAY_SECS,
+            };
+            true
         }
-        CastPhase::ShowingResult { remaining, .. } => {
-            *remaining -= delta_secs;
-            if *remaining <= 0.0 {
-                state.phase = CastPhase::Idle;
-            }
-        }
-        CastPhase::Idle => {}
     }
 }
 
-/// Force clear to idle (e.g. leaving overworld). Never leaves a stuck wait.
 pub fn force_idle(state: &mut CastState) {
     state.phase = CastPhase::Idle;
 }
 
-/// Oscillating cursor on 0..=1 (ping-pong).
-pub fn timing_cursor(elapsed_secs: f32, period_secs: f32) -> f32 {
-    let period = period_secs.max(0.01);
-    let t = (elapsed_secs / period) % 2.0;
-    if t < 1.0 {
-        t
-    } else {
-        2.0 - t
+/// Advance timers / fight. `holding` only matters during Fighting.
+/// Returns Some when a catch/escape just resolved this tick (for inventory grant).
+pub fn tick_cast(state: &mut CastState, holding: bool, dt: f32) -> Option<FishOutcome> {
+    if dt <= 0.0 {
+        return None;
+    }
+
+    match &mut state.phase {
+        CastPhase::Idle => None,
+        CastPhase::Casting { remaining } => {
+            *remaining -= dt;
+            if *remaining <= 0.0 {
+                state.phase = CastPhase::WaitingBite {
+                    remaining: BITE_WAIT_SECS,
+                };
+            }
+            None
+        }
+        CastPhase::WaitingBite { remaining } => {
+            *remaining -= dt;
+            if *remaining <= 0.0 {
+                state.phase = CastPhase::Fighting(FightSim::new());
+            }
+            None
+        }
+        CastPhase::Fighting(sim) => {
+            if let Some(outcome) = tick_fight(sim, holding, dt) {
+                state.phase = CastPhase::ShowingResult {
+                    outcome,
+                    remaining: RESULT_DISPLAY_SECS,
+                };
+                Some(outcome)
+            } else {
+                None
+            }
+        }
+        CastPhase::ShowingResult { remaining, .. } => {
+            *remaining -= dt;
+            if *remaining <= 0.0 {
+                state.phase = CastPhase::Idle;
+            }
+            None
+        }
     }
 }
 
-/// Resolve a reel attempt at `cursor` (0..=1) against the catch zones.
-pub fn resolve_catch(
-    cursor: f32,
-    zone_center: f32,
-    perfect_half: f32,
-    good_half: f32,
-) -> CatchResult {
-    let cursor = cursor.clamp(0.0, 1.0);
-    let dist = (cursor - zone_center).abs();
-    if dist <= perfect_half {
-        CatchResult::Caught {
-            fish: MaterialId::RiverFish,
-            amount: 2,
-            quality: CatchQuality::Perfect,
-        }
-    } else if dist <= good_half {
-        CatchResult::Caught {
-            fish: MaterialId::RiverFish,
-            amount: 1,
-            quality: CatchQuality::Good,
-        }
-    } else {
-        CatchResult::Miss
+/// Inventory yield for a successful catch.
+pub fn catch_yield(outcome: FishOutcome) -> Option<(MaterialId, u32)> {
+    match outcome {
+        FishOutcome::Caught => Some((MaterialId::RiverFish, 1)),
+        _ => None,
     }
-}
-
-/// Convenience: resolve using default zone sizes.
-pub fn resolve_catch_default(cursor: f32) -> CatchResult {
-    resolve_catch(
-        cursor,
-        DEFAULT_ZONE_CENTER,
-        PERFECT_ZONE_HALF,
-        GOOD_ZONE_HALF,
-    )
 }
 
 #[cfg(test)]
@@ -279,149 +355,153 @@ mod tests {
     use super::*;
 
     #[test]
-    fn perfect_center_yields_fish() {
-        let result = resolve_catch_default(DEFAULT_ZONE_CENTER);
-        assert_eq!(
-            result,
-            CatchResult::Caught {
-                fish: MaterialId::RiverFish,
-                amount: 2,
-                quality: CatchQuality::Perfect,
-            }
-        );
+    fn hold_raises_bar_release_lowers() {
+        let mut sim = FightSim::new();
+        let start = sim.bar_bottom;
+        apply_bar_input(&mut sim, true, 0.2);
+        assert!(sim.bar_bottom > start);
+        let raised = sim.bar_bottom;
+        apply_bar_input(&mut sim, false, 0.2);
+        assert!(sim.bar_bottom < raised);
     }
 
     #[test]
-    fn edge_of_good_zone_catches_one() {
-        let cursor = DEFAULT_ZONE_CENTER + GOOD_ZONE_HALF - 0.001;
-        let result = resolve_catch_default(cursor);
+    fn bar_stays_within_axis() {
+        let mut sim = FightSim::new();
+        apply_bar_input(&mut sim, true, 10.0);
+        assert!(sim.bar_bottom + sim.bar_height <= 1.0 + 1e-4);
+        apply_bar_input(&mut sim, false, 10.0);
+        assert!(sim.bar_bottom >= -1e-4);
+    }
+
+    #[test]
+    fn fish_position_advances_over_ticks() {
+        let mut sim = FightSim::new();
+        let y0 = sim.fish_y;
+        tick_fish_motion(&mut sim, 0.1);
+        assert!((sim.fish_y - y0).abs() > 1e-4);
+        // Multiple ticks stay in range
+        for _ in 0..40 {
+            tick_fish_motion(&mut sim, 0.05);
+            assert!((0.0..=1.0).contains(&sim.fish_y));
+        }
+    }
+
+    #[test]
+    fn progress_fills_when_fish_inside_drains_outside() {
+        let mut sim = FightSim::new();
+        // Place fish inside bar
+        sim.fish_y = sim.bar_bottom + sim.bar_height * 0.5;
+        sim.fish_vel = 0.0;
+        let p0 = sim.progress;
+        // Only progress tick (no fish motion)
+        assert!(tick_progress(&mut sim, 0.3).is_none());
+        assert!(sim.progress > p0);
+
+        // Move fish outside
+        sim.fish_y = 0.99;
+        let p1 = sim.progress;
+        assert!(tick_progress(&mut sim, 0.3).is_none());
+        assert!(sim.progress < p1);
+    }
+
+    #[test]
+    fn full_progress_is_catch() {
+        let mut sim = FightSim::new();
+        sim.fish_y = sim.bar_bottom + 0.05;
+        sim.progress = 0.95;
+        let out = tick_progress(&mut sim, 1.0);
+        assert_eq!(out, Some(FishOutcome::Caught));
+        assert!((sim.progress - 1.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn empty_progress_is_escape() {
+        let mut sim = FightSim::new();
+        sim.fish_y = 0.99;
+        sim.progress = 0.05;
+        let out = tick_progress(&mut sim, 1.0);
+        assert_eq!(out, Some(FishOutcome::Escaped));
+        assert!(sim.progress <= 0.0);
+    }
+
+    #[test]
+    fn cancel_and_force_idle_leave_no_stuck_active() {
+        let mut state = CastState::default();
+        assert!(start_cast(&mut state));
+        assert!(state.minigame_active());
+        assert!(cancel_cast(&mut state));
         assert!(matches!(
-            result,
-            CatchResult::Caught {
-                amount: 1,
-                quality: CatchQuality::Good,
+            state.phase,
+            CastPhase::ShowingResult {
+                outcome: FishOutcome::Cancelled,
                 ..
             }
         ));
-    }
-
-    #[test]
-    fn far_timing_is_miss() {
-        assert_eq!(resolve_catch_default(0.0), CatchResult::Miss);
-        assert_eq!(resolve_catch_default(1.0), CatchResult::Miss);
-    }
-
-    #[test]
-    fn timing_cursor_ping_pongs() {
-        assert!((timing_cursor(0.0, 1.0) - 0.0).abs() < 0.01);
-        assert!((timing_cursor(0.5, 1.0) - 0.5).abs() < 0.01);
-        assert!((timing_cursor(1.0, 1.0) - 1.0).abs() < 0.01);
-        assert!((timing_cursor(1.5, 1.0) - 0.5).abs() < 0.01);
-        assert!((timing_cursor(2.0, 1.0) - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn energy_gate_blocks_insufficient_pool() {
-        let cost = rod_energy_cost();
-        assert!(can_afford_cast(cost, cost));
-        assert!(can_afford_cast(cost + 1.0, cost));
-        assert!(!can_afford_cast(cost - 0.5, cost));
-        assert!(!can_afford_cast(0.0, cost));
-    }
-
-    #[test]
-    fn state_machine_start_reel_perfect_without_stuck_flag() {
-        let mut state = CastState::default();
+        tick_cast(&mut state, false, RESULT_DISPLAY_SECS + 0.1);
         assert!(state.is_idle());
-        assert!(start_cast(&mut state, DEFAULT_ZONE_CENTER));
-        assert!(state.is_waiting());
+        assert!(!cancel_cast(&mut state));
+
+        start_cast(&mut state);
+        force_idle(&mut state);
+        assert!(state.is_idle());
+        assert!(!state.minigame_active());
+    }
+
+    #[test]
+    fn state_machine_cast_to_fight_to_catch() {
+        let mut state = CastState::default();
+        assert!(start_cast(&mut state));
+        assert!(matches!(state.phase, CastPhase::Casting { .. }));
+        assert_eq!(state.anim_kind(), FishingAnimKind::Cast);
+
+        tick_cast(&mut state, false, CAST_PHASE_SECS + 0.01);
+        assert!(matches!(state.phase, CastPhase::WaitingBite { .. }));
+        assert_eq!(state.anim_kind(), FishingAnimKind::Waiting);
+
+        tick_cast(&mut state, false, BITE_WAIT_SECS + 0.01);
+        assert!(state.is_fighting());
         assert!(state.bar_visible());
 
-        // At elapsed 0, cursor is 0 → miss if reeled immediately… advance to zone center.
-        // cursor = elapsed/period for first half; center 0.55 → elapsed = 0.55 * 1.4
-        if let CastPhase::Waiting { elapsed, .. } = &mut state.phase {
-            *elapsed = DEFAULT_ZONE_CENTER * TIMING_PERIOD_SECS;
+        // Force catch: keep fish centered in bar each step while progress fills.
+        let mut outcome = None;
+        for _ in 0..40 {
+            if let CastPhase::Fighting(sim) = &mut state.phase {
+                sim.fish_y = sim.bar_bottom + sim.bar_height * 0.5;
+            }
+            outcome = tick_cast(&mut state, true, 0.15);
+            if outcome.is_some() {
+                break;
+            }
         }
-        let result = reel_cast(&mut state).expect("reel while waiting");
+        assert_eq!(outcome, Some(FishOutcome::Caught));
         assert!(matches!(
-            result,
-            CatchResult::Caught {
-                quality: CatchQuality::Perfect,
-                amount: 2,
+            state.phase,
+            CastPhase::ShowingResult {
+                outcome: FishOutcome::Caught,
                 ..
             }
         ));
-        assert!(state.is_showing_result());
-        assert!(!state.is_waiting());
-
-        // Result expires → idle (no stuck active)
-        tick_cast(&mut state, RESULT_DISPLAY_SECS + 0.1);
-        assert!(state.is_idle());
-        assert!(!state.bar_visible());
-    }
-
-    #[test]
-    fn cancel_from_waiting_clears_without_stuck_active() {
-        let mut state = CastState::default();
-        assert!(start_cast(&mut state, DEFAULT_ZONE_CENTER));
-        assert!(cancel_cast(&mut state));
-        assert!(state.is_showing_result());
         assert_eq!(
-            state.result_label(),
-            Some("Cast cancelled")
+            catch_yield(FishOutcome::Caught),
+            Some((MaterialId::RiverFish, 1))
         );
-        tick_cast(&mut state, RESULT_DISPLAY_SECS + 0.05);
-        assert!(state.is_idle());
-        // Cancel again while idle is a no-op
-        assert!(!cancel_cast(&mut state));
-        assert!(state.is_idle());
     }
 
     #[test]
-    fn cannot_double_start_or_reel_when_idle() {
+    fn energy_gate_and_cannot_double_start() {
+        let cost = rod_energy_cost();
+        assert!(can_afford_cast(cost, cost));
+        assert!(!can_afford_cast(0.0, cost));
         let mut state = CastState::default();
-        assert!(start_cast(&mut state, DEFAULT_ZONE_CENTER));
-        assert!(!start_cast(&mut state, DEFAULT_ZONE_CENTER));
-        assert!(reel_cast(&mut state).is_some());
-        // Now showing result — reel is no-op
-        assert!(reel_cast(&mut state).is_none());
-        force_idle(&mut state);
-        assert!(reel_cast(&mut state).is_none());
+        assert!(start_cast(&mut state));
+        assert!(!start_cast(&mut state));
     }
 
     #[test]
-    fn tick_advances_cursor_during_wait() {
-        let mut state = CastState::default();
-        start_cast(&mut state, DEFAULT_ZONE_CENTER);
-        let c0 = state.cursor().unwrap();
-        tick_cast(&mut state, 0.2);
-        let c1 = state.cursor().unwrap();
-        assert!(c1 > c0);
-    }
-
-    #[test]
-    fn miss_and_good_paths_via_state_machine() {
-        let mut state = CastState::default();
-        start_cast(&mut state, DEFAULT_ZONE_CENTER);
-        // elapsed 0 → cursor 0 → miss
-        let miss = reel_cast(&mut state).unwrap();
-        assert_eq!(miss, CatchResult::Miss);
-        force_idle(&mut state);
-
-        start_cast(&mut state, DEFAULT_ZONE_CENTER);
-        // Good zone edge: just outside perfect
-        let good_cursor = DEFAULT_ZONE_CENTER + PERFECT_ZONE_HALF + 0.02;
-        if let CastPhase::Waiting { elapsed, .. } = &mut state.phase {
-            *elapsed = good_cursor * TIMING_PERIOD_SECS;
-        }
-        let good = reel_cast(&mut state).unwrap();
-        assert!(matches!(
-            good,
-            CatchResult::Caught {
-                quality: CatchQuality::Good,
-                amount: 1,
-                ..
-            }
-        ));
+    fn fish_inside_bar_geometry() {
+        assert!(fish_inside_bar(0.5, 0.4, 0.2));
+        assert!(!fish_inside_bar(0.3, 0.4, 0.2));
+        assert!(!fish_inside_bar(0.7, 0.4, 0.2));
     }
 }

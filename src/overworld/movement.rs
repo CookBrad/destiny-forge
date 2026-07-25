@@ -43,11 +43,19 @@ pub fn exploration_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     map: Res<ExplorationMap>,
+    fishing: Option<Res<crate::fishing::ActiveCast>>,
     mut player: Query<(&mut Transform, &mut OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
 ) {
     let Ok((mut transform, mut velocity, mut sprite)) = player.get_single_mut() else {
         return;
     };
+
+    // Freeze walking during the fishing minigame so Space is only for reeling.
+    if fishing.as_ref().is_some_and(|f| f.minigame_active()) {
+        velocity.x = 0.0;
+        velocity.y = 0.0;
+        return;
+    }
 
     let mut input = Vec2::ZERO;
     if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {

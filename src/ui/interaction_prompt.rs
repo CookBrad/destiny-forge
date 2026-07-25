@@ -11,6 +11,8 @@ pub enum PromptKind {
     Cook,
     ClimbLadder,
     EnterDungeon,
+    EnterLake,
+    LeaveLake,
     Fish,
     Mine,
 }
@@ -24,7 +26,9 @@ impl PromptKind {
             Self::Cook => "E — Stove (F cook · ↑↓ recipes)",
             Self::ClimbLadder => "E — Climb ladder",
             Self::EnterDungeon => "E — Enter dungeon (costs time)",
-            Self::Fish => "Rod + Space — Fish",
+            Self::EnterLake => "Walk → — Lake shore",
+            Self::LeaveLake => "Walk ← — Homestead",
+            Self::Fish => "Rod + Space — Fish (hold to reel)",
             Self::Mine => "Pickaxe + Space — Mine",
         }
     }
@@ -37,6 +41,8 @@ impl PromptKind {
             Self::Cook => 32,
             Self::ClimbLadder => 20,
             Self::EnterDungeon => 10,
+            Self::EnterLake => 12,
+            Self::LeaveLake => 11,
             Self::Fish => 15,
             Self::Mine => 14,
         }

@@ -112,6 +112,15 @@ impl Plugin for UiPlugin {
                 OnEnter(GameState::Forest),
                 (setup_day_hud, setup_energy_hud),
             )
+            .add_systems(
+                OnEnter(GameState::Lake),
+                (
+                    setup_day_hud,
+                    setup_energy_hud,
+                    setup_hotbar,
+                    setup_interaction_prompt,
+                ),
+            )
             .add_systems(OnEnter(GameState::Dungeon), setup_interaction_prompt)
             .add_systems(
                 OnExit(GameState::Overworld),
@@ -127,13 +136,26 @@ impl Plugin for UiPlugin {
                 (cleanup_day_hud, cleanup_energy_hud),
             )
             .add_systems(
+                OnExit(GameState::Lake),
+                (
+                    cleanup_day_hud,
+                    cleanup_energy_hud,
+                    cleanup_hotbar,
+                    cleanup_interaction_prompt,
+                ),
+            )
+            .add_systems(
                 Update,
                 (
                     sync_day_hud.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Lake)),
                     ),
                     sync_energy_hud.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Lake)),
                     ),
                     (
                         select_hotbar_slot_input,
@@ -142,9 +164,13 @@ impl Plugin for UiPlugin {
                         update_hotbar_drag_ghost,
                         sync_hotbar_ui,
                     )
-                        .run_if(in_state(GameState::Overworld)),
+                        .run_if(
+                            in_state(GameState::Overworld).or(in_state(GameState::Lake)),
+                        ),
                     sync_interaction_prompt_ui.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Lake))
+                            .or(in_state(GameState::Dungeon)),
                     ),
                 ),
             )
@@ -184,6 +210,7 @@ impl Plugin for UiPlugin {
                     .run_if(
                         in_state(GameState::Overworld)
                             .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Lake))
                             .or(in_state(DungeonPlayState::Running))
                             .or(in_state(DungeonPlayState::Paused)),
                     ),
@@ -239,6 +266,7 @@ impl Plugin for UiPlugin {
                 (cleanup_inventory_window, cleanup_forge_window),
             )
             .add_systems(OnExit(GameState::Forest), cleanup_inventory_window)
+            .add_systems(OnExit(GameState::Lake), cleanup_inventory_window)
             .add_systems(
                 OnExit(GameState::Dungeon),
                 (

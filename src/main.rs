@@ -10,6 +10,7 @@ mod forest;
 mod forging;
 mod graphics;
 mod items;
+mod lake;
 mod mining;
 mod overworld;
 mod player;
@@ -32,6 +33,7 @@ fn main() {
         .add_plugins(fishing::FishingPlugin)
         .add_plugins(cooking::CookingPlugin)
         .add_plugins(forest::ForestPlugin)
+        .add_plugins(lake::LakePlugin)
         .add_plugins(ui::UiPlugin)
         .run();
 }

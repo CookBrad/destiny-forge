@@ -17,7 +17,9 @@ impl Plugin for CorePlugin {
             .add_systems(
                 Update,
                 tick_day_clock.run_if(
-                    in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                    in_state(GameState::Overworld)
+                        .or(in_state(GameState::Forest))
+                        .or(in_state(GameState::Lake)),
                 ),
             )
             .add_systems(

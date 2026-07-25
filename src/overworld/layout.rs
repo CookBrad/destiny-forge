@@ -21,9 +21,19 @@ pub fn homestead_forest_transition() -> Rect {
     tile_rect(2, 38, 5, 40)
 }
 
+/// Eastern edge lake path — walk right into this to enter the lake shore.
+pub fn homestead_lake_transition() -> Rect {
+    tile_rect(50, 9, 52, 16)
+}
+
 pub fn homestead_forest_trail(tx: u32, ty: u32) -> bool {
     (tx >= 2 && tx <= 4 && ty >= 22 && ty <= 39)
         || (tx >= 4 && tx <= 6 && ty >= 25 && ty <= 28)
+}
+
+pub fn homestead_lake_trail(tx: u32, ty: u32) -> bool {
+    (tx >= 46 && tx <= 51 && ty >= 10 && ty <= 14)
+        || (tx >= 48 && tx <= 51 && ty >= 8 && ty <= 16)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,6 +46,7 @@ pub enum HomesteadZone {
     DungeonGate,
     Mine,
     FishingDock,
+    LakeTrail,
 }
 
 #[derive(Resource, Clone)]
@@ -86,6 +97,10 @@ impl OverworldLayout {
         zones.push(ZoneRect {
             zone: HomesteadZone::FishingDock,
             bounds: tile_rect(43, 1, 49, 5),
+        });
+        zones.push(ZoneRect {
+            zone: HomesteadZone::LakeTrail,
+            bounds: tile_rect(46, 8, 52, 17),
         });
 
         build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
@@ -148,7 +163,8 @@ fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) 
     let on_path = (22..=29).contains(&tx) && ty <= 24
         || (tx >= 14 && tx <= 37 && (19..=24).contains(&ty))
         || (ty >= 25 && ty <= 28 && ((4..=13).contains(&tx) || (37..=46).contains(&tx)))
-        || homestead_forest_trail(tx, ty);
+        || homestead_forest_trail(tx, ty)
+        || homestead_lake_trail(tx, ty);
 
     if on_path {
         (|art| art.path.clone(), Color::srgb(0.58, 0.48, 0.34))

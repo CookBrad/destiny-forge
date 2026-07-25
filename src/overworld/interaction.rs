@@ -13,7 +13,9 @@ use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::graphics::INTERACT_DISTANCE;
 
-use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
+use super::layout::{
+    homestead_forest_transition, homestead_lake_transition, Bed, HomesteadZone, OverworldLayout,
+};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
 
 const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
@@ -45,7 +47,7 @@ pub fn overworld_interaction(
     }
 
     // Esc cancels an active fishing cast (handled by fishing system) — do not leave to title.
-    if fishing.is_waiting() {
+    if fishing.minigame_active() {
         return;
     }
 
@@ -79,6 +81,13 @@ pub fn overworld_interaction(
         && velocity.y > 1.0
     {
         next_state.set(GameState::Forest);
+    }
+
+    if cooldown.0.finished()
+        && homestead_lake_transition().contains(position)
+        && velocity.x > 1.0
+    {
+        next_state.set(GameState::Lake);
     }
 
     if keyboard.just_pressed(KeyCode::Escape) {
@@ -168,6 +177,7 @@ fn overworld_prompt_candidates(
                 HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
                 HomesteadZone::Mine => candidates.push(PromptKind::Mine),
                 HomesteadZone::FishingDock => candidates.push(PromptKind::Fish),
+                HomesteadZone::LakeTrail => candidates.push(PromptKind::EnterLake),
                 HomesteadZone::House => candidates.push(PromptKind::Cook),
                 _ => {}
             }

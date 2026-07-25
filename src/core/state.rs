@@ -6,6 +6,8 @@ pub enum GameState {
     Title,
     Overworld,
     Forest,
+    /// Lakeside exploration + Stardew-style fishing pier.
+    Lake,
     Dungeon,
 }
 
