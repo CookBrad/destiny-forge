@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
+use crate::cooking::ActiveFoodBuff;
 use crate::farming::HomesteadHotbar;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -51,6 +52,7 @@ pub fn debounced_autosave(
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
     hotbar: Res<HomesteadHotbar>,
+    food_buff: Res<ActiveFoodBuff>,
     mut profile: ResMut<PlayerProfile>,
 ) {
     if !profile_dirty.0 {
@@ -69,6 +71,7 @@ pub fn debounced_autosave(
         &day_clock,
         &tool_energy,
         &hotbar,
+        &food_buff,
         &audio,
         &bindings,
         &mut profile,
@@ -89,6 +92,7 @@ pub fn flush_saves_on_exit(
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
     hotbar: Res<HomesteadHotbar>,
+    food_buff: Res<ActiveFoodBuff>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
 ) {
@@ -103,6 +107,7 @@ pub fn flush_saves_on_exit(
         &day_clock,
         &tool_energy,
         &hotbar,
+        &food_buff,
         &audio,
         &bindings,
         &mut profile,

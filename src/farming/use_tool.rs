@@ -40,6 +40,14 @@ pub fn ensure_starter_seeds(mut inventory: ResMut<Inventory>, mut dirty: ResMut<
         inventory.try_add(MaterialId::WateringCan, 1);
         changed = true;
     }
+    if inventory.count(MaterialId::Pickaxe) == 0 {
+        inventory.try_add(MaterialId::Pickaxe, 1);
+        changed = true;
+    }
+    if inventory.count(MaterialId::FishingRod) == 0 {
+        inventory.try_add(MaterialId::FishingRod, 1);
+        changed = true;
+    }
     let has_seed = inventory.count(MaterialId::TurnipSeed) > 0
         || inventory.count(MaterialId::PotatoSeed) > 0;
     if !has_seed {
@@ -86,6 +94,15 @@ pub fn use_homestead_tool(
         );
         return;
     };
+
+    // Pickaxe / rod / food are handled by mining, fishing, cooking systems.
+    if matches!(
+        material,
+        MaterialId::Pickaxe | MaterialId::FishingRod
+    ) || material.is_food()
+    {
+        return;
+    }
 
     if inventory.count(material) == 0 && !material.is_tool() {
         info!("No {} left — restock from inventory.", material.display_name());

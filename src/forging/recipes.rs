@@ -13,6 +13,8 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 pub enum RecipeOutput {
     Weapon(WeaponKind),
     Armor(ArmorKind),
+    /// Tool or stackable material added to inventory.
+    Item(MaterialId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,6 +76,13 @@ pub fn recipe_set_bonus_hint(recipe: &Recipe) -> Option<&'static str> {
         RecipeOutput::Armor(_) => Some(
             "Set: 2pc +10% carve & −10% special CD · 4pc 35% KB resist & +10% attack",
         ),
+        RecipeOutput::Item(MaterialId::Pickaxe) => {
+            Some("Homestead tool — mine iron ore at the east rocks")
+        }
+        RecipeOutput::Item(MaterialId::FishingRod) => {
+            Some("Homestead tool — cast at the southeast dock")
+        }
+        RecipeOutput::Item(_) => Some("Homestead tool — equip from inventory hotbar"),
         _ => None,
     }
 }
@@ -106,9 +115,27 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
     match recipe.output {
         RecipeOutput::Weapon(weapon) => loadout.weapon = weapon,
         RecipeOutput::Armor(armor) => loadout.armor.set(armor),
+        RecipeOutput::Item(material) => {
+            let left = inventory.try_add(material, 1);
+            if left > 0 {
+                // Rollback costs if inventory full.
+                for (m, amount) in &recipe.costs {
+                    inventory.try_add(*m, *amount);
+                }
+                return false;
+            }
+        }
     }
 
     true
+}
+
+/// Metal-tier recipes that must be gated on mined ore (not dungeon scrap alone).
+pub fn recipe_requires_mined_ore(recipe: &Recipe) -> bool {
+    recipe
+        .costs
+        .iter()
+        .any(|(m, _)| *m == MaterialId::IronOre)
 }
 
 pub fn material_name(material: MaterialId) -> &'static str {
@@ -185,23 +212,60 @@ mod tests {
     fn loads_recipes_from_embedded_ron() {
         let book = book();
         assert!(
-            book.len() >= 7,
-            "expected weapon + armor recipes, got {}",
+            book.len() >= 10,
+            "expected weapon + armor + tool recipes, got {}",
             book.len()
         );
     }
 
     #[test]
-    fn crafts_iron_sword_when_materials_available() {
+    fn iron_sword_requires_mined_ore_not_scrap_alone() {
         let iron = recipe_named(&book(), "Iron Sword");
+        assert!(recipe_requires_mined_ore(&iron));
+        assert!(
+            iron.costs.iter().any(|(m, _)| *m == MaterialId::IronOre),
+            "Iron Sword must cost IronOre"
+        );
+        assert!(
+            !iron.costs.iter().any(|(m, _)| *m == MaterialId::IronScrap),
+            "Iron Sword should not depend on dungeon IronScrap"
+        );
+
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         inventory.try_add(MaterialId::SlimeGel, 5);
         inventory.try_add(MaterialId::IronScrap, 3);
+        assert!(
+            !can_craft_recipe(&inventory, &loadout, &iron),
+            "scrap alone must not craft iron sword"
+        );
 
+        inventory.try_add(MaterialId::IronOre, 3);
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &iron));
         assert_eq!(loadout.weapon, WeaponKind::IronSword);
-        assert_eq!(inventory.count(MaterialId::SlimeGel), 0);
+        assert_eq!(inventory.count(MaterialId::IronOre), 0);
+    }
+
+    #[test]
+    fn crafts_pickaxe_into_inventory() {
+        let pick = recipe_named(&book(), "Pickaxe");
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::IronScrap, 2);
+        inventory.try_add(MaterialId::SlimeGel, 1);
+        assert!(try_craft_recipe(&mut inventory, &mut loadout, &pick));
+        assert_eq!(inventory.count(MaterialId::Pickaxe), 1);
+    }
+
+    #[test]
+    fn crafts_fishing_rod_into_inventory() {
+        let rod = recipe_named(&book(), "Fishing Rod");
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::BoneShard, 2);
+        inventory.try_add(MaterialId::SlimeGel, 1);
+        assert!(try_craft_recipe(&mut inventory, &mut loadout, &rod));
+        assert_eq!(inventory.count(MaterialId::FishingRod), 1);
     }
 
     #[test]

@@ -8,8 +8,11 @@ pub enum PromptKind {
     Sleep,
     Carve,
     OpenForge,
+    Cook,
     ClimbLadder,
     EnterDungeon,
+    Fish,
+    Mine,
 }
 
 impl PromptKind {
@@ -18,8 +21,11 @@ impl PromptKind {
             Self::Sleep => "E — Sleep",
             Self::Carve => "Hold E — Carve",
             Self::OpenForge => "E — Open forge",
+            Self::Cook => "E — Stove (F cook · ↑↓ recipes)",
             Self::ClimbLadder => "E — Climb ladder",
             Self::EnterDungeon => "E — Enter dungeon (costs time)",
+            Self::Fish => "Rod + Space — Fish",
+            Self::Mine => "Pickaxe + Space — Mine",
         }
     }
 
@@ -27,9 +33,12 @@ impl PromptKind {
         match self {
             Self::Sleep => 50,
             Self::Carve => 40,
-            Self::OpenForge => 30,
+            Self::OpenForge => 35,
+            Self::Cook => 32,
             Self::ClimbLadder => 20,
             Self::EnterDungeon => 10,
+            Self::Fish => 15,
+            Self::Mine => 14,
         }
     }
 }

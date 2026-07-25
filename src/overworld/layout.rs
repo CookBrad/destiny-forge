@@ -34,6 +34,8 @@ pub enum HomesteadZone {
     Animals,
     ForestTrail,
     DungeonGate,
+    Mine,
+    FishingDock,
 }
 
 #[derive(Resource, Clone)]
@@ -76,6 +78,14 @@ impl OverworldLayout {
         zones.push(ZoneRect {
             zone: HomesteadZone::DungeonGate,
             bounds: tile_rect(22, 1, 29, 5),
+        });
+        zones.push(ZoneRect {
+            zone: HomesteadZone::Mine,
+            bounds: tile_rect(46, 20, 51, 28),
+        });
+        zones.push(ZoneRect {
+            zone: HomesteadZone::FishingDock,
+            bounds: tile_rect(43, 1, 49, 5),
         });
 
         build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
@@ -129,6 +139,9 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     crate::farming::spawn_crop_plots(commands, art, tile_rect(4, 7, 20, 17));
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
+    crate::mining::spawn_mine_area(commands, art.wall.clone(), art.path.clone());
+    crate::fishing::spawn_fishing_spot(commands, art.path.clone(), art.grass.clone());
+    crate::cooking::spawn_cook_stove(commands, art.wall.clone(), art.path.clone());
 }
 
 fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) {

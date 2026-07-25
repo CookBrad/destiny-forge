@@ -1,11 +1,11 @@
 // Forge recipes — edit here, restart game (or cargo run) to pick up changes.
-// Enum variants match Rust: MaterialId, WeaponKind, ArmorKind.
+// Enum variants match Rust: MaterialId, WeaponKind, ArmorKind, RecipeOutput.
 [
     (
         name: "Iron Sword",
         costs: [
             (SlimeGel, 5),
-            (IronScrap, 3),
+            (IronOre, 3),
         ],
         output: Weapon(IronSword),
         requires_weapon: None,
@@ -59,6 +59,42 @@
             (SlimeGel, 3),
         ],
         output: Armor(SlimeGreaves),
+        requires_weapon: None,
+    ),
+    (
+        name: "Pickaxe",
+        costs: [
+            (IronScrap, 2),
+            (SlimeGel, 1),
+        ],
+        output: Item(Pickaxe),
+        requires_weapon: None,
+    ),
+    (
+        name: "Fishing Rod",
+        costs: [
+            (BoneShard, 2),
+            (SlimeGel, 1),
+        ],
+        output: Item(FishingRod),
+        requires_weapon: None,
+    ),
+    (
+        name: "Hoe",
+        costs: [
+            (IronScrap, 1),
+            (BoneShard, 1),
+        ],
+        output: Item(Hoe),
+        requires_weapon: None,
+    ),
+    (
+        name: "Watering Can",
+        costs: [
+            (IronScrap, 1),
+            (SlimeGel, 1),
+        ],
+        output: Item(WateringCan),
         requires_weapon: None,
     ),
 ]

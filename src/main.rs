@@ -1,13 +1,16 @@
 mod audio;
 mod combat;
+mod cooking;
 mod core;
 mod dungeon;
 mod exploration;
 mod farming;
+mod fishing;
 mod forest;
 mod forging;
 mod graphics;
 mod items;
+mod mining;
 mod overworld;
 mod player;
 mod ui;
@@ -25,6 +28,9 @@ fn main() {
         .add_plugins(dungeon::DungeonPlugin)
         .add_plugins(overworld::OverworldPlugin)
         .add_plugins(farming::FarmingPlugin)
+        .add_plugins(mining::MiningPlugin)
+        .add_plugins(fishing::FishingPlugin)
+        .add_plugins(cooking::CookingPlugin)
         .add_plugins(forest::ForestPlugin)
         .add_plugins(ui::UiPlugin)
         .run();

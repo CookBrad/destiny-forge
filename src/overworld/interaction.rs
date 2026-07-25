@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 
+use crate::cooking::ActiveFoodBuff;
 use crate::core::{
     perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
 };
 use crate::farming::advance_all_plots_on_sleep;
 use crate::forging::RecipeBook;
+use crate::mining::respawn_all_ore_nodes;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
@@ -91,6 +93,8 @@ pub fn try_sleep_at_bed(
     mut profile_dirty: ResMut<ProfileDirty>,
     mut clear: ResMut<ClearColor>,
     mut plots: Query<&mut crate::farming::CropPlot>,
+    mut food_buff: ResMut<ActiveFoodBuff>,
+    ore_nodes: Query<(&mut crate::mining::OreNode, &mut Sprite)>,
 ) {
     if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
         return;
@@ -106,12 +110,15 @@ pub fn try_sleep_at_bed(
 
     let day = perform_sleep(&mut day_clock, &mut tool_energy);
     advance_all_plots_on_sleep(plots);
+    food_buff.on_sleep();
+    respawn_all_ore_nodes(ore_nodes);
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
+    profile.food_buff = food_buff.clone();
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored; crops advanced.");
+    info!("Slept — morning of day {day}. Tool energy restored; crops advanced; food buff cleared.");
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
@@ -142,7 +149,7 @@ fn overworld_prompt_candidates(
     layout: &OverworldLayout,
     beds: &Query<&Transform, With<Bed>>,
 ) -> Vec<PromptKind> {
-    let mut candidates = Vec::with_capacity(3);
+    let mut candidates = Vec::with_capacity(6);
 
     if near_any_bed(position, beds) {
         candidates.push(PromptKind::Sleep);
@@ -153,6 +160,9 @@ fn overworld_prompt_candidates(
             match zone.zone {
                 HomesteadZone::Forge => candidates.push(PromptKind::OpenForge),
                 HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
+                HomesteadZone::Mine => candidates.push(PromptKind::Mine),
+                HomesteadZone::FishingDock => candidates.push(PromptKind::Fish),
+                HomesteadZone::House => candidates.push(PromptKind::Cook),
                 _ => {}
             }
         }

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
+use crate::cooking::ActiveFoodBuff;
 use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile, ActiveProfile, DayClock, GameSettings,
     PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
@@ -82,6 +83,7 @@ pub fn begin_profile_run(
     day_clock: &mut DayClock,
     tool_energy: &mut ToolEnergy,
     hotbar: &mut HomesteadHotbar,
+    food_buff: &mut ActiveFoodBuff,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
     active: &mut ActiveProfile,
@@ -97,6 +99,7 @@ pub fn begin_profile_run(
         day_clock,
         tool_energy,
         hotbar,
+        food_buff,
         audio,
         bindings,
         active,
@@ -112,6 +115,7 @@ pub fn begin_profile_run(
         day_clock,
         tool_energy,
         hotbar,
+        food_buff,
         audio,
         bindings,
     );

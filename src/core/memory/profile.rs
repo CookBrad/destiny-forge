@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::cooking::ActiveFoodBuff;
 use crate::farming::HomesteadHotbar;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -10,7 +11,7 @@ use super::super::day_cycle::DayPhase;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 6;
+pub const PROFILE_VERSION: u32 = 7;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 fn default_calendar_day() -> u32 {
@@ -49,6 +50,9 @@ pub struct PlayerProfile {
     /// Homestead action bar assignments (persisted).
     #[serde(default)]
     pub hotbar: HomesteadHotbar,
+    /// Active pre-hunt food buff (persisted across quit).
+    #[serde(default)]
+    pub food_buff: ActiveFoodBuff,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -65,6 +69,7 @@ impl Default for PlayerProfile {
             day_phase: DayPhase::Morning,
             tool_energy: default_tool_energy(),
             hotbar: HomesteadHotbar::default(),
+            food_buff: ActiveFoodBuff::default(),
             settings: ProfileSettings::default(),
         }
     }

@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use std::f32::consts::{FRAC_PI_2, TAU};
 
 use crate::audio::CombatSfx;
+use crate::cooking::ActiveFoodBuff;
 use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
     KingSlimeBoss, PlayerAnimation, PlayerVelocity,
@@ -249,6 +250,7 @@ pub fn start_player_special_moves(
     art: Res<DungeonArt>,
     bindings: Res<SkillBindings>,
     loadout: Res<Loadout>,
+    food_buff: Res<ActiveFoodBuff>,
     keyboard: Res<ButtonInput<KeyCode>>,
     hit_stop: Res<HitStop>,
     mut player: Query<
@@ -301,7 +303,8 @@ pub fn start_player_special_moves(
         return;
     }
 
-    let cd_mult = loadout.special_cooldown_multiplier();
+    let cd_mult =
+        loadout.special_cooldown_multiplier() * food_buff.special_cooldown_multiplier();
     if !cooldowns.is_ready(kind) {
         return;
     }
@@ -416,6 +419,7 @@ pub fn resolve_special_move_hits(
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
+    food_buff: Res<ActiveFoodBuff>,
     mut player: Query<(&Transform, &mut PlayerSpecialMove), With<DungeonPlayer>>,
     mut enemies: Query<
         (
@@ -440,7 +444,7 @@ pub fn resolve_special_move_hits(
 
     let charge_box = charge_hitbox(player_transform, special.charge_direction);
     let thrust_box = thrust_hitbox(player_transform, special.charge_direction);
-    let mult = loadout.attack_power_multiplier();
+    let mult = loadout.attack_power_multiplier() * food_buff.attack_multiplier();
 
     let attack_power = match special.kind {
         SpecialMoveKind::Charge => CHARGE_ATTACK_POWER,

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 
 use crate::audio::CombatSfx;
+use crate::cooking::ActiveFoodBuff;
 use crate::dungeon::{
     DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
     PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
@@ -75,7 +76,14 @@ impl PlayerAttack {
     }
 
     pub fn step_power(&self, loadout: &Loadout) -> f32 {
-        self.weapon.base_power() * self.step().power_mult * loadout.attack_power_multiplier()
+        self.step_power_with_food(loadout, 1.0)
+    }
+
+    pub fn step_power_with_food(&self, loadout: &Loadout, food_attack_mult: f32) -> f32 {
+        self.weapon.base_power()
+            * self.step().power_mult
+            * loadout.attack_power_multiplier()
+            * food_attack_mult
     }
 }
 
@@ -357,6 +365,7 @@ pub fn resolve_weapon_hits(
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
+    food_buff: Res<ActiveFoodBuff>,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
     mut enemies: Query<
         (
@@ -379,7 +388,7 @@ pub fn resolve_weapon_hits(
         return;
     }
 
-    let power = attack.step_power(&loadout);
+    let power = attack.step_power_with_food(&loadout, food_buff.attack_multiplier());
     let facing = animation_facing(player_transform);
     let hitbox = swing_hitbox(player_transform, &attack, facing);
     let mut landed = false;
@@ -638,5 +647,17 @@ mod tests {
             legs: Some(ArmorKind::SlimeGreaves),
         };
         assert!(attack.step_power(&full) > attack.step_power(&base));
+    }
+
+    #[test]
+    fn step_power_scales_with_food_attack_buff() {
+        let mut attack = PlayerAttack::inactive();
+        attack.weapon = WeaponKind::RustySword;
+        attack.step_index = 0;
+        let loadout = Loadout::default();
+        let plain = attack.step_power_with_food(&loadout, 1.0);
+        let buffed = attack.step_power_with_food(&loadout, 1.15);
+        assert!(buffed > plain);
+        assert!((buffed / plain - 1.15).abs() < 0.001);
     }
 }

@@ -22,6 +22,12 @@ pub struct ItemIconAssets {
     pub potato: Handle<Image>,
     pub hoe: Handle<Image>,
     pub watering_can: Handle<Image>,
+    pub pickaxe: Handle<Image>,
+    pub fishing_rod: Handle<Image>,
+    pub iron_ore: Handle<Image>,
+    pub river_fish: Handle<Image>,
+    pub hearty_stew: Handle<Image>,
+    pub spicy_sashimi: Handle<Image>,
 }
 
 impl FromWorld for ItemIconAssets {
@@ -49,6 +55,12 @@ impl ItemIconAssets {
             potato: load("potato.png"),
             hoe: load("hoe.png"),
             watering_can: load("watering_can.png"),
+            pickaxe: load("pickaxe.png"),
+            fishing_rod: load("fishing_rod.png"),
+            iron_ore: load("iron_ore.png"),
+            river_fish: load("river_fish.png"),
+            hearty_stew: load("hearty_stew.png"),
+            spicy_sashimi: load("spicy_sashimi.png"),
         }
     }
 
@@ -68,6 +80,12 @@ impl ItemIconAssets {
             MaterialId::Potato => self.potato.clone(),
             MaterialId::Hoe => self.hoe.clone(),
             MaterialId::WateringCan => self.watering_can.clone(),
+            MaterialId::Pickaxe => self.pickaxe.clone(),
+            MaterialId::FishingRod => self.fishing_rod.clone(),
+            MaterialId::IronOre => self.iron_ore.clone(),
+            MaterialId::RiverFish => self.river_fish.clone(),
+            MaterialId::HeartyStew => self.hearty_stew.clone(),
+            MaterialId::SpicySashimi => self.spicy_sashimi.clone(),
         }
     }
 }

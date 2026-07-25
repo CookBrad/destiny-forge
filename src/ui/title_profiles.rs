@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
+use crate::cooking::ActiveFoodBuff;
 use crate::core::{
     rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings, GameState,
     PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
@@ -166,6 +167,7 @@ pub fn handle_title_profile_card_clicks(
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
     mut hotbar: ResMut<HomesteadHotbar>,
+    mut food_buff: ResMut<ActiveFoodBuff>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -190,6 +192,7 @@ pub fn handle_title_profile_card_clicks(
             &mut day_clock,
             &mut tool_energy,
             &mut hotbar,
+            &mut food_buff,
             &mut audio,
             &mut bindings,
             &mut active,
@@ -275,6 +278,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
     mut hotbar: ResMut<HomesteadHotbar>,
+    mut food_buff: ResMut<ActiveFoodBuff>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -308,6 +312,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut day_clock,
         &mut tool_energy,
         &mut hotbar,
+        &mut food_buff,
         &mut audio,
         &mut bindings,
         &mut active,

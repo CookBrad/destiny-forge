@@ -40,6 +40,8 @@ impl Inventory {
         let mut inventory = Self::default();
         inventory.try_add(MaterialId::Hoe, 1);
         inventory.try_add(MaterialId::WateringCan, 1);
+        inventory.try_add(MaterialId::Pickaxe, 1);
+        inventory.try_add(MaterialId::FishingRod, 1);
         inventory.try_add(MaterialId::TurnipSeed, 8);
         inventory.try_add(MaterialId::PotatoSeed, 4);
         inventory

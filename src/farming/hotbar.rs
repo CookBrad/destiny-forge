@@ -42,10 +42,16 @@ impl HotbarEntry {
             Self::Empty => Color::srgb(0.12, 0.12, 0.14),
             Self::Item(MaterialId::Hoe) => Color::srgb(0.55, 0.4, 0.22),
             Self::Item(MaterialId::WateringCan) => Color::srgb(0.28, 0.48, 0.72),
+            Self::Item(MaterialId::Pickaxe) => Color::srgb(0.5, 0.52, 0.55),
+            Self::Item(MaterialId::FishingRod) => Color::srgb(0.35, 0.45, 0.55),
             Self::Item(MaterialId::TurnipSeed) => Color::srgb(0.45, 0.55, 0.28),
             Self::Item(MaterialId::PotatoSeed) => Color::srgb(0.55, 0.42, 0.22),
             Self::Item(MaterialId::Turnip) => Color::srgb(0.72, 0.55, 0.78),
             Self::Item(MaterialId::Potato) => Color::srgb(0.78, 0.68, 0.42),
+            Self::Item(MaterialId::IronOre) => Color::srgb(0.48, 0.5, 0.55),
+            Self::Item(MaterialId::RiverFish) => Color::srgb(0.35, 0.55, 0.7),
+            Self::Item(MaterialId::HeartyStew) => Color::srgb(0.7, 0.45, 0.25),
+            Self::Item(MaterialId::SpicySashimi) => Color::srgb(0.85, 0.4, 0.35),
             Self::Item(_) => Color::srgb(0.4, 0.4, 0.45),
         }
     }

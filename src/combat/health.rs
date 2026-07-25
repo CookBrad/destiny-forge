@@ -69,6 +69,7 @@ impl Default for ContactDamageCooldown {
 pub fn apply_enemy_contact_damage(
     time: Res<Time>,
     loadout: Res<Loadout>,
+    food_buff: Res<crate::cooking::ActiveFoodBuff>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -140,11 +141,12 @@ pub fn apply_enemy_contact_damage(
                 return;
             }
 
-            // Guard reduces contact damage while held.
+            // Guard reduces contact damage while held. Food buffs add flat defense.
+            let base_def = loadout.total_defense() + food_buff.defense_bonus_value();
             let defense_bonus = if block.is_active() {
-                loadout.total_defense() + contact_damage * 0.5
+                base_def + contact_damage * 0.5
             } else {
-                loadout.total_defense()
+                base_def
             };
 
             health.take_damage(damage_amount(contact_damage, defense_bonus));
