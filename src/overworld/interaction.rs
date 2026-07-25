@@ -32,6 +32,7 @@ pub fn overworld_interaction(
     recipes: Res<RecipeBook>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
+    fishing: Res<crate::fishing::ActiveCast>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
@@ -40,6 +41,11 @@ pub fn overworld_interaction(
     };
 
     if inventory.0 || forge.0 {
+        return;
+    }
+
+    // Esc cancels an active fishing cast (handled by fishing system) — do not leave to title.
+    if fishing.is_waiting() {
         return;
     }
 
