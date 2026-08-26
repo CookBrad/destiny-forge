@@ -124,7 +124,7 @@ fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
 
 fn spawn_stash_button(
     parent: &mut ChildBuilder<'_>,
-    marker: impl Component,
+    marker: impl Bundle,
     label: &'static str,
 ) {
     parent
