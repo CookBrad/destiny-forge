@@ -141,7 +141,284 @@ fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) 
         (|art| art.path.clone(), Color::srgb(0.58, 0.48, 0.34))
     } else if tx >= 4 && tx <= 20 && ty >= 7 && ty <= 17 {
         (|art| art.soil.clone(), Color::srgb(0.36, 0.24, 0.14))
+    } else if tx >= 33 && tx <= 48 && ty >= 7 && ty <= 17 {
+        (|art| art.grass.clone(), Color::srgb(0.42, 0.58, 0.3))
     } else {
         (|art| art.grass.clone(), Color::srgb(0.34, 0.52, 0.28))
     }
 }
+
+fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
+    let min_tx = (footprint.min.x / TILE).floor() as u32;
+    let max_tx = (footprint.max.x / TILE).ceil() as u32;
+    let min_ty = (footprint.min.y / TILE).floor() as u32;
+    let max_ty = (footprint.max.y / TILE).ceil() as u32;
+
+    let stone = Color::srgb(0.46, 0.4, 0.34);
+    let floor = Color::srgb(0.32, 0.28, 0.24);
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            let center = tile_center(tx, ty);
+            let edge = tx == min_tx || tx + 1 == max_tx || ty == min_ty || ty + 1 == max_ty;
+            if edge {
+                commands.spawn((
+                    Sprite {
+                        image: art.wall.clone(),
+                        color: stone,
+                        ..default()
+                    },
+                    world_transform(center, 1.0),
+                    ForgeEntity,
+                    OverworldEntity,
+                ));
+            } else {
+                commands.spawn((
+                    Sprite {
+                        image: art.path.clone(),
+                        color: floor,
+                        ..default()
+                    },
+                    world_transform(center, 0.5),
+                    ForgeEntity,
+                    OverworldEntity,
+                ));
+            }
+        }
+    }
+
+    let center_x = (footprint.min.x + footprint.max.x) * 0.5;
+    let floor_surface = footprint.min.y + TILE;
+    let back_wall = footprint.max.y - TILE;
+
+    commands.spawn((
+        Sprite {
+            image: art.forge_furnace.clone(),
+            color: Color::WHITE,
+            ..default()
+        },
+        world_transform(
+            Vec2::new(center_x, back_wall - FORGE_FURNACE_HEIGHT * 0.5),
+            2.2,
+        ),
+        ForgeEntity,
+        OverworldEntity,
+    ));
+
+    commands.spawn((
+        Sprite {
+            image: art.forge_workbench.clone(),
+            color: Color::WHITE,
+            ..default()
+        },
+        world_transform(
+            Vec2::new(
+                footprint.min.x + TILE * 3.0,
+                center_on_surface(floor_surface, FORGE_WORKBENCH_HEIGHT),
+            ),
+            2.1,
+        ),
+        ForgeEntity,
+        OverworldEntity,
+    ));
+
+    commands.spawn((
+        Sprite {
+            image: art.forge_anvil.clone(),
+            color: Color::WHITE,
+            ..default()
+        },
+        world_transform(
+            Vec2::new(
+                footprint.max.x - TILE * 3.0,
+                center_on_surface(floor_surface, FORGE_ANVIL_HEIGHT),
+            ),
+            2.1,
+        ),
+        ForgeEntity,
+        OverworldEntity,
+    ));
+
+    let roof_center = Vec2::new(
+        center_x,
+        footprint.max.y - TILE * 0.35,
+    );
+    commands.spawn((
+        Sprite {
+            image: art.roof.clone(),
+            color: Color::srgb(0.34, 0.3, 0.28),
+            custom_size: Some(Vec2::new(
+                (max_tx - min_tx) as f32 * TILE * 0.85,
+                TILE * 0.7,
+            )),
+            ..default()
+        },
+        world_transform(roof_center, 2.6),
+        ForgeEntity,
+        OverworldEntity,
+    ));
+}
+
+/// Player house: floor interior, door gap on south wall, bed for sleep.
+fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
+    let min_tx = (footprint.min.x / TILE).floor() as u32;
+    let max_tx = (footprint.max.x / TILE).ceil() as u32;
+    let min_ty = (footprint.min.y / TILE).floor() as u32;
+    let max_ty = (footprint.max.y / TILE).ceil() as u32;
+
+    let wall_tint = Color::srgb(0.62, 0.5, 0.38);
+    let floor_tint = Color::srgb(0.42, 0.32, 0.22);
+    let door_tx_start = min_tx + (max_tx - min_tx) / 2 - 1;
+    let door_tx_end = door_tx_start + 2;
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            let center = tile_center(tx, ty);
+            let on_south = ty == min_ty;
+            let on_edge = tx == min_tx || tx + 1 == max_tx || on_south || ty + 1 == max_ty;
+            let door_gap = on_south && tx >= door_tx_start && tx < door_tx_end;
+
+            if on_edge && !door_gap {
+                commands.spawn((
+                    Sprite {
+                        image: art.wall.clone(),
+                        color: wall_tint,
+                        ..default()
+                    },
+                    world_transform(center, 1.0),
+                    HouseEntity,
+                    OverworldEntity,
+                ));
+            } else if !on_edge || door_gap {
+                commands.spawn((
+                    Sprite {
+                        image: art.path.clone(),
+                        color: floor_tint,
+                        ..default()
+                    },
+                    world_transform(center, 0.4),
+                    HouseEntity,
+                    OverworldEntity,
+                ));
+            }
+        }
+    }
+
+    // Bed against the north interior wall.
+    let bed_tx = min_tx + (max_tx - min_tx) / 2;
+    let bed_ty = max_ty.saturating_sub(2).max(min_ty + 1);
+    let bed_center = tile_center(bed_tx, bed_ty);
+    commands.spawn((
+        Sprite {
+            image: art.wall.clone(),
+            color: Color::srgb(0.55, 0.28, 0.35),
+            custom_size: Some(Vec2::new(TILE * 1.6, TILE * 0.95)),
+            ..default()
+        },
+        world_transform(bed_center, 1.6),
+        Bed,
+        HouseEntity,
+        OverworldEntity,
+    ));
+    // Pillow accent
+    commands.spawn((
+        Sprite {
+            image: art.path.clone(),
+            color: Color::srgb(0.85, 0.82, 0.75),
+            custom_size: Some(Vec2::new(TILE * 0.55, TILE * 0.35)),
+            ..default()
+        },
+        world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
+        HouseEntity,
+        OverworldEntity,
+    ));
+
+    let roof_center = Vec2::new(
+        (footprint.min.x + footprint.max.x) * 0.5,
+        footprint.max.y - TILE * 0.5,
+    );
+    commands.spawn((
+        Sprite {
+            image: art.roof.clone(),
+            color: Color::srgb(0.45, 0.22, 0.16),
+            custom_size: Some(Vec2::new(
+                (max_tx - min_tx) as f32 * TILE,
+                TILE * 1.2,
+            )),
+            ..default()
+        },
+        world_transform(roof_center, 2.0),
+        HouseEntity,
+        OverworldEntity,
+    ));
+}
+
+fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
+    let animal_spots = [
+        (36, 10),
+        (40, 12),
+        (44, 9),
+        (38, 14),
+        (42, 11),
+    ];
+    for (index, (tx, ty)) in animal_spots.iter().enumerate() {
+        super::animals::spawn_farm_animal(
+            commands,
+            art.animal.clone(),
+            art.animal_layout.clone(),
+            tile_center(*tx, *ty),
+            2.0,
+            index,
+            super::animals::AnimalWander::new(super::animals::WANDER_SPEED + index as f32 * 2.0),
+        );
+    }
+}
+
+fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
+    let min_tx = (gate.min.x / TILE).floor() as u32;
+    let max_tx = (gate.max.x / TILE).ceil() as u32;
+    let min_ty = (gate.min.y / TILE).floor() as u32;
+    let max_ty = (gate.max.y / TILE).ceil() as u32;
+    let tint = Color::srgb(0.22, 0.18, 0.28);
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            commands.spawn((
+                Sprite {
+                    image: art.wall.clone(),
+                    color: tint,
+                    ..default()
+                },
+                world_transform(tile_center(tx, ty), 1.8),
+                DungeonEntrance,
+                OverworldEntity,
+            ));
+        }
+    }
+}
+
+pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
+    Vec2::new(tx as f32 * TILE + TILE * 0.5, ty as f32 * TILE + TILE * 0.5)
+}
+
+#[derive(Component)]
+pub struct OverworldEntity;
+
+#[derive(Component)]
+pub struct OverworldTile;
+
+#[derive(Component)]
+pub struct DungeonEntrance;
+
+#[derive(Component)]
+pub struct ForgeEntity;
+
+#[derive(Component)]
+pub struct HouseEntity;
+
+/// Interactable sleep point inside the house.
+#[derive(Component)]
+pub struct Bed;
+
+#[derive(Component)]
+pub struct OverworldGrid;
