@@ -33,13 +33,53 @@ impl CarveTarget {
     }
 }
 
-/// Guaranteed drops always granted; bonus entries roll independently by chance.
+/// Named rarity for bonus carve parts. Set skills can later scale Rare weight.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum LootRarity {
+    Common,
+    Uncommon,
+    Rare,
+}
+
+/// Integer weights for Common / Uncommon / Rare bonus rolls.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RarityWeights {
+    pub common: u32,
+    pub uncommon: u32,
+    pub rare: u32,
+}
+
+impl Default for RarityWeights {
+    fn default() -> Self {
+        Self {
+            common: 70,
+            uncommon: 25,
+            rare: 5,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BonusDrop {
+    pub material: MaterialId,
+    pub amount: u32,
+    pub rarity: LootRarity,
+}
+
+/// Guaranteed drops always granted; bonus rolls pick a rarity then a part.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LootTable {
     pub target: CarveTarget,
     pub guaranteed: Vec<(MaterialId, u32)>,
-    /// (material, amount, chance in 0.0..=1.0)
-    pub bonus: Vec<(MaterialId, u32, f32)>,
+    pub bonus: Vec<BonusDrop>,
+    #[serde(default)]
+    pub rarity_weights: RarityWeights,
+    #[serde(default = "default_bonus_rolls")]
+    pub bonus_rolls: u32,
+}
+
+fn default_bonus_rolls() -> u32 {
+    1
 }
 
 /// Runtime loot tables loaded from RON.
@@ -80,14 +120,24 @@ impl CarveLootBook {
 
     /// Roll carve yields for a target. Always includes guaranteed parts when a table exists.
     pub fn roll(&self, target: CarveTarget, rng: &mut impl Rng) -> Vec<(MaterialId, u32)> {
+        self.roll_with_rare_bonus(target, rng, 1.0)
+    }
+
+    /// Like [`Self::roll`], with Rare weight scaled by `rare_chance_multiplier` (set-skill hook).
+    pub fn roll_with_rare_bonus(
+        &self,
+        target: CarveTarget,
+        rng: &mut impl Rng,
+        rare_chance_multiplier: f32,
+    ) -> Vec<(MaterialId, u32)> {
         let Some(table) = self.table_for(target) else {
             bevy::log::warn!("No carve loot table for {target:?}");
             return Vec::new();
         };
-        roll_table(table, rng)
+        roll_table(table, rng, rare_chance_multiplier)
     }
 
-    /// Deterministic loot for tests / debugging (all bonus rolls succeed).
+    /// Deterministic loot for tests / debugging (every bonus part granted).
     pub fn max_loot(&self, target: CarveTarget) -> Vec<(MaterialId, u32)> {
         let Some(table) = self.table_for(target) else {
             return Vec::new();
@@ -96,8 +146,8 @@ impl CarveLootBook {
         for &(material, amount) in &table.guaranteed {
             push_or_stack(&mut drops, material, amount);
         }
-        for &(material, amount, _) in &table.bonus {
-            push_or_stack(&mut drops, material, amount);
+        for drop in &table.bonus {
+            push_or_stack(&mut drops, drop.material, drop.amount);
         }
         drops
     }
@@ -112,20 +162,83 @@ pub fn roll_carve_loot(
     book.roll(target, rng)
 }
 
-fn roll_table(table: &LootTable, rng: &mut impl Rng) -> Vec<(MaterialId, u32)> {
-    let mut drops = Vec::with_capacity(table.guaranteed.len() + table.bonus.len());
+fn roll_table(
+    table: &LootTable,
+    rng: &mut impl Rng,
+    rare_chance_multiplier: f32,
+) -> Vec<(MaterialId, u32)> {
+    let mut drops = Vec::with_capacity(table.guaranteed.len() + table.bonus_rolls as usize);
 
     for &(material, amount) in &table.guaranteed {
         push_or_stack(&mut drops, material, amount);
     }
 
-    for &(material, amount, chance) in &table.bonus {
-        if rng.gen::<f32>() < chance {
-            push_or_stack(&mut drops, material, amount);
-        }
+    for _ in 0..table.bonus_rolls {
+        let Some(rarity) = pick_rarity(table.rarity_weights, rare_chance_multiplier, rng) else {
+            continue;
+        };
+        let Some(drop) = pick_bonus(table, rarity, rng) else {
+            continue;
+        };
+        push_or_stack(&mut drops, drop.material, drop.amount);
     }
 
     drops
+}
+
+fn pick_rarity(
+    weights: RarityWeights,
+    rare_chance_multiplier: f32,
+    rng: &mut impl Rng,
+) -> Option<LootRarity> {
+    rarity_at(weights, rare_chance_multiplier, rng.gen::<f32>())
+}
+
+/// Map a unit roll in `0.0..=1.0` onto weighted Common / Uncommon / Rare.
+fn rarity_at(
+    weights: RarityWeights,
+    rare_chance_multiplier: f32,
+    unit_roll: f32,
+) -> Option<LootRarity> {
+    let common = weights.common as f64;
+    let uncommon = weights.uncommon as f64;
+    let rare = (weights.rare as f64) * (rare_chance_multiplier.max(0.0) as f64);
+    let total = common + uncommon + rare;
+    if total <= 0.0 {
+        return None;
+    }
+
+    let bands = [
+        (LootRarity::Common, common),
+        (LootRarity::Uncommon, uncommon),
+        (LootRarity::Rare, rare),
+    ];
+    let target = (unit_roll.clamp(0.0, 1.0) as f64) * total;
+    let mut acc = 0.0;
+    for (rarity, weight) in bands {
+        acc += weight;
+        if target < acc {
+            return Some(rarity);
+        }
+    }
+    bands
+        .iter()
+        .rev()
+        .find(|(_, weight)| *weight > 0.0)
+        .map(|(rarity, _)| *rarity)
+}
+
+fn pick_bonus<'a>(table: &'a LootTable, rarity: LootRarity, rng: &mut impl Rng) -> Option<&'a BonusDrop> {
+    let pool: Vec<&BonusDrop> = table
+        .bonus
+        .iter()
+        .filter(|drop| drop.rarity == rarity)
+        .collect();
+    if pool.is_empty() {
+        return None;
+    }
+    let index = rng.gen_range(0..pool.len());
+    Some(pool[index])
 }
 
 fn push_or_stack(drops: &mut Vec<(MaterialId, u32)>, material: MaterialId, amount: u32) {
@@ -144,6 +257,13 @@ mod tests {
 
     fn book() -> CarveLootBook {
         CarveLootBook::load()
+    }
+
+    fn bonus_rarities(table: &LootTable) -> Vec<LootRarity> {
+        let mut rarities: Vec<_> = table.bonus.iter().map(|drop| drop.rarity).collect();
+        rarities.sort();
+        rarities.dedup();
+        rarities
     }
 
     #[test]
@@ -222,5 +342,83 @@ mod tests {
             .filter(|(m, _)| *m == MaterialId::SlimeGel)
             .count();
         assert_eq!(gel_entries, 1, "same materials should stack into one entry");
+    }
+
+    #[test]
+    fn slime_and_bat_have_common_uncommon_rare_parts() {
+        let book = book();
+        let expected = [
+            LootRarity::Common,
+            LootRarity::Uncommon,
+            LootRarity::Rare,
+        ];
+        let slime = book.table_for(CarveTarget::Pack(EnemyKind::Slime)).unwrap();
+        let bat = book.table_for(CarveTarget::Pack(EnemyKind::Bat)).unwrap();
+        assert_eq!(bonus_rarities(slime), expected);
+        assert_eq!(bonus_rarities(bat), expected);
+    }
+
+    #[test]
+    fn rarity_at_splits_default_weights() {
+        let weights = RarityWeights::default();
+        assert_eq!(rarity_at(weights, 1.0, 0.0), Some(LootRarity::Common));
+        assert_eq!(rarity_at(weights, 1.0, 0.5), Some(LootRarity::Common));
+        assert_eq!(rarity_at(weights, 1.0, 0.8), Some(LootRarity::Uncommon));
+        assert_eq!(rarity_at(weights, 1.0, 0.99), Some(LootRarity::Rare));
+    }
+
+    #[test]
+    fn zero_rare_multiplier_never_picks_rare() {
+        let weights = RarityWeights::default();
+        for unit in [0.0, 0.5, 0.94, 0.99, 1.0] {
+            assert_ne!(
+                rarity_at(weights, 0.0, unit),
+                Some(LootRarity::Rare),
+                "unit roll {unit} must not be Rare when multiplier is 0"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_weights_yield_none() {
+        let weights = RarityWeights {
+            common: 0,
+            uncommon: 0,
+            rare: 0,
+        };
+        assert_eq!(rarity_at(weights, 1.0, 0.5), None);
+    }
+
+    #[test]
+    fn empty_rarity_bucket_skips_that_bonus_roll() {
+        let table = LootTable {
+            target: CarveTarget::Pack(EnemyKind::Slime),
+            guaranteed: vec![(MaterialId::SlimeGel, 1)],
+            bonus: vec![BonusDrop {
+                material: MaterialId::SlimeGel,
+                amount: 1,
+                rarity: LootRarity::Common,
+            }],
+            rarity_weights: RarityWeights {
+                common: 0,
+                uncommon: 0,
+                rare: 100,
+            },
+            bonus_rolls: 1,
+        };
+        let mut rng = StdRng::seed_from_u64(7);
+        for _ in 0..20 {
+            let drops = roll_table(&table, &mut rng, 1.0);
+            assert_eq!(drops, vec![(MaterialId::SlimeGel, 1)]);
+        }
+    }
+
+    #[test]
+    fn missing_table_returns_empty() {
+        let book = CarveLootBook {
+            tables: Vec::new(),
+        };
+        let mut rng = StdRng::seed_from_u64(3);
+        assert!(book.roll(CarveTarget::KingSlime, &mut rng).is_empty());
     }
 }
