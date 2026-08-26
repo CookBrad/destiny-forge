@@ -6,9 +6,11 @@ mod spot;
 mod ui;
 
 pub use animation::{
-    apply_player_fishing_body, cast_body_frame, cast_rod_angle_right, cast_swing_progress,
-    cleanup_fishing_animation, line_segment_pose, sync_fishing_animation, FishingBobber,
-    FishingLineVisual, FishingRodVisual,
+    apply_player_fishing_body, bobber_at_water_level, bobber_motion_offset, bobber_pose,
+    cast_body_frame, cast_rod_angle_right, cast_swing_progress, cleanup_fishing_animation,
+    hold_rod_angle, line_segment_pose, line_sway_offset, player_feet_y, rod_tip_world,
+    sagging_line_path, sagging_line_segment_poses, sync_fishing_animation, FishingBobber,
+    FishingLineVisual, FishingRodVisual, LINE_PATH_SAMPLES, LINE_SAG_FRACTION, ROD_HOLD_ANGLE_DEG,
 };
 pub use cast::{clear_cast_on_zone_exit, tick_active_cast, use_fishing_rod_system, ActiveCast};
 pub use logic::{

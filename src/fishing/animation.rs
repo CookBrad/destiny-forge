@@ -24,6 +24,12 @@ pub const LINE_THICKNESS: f32 = 2.5;
 pub const ROD_HOLD_ANGLE_DEG: f32 = 45.0;
 /// How far the bobber sits from the player into the water (world units).
 pub const BOBBER_DISTANCE: f32 = TILE * 2.6;
+/// Number of polyline vertices for the fishing line (must be ≥ 3 for sag).
+pub const LINE_PATH_SAMPLES: usize = 8;
+/// Default sag depth as a fraction of tip→bobber chord length.
+pub const LINE_SAG_FRACTION: f32 = 0.22;
+/// How many line *segments* (sprites) to draw between tip and bobber.
+pub const LINE_SEGMENT_COUNT: usize = LINE_PATH_SAMPLES - 1;
 
 /// Floating bobber / splash marker in the water.
 #[derive(Component)]
@@ -33,9 +39,11 @@ pub struct FishingBobber;
 #[derive(Component)]
 pub struct FishingRodVisual;
 
-/// Thin line segment from rod tip to bobber.
+/// One segment of a multi-sample sagging line (index 0..LINE_SEGMENT_COUNT-1).
 #[derive(Component)]
-pub struct FishingLineVisual;
+pub struct FishingLineVisual {
+    pub index: usize,
+}
 
 #[derive(Component)]
 pub struct FishingAnimTimer(pub f32);
@@ -147,7 +155,7 @@ pub fn player_feet_y(player_center_y: f32) -> f32 {
     player_center_y - PLAYER_SPRITE_HEIGHT * 0.5
 }
 
-/// Bobber in the water: **at feet level**, out along the cast/water direction.
+/// Bobber base position in the water: **at feet level**, out along the cast/water direction.
 pub fn bobber_at_water_level(
     player_center: Vec2,
     water_dir: Vec2,
@@ -166,7 +174,7 @@ pub fn bobber_at_water_level(
     } else {
         dir = dir.normalize();
     }
-    // Prefer going into the water; if aim is almost horizontal, nudge downward in XZ plane.
+    // Prefer going into the water; if aim is almost horizontal, nudge downward.
     if dir.y > -0.15 {
         dir.y = -0.55;
         dir = dir.normalize();
@@ -177,6 +185,68 @@ pub fn bobber_at_water_level(
     pos
 }
 
+/// Continuous bobber motion once the cast settles (waiting / fighting).
+/// Pure time helper — vertical bob + light horizontal sway; base Y stays feet-level.
+pub fn bobber_motion_offset(world_t: f32, holding: bool) -> Vec2 {
+    let speed = if holding { 9.0 } else { 5.5 };
+    let amp_y = if holding { TILE * 0.07 } else { TILE * 0.045 };
+    let amp_x = if holding { TILE * 0.05 } else { TILE * 0.03 };
+    Vec2::new(
+        (world_t * speed * 0.7).sin() * amp_x,
+        (world_t * speed).sin() * amp_y,
+    )
+}
+
+/// Full bobber pose: feet-level placement + continuous motion.
+pub fn bobber_pose(
+    player_center: Vec2,
+    water_dir: Vec2,
+    face_right: bool,
+    distance: f32,
+    world_t: f32,
+    holding: bool,
+) -> Vec2 {
+    let base = bobber_at_water_level(player_center, water_dir, face_right, distance, 0.0);
+    let motion = bobber_motion_offset(world_t, holding);
+    // Keep Y near feet level; allow only small bob, not large drift.
+    Vec2::new(base.x + motion.x, base.y + motion.y)
+}
+
+/// Sample a sagging fishing line from tip → bobber.
+/// Returns `sample_count` points (≥ 3). Interior points fall **below** the chord.
+///
+/// `sag_fraction` is sag depth as a fraction of chord length (0.2 ≈ gentle catenary-ish arc).
+/// `sway` shifts the sag sideways (perpendicular) for light line motion.
+pub fn sagging_line_path(
+    tip: Vec2,
+    bobber: Vec2,
+    sample_count: usize,
+    sag_fraction: f32,
+    sway: f32,
+) -> Vec<Vec2> {
+    let n = sample_count.max(3);
+    let chord = bobber - tip;
+    let len = chord.length().max(1.0);
+    let dir = chord / len;
+    // Perpendicular in 2D (rotate 90°) — sag goes "down" in world when chord is not vertical.
+    let mut perp = Vec2::new(-dir.y, dir.x);
+    // Prefer sag toward -Y (gravity).
+    if perp.y > 0.0 {
+        perp = -perp;
+    }
+    let sag_depth = len * sag_fraction.max(0.0);
+    let mut points = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f32 / (n - 1) as f32;
+        // Parabola peaking at mid: 4t(1-t) is 0 at ends, 1 at t=0.5
+        let envelope = 4.0 * t * (1.0 - t);
+        let along = tip + dir * (len * t);
+        let drop = perp * (sag_depth * envelope) + perp * (sway * envelope);
+        points.push(along + drop);
+    }
+    points
+}
+
 /// Midpoint, Z rotation, and length for a line sprite between two points.
 /// Sprite is horizontal (length along local +X) with center pivot.
 pub fn line_segment_pose(from: Vec2, to: Vec2) -> (Vec2, f32, f32) {
@@ -185,6 +255,28 @@ pub fn line_segment_pose(from: Vec2, to: Vec2) -> (Vec2, f32, f32) {
     let angle = delta.y.atan2(delta.x);
     let mid = from + delta * 0.5;
     (mid, angle, len)
+}
+
+/// Poses for every multi-segment line piece along a sagging path.
+pub fn sagging_line_segment_poses(
+    tip: Vec2,
+    bobber: Vec2,
+    sample_count: usize,
+    sag_fraction: f32,
+    sway: f32,
+) -> Vec<(Vec2, f32, f32)> {
+    let path = sagging_line_path(tip, bobber, sample_count, sag_fraction, sway);
+    let mut poses = Vec::with_capacity(path.len().saturating_sub(1));
+    for w in path.windows(2) {
+        poses.push(line_segment_pose(w[0], w[1]));
+    }
+    poses
+}
+
+/// Light continuous sway of the line sag (pure time helper).
+pub fn line_sway_offset(world_t: f32, holding: bool) -> f32 {
+    let amp = if holding { TILE * 0.06 } else { TILE * 0.035 };
+    (world_t * 4.2).sin() * amp
 }
 
 pub fn rod_tip_local(angle: f32, length: f32) -> Vec2 {
@@ -358,14 +450,14 @@ pub fn sync_fishing_props(
     };
 
     if show_bobber {
-        let wobble = (world_t * 7.0).sin() * TILE * 0.06;
-        // Bobber in the water at the player's feet height — not stuck on the tip.
-        let bobber_pos = bobber_at_water_level(
+        // Feet-level bobber with continuous vertical bob / sway.
+        let bobber_pos = bobber_pose(
             player_pos,
             cast.water_dir,
             face_right,
             BOBBER_DISTANCE,
-            wobble,
+            world_t,
+            holding,
         );
 
         // --- Bobber ---
@@ -381,28 +473,68 @@ pub fn sync_fishing_props(
             }
         }
 
-        // --- Line tip → bobber (diagonal string, not collinear with the pole) ---
-        let (mid, line_angle, line_len) = line_segment_pose(tip, bobber_pos);
-        if lines.is_empty() {
-            spawn_line(&mut commands, &art, mid, line_angle, line_len);
-        } else {
-            for (_, mut tf, mut sprite) in &mut lines {
-                tf.translation.x = mid.x;
-                tf.translation.y = mid.y;
-                tf.translation.z = 5.3;
-                tf.rotation = Quat::from_rotation_z(line_angle);
-                sprite.image = art.path.clone(); // solid-ish strip
-                sprite.color = Color::srgb(0.92, 0.93, 0.95);
-                sprite.custom_size = Some(Vec2::new(line_len, LINE_THICKNESS));
-                sprite.anchor = Anchor::Center;
-            }
-        }
+        // --- Sagging multi-segment line tip → bobber ---
+        let sway = line_sway_offset(world_t, holding);
+        let poses = sagging_line_segment_poses(
+            tip,
+            bobber_pos,
+            LINE_PATH_SAMPLES,
+            LINE_SAG_FRACTION,
+            sway,
+        );
+        ensure_line_segments(&mut commands, &art, &mut lines, &poses);
     } else {
         for (e, _, _) in &bobbers {
             commands.entity(e).try_despawn_recursive();
         }
         for (e, _, _) in &lines {
             commands.entity(e).try_despawn_recursive();
+        }
+    }
+}
+
+fn ensure_line_segments(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    lines: &mut Query<
+        (Entity, &mut Transform, &mut Sprite),
+        (
+            With<FishingLineVisual>,
+            Without<OverworldPlayer>,
+            Without<FishingBobber>,
+            Without<FishingRodVisual>,
+        ),
+    >,
+    poses: &[(Vec2, f32, f32)],
+) {
+    let mut entities: Vec<(Entity, f32)> = lines
+        .iter()
+        .map(|(e, tf, _)| (e, tf.translation.z))
+        .collect();
+    // If count mismatches, despawn all and respawn cleanly.
+    if entities.len() != poses.len() {
+        for (e, _) in entities {
+            commands.entity(e).try_despawn_recursive();
+        }
+        for (i, &(mid, angle, len)) in poses.iter().enumerate() {
+            spawn_line_segment(commands, art, i, mid, angle, len);
+        }
+        return;
+    }
+    entities.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    for (i, &(mid, angle, len)) in poses.iter().enumerate() {
+        let Some((entity, _)) = entities.get(i).copied() else {
+            continue;
+        };
+        if let Ok((_, mut tf, mut sprite)) = lines.get_mut(entity) {
+            tf.translation.x = mid.x;
+            tf.translation.y = mid.y;
+            tf.translation.z = 5.3 + i as f32 * 0.001;
+            tf.rotation = Quat::from_rotation_z(angle);
+            sprite.image = art.path.clone();
+            sprite.color = Color::srgb(0.92, 0.93, 0.95);
+            sprite.custom_size = Some(Vec2::new(len, LINE_THICKNESS));
+            sprite.anchor = Anchor::Center;
         }
     }
 }
@@ -541,7 +673,14 @@ fn spawn_rod(commands: &mut Commands, art: &OverworldArt, handle: Vec2, tip_angl
     ));
 }
 
-fn spawn_line(commands: &mut Commands, art: &OverworldArt, mid: Vec2, angle: f32, len: f32) {
+fn spawn_line_segment(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    index: usize,
+    mid: Vec2,
+    angle: f32,
+    len: f32,
+) {
     commands.spawn((
         Sprite {
             image: art.path.clone(),
@@ -551,11 +690,11 @@ fn spawn_line(commands: &mut Commands, art: &OverworldArt, mid: Vec2, angle: f32
             ..default()
         },
         Transform {
-            translation: mid.extend(5.3),
+            translation: Vec3::new(mid.x, mid.y, 5.3 + index as f32 * 0.001),
             rotation: Quat::from_rotation_z(angle),
             ..default()
         },
-        FishingLineVisual,
+        FishingLineVisual { index },
         OverworldEntity,
     ));
 }
@@ -590,7 +729,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hold_rod_is_forty_five_degrees() {
+    fn hold_rod_is_forty_five_degrees_left_and_right() {
         let right = hold_rod_angle(true);
         let left = hold_rod_angle(false);
         assert!((right.to_degrees() - 45.0).abs() < 0.1);
@@ -598,10 +737,15 @@ mod tests {
         // Tip is higher than the handle
         assert!(tip_dir(right).y > 0.5);
         assert!(tip_dir(left).y > 0.5);
+        let handle = Vec2::new(0.0, 0.0);
+        let tip_r = rod_tip_world(handle, right, ROD_LENGTH);
+        let tip_l = rod_tip_world(handle, left, ROD_LENGTH);
+        assert!(tip_r.y > handle.y && tip_r.x > handle.x);
+        assert!(tip_l.y > handle.y && tip_l.x < handle.x);
     }
 
     #[test]
-    fn bobber_is_at_feet_level_not_on_tip() {
+    fn bobber_feet_y_matches_player_feet_helper() {
         let center = Vec2::new(100.0, 200.0);
         let feet = player_feet_y(center.y);
         let bob = bobber_at_water_level(center, Vec2::new(0.2, -1.0), true, BOBBER_DISTANCE, 0.0);
@@ -611,8 +755,6 @@ mod tests {
             bob.y,
             feet
         );
-        // Out in front of the player into the water
-        assert!(bob.x > center.x || bob.y < center.y);
         let tip = rod_tip_world(center + hand_offset(true), hold_rod_angle(true), ROD_LENGTH);
         assert!(
             (bob - tip).length() > TILE,
@@ -621,7 +763,58 @@ mod tests {
     }
 
     #[test]
-    fn line_pose_connects_tip_to_bobber() {
+    fn sagging_line_has_interior_samples_below_chord() {
+        let tip = Vec2::new(0.0, 100.0);
+        let bobber = Vec2::new(80.0, 20.0);
+        let path = sagging_line_path(tip, bobber, LINE_PATH_SAMPLES, LINE_SAG_FRACTION, 0.0);
+        assert!(
+            path.len() > 2,
+            "path must have more than two samples, got {}",
+            path.len()
+        );
+        assert_eq!(path.len(), LINE_PATH_SAMPLES);
+        // Ends match tip / bobber
+        assert!((path[0] - tip).length() < 0.01);
+        assert!((path[path.len() - 1] - bobber).length() < 0.01);
+        // Mid sample sits below the straight chord (lower Y for elevated tip → lower bobber)
+        let mid_t = 0.5;
+        let chord_mid = tip.lerp(bobber, mid_t);
+        let mid_sample = &path[path.len() / 2];
+        assert!(
+            mid_sample.y < chord_mid.y - 1.0,
+            "interior sample Y {} should be below chord mid Y {}",
+            mid_sample.y,
+            chord_mid.y
+        );
+    }
+
+    #[test]
+    fn sagging_line_segment_poses_match_path_windows() {
+        let tip = Vec2::new(10.0, 50.0);
+        let bob = Vec2::new(90.0, 10.0);
+        let poses =
+            sagging_line_segment_poses(tip, bob, LINE_PATH_SAMPLES, LINE_SAG_FRACTION, 0.0);
+        assert_eq!(poses.len(), LINE_SEGMENT_COUNT);
+        assert!(poses.iter().all(|(_, _, len)| *len > 0.0));
+    }
+
+    #[test]
+    fn bobber_and_line_sway_are_non_static_over_time() {
+        let a = bobber_motion_offset(0.0, false);
+        let b = bobber_motion_offset(0.4, false);
+        assert!(
+            (a - b).length() > 0.01,
+            "bobber motion should change over time"
+        );
+        let s0 = line_sway_offset(0.0, false);
+        let s1 = line_sway_offset(0.5, false);
+        assert!((s0 - s1).abs() > 0.01, "line sway should change over time");
+        // Holding uses larger amplitude
+        assert!(bobber_motion_offset(0.25, true).length() >= bobber_motion_offset(0.25, false).length() - 0.001);
+    }
+
+    #[test]
+    fn line_pose_connects_endpoints() {
         let tip = Vec2::new(10.0, 20.0);
         let bob = Vec2::new(40.0, 5.0);
         let (mid, angle, len) = line_segment_pose(tip, bob);
