@@ -59,20 +59,14 @@ fn harvest_with_hand(
     stage: PlotStage,
     inventory: &mut Inventory,
 ) -> Result<(PlotStage, FarmActionResult), &'static str> {
-    match harvest_plot(stage) {
-        (next, FarmActionResult::Harvested { crop, amount }) => {
-            let leftover = inventory.try_add(crop.harvest_material(), amount);
-            if leftover > 0 {
-                bevy::log::warn!("Inventory full — lost harvest remainder");
-            }
-            Ok((
-                next,
-                FarmActionResult::Harvested { crop, amount },
-            ))
-        }
-        (_, FarmActionResult::Failed(msg)) => Err(msg),
-        (next, other) => Ok((next, other)),
+    let PlotStage::Ready { crop } = stage else {
+        return Err("not ready to harvest");
+    };
+    let leftover = inventory.try_add(crop.harvest_material(), 1);
+    if leftover > 0 {
+        return Err("inventory full");
     }
+    ok_or_fail(harvest_plot(stage))
 }
 
 pub fn log_action(action: &FarmActionResult) {
@@ -92,7 +86,8 @@ pub fn log_action(action: &FarmActionResult) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::farming::crops::PlotStage;
+    use crate::farming::crops::{CropKind, PlotStage};
+    use crate::items::inventory::{INVENTORY_SLOT_COUNT, MAX_STACK};
     use crate::items::{Inventory, MaterialId};
 
     #[test]
@@ -131,5 +126,38 @@ mod tests {
         assert_eq!(inv.count(MaterialId::WateringCan), 1);
         assert_eq!(inv.count(MaterialId::TurnipSeed), 8);
         assert_eq!(inv.count(MaterialId::PotatoSeed), 4);
+    }
+
+    #[test]
+    fn harvest_into_space_clears_to_soil() {
+        let mut inv = Inventory::default();
+        let ready = PlotStage::Ready {
+            crop: CropKind::Turnip,
+        };
+        let (stage, result) = apply_tool(HomesteadTool::Hand, ready, &mut inv).unwrap();
+        assert_eq!(stage, PlotStage::Soil);
+        assert_eq!(
+            result,
+            FarmActionResult::Harvested {
+                crop: CropKind::Turnip,
+                amount: 1
+            }
+        );
+        assert_eq!(inv.count(MaterialId::Turnip), 1);
+    }
+
+    #[test]
+    fn full_inventory_keeps_ready_plot() {
+        let mut inv = Inventory::default();
+        let fill = MAX_STACK * INVENTORY_SLOT_COUNT as u32;
+        assert_eq!(inv.try_add(MaterialId::Fang, fill), 0);
+        assert_eq!(inv.try_add(MaterialId::Turnip, 1), 1);
+
+        let ready = PlotStage::Ready {
+            crop: CropKind::Turnip,
+        };
+        let err = apply_tool(HomesteadTool::Hand, ready, &mut inv).unwrap_err();
+        assert!(err.contains("full"));
+        assert_eq!(inv.count(MaterialId::Turnip), 0);
     }
 }
