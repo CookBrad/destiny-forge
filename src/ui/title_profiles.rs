@@ -10,6 +10,7 @@ use crate::core::{
 };
 use crate::farming::HomesteadHotbar;
 use crate::items::Inventory;
+use crate::overworld::{queue_resume, PendingResume};
 use crate::player::{Loadout, WorldProgress};
 
 use super::profile_picker::{begin_profile_run, ProfilePicker};
@@ -156,7 +157,6 @@ fn card_details(summary: &super::profile_picker::ProfileCardSummary) -> String {
 
 pub fn handle_title_profile_card_clicks(
     rename: Res<ProfileRenameState>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut interactions: Query<
         (&Interaction, &TitleProfileCard),
         (Changed<Interaction>, With<Button>),
@@ -174,6 +174,7 @@ pub fn handle_title_profile_card_clicks(
     mut bindings: ResMut<SkillBindings>,
     mut global: ResMut<GameSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
+    mut pending: ResMut<PendingResume>,
 ) {
     if rename.active.is_some() {
         return;
@@ -200,7 +201,7 @@ pub fn handle_title_profile_card_clicks(
             &mut global,
             &mut profile_dirty,
         );
-        next_state.set(GameState::Overworld);
+        queue_resume(&mut pending, profile.location);
     }
 }
 
@@ -271,7 +272,6 @@ pub fn handle_profile_rename_input(
 pub fn handle_title_profile_keyboard_shortcuts(
     keyboard: Res<ButtonInput<KeyCode>>,
     rename: Res<ProfileRenameState>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
     mut progress: ResMut<WorldProgress>,
@@ -285,6 +285,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut bindings: ResMut<SkillBindings>,
     mut global: ResMut<GameSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
+    mut pending: ResMut<PendingResume>,
 ) {
     if rename.active.is_some() {
         return;
@@ -320,7 +321,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut global,
         &mut profile_dirty,
     );
-    next_state.set(GameState::Overworld);
+    queue_resume(&mut pending, profile.location);
 }
 
 pub fn sync_title_profile_cards(

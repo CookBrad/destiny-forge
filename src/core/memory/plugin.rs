@@ -25,10 +25,12 @@ impl Plugin for MemoryPlugin {
             // DayClock / ToolEnergy are init'd in CorePlugin (after MemoryPlugin wiring).
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
+            .init_resource::<super::location_track::LocationTrackTimer>()
             .add_systems(Startup, hydrate_runtime_from_memory)
             .add_systems(
                 Update,
                 (
+                    super::location_track::track_exploration_location,
                     super::sync::capture_profile_from_runtime,
                     queue_autosave,
                     debounced_autosave,

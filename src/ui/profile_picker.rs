@@ -75,6 +75,7 @@ pub fn refresh_profile_picker(mut picker: ResMut<ProfilePicker>) {
     *picker = ProfilePicker::refresh();
 }
 
+/// Load profile into runtime and return where the player should resume.
 pub fn begin_profile_run(
     index: u8,
     inventory: &mut Inventory,
@@ -90,7 +91,7 @@ pub fn begin_profile_run(
     profile: &mut PlayerProfile,
     global: &mut GameSettings,
     profile_dirty: &mut ProfileDirty,
-) {
+) -> crate::core::GameState {
     activate_profile(
         index,
         inventory,
@@ -119,4 +120,6 @@ pub fn begin_profile_run(
         audio,
         bindings,
     );
+    // Destination applied by caller via resume_destination + entry resources.
+    profile.location.to_game_state()
 }

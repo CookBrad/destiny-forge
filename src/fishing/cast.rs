@@ -18,11 +18,26 @@ use super::spot::FishingSpot;
 
 const SPOT_RANGE: f32 = TILE * 2.2;
 
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
+#[derive(Resource, Clone, Debug, PartialEq)]
 pub struct ActiveCast {
     pub state: CastState,
     /// Hold Space / LMB to raise the green bar during a fight.
     pub holding: bool,
+    /// Locked when the cast starts: unit vector toward the fishing spot / water.
+    pub water_dir: Vec2,
+    /// Player faces right when true (sprite flip_x = !face_right).
+    pub face_right: bool,
+}
+
+impl Default for ActiveCast {
+    fn default() -> Self {
+        Self {
+            state: CastState::default(),
+            holding: false,
+            water_dir: Vec2::NEG_Y,
+            face_right: true,
+        }
+    }
 }
 
 impl ActiveCast {
@@ -41,6 +56,30 @@ impl ActiveCast {
     pub fn clear(&mut self) {
         force_idle(&mut self.state);
         self.holding = false;
+        self.water_dir = Vec2::NEG_Y;
+        self.face_right = true;
+    }
+}
+
+/// Nearest fishing spot direction from the player (defaults to south / -Y).
+pub fn water_aim_from_spots(player_pos: Vec2, spot_positions: impl Iterator<Item = Vec2>) -> Vec2 {
+    let mut best: Option<(f32, Vec2)> = None;
+    for spot in spot_positions {
+        let d = player_pos.distance_squared(spot);
+        if best.map(|(bd, _)| d < bd).unwrap_or(true) {
+            best = Some((d, spot));
+        }
+    }
+    match best {
+        Some((_, spot)) => {
+            let delta = spot - player_pos;
+            if delta.length_squared() < 1.0 {
+                Vec2::NEG_Y
+            } else {
+                delta.normalize()
+            }
+        }
+        None => Vec2::NEG_Y,
     }
 }
 
@@ -132,6 +171,13 @@ pub fn use_fishing_rod_system(
 
     if start_cast(&mut cast.state) {
         cast.holding = false;
+        let aim = water_aim_from_spots(
+            player_pos,
+            spots.iter().map(|t| t.translation.truncate()),
+        );
+        cast.water_dir = aim;
+        // Face toward the water horizontally; prefer right if casting mostly south.
+        cast.face_right = aim.x >= -0.05;
         info!("Casting… hold Space when the fish bites to keep it in the green bar.");
     }
 }

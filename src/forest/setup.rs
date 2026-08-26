@@ -13,13 +13,18 @@ pub fn setup_forest(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    resume: Option<Res<crate::overworld::ZoneResumeSpawn>>,
 ) {
     let forest_art = super::sprites::ForestArt::load(&asset_server);
     let overworld_art = OverworldArt::load(&asset_server, &mut atlas_layouts);
     let layout = ForestLayout::generate();
 
     spawn_forest(&mut commands, &forest_art, &layout);
-    spawn_forest_player(&mut commands, &overworld_art);
+    let (start, pos_is_sprite_center) = match resume.as_deref() {
+        Some(r) => (r.0, true),
+        None => (tile_center(3, 4), false),
+    };
+    spawn_forest_player(&mut commands, &overworld_art, start, pos_is_sprite_center);
 
     commands.insert_resource(ExplorationMap {
         solids: layout.solids(),
@@ -30,11 +35,20 @@ pub fn setup_forest(
     commands.insert_resource(forest_art);
     commands.insert_resource(overworld_art);
     commands.insert_resource(layout);
+    commands.remove_resource::<crate::overworld::ZoneResumeSpawn>();
 }
 
-fn spawn_forest_player(commands: &mut Commands, art: &OverworldArt) {
-    let start = tile_center(3, 4);
-    let y = center_on_surface(start.y, PLAYER_SPRITE_HEIGHT);
+fn spawn_forest_player(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    start: Vec2,
+    pos_is_sprite_center: bool,
+) {
+    let y = if pos_is_sprite_center {
+        start.y
+    } else {
+        center_on_surface(start.y, PLAYER_SPRITE_HEIGHT)
+    };
 
     commands.spawn((
         Sprite {

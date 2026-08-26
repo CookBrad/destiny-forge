@@ -1,4 +1,5 @@
 mod autosave;
+mod location_track;
 mod plugin;
 mod profile;
 mod settings;

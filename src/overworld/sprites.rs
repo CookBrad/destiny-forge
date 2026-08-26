@@ -89,6 +89,8 @@ pub struct OverworldArt {
     pub forge_furnace: Handle<Image>,
     pub forge_workbench: Handle<Image>,
     pub forge_anvil: Handle<Image>,
+    /// Held rod during the fishing cast animation.
+    pub fishing_rod: Handle<Image>,
     pub player: HomesteadPlayerFrames,
     pub cow: Handle<Image>,
     pub goat: Handle<Image>,
@@ -118,6 +120,7 @@ impl OverworldArt {
             forge_furnace: asset_server.load(format!("{OVERWORLD_ROOT}/forge_furnace.png")),
             forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
             forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),
+            fishing_rod: asset_server.load("ui/items/fishing_rod.png"),
             player: HomesteadPlayerFrames::load(asset_server),
             cow: asset_server.load(AnimalKind::Cow.sheet_path()),
             goat: asset_server.load(AnimalKind::Goat.sheet_path()),

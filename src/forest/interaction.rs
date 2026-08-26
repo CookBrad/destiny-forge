@@ -8,7 +8,6 @@ use crate::overworld::setup::OverworldEntry;
 use super::layout::forest_homestead_transition;
 
 pub fn forest_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
     inventory: Res<InventoryWindowOpen>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -29,11 +28,10 @@ pub fn forest_interaction(
         && forest_homestead_transition().contains(position)
         && velocity.y < -1.0
     {
-        commands.insert_resource(OverworldEntry::ForestTrail);
+        // Spawn on homestead at this exit (aligned with where we left).
+        commands.insert_resource(OverworldEntry::from_forest_return(position));
         next_state.set(GameState::Overworld);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_state.set(GameState::Title);
-    }
+    // Escape never returns to title from the forest.
 }

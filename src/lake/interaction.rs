@@ -10,7 +10,6 @@ use crate::ui::inventory_window::InventoryWindowOpen;
 use super::layout::lake_homestead_transition;
 
 pub fn lake_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
     inventory: Res<InventoryWindowOpen>,
     fishing: Res<ActiveCast>,
     cooldown: Res<MapTransitionCooldown>,
@@ -37,13 +36,12 @@ pub fn lake_interaction(
         && lake_homestead_transition().contains(position)
         && velocity.x < -1.0
     {
-        commands.insert_resource(OverworldEntry::LakeReturn);
+        // Spawn on homestead at this exit (aligned with where we left).
+        commands.insert_resource(OverworldEntry::from_lake_return(position));
         next_state.set(GameState::Overworld);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_state.set(GameState::Title);
-    }
+    // Escape cancels fishing only — never title from the lake.
 }
 
 pub fn update_lake_interaction_prompt(

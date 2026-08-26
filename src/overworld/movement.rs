@@ -44,6 +44,7 @@ pub fn exploration_movement(
     time: Res<Time>,
     map: Res<ExplorationMap>,
     fishing: Option<Res<crate::fishing::ActiveCast>>,
+    exit_confirm: Option<Res<crate::ui::ExitConfirmOpen>>,
     mut player: Query<(&mut Transform, &mut OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
 ) {
     let Ok((mut transform, mut velocity, mut sprite)) = player.get_single_mut() else {
@@ -52,6 +53,14 @@ pub fn exploration_movement(
 
     // Freeze walking during the fishing minigame so Space is only for reeling.
     if fishing.as_ref().is_some_and(|f| f.minigame_active()) {
+        velocity.x = 0.0;
+        velocity.y = 0.0;
+        // Still allow facing update below? No — frozen until cast ends.
+        return;
+    }
+
+    // Freeze while the "return to title?" dialog is open.
+    if exit_confirm.as_ref().is_some_and(|e| e.0) {
         velocity.x = 0.0;
         velocity.y = 0.0;
         return;
@@ -99,11 +108,28 @@ pub fn exploration_movement(
 pub fn animate_overworld_player(
     time: Res<Time>,
     art: Res<OverworldArt>,
+    fishing: Option<Res<crate::fishing::ActiveCast>>,
     mut player: Query<(&OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
 ) {
     let Ok((velocity, mut sprite)) = player.get_single_mut() else {
         return;
     };
+
+    // Single owner of player Sprite: fishing body poses while minigame is active.
+    if let Some(cast) = fishing.as_ref() {
+        if cast.minigame_active() {
+            crate::fishing::apply_player_fishing_body(
+                &mut sprite,
+                &art,
+                cast.state.anim_kind(),
+                &cast.state.phase,
+                cast.holding,
+                time.elapsed_secs(),
+                cast.face_right,
+            );
+            return;
+        }
+    }
 
     let moving = velocity.x.abs() + velocity.y.abs() >= 1.0;
     let frame = if moving {
@@ -114,6 +140,9 @@ pub fn animate_overworld_player(
 
     sprite.image = art.player.frame_handle(moving, frame);
     sprite.rect = None;
+    // Clear cast-time squash / tints so run frames display at full size.
+    sprite.custom_size = None;
+    sprite.color = Color::WHITE;
 }
 
 fn resolve_collisions(position: Vec2, delta: Vec2, solids: &[Rect]) -> Vec2 {

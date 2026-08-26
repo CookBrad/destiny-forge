@@ -13,6 +13,7 @@ pub fn setup_lake(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    resume: Option<Res<crate::overworld::ZoneResumeSpawn>>,
 ) {
     let overworld_art = OverworldArt::load(&asset_server, &mut atlas_layouts);
     let layout = LakeLayout::generate();
@@ -23,7 +24,11 @@ pub fn setup_lake(
         overworld_art.path.clone(),
         overworld_art.wall.clone(),
     );
-    spawn_lake_player(&mut commands, &overworld_art);
+    let (start, pos_is_sprite_center) = match resume.as_deref() {
+        Some(r) => (r.0, true),
+        None => (tile_center(4, 12), false),
+    };
+    spawn_lake_player(&mut commands, &overworld_art, start, pos_is_sprite_center);
 
     commands.insert_resource(ExplorationMap {
         solids: layout.solids(),
@@ -33,12 +38,21 @@ pub fn setup_lake(
     commands.insert_resource(MapTransitionCooldown::default());
     commands.insert_resource(overworld_art);
     commands.insert_resource(layout);
+    commands.remove_resource::<crate::overworld::ZoneResumeSpawn>();
 }
 
-fn spawn_lake_player(commands: &mut Commands, art: &OverworldArt) {
-    // Enter from west trail
-    let start = tile_center(4, 12);
-    let y = center_on_surface(start.y, PLAYER_SPRITE_HEIGHT);
+fn spawn_lake_player(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    start: Vec2,
+    pos_is_sprite_center: bool,
+) {
+    // Resume saves store sprite center; default entry uses tile surface Y.
+    let y = if pos_is_sprite_center {
+        start.y
+    } else {
+        center_on_surface(start.y, PLAYER_SPRITE_HEIGHT)
+    };
 
     commands.spawn((
         Sprite {

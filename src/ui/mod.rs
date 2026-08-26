@@ -1,6 +1,7 @@
 pub mod carve_feedback;
 mod day_hud;
 mod energy_hud;
+mod exit_confirm;
 mod health_bars;
 mod hotbar;
 pub mod forge_window;
@@ -13,5 +14,6 @@ mod profile_picker;
 mod skill_bar;
 mod title_profiles;
 
+pub use exit_confirm::{exit_confirm_closed, ExitConfirmOpen};
 pub use interaction_prompt::{InteractionPrompt, PromptKind};
 pub use plugin::UiPlugin;

@@ -13,6 +13,9 @@ use super::carve_feedback::{
 };
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
 use super::energy_hud::{cleanup_energy_hud, setup_energy_hud, sync_energy_hud};
+use super::exit_confirm::{
+    cleanup_exit_confirm, handle_exit_confirm_buttons, handle_exit_confirm_escape, ExitConfirmOpen,
+};
 use super::hotbar::{
     cancel_hotbar_drag_input, cleanup_hotbar, handle_hotbar_slot_clicks, select_hotbar_slot_input,
     setup_hotbar, sync_hotbar_ui, update_hotbar_drag_ghost, InventoryHotbarDrag,
@@ -45,6 +48,7 @@ use super::title_profiles::{
     handle_title_profile_keyboard_shortcuts, handle_title_profile_rename_clicks,
     sync_title_profile_cards, ProfileRenameState,
 };
+use crate::overworld::{apply_pending_resume, PendingResume};
 use super::pause_audio::{handle_pause_audio_input, sync_pause_audio_display};
 use super::profile_picker::{refresh_profile_picker, ProfilePicker};
 use super::skill_bar::{
@@ -79,6 +83,8 @@ impl Plugin for UiPlugin {
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
+            .init_resource::<ExitConfirmOpen>()
+            .init_resource::<PendingResume>()
             .add_systems(Startup, (setup_health_bar_assets, setup_skill_icon_assets))
             .add_systems(
                 OnEnter(GameState::Title),
@@ -125,6 +131,7 @@ impl Plugin for UiPlugin {
             .add_systems(
                 OnExit(GameState::Overworld),
                 (
+                    cleanup_exit_confirm,
                     cleanup_day_hud,
                     cleanup_energy_hud,
                     cleanup_hotbar,
@@ -133,16 +140,27 @@ impl Plugin for UiPlugin {
             )
             .add_systems(
                 OnExit(GameState::Forest),
-                (cleanup_day_hud, cleanup_energy_hud),
+                (cleanup_exit_confirm, cleanup_day_hud, cleanup_energy_hud),
             )
             .add_systems(
                 OnExit(GameState::Lake),
                 (
+                    cleanup_exit_confirm,
                     cleanup_day_hud,
                     cleanup_energy_hud,
                     cleanup_hotbar,
                     cleanup_interaction_prompt,
                 ),
+            )
+            .add_systems(
+                Update,
+                (handle_exit_confirm_escape, handle_exit_confirm_buttons)
+                    .chain()
+                    .run_if(
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Lake)),
+                    ),
             )
             .add_systems(
                 Update,
@@ -181,9 +199,11 @@ impl Plugin for UiPlugin {
                     handle_title_profile_rename_clicks,
                     handle_title_profile_keyboard_shortcuts,
                     handle_profile_rename_input,
+                    apply_pending_resume,
                     sync_title_profile_cards,
                     sync_title_hint,
                 )
+                    .chain()
                     .run_if(in_state(GameState::Title)),
             )
             .add_systems(

@@ -1,5 +1,5 @@
 mod interaction;
-mod layout;
+pub mod layout;
 mod plugin;
 mod setup;
 

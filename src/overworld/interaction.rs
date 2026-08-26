@@ -90,9 +90,7 @@ pub fn overworld_interaction(
         next_state.set(GameState::Lake);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
-        next_state.set(GameState::Title);
-    }
+    // Escape closes UI / cancels fishing only — never returns to title from the homestead.
 }
 
 /// Hold E near the house bed to end the day.
