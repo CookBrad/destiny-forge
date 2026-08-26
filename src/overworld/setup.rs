@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+use crate::core::PlayerProfile;
+use crate::exploration::tile_rect;
+use crate::farming::{spawn_crop_plots, PlayerFacing};
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::{spawn_homestead, tile_center, OverworldLayout, WORLD_WIDTH};
@@ -19,12 +22,19 @@ pub fn setup_overworld(
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     entry: Option<Res<OverworldEntry>>,
+    profile: Res<PlayerProfile>,
 ) {
     let art = OverworldArt::load(&asset_server, &mut atlas_layouts);
     let layout = OverworldLayout::homestead();
     let spawn = entry.map(|entry| *entry).unwrap_or_default();
 
     spawn_homestead(&mut commands, &art);
+    spawn_crop_plots(
+        &mut commands,
+        &art,
+        tile_rect(4, 7, 20, 17),
+        &profile.crop_plots,
+    );
     spawn_overworld_player(&mut commands, &art, spawn);
 
     commands.insert_resource(ExplorationMap {
@@ -54,6 +64,7 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt, entry: Ov
         world_transform(Vec2::new(start.x, y), 5.0),
         OverworldPlayer,
         super::movement::OverworldVelocity::default(),
+        PlayerFacing::default(),
     ));
 }
 

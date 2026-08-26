@@ -1,4 +1,5 @@
 mod autosave;
+mod crop_save;
 mod plugin;
 mod profile;
 mod settings;
@@ -6,6 +7,7 @@ mod storage;
 mod sync;
 
 pub use autosave::ProfileDirty;
+pub use crop_save::{SavedCropKind, SavedCropPlot, SavedPlotStage};
 pub use plugin::MemoryPlugin;
 pub use profile::{
     rename_profile_on_disk, sanitize_profile_name, ActiveProfile, PlayerProfile, PROFILE_COUNT,

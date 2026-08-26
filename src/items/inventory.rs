@@ -35,6 +35,17 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    /// Hoe, watering can, and starter seeds for a new homestead profile.
+    /// Does not grant pickaxe or fishing rod.
+    pub fn with_starter_seeds() -> Self {
+        let mut inventory = Self::default();
+        inventory.try_add(MaterialId::Hoe, 1);
+        inventory.try_add(MaterialId::WateringCan, 1);
+        inventory.try_add(MaterialId::TurnipSeed, 8);
+        inventory.try_add(MaterialId::PotatoSeed, 4);
+        inventory
+    }
+
     pub fn count(&self, material: MaterialId) -> u32 {
         self.slots
             .iter()
@@ -138,5 +149,16 @@ mod tests {
         assert_eq!(inventory.count(MaterialId::Fang), 99);
         assert_eq!(inventory.try_add(MaterialId::Fang, 1), 0);
         assert_eq!(inventory.count(MaterialId::Fang), 100);
+    }
+
+    #[test]
+    fn starter_seeds_are_hoe_can_turnip_potato_only() {
+        let inventory = Inventory::with_starter_seeds();
+        assert_eq!(inventory.count(MaterialId::Hoe), 1);
+        assert_eq!(inventory.count(MaterialId::WateringCan), 1);
+        assert_eq!(inventory.count(MaterialId::TurnipSeed), 8);
+        assert_eq!(inventory.count(MaterialId::PotatoSeed), 4);
+        assert_eq!(inventory.count(MaterialId::Turnip), 0);
+        assert_eq!(inventory.count(MaterialId::Potato), 0);
     }
 }

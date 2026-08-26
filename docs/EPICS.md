@@ -110,9 +110,9 @@ Zones, transitions, persistence, menus.
 | 15 | Soft day cycle + sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 16 | Hunt consumes large share of the day | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
 | 17 | Tool energy pool + UI meter | 🔧 [PR #69](https://github.com/CookBrad/destiny-forge/pull/69) |
-| 18 | Homestead tool equip + use | ⬜ |
-| 19 | Crop plots: till/plant/water/harvest | ⬜ |
-| 20 | Starter crops (2–3) | ⬜ |
+| 18 | Homestead tool equip + use | ✅ `feature/homestead-farm-18-20` |
+| 19 | Crop plots: till/plant/water/harvest | ✅ `feature/homestead-farm-18-20` |
+| 20 | Starter crops (2–3) | ✅ `feature/homestead-farm-18-20` |
 | 21 | Cooking + pre-hunt food buffs | ⬜ |
 | 22 | Inventory UX for crops/food/ore | ⬜ |
 
@@ -171,7 +171,7 @@ Zones, transitions, persistence, menus.
 | Forge craft weapons/armor | #41 | ✅ + ⬜ expand |
 | Armor set skills | #1, #41 | 🔧 |
 | Day cycle / energy | #2 | ⬜ |
-| Farming | #2 | ⬜ |
+| Farming | #2 | 🔧 till/plant/water/harvest + persist (`feature/homestead-farm-18-20`) |
 | Food buffs | #2 | ⬜ |
 | Mining / ore | #3 | ⬜ |
 | Fishing | #4 | ⬜ |
