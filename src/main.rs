@@ -3,6 +3,7 @@ mod combat;
 mod core;
 mod dungeon;
 mod exploration;
+mod farming;
 mod forest;
 mod forging;
 mod graphics;
@@ -22,6 +23,7 @@ fn main() {
         .add_plugins(graphics::GraphicsPlugin)
         .add_plugins(dungeon::DungeonPlugin)
         .add_plugins(overworld::OverworldPlugin)
+        .add_plugins(farming::FarmingPlugin)
         .add_plugins(forest::ForestPlugin)
         .add_plugins(ui::UiPlugin)
         .run();
