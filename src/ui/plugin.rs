@@ -27,8 +27,11 @@ use super::interaction_prompt::{
 };
 use super::inventory_window::{
     cleanup_inventory_window, handle_inventory_close_button, handle_inventory_slot_click,
-    inventory_window_open, sync_inventory_display, toggle_inventory_window,
-    InventorySelectedSlot, InventoryWindowOpen,
+    inventory_window_open, rebuild_inventory_on_loadout_change, sync_inventory_display,
+    toggle_inventory_window, InventorySelectedSlot, InventoryWindowOpen,
+};
+use super::loadout_strip::{
+    handle_loadout_swap_keys, handle_stash_armor_click, handle_stash_weapon_click,
 };
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
@@ -153,6 +156,10 @@ impl Plugin for UiPlugin {
                     (
                         handle_inventory_close_button,
                         handle_inventory_slot_click,
+                        handle_stash_weapon_click,
+                        handle_stash_armor_click,
+                        handle_loadout_swap_keys,
+                        rebuild_inventory_on_loadout_change,
                         sync_inventory_display,
                     )
                         .chain()
