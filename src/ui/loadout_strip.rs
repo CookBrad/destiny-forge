@@ -5,8 +5,6 @@ use crate::combat::WeaponKind;
 use crate::core::{GameState, ProfileDirty};
 use crate::player::{weapon_kind_label, ArmorKind, Loadout};
 
-use super::inventory_window::InventoryWindowOpen;
-
 const HINT: Color = Color::srgb(0.52, 0.5, 0.46);
 const LABEL: Color = Color::srgb(0.9, 0.88, 0.84);
 const BUTTON_BG: Color = Color::srgb(0.18, 0.14, 0.1);
@@ -28,10 +26,10 @@ impl LoadoutSwapAccess {
 }
 
 #[derive(Component)]
-pub struct EquippedWeaponLabel;
+struct EquippedWeaponLabel;
 
 #[derive(Component)]
-pub struct StashHintLabel;
+struct StashHintLabel;
 
 #[derive(Component, Clone, Copy)]
 pub struct StashWeaponButton {
@@ -66,7 +64,7 @@ pub fn spawn_loadout_strip(
 fn spawn_equipped_row(parent: &mut ChildBuilder<'_>, loadout: &Loadout) {
     parent.spawn((
         EquippedWeaponLabel,
-        Text::new(equipped_text(loadout)),
+        Text::new(format!("Equipped: {}", loadout.weapon_label())),
         TextFont {
             font_size: 13.0,
             ..default()
@@ -82,7 +80,7 @@ fn spawn_stash_row(
 ) {
     parent.spawn((
         StashHintLabel,
-        Text::new(hint_text(loadout, access)),
+        Text::new(stash_hint(loadout, access)),
         TextFont {
             font_size: 12.0,
             ..default()
@@ -113,38 +111,26 @@ fn spawn_stash_row(
 }
 
 fn spawn_weapon_button(parent: &mut ChildBuilder<'_>, weapon: WeaponKind) {
-    parent
-        .spawn((
-            Button,
-            StashWeaponButton { weapon },
-            Node {
-                height: Val::Px(24.0),
-                padding: UiRect::horizontal(Val::Px(8.0)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                border: UiRect::all(Val::Px(1.0)),
-                ..default()
-            },
-            BackgroundColor(BUTTON_BG),
-            BorderColor(BUTTON_BORDER),
-        ))
-        .with_children(|button| {
-            button.spawn((
-                Text::new(weapon_kind_label(weapon)),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
-                TextColor(LABEL),
-            ));
-        });
+    spawn_stash_button(
+        parent,
+        StashWeaponButton { weapon },
+        weapon_kind_label(weapon),
+    );
 }
 
 fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
+    spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
+}
+
+fn spawn_stash_button(
+    parent: &mut ChildBuilder<'_>,
+    marker: impl Component,
+    label: &'static str,
+) {
     parent
         .spawn((
             Button,
-            StashArmorButton { kind },
+            marker,
             Node {
                 height: Val::Px(24.0),
                 padding: UiRect::horizontal(Val::Px(8.0)),
@@ -158,7 +144,7 @@ fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
         ))
         .with_children(|button| {
             button.spawn((
-                Text::new(kind.label()),
+                Text::new(label),
                 TextFont {
                     font_size: 12.0,
                     ..default()
@@ -168,14 +154,12 @@ fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
         });
 }
 
-fn equipped_text(loadout: &Loadout) -> String {
-    format!("Equipped: {}", loadout.weapon_label())
-}
-
-fn hint_text(loadout: &Loadout, access: LoadoutSwapAccess) -> String {
+fn stash_hint(loadout: &Loadout, access: LoadoutSwapAccess) -> String {
     match access {
         LoadoutSwapAccess::Locked => "Swap loadout at the homestead.".to_string(),
-        LoadoutSwapAccess::Hub if loadout.stash.weapons.is_empty() && loadout.stash.armor.is_empty() => {
+        LoadoutSwapAccess::Hub
+            if loadout.stash.weapons.is_empty() && loadout.stash.armor.is_empty() =>
+        {
             "Stash is empty. Forging an alternate stores the old piece.".to_string()
         }
         LoadoutSwapAccess::Hub => {
@@ -190,10 +174,7 @@ pub fn handle_stash_weapon_click(
     mut dirty: ResMut<ProfileDirty>,
 ) {
     for (interaction, button) in &interactions {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-        if loadout.swap_to_stashed_weapon(button.weapon) {
+        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_weapon(button.weapon) {
             dirty.mark();
         }
     }
@@ -205,13 +186,15 @@ pub fn handle_stash_armor_click(
     mut dirty: ResMut<ProfileDirty>,
 ) {
     for (interaction, button) in &interactions {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-        if loadout.swap_to_stashed_armor(button.kind) {
+        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_armor(button.kind) {
             dirty.mark();
         }
     }
+}
+
+enum StashCycle {
+    First,
+    Last,
 }
 
 pub fn handle_loadout_swap_keys(
@@ -223,17 +206,16 @@ pub fn handle_loadout_swap_keys(
     if LoadoutSwapAccess::from_game_state(game.get()) != LoadoutSwapAccess::Hub {
         return;
     }
-    if loadout.stash.weapons.is_empty() {
-        return;
-    }
 
-    let forward = keyboard.just_pressed(KeyCode::BracketRight);
-    let back = keyboard.just_pressed(KeyCode::BracketLeft);
-    if !forward && !back {
+    let cycle = if keyboard.just_pressed(KeyCode::BracketRight) {
+        StashCycle::First
+    } else if keyboard.just_pressed(KeyCode::BracketLeft) {
+        StashCycle::Last
+    } else {
         return;
-    }
+    };
 
-    let Some(weapon) = next_stashed_weapon(&loadout, forward) else {
+    let Some(weapon) = cycled_stash_weapon(&loadout, cycle) else {
         return;
     };
     if loadout.swap_to_stashed_weapon(weapon) {
@@ -241,33 +223,9 @@ pub fn handle_loadout_swap_keys(
     }
 }
 
-fn next_stashed_weapon(loadout: &Loadout, forward: bool) -> Option<WeaponKind> {
-    let weapons = &loadout.stash.weapons;
-    if weapons.is_empty() {
-        return None;
-    }
-    if forward {
-        weapons.first().copied()
-    } else {
-        weapons.last().copied()
-    }
-}
-
-pub fn sync_loadout_strip(
-    loadout: Res<Loadout>,
-    game: Res<State<GameState>>,
-    open: Res<InventoryWindowOpen>,
-    mut equipped: Query<&mut Text, (With<EquippedWeaponLabel>, Without<StashHintLabel>)>,
-    mut hint: Query<&mut Text, (With<StashHintLabel>, Without<EquippedWeaponLabel>)>,
-) {
-    if !open.0 || !loadout.is_changed() {
-        return;
-    }
-    let access = LoadoutSwapAccess::from_game_state(game.get());
-    if let Ok(mut text) = equipped.get_single_mut() {
-        text.0 = equipped_text(&loadout);
-    }
-    if let Ok(mut text) = hint.get_single_mut() {
-        text.0 = hint_text(&loadout, access);
+fn cycled_stash_weapon(loadout: &Loadout, cycle: StashCycle) -> Option<WeaponKind> {
+    match cycle {
+        StashCycle::First => loadout.stash.weapons.first().copied(),
+        StashCycle::Last => loadout.stash.weapons.last().copied(),
     }
 }
