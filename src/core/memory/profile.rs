@@ -6,10 +6,11 @@ use crate::player::{Loadout, WorldProgress};
 
 use super::super::day_cycle::DayPhase;
 
+use super::crop_save::SavedCropPlot;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 5;
+pub const PROFILE_VERSION: u32 = 6;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 fn default_calendar_day() -> u32 {
@@ -45,6 +46,10 @@ pub struct PlayerProfile {
     /// Homestead tool energy (0..=max). Restored on sleep.
     #[serde(default = "default_tool_energy")]
     pub tool_energy: f32,
+    /// Homestead crop plots. Empty vec = virgin field / all Soil (new / pre-v6 saves).
+    /// Sparse: only tiles whose stage is not Soil.
+    #[serde(default)]
+    pub crop_plots: Vec<SavedCropPlot>,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -54,12 +59,13 @@ impl Default for PlayerProfile {
         Self {
             version: PROFILE_VERSION,
             name: String::new(),
-            inventory: Inventory::default(),
+            inventory: Inventory::with_starter_seeds(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
             calendar_day: 1,
             day_phase: DayPhase::Morning,
             tool_energy: default_tool_energy(),
+            crop_plots: Vec::new(),
             settings: ProfileSettings::default(),
         }
     }
