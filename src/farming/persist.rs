@@ -2,17 +2,8 @@
 //!
 //! Farming maps live `CropKind` / `PlotStage` onto core save DTOs.
 //! Soil has no DTO: skip on capture; missing tiles restore as Soil.
-//!
-//! Import path (this overlay is not a full crate):
-//! `use crate::core::memory::{SavedCropKind, SavedCropPlot, SavedPlotStage};`
-//!
-//! Re-export note: develop's `core::memory/mod.rs` should add
-//! `mod crop_save;` and
-//! `pub use crop_save::{SavedCropKind, SavedCropPlot, SavedPlotStage};`
-//! so the rest of the crate can
-//! `use crate::core::{SavedCropKind, SavedCropPlot, SavedPlotStage}`.
 
-use crate::core::memory::{SavedCropKind, SavedCropPlot, SavedPlotStage};
+use crate::core::{SavedCropKind, SavedCropPlot, SavedPlotStage};
 
 use super::crops::{CropKind, PlotStage};
 use super::plots::CropPlot;
