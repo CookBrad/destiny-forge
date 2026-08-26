@@ -3,6 +3,9 @@ use bevy::prelude::*;
 
 use crate::core::{DungeonPlayState, GameState};
 use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
+use crate::player::Loadout;
+
+use super::loadout_strip::{spawn_loadout_strip, LoadoutSwapAccess};
 
 const GRID_COLUMNS: usize = 4;
 const SLOT_SIZE: f32 = 52.0;
@@ -56,7 +59,12 @@ pub struct InventoryIconLabel;
 #[derive(Component)]
 pub struct InventoryCloseButton;
 
-pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
+pub fn spawn_inventory_window(
+    commands: &mut Commands,
+    inventory: &Inventory,
+    loadout: &Loadout,
+    access: LoadoutSwapAccess,
+) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
 
@@ -99,6 +107,7 @@ pub fn spawn_inventory_window(commands: &mut Commands, inventory: &Inventory) {
                         .with_children(|panel| {
                             spawn_header(panel);
                             spawn_slot_grid(panel, inventory, grid_width);
+                            spawn_loadout_strip(panel, loadout, access);
                             spawn_currency_footer(panel);
                         });
                 });
@@ -345,6 +354,7 @@ pub fn toggle_inventory_window(
     mut open: ResMut<InventoryWindowOpen>,
     mut commands: Commands,
     inventory: Res<Inventory>,
+    loadout: Res<Loadout>,
     windows: Query<Entity, With<InventoryWindow>>,
     game: Res<State<GameState>>,
     dungeon: Option<Res<State<DungeonPlayState>>>,
@@ -372,9 +382,37 @@ pub fn toggle_inventory_window(
         );
     } else {
         open.0 = true;
-        spawn_inventory_window(&mut commands, &inventory);
+        spawn_inventory_window(
+            &mut commands,
+            &inventory,
+            &loadout,
+            LoadoutSwapAccess::from_game_state(game.get()),
+        );
         time.pause();
     }
+}
+
+pub fn rebuild_inventory_on_loadout_change(
+    loadout: Res<Loadout>,
+    inventory: Res<Inventory>,
+    open: Res<InventoryWindowOpen>,
+    game: Res<State<GameState>>,
+    mut commands: Commands,
+    windows: Query<Entity, With<InventoryWindow>>,
+) {
+    if !open.0 || !loadout.is_changed() || windows.is_empty() {
+        return;
+    }
+
+    for entity in &windows {
+        commands.entity(entity).try_despawn_recursive();
+    }
+    spawn_inventory_window(
+        &mut commands,
+        &inventory,
+        &loadout,
+        LoadoutSwapAccess::from_game_state(game.get()),
+    );
 }
 
 pub fn handle_inventory_close_button(
@@ -548,5 +586,4 @@ pub fn sync_inventory_display(
             }
         }
     }
-
 }
