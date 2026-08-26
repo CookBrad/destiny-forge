@@ -391,7 +391,7 @@ Buffs are **prep**, not a replacement for skill.
 | ---- | ------ |
 | House / spawn | Present |
 | Forge | Interactive craft |
-| Crops | Zone marked; farming not fully simulated |
+| Crops | Farming simulated: till / plant / water / harvest + persist |
 | Animals | Decorative wanderers |
 | Forest trail | Transition to forest zone |
 | Dungeon gate | Transition to Floor 1 |
