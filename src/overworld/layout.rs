@@ -126,7 +126,7 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     spawn_house(commands, art, tile_rect(4, 30, 13, 38));
     spawn_forge(commands, art, tile_rect(37, 30, 46, 38));
 
-    spawn_tilled_field(commands, art, tile_rect(4, 7, 20, 17));
+    // Crop plots are spawned by FarmingPlugin / setup_overworld (persist + till/plant).
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
 }
@@ -351,32 +351,6 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         HouseEntity,
         OverworldEntity,
     ));
-}
-
-fn spawn_tilled_field(commands: &mut Commands, art: &OverworldArt, field: Rect) {
-    let min_tx = (field.min.x / TILE).floor() as u32;
-    let max_tx = (field.max.x / TILE).ceil() as u32;
-    let min_ty = (field.min.y / TILE).floor() as u32;
-    let max_ty = (field.max.y / TILE).ceil() as u32;
-
-    for ty in min_ty..max_ty {
-        for tx in min_tx..max_tx {
-            if (tx + ty) % 3 != 0 {
-                continue;
-            }
-            let center = tile_center(tx, ty);
-            commands.spawn((
-                Sprite {
-                    image: art.soil.clone(),
-                    color: Color::srgb(0.28, 0.62, 0.22),
-                    ..default()
-                },
-                world_transform(center, 1.2),
-                OverworldEntity,
-            ));
-        }
-    }
-
 }
 
 fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
