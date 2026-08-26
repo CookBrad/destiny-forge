@@ -1,5 +1,7 @@
 // Per-species carve loot tables.
-// guaranteed: always granted; bonus: (material, amount, chance 0.0..=1.0)
+// guaranteed: always granted.
+// bonus: named Common / Uncommon / Rare parts.
+// Each carve draws `bonus_rolls` extra parts by rarity_weights (Rare weight is set-skill scalable).
 [
     (
         target: Pack(Slime),
@@ -7,10 +9,13 @@
             (SlimeGel, 2),
         ],
         bonus: [
-            (SlimeGel, 2, 0.55),
-            (SlimeCore, 1, 0.35),
-            (IronScrap, 1, 0.25),
+            (material: SlimeGel, amount: 2, rarity: Common),
+            (material: SlimeCore, amount: 1, rarity: Uncommon),
+            (material: IronScrap, amount: 1, rarity: Uncommon),
+            (material: SlimeCore, amount: 1, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
     (
         target: Pack(Bat),
@@ -18,9 +23,12 @@
             (LeatherWing, 1),
         ],
         bonus: [
-            (Fang, 1, 0.65),
-            (LeatherWing, 1, 0.3),
+            (material: LeatherWing, amount: 1, rarity: Common),
+            (material: Fang, amount: 1, rarity: Uncommon),
+            (material: Fang, amount: 1, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
     (
         target: Pack(Goblin),
@@ -28,9 +36,12 @@
             (Fang, 1),
         ],
         bonus: [
-            (IronScrap, 1, 0.5),
-            (Fang, 1, 0.25),
+            (material: Fang, amount: 1, rarity: Common),
+            (material: IronScrap, amount: 1, rarity: Uncommon),
+            (material: Fang, amount: 2, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
     (
         target: Pack(Skeleton),
@@ -38,9 +49,12 @@
             (BoneShard, 2),
         ],
         bonus: [
-            (BoneShard, 1, 0.4),
-            (IronScrap, 1, 0.45),
+            (material: BoneShard, amount: 1, rarity: Common),
+            (material: IronScrap, amount: 1, rarity: Uncommon),
+            (material: BoneShard, amount: 2, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
     (
         target: Pack(Zombie),
@@ -48,10 +62,13 @@
             (RotFlesh, 1),
         ],
         bonus: [
-            (RotFlesh, 1, 0.4),
-            (IronScrap, 1, 0.35),
-            (SlimeGel, 1, 0.15),
+            (material: RotFlesh, amount: 1, rarity: Common),
+            (material: IronScrap, amount: 1, rarity: Uncommon),
+            (material: SlimeGel, amount: 1, rarity: Uncommon),
+            (material: RotFlesh, amount: 2, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
     (
         target: KingSlime,
@@ -61,9 +78,11 @@
             (RoyalSlimeCore, 1),
         ],
         bonus: [
-            (SlimeGel, 3, 0.5),
-            (RoyalSlimeCore, 1, 0.15),
-            (IronScrap, 2, 0.4),
+            (material: SlimeGel, amount: 3, rarity: Common),
+            (material: IronScrap, amount: 2, rarity: Uncommon),
+            (material: RoyalSlimeCore, amount: 1, rarity: Rare),
         ],
+        rarity_weights: (common: 70, uncommon: 25, rare: 5),
+        bonus_rolls: 2,
     ),
 ]
