@@ -18,7 +18,7 @@ use super::super::enemy::{
 };
 use super::super::level::{ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec};
 use super::super::movement::{DungeonPlayer, PlayerAirJumps, PlayerVelocity};
-use super::super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
+use super::super::sprites::{player_frame_rect, player_sprite_size, slime_sprite_size, DungeonArt};
 
 const BOSS_DISPLAY_SCALE: f32 = 2.0;
 const BOSS_MAX_HEALTH: f32 = 120.0;
@@ -86,10 +86,15 @@ fn spawn_enemy(
     let patrol = Patrol::between(patrol_min, patrol_max, spec.kind.patrol_speed());
     let image = enemy_texture(art, spec.kind);
 
+    let sprite_h = if spec.kind == EnemyKind::Slime {
+        slime_sprite_size().y
+    } else {
+        ENEMY_DISPLAY_SIZE.y
+    };
     let (x, y) = if spec.kind.is_airborne() {
         (spec.x, spec.top_y + 3.0 * TILE)
     } else {
-        (spec.x, center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y))
+        (spec.x, center_on_surface(spec.top_y, sprite_h))
     };
 
     let mut entity = commands.spawn((
@@ -132,7 +137,7 @@ pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpa
 
     commands.spawn((
         Sprite {
-            image: art.slime.clone(),
+            image: art.slime_king.clone(),
             color: Color::srgb(0.55, 0.95, 0.45),
             ..default()
         },
