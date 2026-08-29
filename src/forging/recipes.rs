@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::combat::WeaponKind;
 use crate::core::data_load::load_ron_from_assets_or_embedded;
 use crate::items::{Inventory, MaterialId};
-use crate::player::{ArmorKind, Loadout};
+use crate::player::{weapon_kind_label, ArmorKind, Loadout};
 
 const RECIPES_PATH: &str = "assets/data/recipes.ron";
 const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
@@ -104,8 +104,14 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
     }
 
     match recipe.output {
-        RecipeOutput::Weapon(weapon) => loadout.weapon = weapon,
-        RecipeOutput::Armor(armor) => loadout.armor.set(armor),
+        RecipeOutput::Weapon(weapon) => {
+            if recipe.requires_weapon == Some(loadout.weapon) {
+                loadout.upgrade_weapon(weapon);
+            } else {
+                loadout.equip_alternate_weapon(weapon);
+            }
+        }
+        RecipeOutput::Armor(armor) => loadout.equip_forged_armor(armor),
     }
 
     true
@@ -133,22 +139,13 @@ pub fn recipe_costs_text(inventory: &Inventory, recipe: &Recipe) -> String {
 
 pub fn recipe_requirement_text(loadout: &Loadout, recipe: &Recipe) -> Option<String> {
     recipe.requires_weapon.map(|weapon| {
-        let label = weapon_label(weapon);
+        let label = weapon_kind_label(weapon);
         if loadout.weapon == weapon {
             format!("Requires equipped {label} (ready)")
         } else {
             format!("Requires equipped {label}")
         }
     })
-}
-
-fn weapon_label(weapon: WeaponKind) -> &'static str {
-    match weapon {
-        WeaponKind::RustySword => "Rusty Sword",
-        WeaponKind::RustySpear => "Rusty Spear",
-        WeaponKind::IronSword => "Iron Sword",
-        WeaponKind::SlimeBlade => "Slime Blade",
-    }
 }
 
 pub fn forge_status(inventory: &Inventory, loadout: &Loadout, recipe: &Recipe) -> String {
@@ -202,10 +199,11 @@ mod tests {
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &iron));
         assert_eq!(loadout.weapon, WeaponKind::IronSword);
         assert_eq!(inventory.count(MaterialId::SlimeGel), 0);
+        assert_eq!(loadout.stash.weapons, vec![WeaponKind::RustySword]);
     }
 
     #[test]
-    fn slime_blade_requires_iron_sword_and_royal_core() {
+    fn slime_blade_consumes_iron_sword_instead_of_stashing() {
         let blade = recipe_named(&book(), "Slime Blade");
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
@@ -226,6 +224,7 @@ mod tests {
         ));
         assert_eq!(loadout.weapon, WeaponKind::SlimeBlade);
         assert_eq!(inventory.count(MaterialId::RoyalSlimeCore), 0);
+        assert!(!loadout.stash.weapons.contains(&WeaponKind::IronSword));
     }
 
     #[test]
