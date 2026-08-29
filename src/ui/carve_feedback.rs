@@ -167,7 +167,7 @@ pub fn drain_loot_log_to_ui(
         .saturating_add(loot_log.pending.len())
         .saturating_sub(LOG_MAX_ENTRIES);
     if overflow > 0 {
-        let mut oldest: Vec<_> = lines.iter().collect();
+        let oldest: Vec<_> = lines.iter().collect();
         // Despawn arbitrary extras; age system will clean more cleanly.
         for entity in oldest.into_iter().take(overflow) {
             commands.entity(entity).try_despawn_recursive();

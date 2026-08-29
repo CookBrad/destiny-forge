@@ -454,7 +454,7 @@ pub fn handle_forge_craft_input(
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
     recipes: Res<RecipeBook>,
-    mut interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCraftButton>)>,
+    interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCraftButton>)>,
     mut inventory: ResMut<Inventory>,
     mut loadout: ResMut<Loadout>,
     mut profile_dirty: ResMut<ProfileDirty>,

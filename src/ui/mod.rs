@@ -12,5 +12,4 @@ mod profile_picker;
 mod skill_bar;
 mod title_profiles;
 
-pub use interaction_prompt::{InteractionPrompt, PromptKind};
 pub use plugin::UiPlugin;

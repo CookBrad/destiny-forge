@@ -86,7 +86,6 @@ fn live_kind(kind: SavedCropKind) -> CropKind {
 mod tests {
     use super::*;
     use crate::core::PlayerProfile;
-    use crate::farming::crops::CropKind;
 
     fn growing_turnip() -> CropPlot {
         CropPlot {
