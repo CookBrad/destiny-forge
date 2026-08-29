@@ -15,7 +15,7 @@ pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
 pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
 pub const PLAYER_ANIM_FRAMES: usize = 4;
 
-pub const FORGE_FURNACE_HEIGHT: f32 = 74.0;
+pub const FORGE_FURNACE_HEIGHT: f32 = 80.0;
 pub const FORGE_WORKBENCH_HEIGHT: f32 = 160.0;
 pub const FORGE_ANVIL_HEIGHT: f32 = 80.0;
 

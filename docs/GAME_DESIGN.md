@@ -546,16 +546,24 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 ## Art Direction
 
+The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28; do not reopen that strip.
+
 | Spec | Value |
 | ---- | ----- |
-| Tile size | 16×16 |
-| Character frames | 16×32 (readable Stardew-like proportions) |
-| Render scale | ~3×, no smoothing |
-| Palette | Warm, earthy greens, wood, soft highlights |
-| Combat VFX | Readable silhouettes; wind-ups readable at a glance |
-| Buildings | Cozy; forge, mine, dungeon gate distinct |
+| Tile size | 16×16 (homestead / dungeon environment) |
+| Hunter cell | ~160px tall, 1× nearest-neighbor. Idle ~163×160. Do **not** crush to 16×28. |
+| Attack strip | Windup chamber 139px (blade over the shoulder); hit 343px (reach is the blade). Uniform loader cell 343×160. |
+| Render | 1× nearest-neighbor, no smoothing, no linear filter |
+| Look | Gritty forge-meets-neon |
+| Palette | Weathered browns, dark grays, neon purple piping, electric-blue circuitry, brass |
+| Player | Distressed leather duster, brass mechanical gauntlet (LEFT, purple cable), techno-energy sword in the glove (RIGHT), Rust-language **R** on the chest |
+| Homestead forge | Top-down pad-view landmark. Dual perspective stays. Not a side-view sheet. |
+| UI | Dark chrome with purple/cyan highlights |
+| Combat VFX | Readable silhouettes; wind-ups readable at a glance. Hurtbox is the body; reach is the blade. |
 
-**Pipeline:** source art under `assets/source/` → processed gameplay sprites under `assets/`. Attribution in `assets/ATTRIBUTION.txt`.
+Do **not** ship 64×64 tiles, 64×112 characters, or linear/anime filtering. That pipeline is a reject (PR #70).
+
+**Pipeline:** source art under `assets/source/` → processed gameplay sprites under `assets/`. Attribution in `assets/ATTRIBUTION.txt`. Keep gameplay filenames stable for loaders (`knight_*`, `dwarf_m_*`, `forge_furnace.png`) even when the pixels are the hunter / grit-neon forge.
 
 ---
 
@@ -606,6 +614,10 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-07 | Phase priority: mastery → homestead → mine → fish → content | Combat-first scheduling with full lifestyle design |
 | 2026-07 | 4-slot sets; 4pc includes 2pc | Clear MH-style set goals |
 | 2026-07 | Carve: hold interact ~2s, interruptible | Readable, skill-adjacent risk |
+| 2026-08 | Art north star is grit-neon, not cozy Stardew | User reference supersedes GDD palette |
+| 2026-08 | Hunter ~160px 1× NN; tiles stay 16×16 | Crushing idle to 16×28 killed the look |
+| 2026-08 | Dual perspective: hunter side-view, homestead forge top-down pad | Foreman lock; forge is not a side sheet |
+| 2026-08 | Attack strip Taste-signed: chamber 139 + hit 343 | Do not reopen; laterality brass+purple LEFT, sword RIGHT |
 
 ---
 
