@@ -7,7 +7,7 @@ use crate::graphics::{world_transform, TILE};
 use crate::overworld::layout::{tile_center, OverworldEntity};
 use crate::overworld::sprites::OverworldArt;
 
-use crate::core::memory::SavedCropPlot;
+use crate::core::SavedCropPlot;
 
 use super::crops::{advance_plot_day, CropKind, PlotStage};
 use super::persist::restored_stage;

@@ -20,7 +20,7 @@ pub use block::{despawn_block_weapon, sync_block_weapon, update_player_block};
 pub use hit_stop::{tick_hit_stop, HitStop};
 pub use player_block::PlayerBlock;
 pub use special_moves::{
-    animate_special_weapon, charge_speed, cleanup_special_weapon, resolve_special_move_hits,
+    animate_special_weapon, cleanup_special_weapon, resolve_special_move_hits,
     special_blocks_movement, special_move_speed, start_player_special_moves,
     tick_player_special_moves, tick_special_cooldowns, PlayerSpecialMove, SpecialCooldownState,
     SpecialMoveKind,

@@ -78,7 +78,7 @@ pub fn save_root_display() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::items::{Inventory, MaterialId};
+    use crate::items::MaterialId;
     use crate::player::Loadout;
 
     #[test]
