@@ -8,12 +8,15 @@ pub const PLAYER_COMBAT_ROOT: &str = "player/combat";
 pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
 /// Native pixel size of `weapon_anime_sword.png` (width × height).
+/// Blade is baked into the hunter sheet; this overlay is a transparent placeholder.
 pub const SWORD_SPRITE_WIDTH: f32 = 12.0;
 pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
 
-/// Native pixel size of each knight_m frame (width × height).
-pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
-pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
+/// Native pixel size of each hunter frame (width × height).
+/// Uniform cell is the hit frame width so the attack strip can hold chamber + thrust.
+/// Hurtbox is the body; reach is the blade. Camera/hitbox retune is a Systems follow-up.
+pub const PLAYER_SPRITE_WIDTH: f32 = 343.0;
+pub const PLAYER_SPRITE_HEIGHT: f32 = 160.0;
 
 pub const PLAYER_IDLE_FRAMES: usize = 4;
 pub const PLAYER_RUN_FRAMES: usize = 4;
