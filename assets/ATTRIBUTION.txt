@@ -11,9 +11,9 @@ Pixel Crawler — Free Pack 2.1
   Author: Anokolisa
   URL: https://anokolisa.itch.io/free-pixel-art-asset-pack-topdown-tileset-rpg-16x16-sprites
   License: Free for commercial/non-commercial use; do not redistribute or resell
-  Used for: homestead forge sprites (curated in overworld/)
+  Used for: homestead forge workbench/anvil (furnace replaced)
 
-  overworld/forge_furnace.png   — Pixel Crawler Furnace sheet (brick forge with chimney)
+  overworld/forge_furnace.png   — Original grit-neon pad-view forge (Taste-passed landmark). Not Pixel Crawler.
   overworld/forge_workbench.png — Pixel Crawler Anvil sheet (workbench station)
   overworld/forge_anvil.png     — Pixel Crawler Anvil sheet (anvil platform)
 
@@ -24,8 +24,11 @@ Pixel Crawler — Free Pack 2.1
 
   overworld/animals/quadraped.png — Dawnlike Quadraped0 sheet (farm animals)
 
-0x72 knight_m (dungeon player)
-  Curated from 0x72 DungeonTileset II frames into assets/player/combat/
+Hunter (dungeon player)
+  Original grit-neon hunter (Taste-signed idle + attack pair 2026-08-28).
+  Gameplay filenames stay knight_* for loaders.
+  Cell 343×160 1× nearest-neighbor. Attack: chamber / chamber / hit / hit.
+  Sword is baked into the hunter; weapon_anime_sword.png is a transparent placeholder.
 
 0x72 — 16x16 DungeonTileset II v1.7
   Author: Robert (0x72)
@@ -54,10 +57,10 @@ Curate gameplay files from source into player/, dungeon/enemies/, and dungeon/en
 Gameplay sprite map
 -------------------
 
-  player/combat/knight_idle_side.png   — 0x72 knight_m idle (4 frames)
-  player/combat/knight_run_side.png    — 0x72 knight_m run (4 frames)
-  player/combat/knight_attack_side.png — 0x72 knight_m attack (wind-up, swing, hit, recover)
-  player/weapons/weapon_anime_sword.png — 0x72 swing arc overlay (rotates 90° on attack)
+  player/combat/knight_idle_side.png   — Hunter idle (4 identical Taste-signed frames)
+  player/combat/knight_run_side.png    — Hunter run (lean pass; 4 frames)
+  player/combat/knight_attack_side.png — Hunter attack (chamber, chamber, hit, hit)
+  player/weapons/weapon_anime_sword.png — Transparent placeholder (blade is on the hunter)
 
   dungeon/environment/floor_ground.png   — 0x72 floor tile
   dungeon/environment/floor_platform.png   — 0x72 platform tile
