@@ -520,7 +520,6 @@ fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::player::Loadout;
 
     #[test]
     fn combo_chains_within_window() {
