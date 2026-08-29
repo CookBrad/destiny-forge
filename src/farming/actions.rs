@@ -86,8 +86,7 @@ pub fn log_action(action: &FarmActionResult) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::items::inventory::{INVENTORY_SLOT_COUNT, MAX_STACK};
-    use crate::items::MaterialId;
+    use crate::items::{INVENTORY_SLOT_COUNT, MAX_STACK, MaterialId};
 
     #[test]
     fn plant_requires_tilled_soil() {
