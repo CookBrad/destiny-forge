@@ -31,6 +31,40 @@ impl Default for AutosaveTimer {
     }
 }
 
+pub fn persist_active_profile(
+    active: &ActiveProfile,
+    audio: &AudioSettings,
+    bindings: &SkillBindings,
+    inventory: &Inventory,
+    loadout: &Loadout,
+    progress: &WorldProgress,
+    day_clock: &DayClock,
+    tool_energy: &ToolEnergy,
+    profile: &mut PlayerProfile,
+    profile_dirty: &mut ProfileDirty,
+) -> bool {
+    snapshot_profile(
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+        audio,
+        bindings,
+        profile,
+    );
+    match save_profile(active.index(), profile) {
+        Ok(()) => {
+            profile_dirty.0 = false;
+            true
+        }
+        Err(error) => {
+            warn!("Failed to save profile {}: {error}", active.index());
+            false
+        }
+    }
+}
+
 pub fn queue_autosave(profile_dirty: Res<ProfileDirty>, mut timer: ResMut<AutosaveTimer>) {
     if profile_dirty.0 {
         timer.0.reset();
@@ -60,20 +94,18 @@ pub fn debounced_autosave(
         return;
     }
 
-    snapshot_profile(
+    persist_active_profile(
+        &active,
+        &audio,
+        &bindings,
         &inventory,
         &loadout,
         &progress,
         &day_clock,
         &tool_energy,
-        &audio,
-        &bindings,
         &mut profile,
+        &mut profile_dirty,
     );
-    match save_profile(active.index(), &profile) {
-        Ok(()) => profile_dirty.0 = false,
-        Err(error) => warn!("Failed to save profile {}: {error}", active.index()),
-    }
 }
 
 pub fn flush_saves_on_exit(
@@ -92,19 +124,16 @@ pub fn flush_saves_on_exit(
         return;
     }
 
-    snapshot_profile(
+    persist_active_profile(
+        &active,
+        &audio,
+        &bindings,
         &inventory,
         &loadout,
         &progress,
         &day_clock,
         &tool_energy,
-        &audio,
-        &bindings,
         &mut profile,
+        &mut profile_dirty,
     );
-    if let Err(error) = save_profile(active.index(), &profile) {
-        warn!("Failed to flush profile on exit: {error}");
-    } else {
-        profile_dirty.0 = false;
-    }
 }
