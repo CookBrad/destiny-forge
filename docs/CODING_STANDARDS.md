@@ -61,6 +61,8 @@ All Rust code in this project follows the principles from *Clean Code* (Robert C
 
 - Pure logic (recipes, set bonuses, inventory math) gets unit tests
 - Systems that glue Bevy together stay thin so logic remains testable without a full app
+- Before opening a PR: `cargo test --bin destiny_forge` and a real `cargo run`. New compiler warnings are a fail. Say both in the PR test plan.
+- GitHub Actions runs `cargo test --locked --bin destiny_forge` with `RUSTFLAGS=-D warnings` on every PR and on `develop`. CI does not replace the local run.
 
 ---
 
