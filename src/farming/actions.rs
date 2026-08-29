@@ -47,7 +47,7 @@ fn plant_with_crop(
         return Err("no seeds in inventory");
     }
     match plant_plot(stage, crop) {
-        (next, FarmActionResult::Failed(msg)) => {
+        (_, FarmActionResult::Failed(msg)) => {
             inventory.try_add(crop.seed_material(), 1);
             Err(msg)
         }
@@ -86,9 +86,7 @@ pub fn log_action(action: &FarmActionResult) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::farming::crops::{CropKind, PlotStage};
-    use crate::items::inventory::{INVENTORY_SLOT_COUNT, MAX_STACK};
-    use crate::items::{Inventory, MaterialId};
+    use crate::items::{INVENTORY_SLOT_COUNT, MAX_STACK, MaterialId};
 
     #[test]
     fn plant_requires_tilled_soil() {

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::combat::{
     special_blocks_movement, special_move_speed, Health, PlayerAttack, PlayerBlock,
     PlayerFallDeath,
-    PlayerKnockback, PlayerSpecialMove, SpecialMoveKind,
+    PlayerKnockback, PlayerSpecialMove,
 };
 use crate::graphics::{
     viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY,

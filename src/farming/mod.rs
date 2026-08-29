@@ -8,10 +8,8 @@ mod select_tool;
 mod tools;
 mod use_tool;
 
-pub use crops::{advance_plot_day, CropKind, PlotStage};
-pub use persist::{capture_plots, restored_stage};
+pub use persist::capture_plots;
 pub use plots::{
-    advance_all_plots_on_sleep, crop_field_rect, spawn_crop_plots, CropPlot, PlayerFacing,
+    advance_all_plots_on_sleep, spawn_crop_plots, CropPlot, PlayerFacing,
 };
 pub use plugin::FarmingPlugin;
-pub use tools::{EquippedTool, HomesteadTool};
