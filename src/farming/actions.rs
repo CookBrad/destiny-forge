@@ -47,7 +47,7 @@ fn plant_with_crop(
         return Err("no seeds in inventory");
     }
     match plant_plot(stage, crop) {
-        (next, FarmActionResult::Failed(msg)) => {
+        (_, FarmActionResult::Failed(msg)) => {
             inventory.try_add(crop.seed_material(), 1);
             Err(msg)
         }
