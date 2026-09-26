@@ -25,10 +25,10 @@ Pixel Crawler — Free Pack 2.1
   overworld/animals/quadraped.png — Dawnlike Quadraped0 sheet (farm animals)
 
 Hunter (dungeon player)
-  Original grit-neon hunter (Taste-signed idle + attack pair 2026-08-28).
+  Original grit-neon hunter (Taste-signed idle, run lean, attack chamber, and attack thrust, 2026-08-28).
   Gameplay filenames stay knight_* for loaders.
-  Cell 343×160 1× nearest-neighbor. Attack: chamber / chamber / hit / hit.
-  Sword is baked into the hunter.
+  Cell 343×160 1× nearest-neighbor. Sword is baked into the hunter.
+  Signed cells stay. Added frames are in-house (tools/draw_hunter_frames.py) and add no third-party credit.
 
 0x72 — 16x16 DungeonTileset II v1.7
   Author: Robert (0x72)
@@ -57,9 +57,12 @@ Curate gameplay files from source into player/, dungeon/enemies/, and dungeon/en
 Gameplay sprite map
 -------------------
 
-  player/combat/knight_idle_side.png   — Hunter idle (4 identical Taste-signed frames)
-  player/combat/knight_run_side.png    — Hunter run (lean pass; 4 frames)
-  player/combat/knight_attack_side.png — Hunter attack (chamber, chamber, hit, hit)
+  player/combat/knight_idle_side.png   — Signed idle still (4 identical cells; cell 0 played)
+  player/combat/knight_run_side.png    — Cell 0 signed lean (not played); cells 1–8 in-house run cycle (tools/draw_hunter_frames.py)
+  player/combat/knight_attack_side.png — Signed chamber, in-house between, signed thrust, in-house recover
+  player/combat/knight_jump_side.png   — In-house jump (tools/draw_hunter_frames.py)
+  player/combat/knight_fall_side.png   — In-house fall (tools/draw_hunter_frames.py)
+  player/combat/knight_death_side.png  — In-house stagger and crumple (tools/draw_hunter_frames.py)
 
   dungeon/environment/floor_ground.png     — In-house, made by tools/draw_dungeon_environment.py
   dungeon/environment/floor_platform.png   — In-house, made by tools/draw_dungeon_environment.py
