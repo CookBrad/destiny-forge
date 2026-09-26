@@ -28,7 +28,7 @@ Hunter (dungeon player)
   Original grit-neon hunter (Taste-signed idle + attack pair 2026-08-28).
   Gameplay filenames stay knight_* for loaders.
   Cell 343×160 1× nearest-neighbor. Attack: chamber / chamber / hit / hit.
-  Sword is baked into the hunter; weapon_anime_sword.png is a transparent placeholder.
+  Sword is baked into the hunter.
 
 0x72 — 16x16 DungeonTileset II v1.7
   Author: Robert (0x72)
@@ -60,7 +60,6 @@ Gameplay sprite map
   player/combat/knight_idle_side.png   — Hunter idle (4 identical Taste-signed frames)
   player/combat/knight_run_side.png    — Hunter run (lean pass; 4 frames)
   player/combat/knight_attack_side.png — Hunter attack (chamber, chamber, hit, hit)
-  player/weapons/weapon_anime_sword.png — Transparent placeholder (blade is on the hunter)
 
   dungeon/environment/floor_ground.png     — In-house, made by tools/draw_dungeon_environment.py
   dungeon/environment/floor_platform.png   — In-house, made by tools/draw_dungeon_environment.py

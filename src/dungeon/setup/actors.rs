@@ -2,13 +2,10 @@ use bevy::prelude::*;
 
 use rand::Rng;
 
-use crate::combat::{
-    spawn_sheathed_sword, ContactDamageCooldown, Health, PlayerAttack, PlayerBlock,
-    PLAYER_MAX_HEALTH,
-};
+use crate::combat::{ContactDamageCooldown, Health, PlayerAttack, PlayerBlock, PLAYER_MAX_HEALTH};
 use crate::graphics::{
-    center_on_surface, hunter_body_anchor, solid_fill, world_transform, DUNGEON_FLOOR_Y,
-    ENEMY_DISPLAY_SIZE, HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
+    center_on_surface, solid_fill, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
+    HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
 };
 use crate::player::Loadout;
 
@@ -18,6 +15,7 @@ use super::super::enemy::{
     EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump, KingSlimeBoss,
     Patrol,
 };
+use super::super::hunter_pose::{playback_for, pose_anchor, sheet_for, HunterPose};
 use super::super::level::{
     ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec,
 };
@@ -33,29 +31,26 @@ pub fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32, loa
         center_on_surface(DUNGEON_FLOOR_Y, HUNTER_BODY_PX.y),
     );
 
-    commands
-        .spawn((
-            Sprite {
-                image: art.player_idle.clone(),
-                rect: Some(player_frame_rect(0)),
-                anchor: hunter_body_anchor(),
-                ..default()
-            },
-            world_transform(start, 10.0),
-            DungeonPlayer,
-            PlayerVelocity::default(),
-            PlayerAirJumps::default(),
-            PlayerAnimation::default(),
-            loadout.equipped_weapon(),
-            PlayerAttack::inactive(),
-            PlayerBlock::default(),
-            Health::new(PLAYER_MAX_HEALTH),
-            ContactDamageCooldown::default(),
-            DungeonEntity,
-        ))
-        .with_children(|parent| {
-            parent.spawn(spawn_sheathed_sword(art.weapon_anime_sword.clone()));
-        });
+    let idle = HunterPose::Idle;
+    commands.spawn((
+        Sprite {
+            image: art.hunter_image(sheet_for(idle)),
+            rect: Some(player_frame_rect(playback_for(idle).origin_cell)),
+            anchor: pose_anchor(idle),
+            ..default()
+        },
+        world_transform(start, 10.0),
+        DungeonPlayer,
+        PlayerVelocity::default(),
+        PlayerAirJumps::default(),
+        PlayerAnimation::default(),
+        loadout.equipped_weapon(),
+        PlayerAttack::inactive(),
+        PlayerBlock::default(),
+        Health::new(PLAYER_MAX_HEALTH),
+        ContactDamageCooldown::default(),
+        DungeonEntity,
+    ));
 }
 
 pub fn spawn_enemies(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFloor) {

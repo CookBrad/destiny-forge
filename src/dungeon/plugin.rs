@@ -1,18 +1,17 @@
 use bevy::prelude::*;
 
 use crate::combat::{
-    animate_player_death, animate_special_weapon, animate_weapon_swing, apply_enemy_contact_damage,
-    cleanup_special_weapon, deflect_projectiles_with_swing, despawn_block_weapon, detect_player_death,
-    enemy_shoot_projectiles, finish_player_death, hide_death_weapons, move_enemy_projectiles,
+    animate_player_death, apply_enemy_contact_damage, deflect_projectiles_with_swing,
+    detect_player_death, enemy_shoot_projectiles, finish_player_death, move_enemy_projectiles,
     resolve_deflected_projectile_hits, resolve_enemy_projectiles, resolve_special_move_hits,
-    resolve_weapon_hits, start_player_attack, start_player_special_moves, sync_block_weapon,
-    sync_sheathed_weapon, tick_hit_flash, tick_hit_stop, tick_player_attack, tick_player_death,
-    tick_player_hit_flash, tick_player_special_moves, tick_special_cooldowns, update_player_block,
-    HitStop, SpecialCooldownState,
+    resolve_weapon_hits, start_player_attack, start_player_special_moves, tick_hit_flash,
+    tick_hit_stop, tick_player_attack, tick_player_death, tick_player_hit_flash,
+    tick_player_special_moves, tick_special_cooldowns, update_player_block, HitStop,
+    SpecialCooldownState,
 };
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
-use crate::ui::inventory_window::inventory_closed;
 use crate::graphics::{follow_camera, init_dungeon_camera};
+use crate::ui::inventory_window::inventory_closed;
 
 use super::animation::animate_player;
 use super::boss::{resolve_boss_hazards, tick_boss_attacks, tick_boss_phase_flash};
@@ -33,16 +32,16 @@ impl Plugin for DungeonPlugin {
             .init_resource::<HitStop>()
             .init_resource::<SpecialCooldownState>()
             .add_systems(
-            OnEnter(GameState::Dungeon),
-            (
-                setup_dungeon,
-                init_dungeon_camera,
-                |mut next_play: ResMut<NextState<DungeonPlayState>>| {
-                    next_play.set(DungeonPlayState::Running);
-                },
+                OnEnter(GameState::Dungeon),
+                (
+                    setup_dungeon,
+                    init_dungeon_camera,
+                    |mut next_play: ResMut<NextState<DungeonPlayState>>| {
+                        next_play.set(DungeonPlayState::Running);
+                    },
+                )
+                    .chain(),
             )
-                .chain(),
-        )
             .add_systems(
                 OnExit(GameState::Dungeon),
                 cleanup_dungeon.after(DungeonUiTeardown),
@@ -57,7 +56,6 @@ impl Plugin for DungeonPlugin {
                 Update,
                 (
                     tick_player_death,
-                    hide_death_weapons,
                     animate_player_death,
                     follow_camera,
                     finish_player_death,
@@ -83,13 +81,7 @@ impl Plugin for DungeonPlugin {
                         start_player_special_moves,
                         tick_player_attack,
                         tick_player_special_moves,
-                        animate_weapon_swing,
-                        cleanup_special_weapon,
-                        sync_block_weapon,
-                        despawn_block_weapon,
-                        sync_sheathed_weapon,
                         dungeon_movement,
-                        animate_special_weapon,
                         follow_camera,
                         animate_player,
                     ),
