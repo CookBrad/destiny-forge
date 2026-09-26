@@ -160,8 +160,13 @@ const SPIN_SECS: f32 = 0.5;
 const SPIN_HIT_START: f32 = 0.1;
 const SPIN_HIT_END: f32 = 0.42;
 const SPIN_ATTACK_POWER: f32 = 18.0;
-const SPIN_ARM_RADIUS: f32 = TILE * 1.85;
-const SPIN_SWORD_HIT_PADDING: f32 = TILE * 0.85;
+/// Spin distances were tuned against the 160 px hunter when a tile was 16 px.
+/// Multiplying by TILE would double the whirl on the 32 px module.
+const SPIN_TUNED_TILE: f32 = 16.0;
+const SPIN_ARM_RADIUS: f32 = SPIN_TUNED_TILE * 1.85;
+const SPIN_SWORD_HIT_PADDING: f32 = SPIN_TUNED_TILE * 0.85;
+const SPIN_REACH_PAD: f32 = SPIN_TUNED_TILE * 0.35;
+const SPIN_DEFLECT_PAD: f32 = SPIN_TUNED_TILE * 0.25;
 const SPIN_PIVOT_Y: f32 = 2.0;
 
 const THRUST_SECS: f32 = 0.38;
@@ -220,7 +225,7 @@ pub fn spin_deflects_projectile(
     }
 
     let pivot = spin_pivot_world(player);
-    let reach = spin_world_reach() + TILE * 0.25;
+    let reach = spin_world_reach() + SPIN_DEFLECT_PAD;
     pivot.distance(projectile_center) <= reach
 }
 
@@ -570,7 +575,7 @@ fn spin_pivot_world(player: &Transform) -> Vec2 {
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + TILE * 0.35
+    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + SPIN_REACH_PAD
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {
@@ -673,6 +678,13 @@ mod tests {
         let body_half = player_half_extents().x;
         assert!(sweep.max_x - player.translation.x > body_half);
         assert!(player.translation.x - sweep.min_x > body_half);
+    }
+
+    #[test]
+    fn spin_arm_stays_on_the_sixteen_px_orbit() {
+        assert_eq!(SPIN_ARM_RADIUS, 16.0 * 1.85);
+        assert!(SPIN_ARM_RADIUS < TILE * 1.85);
+        assert_eq!(SPIN_SWORD_HIT_PADDING, 16.0 * 0.85);
     }
 
     #[test]

@@ -8,15 +8,18 @@ pub const WORLD_UNITS_PER_SOURCE_PX: f32 = 1.0;
 /// `OrthographicProjection.scale` is 1 in every area; there is no per-area zoom.
 pub const CAMERA_ORTHO_SCALE: f32 = 1.0;
 
-pub const TILE: f32 = 16.0;
+pub const TILE: f32 = 32.0;
 
 pub const PLAYER_WALK_SPEED: f32 = 138.0;
 pub const DUNGEON_JUMP_SPEED: f32 = 385.0;
 pub const DUNGEON_AIR_JUMP_MULT: f32 = 0.88;
 pub const DUNGEON_GRAVITY: f32 = -760.0;
 pub const DUNGEON_FLOOR_Y: f32 = 64.0;
-pub const INTERACT_DISTANCE: f32 = 20.0;
+/// 1.5 tiles. 20 px was short of an 80 px forge station on the new module.
+pub const INTERACT_DISTANCE: f32 = 48.0;
 
+/// One environment tile. Enemy sheets are still 16 px until the actors redraw;
+/// the hitbox follows this module, so those sprites sit high until that pass.
 pub const ENEMY_DISPLAY_SIZE: Vec2 = Vec2::new(TILE, TILE);
 
 /// Uniform hunter sheet cell (hit frame width). The full cell still draws.
@@ -122,9 +125,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sixteen_px_tile_is_sixteen_logical_px() {
+    fn tile_is_thirty_two_logical_px() {
         let px = logical_screen_px(TILE, WORLD_UNITS_PER_SOURCE_PX, CAMERA_ORTHO_SCALE, None);
-        assert_eq!(px, 16.0);
+        assert_eq!(px, 32.0);
+        assert_eq!(TILE, 32.0);
         assert_eq!(WORLD_UNITS_PER_SOURCE_PX, 1.0);
         assert_eq!(CAMERA_ORTHO_SCALE, 1.0);
     }
@@ -180,8 +184,30 @@ mod tests {
             CAMERA_ORTHO_SCALE,
             Some(height),
         );
-        assert_eq!(logical, 32.0);
+        assert_eq!(logical, TILE * KING_SLIME_GAMEPLAY_SCALE);
+        assert_eq!(logical, 64.0);
         assert_eq!(WORLD_UNITS_PER_SOURCE_PX, 1.0);
+    }
+
+    #[test]
+    fn jump_clears_three_tiles_and_the_air_jump_clears_four() {
+        let gravity = DUNGEON_GRAVITY.abs();
+        let apex = DUNGEON_JUMP_SPEED * DUNGEON_JUMP_SPEED / (2.0 * gravity);
+        let air_speed = DUNGEON_JUMP_SPEED * DUNGEON_AIR_JUMP_MULT;
+        let with_air = apex + air_speed * air_speed / (2.0 * gravity);
+        assert!((apex - 97.5).abs() < 0.05, "apex {apex}");
+        assert!(3.0 * TILE <= apex, "three tiles must clear on one jump");
+        assert!(4.0 * TILE > apex, "four tiles need the air jump");
+        assert!(
+            4.0 * TILE <= with_air,
+            "four tiles must clear with the air jump"
+        );
+    }
+
+    #[test]
+    fn interact_distance_is_a_tile_and_a_half() {
+        assert_eq!(INTERACT_DISTANCE, 48.0);
+        assert_eq!(INTERACT_DISTANCE, TILE * 1.5);
     }
 
     #[test]

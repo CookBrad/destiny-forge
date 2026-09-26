@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub const ENV_ROOT: &str = "dungeon/environment";
+pub const VFX_ROOT: &str = "dungeon/vfx";
 pub const ENEMY_ROOT: &str = "dungeon/enemies";
 pub const PROJECTILE_ROOT: &str = "dungeon/projectiles";
 
@@ -32,13 +33,17 @@ pub struct DungeonArt {
     pub floor_platform: Handle<Image>,
     pub floor_ladder: Handle<Image>,
     pub wall: Handle<Image>,
+    pub floor_pit: Handle<Image>,
+    pub pit_stake: Handle<Image>,
+    pub pit_lip: Handle<Image>,
+    pub ground_slam: Handle<Image>,
     pub slime: Handle<Image>,
     pub bat: Handle<Image>,
     pub goblin: Handle<Image>,
     pub skeleton: Handle<Image>,
     pub zombie: Handle<Image>,
     pub arrow: Handle<Image>,
-    /// 1×1 white pixel for solid fills (boss body, hazard markers). Not resampled art.
+    /// 1×1 white pixel for solid fills (king slime body until its art exists). Not resampled art.
     pub fill: Handle<Image>,
 }
 
@@ -54,6 +59,10 @@ impl DungeonArt {
             floor_platform: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
             floor_ladder: asset_server.load(format!("{ENV_ROOT}/floor_ladder.png")),
             wall: asset_server.load(format!("{ENV_ROOT}/wall.png")),
+            floor_pit: asset_server.load(format!("{ENV_ROOT}/floor_pit.png")),
+            pit_stake: asset_server.load(format!("{ENV_ROOT}/pit_stake.png")),
+            pit_lip: asset_server.load(format!("{ENV_ROOT}/pit_lip.png")),
+            ground_slam: asset_server.load(format!("{VFX_ROOT}/ground_slam.png")),
             slime: asset_server.load(format!("{ENEMY_ROOT}/slime.png")),
             bat: asset_server.load(format!("{ENEMY_ROOT}/bat.png")),
             goblin: asset_server.load(format!("{ENEMY_ROOT}/goblin.png")),
