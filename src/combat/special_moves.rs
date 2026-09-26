@@ -7,21 +7,20 @@ use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
     KingSlimeBoss, PlayerAnimation, PlayerVelocity,
 };
-use crate::graphics::{PIXEL_SCALE, TILE};
+use crate::graphics::{hunter_blade_tip_reach, TILE};
 use crate::player::Loadout;
 
 use super::attack::{EnemyCorpse, PlayerAttack};
 use super::health::{damage_amount, Health};
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY};
 use super::hitbox::{
-    enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local, sword_sprite_hit_rect,
-    HitRect,
+    blade_root_from_center, enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local,
+    sword_sprite_hit_rect, HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
-use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
-use super::weapon::{EquippedWeapon, WeaponFamily, WeaponKind};
+use super::weapon::{spear_special_reach, EquippedWeapon, WeaponFamily, WeaponKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SpecialMoveKind {
@@ -169,7 +168,7 @@ const THRUST_SECS: f32 = 0.38;
 const THRUST_HIT_START: f32 = 0.06;
 const THRUST_HIT_END: f32 = 0.3;
 const THRUST_ATTACK_POWER: f32 = 24.0;
-const THRUST_REACH: f32 = 64.0;
+const THRUST_REACH: f32 = spear_special_reach();
 
 pub fn player_is_busy(
     attack: &PlayerAttack,
@@ -181,11 +180,7 @@ pub fn player_is_busy(
 
 pub fn special_blocks_movement(special: Option<&PlayerSpecialMove>) -> bool {
     special.is_some_and(|m| {
-        m.is_active()
-            && matches!(
-                m.kind,
-                SpecialMoveKind::Charge | SpecialMoveKind::Thrust
-            )
+        m.is_active() && matches!(m.kind, SpecialMoveKind::Charge | SpecialMoveKind::Thrust)
     })
 }
 
@@ -399,9 +394,7 @@ pub fn animate_special_weapon(
     for mut transform in &mut fx {
         let pose = match special.kind {
             SpecialMoveKind::Charge => charge_weapon_pose(progress, special.charge_direction),
-            SpecialMoveKind::Spin => {
-                spin_weapon_pose(progress, special.charge_direction.signum())
-            }
+            SpecialMoveKind::Spin => spin_weapon_pose(progress, special.charge_direction.signum()),
             SpecialMoveKind::Thrust => thrust_weapon_pose(progress),
         };
         transform.translation = pose.translation;
@@ -472,11 +465,9 @@ pub fn resolve_special_move_hits(
 
         let airborne = kind.is_some_and(|kind| kind.is_airborne());
         let knockback = match special.kind {
-            SpecialMoveKind::Charge | SpecialMoveKind::Thrust => EnemyKnockback::from_charge(
-                special.charge_direction,
-                boss.is_some(),
-                airborne,
-            ),
+            SpecialMoveKind::Charge | SpecialMoveKind::Thrust => {
+                EnemyKnockback::from_charge(special.charge_direction, boss.is_some(), airborne)
+            }
             SpecialMoveKind::Spin => EnemyKnockback::away_from_player(
                 player_transform,
                 transform,
@@ -565,8 +556,7 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
     let facing = special.charge_direction.signum();
     let pose = spin_weapon_pose(progress, facing);
     let center = player.translation.truncate();
-    let blade_world =
-        center + Vec2::new(facing * pose.translation.x, pose.translation.y) * PIXEL_SCALE;
+    let blade_world = center + Vec2::new(facing * pose.translation.x, pose.translation.y);
 
     Some(sword_sprite_hit_rect(
         blade_world,
@@ -576,11 +566,11 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
 
 fn spin_pivot_world(player: &Transform) -> Vec2 {
     let center = player.translation.truncate();
-    center + Vec2::new(0.0, SPIN_PIVOT_Y * PIXEL_SCALE)
+    center + Vec2::new(0.0, SPIN_PIVOT_Y)
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS * PIXEL_SCALE + SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE + TILE * 0.35
+    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + TILE * 0.35
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {
@@ -637,13 +627,13 @@ fn charge_hitbox(player: &Transform, direction: f32) -> HitRect {
 fn thrust_hitbox(player: &Transform, direction: f32) -> HitRect {
     let half = player_half_extents();
     let center = player.translation.truncate();
-    let front = center.x + direction * half.x * 0.5;
+    let front = center.x + direction * blade_root_from_center(half.x);
     let tip = center.x + direction * THRUST_REACH;
 
     HitRect {
         min_x: front.min(tip),
         max_x: front.max(tip),
-        min_y: center.y - half.y * 0.45,
+        min_y: center.y - half.y,
         max_y: center.y + half.y * 0.5,
     }
 }
@@ -662,6 +652,27 @@ mod tests {
             WeaponKind::RustySpear,
             SpecialMoveKind::Spin
         ));
+    }
+
+    #[test]
+    fn spear_thrust_special_clears_the_body_and_the_lunge() {
+        let player = Transform::from_xyz(0.0, 0.0, 0.0);
+        let rect = thrust_hitbox(&player, 1.0);
+        let body_half = player_half_extents().x;
+        let lunge = WeaponKind::RustySpear.moveset().steps[2].reach;
+        assert!(rect.min_x < body_half);
+        assert!(rect.max_x > body_half);
+        assert!(rect.max_x > lunge);
+        assert!(rect.max_x > rect.min_x);
+    }
+
+    #[test]
+    fn spin_sweep_clears_the_body() {
+        let player = Transform::from_xyz(25.0, 0.0, 0.0);
+        let sweep = spin_sweep_rect(&player);
+        let body_half = player_half_extents().x;
+        assert!(sweep.max_x - player.translation.x > body_half);
+        assert!(player.translation.x - sweep.min_x > body_half);
     }
 
     #[test]

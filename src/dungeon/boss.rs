@@ -8,8 +8,8 @@ use crate::combat::{
     apply_player_hurt, damage_amount, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse,
     EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
+use crate::graphics::{solid_fill, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 use crate::player::Loadout;
-use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
 use super::movement::DungeonPlayer;
@@ -134,7 +134,11 @@ pub fn tick_boss_attacks(
             Option<&EnemyAggro>,
             Option<&BossCharging>,
         ),
-        (With<KingSlimeBoss>, Without<EnemyCorpse>, Without<DungeonPlayer>),
+        (
+            With<KingSlimeBoss>,
+            Without<EnemyCorpse>,
+            Without<DungeonPlayer>,
+        ),
     >,
 ) {
     let Ok(player_transform) = player.get_single() else {
@@ -165,7 +169,9 @@ pub fn tick_boss_attacks(
         let distance = to_player.length();
 
         if distance < BOSS_ATTACK_RANGE && aggro.is_none() {
-            commands.entity(entity).insert(EnemyAggro { lock_secs: 0.0 });
+            commands
+                .entity(entity)
+                .insert(EnemyAggro { lock_secs: 0.0 });
         }
 
         if knockback.is_some() {
@@ -182,11 +188,7 @@ pub fn tick_boss_attacks(
             windup.tick(time.delta());
             // Stronger telegraph: pulse orange during windup.
             let pulse = ((time.elapsed_secs() * 10.0).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-            sprite.color = Color::srgb(
-                1.0,
-                0.45 + 0.25 * pulse,
-                0.12 + 0.1 * pulse,
-            );
+            sprite.color = Color::srgb(1.0, 0.45 + 0.25 * pulse, 0.12 + 0.1 * pulse);
 
             if windup.finished() {
                 if let Some(kind) = controller.pending.take() {
@@ -252,12 +254,7 @@ pub fn resolve_boss_hazards(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            &mut ContactDamageCooldown,
-        ),
+        (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
         (
             With<DungeonPlayer>,
             Without<BossGroundHazard>,
@@ -375,7 +372,15 @@ fn execute_attack(
             let base = to_player.y.atan2(to_player.x);
             for offset in [-0.38, 0.0, 0.38] {
                 let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
-                fire_slime_blob(commands, art, boss_pos, dir, 8.0, 200.0, 1.0);
+                fire_slime_blob(
+                    commands,
+                    art,
+                    boss_pos,
+                    dir,
+                    8.0,
+                    200.0,
+                    ENEMY_DISPLAY_SIZE.x,
+                );
             }
             sfx.send(CombatSfx::SlimeBurst);
         }
@@ -390,7 +395,15 @@ fn execute_attack(
             let base = to_player.y.atan2(to_player.x);
             for offset in [-0.72, -0.48, -0.24, 0.0, 0.24, 0.48, 0.72] {
                 let dir = Vec2::new((base + offset).cos(), (base + offset).sin());
-                fire_slime_blob(commands, art, boss_pos, dir, 5.0, 165.0, 0.85);
+                fire_slime_blob(
+                    commands,
+                    art,
+                    boss_pos,
+                    dir,
+                    5.0,
+                    165.0,
+                    ENEMY_DISPLAY_SIZE.x * 0.85,
+                );
             }
             sfx.send(CombatSfx::SlimeBurst);
         }
@@ -411,7 +424,14 @@ fn execute_attack(
     }
 }
 
-fn fire_slime_bolt(commands: &mut Commands, art: &DungeonArt, origin: Vec2, to_target: Vec2, damage: f32, speed: f32) {
+fn fire_slime_bolt(
+    commands: &mut Commands,
+    art: &DungeonArt,
+    origin: Vec2,
+    to_target: Vec2,
+    damage: f32,
+    speed: f32,
+) {
     let dir = to_target.normalize_or_zero();
     if dir == Vec2::ZERO {
         return;
@@ -419,12 +439,11 @@ fn fire_slime_bolt(commands: &mut Commands, art: &DungeonArt, origin: Vec2, to_t
     spawn_projectile(
         commands,
         art.arrow.clone(),
+        None,
         Color::srgb(0.55, 1.0, 0.45),
         origin + dir * TILE * 0.9,
         dir * speed,
         damage,
-        PIXEL_SCALE,
-        Vec2::new(3.5, 10.5),
     );
 }
 
@@ -435,45 +454,61 @@ fn fire_slime_blob(
     dir: Vec2,
     damage: f32,
     speed: f32,
-    scale: f32,
+    diameter: f32,
 ) {
     if dir == Vec2::ZERO {
         return;
     }
-    spawn_projectile(
+    spawn_blob(
         commands,
-        art.slime.clone(),
+        art,
         Color::srgb(0.45, 0.95, 0.35),
         origin + dir * TILE * 0.75,
         dir * speed,
         damage,
-        PIXEL_SCALE * scale,
-        Vec2::new(8.0, 8.0),
+        diameter,
     );
 }
 
 fn spawn_falling_blob(commands: &mut Commands, art: &DungeonArt, origin: Vec2, damage: f32) {
-    spawn_projectile(
+    spawn_blob(
         commands,
-        art.slime.clone(),
+        art,
         Color::srgb(0.35, 0.85, 0.95),
         origin,
         Vec2::new(0.0, -210.0),
         damage,
-        PIXEL_SCALE * 0.9,
-        Vec2::new(7.0, 7.0),
+        ENEMY_DISPLAY_SIZE.x * 0.9,
     );
+}
+
+/// A slime-sized blob keeps the 1× sprite. Any other diameter is a solid fill, not a scaled texture.
+fn spawn_blob(
+    commands: &mut Commands,
+    art: &DungeonArt,
+    color: Color,
+    position: Vec2,
+    velocity: Vec2,
+    damage: f32,
+    diameter: f32,
+) {
+    let native = (diameter - ENEMY_DISPLAY_SIZE.x).abs() < 0.01;
+    let (image, size) = if native {
+        (art.slime.clone(), None)
+    } else {
+        (art.fill.clone(), Some(Vec2::splat(diameter)))
+    };
+    spawn_projectile(commands, image, size, color, position, velocity, damage);
 }
 
 fn spawn_projectile(
     commands: &mut Commands,
     image: Handle<Image>,
+    custom_size: Option<Vec2>,
     color: Color,
     position: Vec2,
     velocity: Vec2,
     damage: f32,
-    scale: f32,
-    _hit_half: Vec2,
 ) {
     let angle = velocity.y.atan2(velocity.x) - FRAC_PI_2;
 
@@ -481,43 +516,38 @@ fn spawn_projectile(
         Sprite {
             image,
             color,
+            custom_size,
             ..default()
         },
         Transform {
             translation: Vec3::new(position.x, position.y, 4.5),
             rotation: Quat::from_rotation_z(angle),
-            scale: Vec3::splat(scale),
             ..default()
         },
         EnemyProjectile { damage },
         ProjectileVelocity(velocity),
-        ProjectileLifetime {
-            remaining: 4.5,
-        },
+        ProjectileLifetime { remaining: 4.5 },
         DeflectedProjectile::default(),
         DungeonEntity,
     ));
 }
 
 fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, target_x: f32) {
+    let half_width = TILE * 2.8;
     let half_height = TILE * 0.75;
     let y = DUNGEON_FLOOR_Y + half_height;
 
     commands.spawn((
-        Sprite {
-            image: art.floor_platform.clone(),
-            color: Color::srgba(0.95, 0.25, 0.15, 0.7),
-            ..default()
-        },
-        Transform {
-            translation: Vec3::new(target_x, y, 2.0),
-            scale: Vec3::new(PIXEL_SCALE * 3.2, PIXEL_SCALE * 0.55, 1.0),
-            ..default()
-        },
+        solid_fill(
+            art.fill.clone(),
+            Vec2::new(half_width * 2.0, half_height * 2.0),
+            Color::srgba(0.95, 0.25, 0.15, 0.7),
+        ),
+        Transform::from_xyz(target_x, y, 2.0),
         BossGroundHazard {
             damage: 16.0,
             lifetime: Timer::from_seconds(1.35, TimerMode::Once),
-            half_width: TILE * 2.8,
+            half_width,
             half_height,
         },
         DungeonEntity,

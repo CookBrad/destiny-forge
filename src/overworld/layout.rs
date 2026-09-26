@@ -22,8 +22,7 @@ pub fn homestead_forest_transition() -> Rect {
 }
 
 pub fn homestead_forest_trail(tx: u32, ty: u32) -> bool {
-    (tx >= 2 && tx <= 4 && ty >= 22 && ty <= 39)
-        || (tx >= 4 && tx <= 6 && ty >= 25 && ty <= 28)
+    (tx >= 2 && tx <= 4 && ty >= 22 && ty <= 39) || (tx >= 4 && tx <= 6 && ty >= 25 && ty <= 28)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -239,24 +238,19 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         OverworldEntity,
     ));
 
-    let roof_center = Vec2::new(
-        center_x,
-        footprint.max.y - TILE * 0.35,
-    );
-    commands.spawn((
-        Sprite {
-            image: art.roof.clone(),
-            color: Color::srgb(0.34, 0.3, 0.28),
-            custom_size: Some(Vec2::new(
-                (max_tx - min_tx) as f32 * TILE * 0.85,
-                TILE * 0.7,
-            )),
-            ..default()
+    // One native tile per column. Stretching one 16×16 cell across the roof resamples it.
+    spawn_native_roof_row(
+        commands,
+        art.roof.clone(),
+        Color::srgb(0.34, 0.3, 0.28),
+        min_tx,
+        max_tx,
+        max_ty.saturating_sub(1),
+        2.6,
+        |entity| {
+            entity.insert((ForgeEntity, OverworldEntity));
         },
-        world_transform(roof_center, 2.6),
-        ForgeEntity,
-        OverworldEntity,
-    ));
+    );
 }
 
 /// Player house: floor interior, door gap on south wall, bed for sleep.
@@ -308,11 +302,11 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
     let bed_tx = min_tx + (max_tx - min_tx) / 2;
     let bed_ty = max_ty.saturating_sub(2).max(min_ty + 1);
     let bed_center = tile_center(bed_tx, bed_ty);
+    // No bed sprite yet: one tinted wall tile at 1×, not a stretched quad.
     commands.spawn((
         Sprite {
             image: art.wall.clone(),
             color: Color::srgb(0.55, 0.28, 0.35),
-            custom_size: Some(Vec2::new(TILE * 1.6, TILE * 0.95)),
             ..default()
         },
         world_transform(bed_center, 1.6),
@@ -320,12 +314,11 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         HouseEntity,
         OverworldEntity,
     ));
-    // Pillow accent
+    // No pillow sprite yet. A 16×16 path tile overlaps the bed until that art exists.
     commands.spawn((
         Sprite {
             image: art.path.clone(),
             color: Color::srgb(0.85, 0.82, 0.75),
-            custom_size: Some(Vec2::new(TILE * 0.55, TILE * 0.35)),
             ..default()
         },
         world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
@@ -333,34 +326,45 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         OverworldEntity,
     ));
 
-    let roof_center = Vec2::new(
-        (footprint.min.x + footprint.max.x) * 0.5,
-        footprint.max.y - TILE * 0.5,
-    );
-    commands.spawn((
-        Sprite {
-            image: art.roof.clone(),
-            color: Color::srgb(0.45, 0.22, 0.16),
-            custom_size: Some(Vec2::new(
-                (max_tx - min_tx) as f32 * TILE,
-                TILE * 1.2,
-            )),
-            ..default()
+    spawn_native_roof_row(
+        commands,
+        art.roof.clone(),
+        Color::srgb(0.45, 0.22, 0.16),
+        min_tx,
+        max_tx,
+        max_ty.saturating_sub(1),
+        2.0,
+        |entity| {
+            entity.insert((HouseEntity, OverworldEntity));
         },
-        world_transform(roof_center, 2.0),
-        HouseEntity,
-        OverworldEntity,
-    ));
+    );
+}
+
+fn spawn_native_roof_row(
+    commands: &mut Commands,
+    image: Handle<Image>,
+    color: Color,
+    min_tx: u32,
+    max_tx: u32,
+    tile_y: u32,
+    z: f32,
+    mut mark: impl FnMut(&mut EntityCommands),
+) {
+    for tx in min_tx..max_tx {
+        let mut roof = commands.spawn((
+            Sprite {
+                image: image.clone(),
+                color,
+                ..default()
+            },
+            world_transform(tile_center(tx, tile_y), z),
+        ));
+        mark(&mut roof);
+    }
 }
 
 fn spawn_animal_pen(commands: &mut Commands, art: &OverworldArt, _pen: Rect) {
-    let animal_spots = [
-        (36, 10),
-        (40, 12),
-        (44, 9),
-        (38, 14),
-        (42, 11),
-    ];
+    let animal_spots = [(36, 10), (40, 12), (44, 9), (38, 14), (42, 11)];
     for (index, (tx, ty)) in animal_spots.iter().enumerate() {
         super::animals::spawn_farm_animal(
             commands,

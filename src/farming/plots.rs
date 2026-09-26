@@ -80,7 +80,6 @@ fn spawn_one_plot(
             Sprite {
                 image: art.soil.clone(),
                 color: soil.color,
-                custom_size: Some(soil.size),
                 ..default()
             },
             world_transform(center, 1.15),
@@ -97,7 +96,6 @@ fn spawn_one_plot(
                 Sprite {
                     image: art.grass.clone(),
                     color: Color::NONE,
-                    custom_size: Some(Vec2::splat(TILE * 0.7)),
                     ..default()
                 },
                 Transform::from_translation(Vec3::new(0.0, 0.0, 0.2)),
@@ -105,14 +103,14 @@ fn spawn_one_plot(
                 CropPlantSprite,
                 OverworldEntity,
             ));
+            // Water sits above the plant. Both are full 16×16 tiles, and the plant is opaque.
             parent.spawn((
                 Sprite {
                     image: art.path.clone(),
                     color: Color::srgba(0.35, 0.55, 0.85, 0.55),
-                    custom_size: Some(Vec2::new(TILE * 0.75, TILE * 0.22)),
                     ..default()
                 },
-                Transform::from_translation(Vec3::new(0.0, -TILE * 0.22, 0.15)),
+                Transform::from_translation(Vec3::new(0.0, -TILE * 0.22, 0.3)),
                 Visibility::Hidden,
                 CropWaterSprite,
                 OverworldEntity,
@@ -151,16 +149,14 @@ enum PlantSpriteKind {
 
 struct LayerVisual {
     color: Color,
-    size: Vec2,
     offset_y: f32,
     visible: bool,
     sprite_kind: PlantSpriteKind,
 }
 
-fn soil_layer(color: Color, size: Vec2) -> LayerVisual {
+fn soil_layer(color: Color) -> LayerVisual {
     LayerVisual {
         color,
-        size,
         offset_y: 0.0,
         visible: true,
         sprite_kind: PlantSpriteKind::None,
@@ -169,19 +165,12 @@ fn soil_layer(color: Color, size: Vec2) -> LayerVisual {
 
 fn soil_visual(stage: PlotStage) -> LayerVisual {
     match stage {
-        PlotStage::Soil => soil_layer(Color::srgb(0.42, 0.32, 0.2), Vec2::splat(TILE * 0.92)),
-        PlotStage::Tilled => soil_layer(
-            Color::srgb(0.22, 0.14, 0.08),
-            Vec2::new(TILE * 0.88, TILE * 0.78),
-        ),
-        PlotStage::Growing { watered: true, .. } => soil_layer(
-            Color::srgb(0.16, 0.14, 0.18),
-            Vec2::new(TILE * 0.88, TILE * 0.78),
-        ),
-        PlotStage::Growing { watered: false, .. } | PlotStage::Ready { .. } => soil_layer(
-            Color::srgb(0.24, 0.15, 0.09),
-            Vec2::new(TILE * 0.88, TILE * 0.78),
-        ),
+        PlotStage::Soil => soil_layer(Color::srgb(0.42, 0.32, 0.2)),
+        PlotStage::Tilled => soil_layer(Color::srgb(0.22, 0.14, 0.08)),
+        PlotStage::Growing { watered: true, .. } => soil_layer(Color::srgb(0.16, 0.14, 0.18)),
+        PlotStage::Growing { watered: false, .. } | PlotStage::Ready { .. } => {
+            soil_layer(Color::srgb(0.24, 0.15, 0.09))
+        }
     }
 }
 
@@ -193,7 +182,6 @@ fn plant_visual(stage: PlotStage) -> LayerVisual {
     match stage {
         PlotStage::Soil | PlotStage::Tilled => LayerVisual {
             color: Color::NONE,
-            size: Vec2::splat(1.0),
             offset_y: 0.0,
             visible: false,
             sprite_kind: PlantSpriteKind::None,
@@ -217,43 +205,22 @@ fn growing_plant_visual(crop: CropKind, days: u8, watered: bool) -> LayerVisual 
         };
         return LayerVisual {
             color: tint,
-            size: Vec2::splat(TILE * 0.7),
             offset_y: -TILE * 0.02,
             visible: true,
             sprite_kind: PlantSpriteKind::Seed,
         };
     }
 
-    let (color, size, offset_y) = match (crop, days) {
-        (CropKind::Turnip, 1) => (
-            Color::srgb(0.35, 0.72, 0.32),
-            Vec2::new(TILE * 0.28, TILE * 0.38),
-            TILE * 0.08,
-        ),
-        (CropKind::Potato, 1) => (
-            Color::srgb(0.28, 0.62, 0.28),
-            Vec2::new(TILE * 0.3, TILE * 0.32),
-            TILE * 0.06,
-        ),
-        (CropKind::Potato, 2) => (
-            Color::srgb(0.32, 0.7, 0.3),
-            Vec2::new(TILE * 0.42, TILE * 0.48),
-            TILE * 0.12,
-        ),
-        (CropKind::Turnip, _) => (
-            Color::srgb(0.4, 0.78, 0.35),
-            Vec2::new(TILE * 0.4, TILE * 0.5),
-            TILE * 0.12,
-        ),
-        (CropKind::Potato, _) => (
-            Color::srgb(0.35, 0.72, 0.32),
-            Vec2::new(TILE * 0.45, TILE * 0.52),
-            TILE * 0.14,
-        ),
+    // Stage is a tint on the 16×16 grass cell. There is no sprout sheet to draw smaller.
+    let (color, offset_y) = match (crop, days) {
+        (CropKind::Turnip, 1) => (Color::srgb(0.35, 0.72, 0.32), TILE * 0.08),
+        (CropKind::Potato, 1) => (Color::srgb(0.28, 0.62, 0.28), TILE * 0.06),
+        (CropKind::Potato, 2) => (Color::srgb(0.32, 0.7, 0.3), TILE * 0.12),
+        (CropKind::Turnip, _) => (Color::srgb(0.4, 0.78, 0.35), TILE * 0.12),
+        (CropKind::Potato, _) => (Color::srgb(0.35, 0.72, 0.32), TILE * 0.14),
     };
     LayerVisual {
         color,
-        size,
         offset_y,
         visible: true,
         sprite_kind: PlantSpriteKind::Foliage,
@@ -261,19 +228,12 @@ fn growing_plant_visual(crop: CropKind, days: u8, watered: bool) -> LayerVisual 
 }
 
 fn ready_plant_visual(crop: CropKind) -> LayerVisual {
-    let (color, size) = match crop {
-        CropKind::Turnip => (
-            Color::srgb(0.72, 0.42, 0.78),
-            Vec2::new(TILE * 0.48, TILE * 0.55),
-        ),
-        CropKind::Potato => (
-            Color::srgb(0.82, 0.68, 0.38),
-            Vec2::new(TILE * 0.55, TILE * 0.42),
-        ),
+    let color = match crop {
+        CropKind::Turnip => Color::srgb(0.72, 0.42, 0.78),
+        CropKind::Potato => Color::srgb(0.82, 0.68, 0.38),
     };
     LayerVisual {
         color,
-        size,
         offset_y: TILE * 0.1,
         visible: true,
         sprite_kind: PlantSpriteKind::Foliage,
@@ -282,24 +242,34 @@ fn ready_plant_visual(crop: CropKind) -> LayerVisual {
 
 pub fn sync_plot_visuals(
     art: Res<OverworldArt>,
-    mut plots: Query<(&CropPlot, &Children, &mut Sprite), (With<CropSoilSprite>, Changed<CropPlot>)>,
+    mut plots: Query<
+        (&CropPlot, &Children, &mut Sprite),
+        (With<CropSoilSprite>, Changed<CropPlot>),
+    >,
     mut plants: Query<
         (&mut Sprite, &mut Transform, &mut Visibility),
-        (With<CropPlantSprite>, Without<CropSoilSprite>, Without<CropWaterSprite>),
+        (
+            With<CropPlantSprite>,
+            Without<CropSoilSprite>,
+            Without<CropWaterSprite>,
+        ),
     >,
     mut waters: Query<
         (&mut Sprite, &mut Visibility),
-        (With<CropWaterSprite>, Without<CropSoilSprite>, Without<CropPlantSprite>),
+        (
+            With<CropWaterSprite>,
+            Without<CropSoilSprite>,
+            Without<CropPlantSprite>,
+        ),
     >,
 ) {
     for (plot, children, mut soil_sprite) in &mut plots {
         let soil = soil_visual(plot.stage);
         soil_sprite.color = soil.color;
-        soil_sprite.custom_size = Some(soil.size);
 
         let plant = plant_visual(plot.stage);
         let show_water = watered_stage(plot.stage);
-        // Placeholder: reuse homestead grass until dedicated crop tiles land.
+        // Placeholder grass tile at 1×. Stage is the tint until dedicated crop sprites land.
         let plant_image = art.grass.clone();
         let _ = plant.sprite_kind;
 
@@ -307,7 +277,6 @@ pub fn sync_plot_visuals(
             if let Ok((mut sprite, mut transform, mut visibility)) = plants.get_mut(*child) {
                 sprite.image = plant_image.clone();
                 sprite.color = plant.color;
-                sprite.custom_size = Some(plant.size);
                 transform.translation.y = plant.offset_y;
                 *visibility = if plant.visible {
                     Visibility::Visible
@@ -339,16 +308,20 @@ mod tests {
     fn each_stage_has_distinct_plant_visibility() {
         assert!(!plant_visual(PlotStage::Soil).visible);
         assert!(!plant_visual(PlotStage::Tilled).visible);
-        assert!(plant_visual(PlotStage::Growing {
-            crop: CropKind::Turnip,
-            days: 0,
-            watered: false,
-        })
-        .visible);
-        assert!(plant_visual(PlotStage::Ready {
-            crop: CropKind::Potato
-        })
-        .visible);
+        assert!(
+            plant_visual(PlotStage::Growing {
+                crop: CropKind::Turnip,
+                days: 0,
+                watered: false,
+            })
+            .visible
+        );
+        assert!(
+            plant_visual(PlotStage::Ready {
+                crop: CropKind::Potato
+            })
+            .visible
+        );
     }
 
     #[test]
