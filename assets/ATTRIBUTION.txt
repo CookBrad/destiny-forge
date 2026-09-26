@@ -96,8 +96,15 @@ Audio
 UI
 --
 
-  ui/skills/*.png — Dawnlike 16x16 (CC-BY 4.0)
+  ui/skills/*.png — in-house 32×32 skill icons
+  Author: Destiny Forge (original pixel art, tools/draw_skill_icons.py)
+  Used for: skill bar (attack sword, block shield, charge boot, spin/thrust wand)
+
+Dawnlike
+--------
+
+  overworld/animals/quadraped.png — Dawnlike 16x16 (CC-BY 4.0)
   Author: DragonDePlatino (Artyom Zhidkov)
   URL: https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tile-set-v181
   License: CC-BY 4.0
-  Used for: skill bar icons (sword, shield, boots, wand tiles cropped from item sheets)
+  Used for: overworld farm animals (overworld/animals/quadraped.png)
