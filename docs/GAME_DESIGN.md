@@ -581,7 +581,7 @@ Do **not** ship 64×64 tiles, 64×112 characters, or linear/anime filtering. Tha
 ```text
 src/
 ├── core/        # States, save/load, teardown
-├── graphics/    # Camera, world units, pixel scale
+├── graphics/    # Camera, world units, 1× nearest-neighbor scale
 ├── dungeon/     # Floors, enemies, boss, carve hooks
 ├── combat/      # Attack, block, specials, health, skills
 ├── forging/     # Recipes, craft validation

@@ -24,8 +24,15 @@ pub const HUNTER_CELL_PX: Vec2 = Vec2::new(343.0, 160.0);
 /// GDD body inside that cell, left-aligned. Hurtbox and feet use this, not the cell.
 pub const HUNTER_BODY_PX: Vec2 = Vec2::new(163.0, 160.0);
 
-/// King slime is 2× the slime sprite; that multiplier is gameplay, not a second pixel scale.
+/// King slime's body is two slime-tiles across. Drawn as a 1× solid fill until boss art exists.
+/// Gameplay size only — sprite transforms stay at scale 1.
 pub const KING_SLIME_GAMEPLAY_SCALE: f32 = 2.0;
+
+/// Distance from the body center to the hit-frame blade tip.
+/// The cell is left-aligned on the body, so the tip is one cell width from the body's left edge.
+pub const fn hunter_blade_tip_reach() -> f32 {
+    HUNTER_CELL_PX.x - HUNTER_BODY_PX.x * 0.5
+}
 
 pub fn to_world(pixels: Vec2, z: f32) -> Vec3 {
     Vec3::new(pixels.x, pixels.y, z)
@@ -45,7 +52,8 @@ pub fn world_transform(pixels: Vec2, z: f32) -> Transform {
     }
 }
 
-/// 1×1 white image for solid fills (grid stroke, health bar). Not a gameplay sprite.
+/// 1×1 white image for solid fills (grid stroke, health bar, placeholder markers).
+/// Not a gameplay sprite.
 pub fn solid_white_pixel(images: &mut Assets<Image>) -> Handle<Image> {
     images.add(Image::new_fill(
         Extent3d {
@@ -58,6 +66,16 @@ pub fn solid_white_pixel(images: &mut Assets<Image>) -> Handle<Image> {
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     ))
+}
+
+/// A solid fill of `size` logical pixels. The image stays 1×1; `custom_size` is not a resample.
+pub fn solid_fill(pixel: Handle<Image>, size: Vec2, color: Color) -> Sprite {
+    Sprite {
+        image: pixel,
+        color,
+        custom_size: Some(size),
+        ..default()
+    }
 }
 
 /// Logical screen pixels for one axis. Test oracle for the 1× contract.
@@ -104,11 +122,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sixteen_px_tile_is_sixteen_logical_px_in_every_area() {
-        for _area in ["title", "homestead", "forest", "house", "forge", "dungeon"] {
-            let px = logical_screen_px(TILE, WORLD_UNITS_PER_SOURCE_PX, CAMERA_ORTHO_SCALE, None);
-            assert_eq!(px, 16.0);
-        }
+    fn sixteen_px_tile_is_sixteen_logical_px() {
+        let px = logical_screen_px(TILE, WORLD_UNITS_PER_SOURCE_PX, CAMERA_ORTHO_SCALE, None);
+        assert_eq!(px, 16.0);
+        assert_eq!(WORLD_UNITS_PER_SOURCE_PX, 1.0);
+        assert_eq!(CAMERA_ORTHO_SCALE, 1.0);
     }
 
     #[test]
@@ -152,17 +170,25 @@ mod tests {
     }
 
     #[test]
-    fn king_slime_feet_share_the_floor_but_its_pixels_are_twice_as_large() {
+    fn king_slime_fill_is_two_tiles_at_scale_one() {
         let height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
         let center = center_on_surface(DUNGEON_FLOOR_Y, height);
         assert_eq!(center - height * 0.5, DUNGEON_FLOOR_Y);
         let logical = logical_screen_px(
-            ENEMY_DISPLAY_SIZE.y,
-            KING_SLIME_GAMEPLAY_SCALE,
+            1.0,
+            WORLD_UNITS_PER_SOURCE_PX,
             CAMERA_ORTHO_SCALE,
-            None,
+            Some(height),
         );
         assert_eq!(logical, 32.0);
+        assert_eq!(WORLD_UNITS_PER_SOURCE_PX, 1.0);
+    }
+
+    #[test]
+    fn blade_tip_reach_is_the_hit_frame_past_the_body() {
+        let tip = hunter_blade_tip_reach();
+        assert_eq!(tip, HUNTER_CELL_PX.x - HUNTER_BODY_PX.x * 0.5);
+        assert!(tip > HUNTER_BODY_PX.x * 0.5);
     }
 
     #[test]

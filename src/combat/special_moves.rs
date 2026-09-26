@@ -7,21 +7,20 @@ use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
     KingSlimeBoss, PlayerAnimation, PlayerVelocity,
 };
-use crate::graphics::TILE;
+use crate::graphics::{hunter_blade_tip_reach, TILE};
 use crate::player::Loadout;
 
 use super::attack::{EnemyCorpse, PlayerAttack};
 use super::health::{damage_amount, Health};
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY};
 use super::hitbox::{
-    enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local, sword_sprite_hit_rect,
-    HitRect,
+    blade_root_from_center, enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local,
+    sword_sprite_hit_rect, HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
-use super::weapon::{EquippedWeapon, WeaponFamily, WeaponKind};
-use crate::dungeon::SWORD_SPRITE_HEIGHT;
+use super::weapon::{spear_special_reach, EquippedWeapon, WeaponFamily, WeaponKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SpecialMoveKind {
@@ -169,7 +168,7 @@ const THRUST_SECS: f32 = 0.38;
 const THRUST_HIT_START: f32 = 0.06;
 const THRUST_HIT_END: f32 = 0.3;
 const THRUST_ATTACK_POWER: f32 = 24.0;
-const THRUST_REACH: f32 = 64.0;
+const THRUST_REACH: f32 = spear_special_reach();
 
 pub fn player_is_busy(
     attack: &PlayerAttack,
@@ -571,7 +570,7 @@ fn spin_pivot_world(player: &Transform) -> Vec2 {
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS + SWORD_SPRITE_HEIGHT * 0.5 + TILE * 0.35
+    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + TILE * 0.35
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {
@@ -628,13 +627,13 @@ fn charge_hitbox(player: &Transform, direction: f32) -> HitRect {
 fn thrust_hitbox(player: &Transform, direction: f32) -> HitRect {
     let half = player_half_extents();
     let center = player.translation.truncate();
-    let front = center.x + direction * half.x * 0.5;
+    let front = center.x + direction * blade_root_from_center(half.x);
     let tip = center.x + direction * THRUST_REACH;
 
     HitRect {
         min_x: front.min(tip),
         max_x: front.max(tip),
-        min_y: center.y - half.y * 0.45,
+        min_y: center.y - half.y,
         max_y: center.y + half.y * 0.5,
     }
 }
@@ -653,6 +652,27 @@ mod tests {
             WeaponKind::RustySpear,
             SpecialMoveKind::Spin
         ));
+    }
+
+    #[test]
+    fn spear_thrust_special_clears_the_body_and_the_lunge() {
+        let player = Transform::from_xyz(0.0, 0.0, 0.0);
+        let rect = thrust_hitbox(&player, 1.0);
+        let body_half = player_half_extents().x;
+        let lunge = WeaponKind::RustySpear.moveset().steps[2].reach;
+        assert!(rect.min_x < body_half);
+        assert!(rect.max_x > body_half);
+        assert!(rect.max_x > lunge);
+        assert!(rect.max_x > rect.min_x);
+    }
+
+    #[test]
+    fn spin_sweep_clears_the_body() {
+        let player = Transform::from_xyz(25.0, 0.0, 0.0);
+        let sweep = spin_sweep_rect(&player);
+        let body_half = player_half_extents().x;
+        assert!(sweep.max_x - player.translation.x > body_half);
+        assert!(player.translation.x - sweep.min_x > body_half);
     }
 
     #[test]
