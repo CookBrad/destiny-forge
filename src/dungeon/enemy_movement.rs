@@ -477,6 +477,6 @@ mod tests {
         let center = standing_center_y(height);
         let half = height * 0.5;
         assert_eq!(center - half, DUNGEON_FLOOR_Y);
-        assert_eq!(half, 16.0);
+        assert_eq!(half, TILE);
     }
 }

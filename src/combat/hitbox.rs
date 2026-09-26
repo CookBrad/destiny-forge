@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::dungeon::{player_half_extents, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
+use crate::dungeon::{player_half_extents, SWORD_SPRITE_WIDTH};
 use crate::graphics::hunter_blade_tip_reach;
 
 #[derive(Clone, Copy, Debug)]
@@ -75,11 +75,6 @@ pub fn animation_facing(transform: &Transform) -> f32 {
     } else {
         1.0
     }
-}
-
-/// Overlay pose for the transparent 12×30 placeholder. Damage uses [`sword_swing_aabb`].
-pub fn sword_blade_center_local(angle: f32) -> Vec2 {
-    blade_center_for_length(angle, SWORD_SPRITE_HEIGHT)
 }
 
 fn blade_center_for_length(angle: f32, blade_length: f32) -> Vec2 {

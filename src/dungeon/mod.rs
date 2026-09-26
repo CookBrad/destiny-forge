@@ -7,6 +7,7 @@ mod enemy_movement;
 mod enemy_stats;
 mod floor1;
 mod generation;
+pub(crate) mod hunter_pose;
 mod interaction;
 mod level;
 mod movement;
@@ -20,10 +21,7 @@ pub use enemy::{
     EnemyShootCooldown, KingSlimeBoss, Patrol,
 };
 pub use enemy_movement::move_enemies;
-pub use setup::{DungeonEntity, PlatformCollider};
 pub use movement::{DungeonPlayer, PlayerVelocity};
 pub use plugin::DungeonPlugin;
-pub use sprites::{
-    player_frame_rect, player_half_extents, DungeonArt, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
-    SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH,
-};
+pub use setup::{DungeonEntity, PlatformCollider};
+pub use sprites::{player_frame_rect, player_half_extents, DungeonArt, SWORD_SPRITE_WIDTH};

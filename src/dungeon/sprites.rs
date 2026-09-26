@@ -1,16 +1,17 @@
 use bevy::prelude::*;
 
+use super::hunter_pose::HunterSheet;
+
 pub const ENV_ROOT: &str = "dungeon/environment";
+pub const VFX_ROOT: &str = "dungeon/vfx";
 pub const ENEMY_ROOT: &str = "dungeon/enemies";
 pub const PROJECTILE_ROOT: &str = "dungeon/projectiles";
 
 pub const PLAYER_COMBAT_ROOT: &str = "player/combat";
-pub const WEAPON_ANIME_SWORD: &str = "player/weapons/weapon_anime_sword.png";
 
-/// Native pixel size of `weapon_anime_sword.png` (width × height).
-/// Blade is baked into the hunter sheet; this overlay is a transparent placeholder.
+/// Narrow axis of the sword swing AABB, in pixels.
+/// The blade is painted on the hunter. This is not a sprite file.
 pub const SWORD_SPRITE_WIDTH: f32 = 12.0;
-pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
 
 /// Native pixel size of each hunter frame (width × height).
 /// Uniform cell is the hit frame width so the attack strip can hold chamber + thrust.
@@ -18,27 +19,26 @@ pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
 pub const PLAYER_SPRITE_WIDTH: f32 = crate::graphics::HUNTER_CELL_PX.x;
 pub const PLAYER_SPRITE_HEIGHT: f32 = crate::graphics::HUNTER_CELL_PX.y;
 
-pub const PLAYER_IDLE_FRAMES: usize = 4;
-pub const PLAYER_RUN_FRAMES: usize = 4;
-pub const PLAYER_ATTACK_FRAMES: usize = 4;
-
 #[derive(Resource)]
 pub struct DungeonArt {
     pub player_idle: Handle<Image>,
     pub player_run: Handle<Image>,
     pub player_attack: Handle<Image>,
-    pub weapon_anime_sword: Handle<Image>,
     pub floor_ground: Handle<Image>,
     pub floor_platform: Handle<Image>,
     pub floor_ladder: Handle<Image>,
     pub wall: Handle<Image>,
+    pub floor_pit: Handle<Image>,
+    pub pit_stake: Handle<Image>,
+    pub pit_lip: Handle<Image>,
+    pub ground_slam: Handle<Image>,
     pub slime: Handle<Image>,
     pub bat: Handle<Image>,
     pub goblin: Handle<Image>,
     pub skeleton: Handle<Image>,
     pub zombie: Handle<Image>,
     pub arrow: Handle<Image>,
-    /// 1×1 white pixel for solid fills (boss body, hazard markers). Not resampled art.
+    /// 1×1 white pixel for solid fills (king slime body until its art exists). Not resampled art.
     pub fill: Handle<Image>,
 }
 
@@ -49,11 +49,14 @@ impl DungeonArt {
             player_run: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_run_side.png")),
             player_attack: asset_server
                 .load(format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png")),
-            weapon_anime_sword: asset_server.load(WEAPON_ANIME_SWORD),
             floor_ground: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             floor_platform: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
             floor_ladder: asset_server.load(format!("{ENV_ROOT}/floor_ladder.png")),
             wall: asset_server.load(format!("{ENV_ROOT}/wall.png")),
+            floor_pit: asset_server.load(format!("{ENV_ROOT}/floor_pit.png")),
+            pit_stake: asset_server.load(format!("{ENV_ROOT}/pit_stake.png")),
+            pit_lip: asset_server.load(format!("{ENV_ROOT}/pit_lip.png")),
+            ground_slam: asset_server.load(format!("{VFX_ROOT}/ground_slam.png")),
             slime: asset_server.load(format!("{ENEMY_ROOT}/slime.png")),
             bat: asset_server.load(format!("{ENEMY_ROOT}/bat.png")),
             goblin: asset_server.load(format!("{ENEMY_ROOT}/goblin.png")),
@@ -61,6 +64,14 @@ impl DungeonArt {
             zombie: asset_server.load(format!("{ENEMY_ROOT}/zombie.png")),
             arrow: asset_server.load(format!("{PROJECTILE_ROOT}/arrow.png")),
             fill: crate::graphics::solid_white_pixel(images),
+        }
+    }
+
+    pub fn hunter_image(&self, sheet: HunterSheet) -> Handle<Image> {
+        match sheet {
+            HunterSheet::Idle => self.player_idle.clone(),
+            HunterSheet::Run => self.player_run.clone(),
+            HunterSheet::Attack => self.player_attack.clone(),
         }
     }
 }

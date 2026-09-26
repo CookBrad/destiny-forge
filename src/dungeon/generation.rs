@@ -6,22 +6,32 @@ use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 use super::enemy::EnemyKind;
 use super::level::{BatSpawn, BossSpawn, EnemySpawn, GeneratedFloor, PitfallSpec, PlatformSpec};
 
-const BACKDROP_ROWS: u32 = 6;
+/// Eight 32 px rows reach y=256, above the hunter's head (floor 64 + body 160 = 224).
+const BACKDROP_ROWS: u32 = 8;
 const PLAYER_START_X: f32 = 1.5 * TILE;
-const ENTRANCE_TILES: u32 = 8;
-const BOSS_ARENA_TILES: u32 = 12;
+/// Horizontal spans are half the old 16 px layout, so a hunt stays about 2880 px.
+const ENTRANCE_TILES: u32 = 4;
+const BOSS_ARENA_TILES: u32 = 6;
+/// Stays 3 so the ladder at `width - 3` sits past the boss patrol (`arena + boss - 1`).
 const LADDER_PAD_TILES: u32 = 3;
-const MIN_WIDTH_TILES: u32 = 180;
-const MIN_PIT_TILES: u32 = 4;
-const MAX_PIT_TILES: u32 = 8;
-const MIN_PLATFORM_HEIGHT_TILES: u32 = 5;
-const MAX_PLATFORM_HEIGHT_TILES: u32 = 10;
-const MIN_BRIDGE_HEIGHT_TILES: u32 = 4;
-const MAX_BRIDGE_HEIGHT_TILES: u32 = 7;
-const MIN_PLATFORM_WIDTH_TILES: u32 = 6;
-const MAX_PLATFORM_WIDTH_TILES: u32 = 12;
-const MIN_ENEMY_SPACING_TILES: u32 = 8;
+const MIN_WIDTH_TILES: u32 = 90;
+const MIN_WIDTH_SEGMENT_TILES: u32 = 9;
+const MAX_WIDTH_SEGMENT_TILES: u32 = 13;
+const MIN_FEATURE_SEGMENT_TILES: u32 = 9;
+const MAX_FEATURE_SEGMENT_TILES: u32 = 14;
+const MIN_PIT_TILES: u32 = 2;
+const MAX_PIT_TILES: u32 = 4;
+/// 2 tiles (64 px) clear on one jump. 4 tiles (128 px) need the air jump (~173 px).
+const MIN_PLATFORM_HEIGHT_TILES: u32 = 2;
+const MAX_PLATFORM_HEIGHT_TILES: u32 = 4;
+const MIN_BRIDGE_HEIGHT_TILES: u32 = 2;
+const MAX_BRIDGE_HEIGHT_TILES: u32 = 4;
+const MIN_PLATFORM_WIDTH_TILES: u32 = 3;
+const MAX_PLATFORM_WIDTH_TILES: u32 = 6;
+const MIN_ENEMY_SPACING_TILES: u32 = 4;
 const MAX_ENEMY_SPAWN_ATTEMPTS: u32 = 16;
+const MIN_GROUND_RUN_TILES: u32 = 4;
+const MAX_GROUND_RUN_EXCLUSIVE: u32 = 9;
 
 pub fn random_seed() -> u64 {
     rand::random()
@@ -33,7 +43,7 @@ pub fn generate_floor(seed: u64) -> GeneratedFloor {
 
     let mut width_tiles = ENTRANCE_TILES;
     for _ in 0..segment_count {
-        width_tiles += rng.gen_range(18..=26);
+        width_tiles += rng.gen_range(MIN_WIDTH_SEGMENT_TILES..=MAX_WIDTH_SEGMENT_TILES);
     }
     width_tiles += BOSS_ARENA_TILES + LADDER_PAD_TILES;
     width_tiles = width_tiles.max(MIN_WIDTH_TILES);
@@ -90,13 +100,15 @@ fn generate_ground_segments(
 
     let mut cursor = start_tile;
 
-    while cursor + MIN_PIT_TILES + 8 < end_tile {
-        let max_run = (end_tile - cursor).saturating_sub(MIN_PIT_TILES + 3);
-        if max_run < 6 {
+    while cursor + MIN_PIT_TILES + 4 < end_tile {
+        let max_run = (end_tile - cursor).saturating_sub(MIN_PIT_TILES + 2);
+        if max_run < 3 {
             break;
         }
 
-        let run_tiles = rng.gen_range(8..18).min(max_run);
+        let run_tiles = rng
+            .gen_range(MIN_GROUND_RUN_TILES..MAX_GROUND_RUN_EXCLUSIVE)
+            .min(max_run);
         segments.push(PlatformSpec {
             left: cursor as f32 * TILE,
             width_tiles: run_tiles,
@@ -104,14 +116,12 @@ fn generate_ground_segments(
         });
         cursor += run_tiles;
 
-        if cursor + MIN_PIT_TILES + 6 >= end_tile {
+        if cursor + MIN_PIT_TILES + 3 >= end_tile {
             break;
         }
 
         if rng.gen_bool(0.44) {
-            let max_pit = (end_tile - cursor)
-                .saturating_sub(3)
-                .min(MAX_PIT_TILES);
+            let max_pit = (end_tile - cursor).saturating_sub(2).min(MAX_PIT_TILES);
             if max_pit >= MIN_PIT_TILES {
                 let pit_width = rng.gen_range(MIN_PIT_TILES..=max_pit);
                 pitfalls.push(PitfallSpec {
@@ -146,21 +156,23 @@ fn generate_segments(
     let mut cursor = start_tile;
     let dungeon_span = (end_tile - start_tile).max(1) as f32;
 
-    while cursor + 18 < end_tile {
-        let segment_width = rng.gen_range(18..=28).min(end_tile - cursor);
+    while cursor + MIN_FEATURE_SEGMENT_TILES < end_tile {
+        let segment_width = rng
+            .gen_range(MIN_FEATURE_SEGMENT_TILES..=MAX_FEATURE_SEGMENT_TILES)
+            .min(end_tile - cursor);
         let segment_end = cursor + segment_width;
-        let progress = (cursor.saturating_sub(start_tile) as f32 + segment_width as f32 * 0.5)
-            / dungeon_span;
+        let progress =
+            (cursor.saturating_sub(start_tile) as f32 + segment_width as f32 * 0.5) / dungeon_span;
 
         let enemy_count = rng.gen_range(1..=3);
         for _ in 0..enemy_count {
-            if segment_end <= cursor + 4 {
+            if segment_end <= cursor + 2 {
                 break;
             }
             if let Some(spawn) = try_spawn_enemy(
                 rng,
-                cursor + 2,
-                segment_end - 2,
+                cursor + 1,
+                segment_end - 1,
                 progress,
                 ground_segments,
                 &enemies,
@@ -169,17 +181,19 @@ fn generate_segments(
             }
         }
 
-        if rng.gen_bool(0.88) && segment_end > cursor + 6 {
+        if rng.gen_bool(0.88) && segment_end > cursor + 3 {
             let platform_count = if rng.gen_bool(0.22) { 2 } else { 1 };
-            for step in 0..platform_count {
+            for _step in 0..platform_count {
                 let plat_width = rng.gen_range(MIN_PLATFORM_WIDTH_TILES..=MAX_PLATFORM_WIDTH_TILES);
                 let max_left = segment_end.saturating_sub(plat_width + 1);
                 if max_left <= cursor + 1 {
                     continue;
                 }
                 let plat_left = rng.gen_range((cursor + 1)..=max_left);
-                let base_height = rng.gen_range(MIN_PLATFORM_HEIGHT_TILES..=MAX_PLATFORM_HEIGHT_TILES);
-                let height_tiles = base_height + step * rng.gen_range(2..=4);
+                // Both steps stay inside 2..=4 tiles. Stacking on top of that
+                // used to clear the ~173 px air-jump and left a ledge you cannot reach.
+                let height_tiles =
+                    rng.gen_range(MIN_PLATFORM_HEIGHT_TILES..=MAX_PLATFORM_HEIGHT_TILES);
                 let top_y = DUNGEON_FLOOR_Y + height_tiles as f32 * TILE;
 
                 platforms.push(PlatformSpec {
@@ -233,13 +247,11 @@ fn try_spawn_enemy(
 
 fn enemies_too_close(existing: &[EnemySpawn], x: f32) -> bool {
     let min_dist = MIN_ENEMY_SPACING_TILES as f32 * TILE;
-    existing
-        .iter()
-        .any(|enemy| (enemy.x - x).abs() < min_dist)
+    existing.iter().any(|enemy| (enemy.x - x).abs() < min_dist)
 }
 
 fn bridge_over_pit(rng: &mut StdRng, pit: &PitfallSpec) -> PlatformSpec {
-    let width = (pit.width_tiles + 2).clamp(MIN_PLATFORM_WIDTH_TILES, MAX_PLATFORM_WIDTH_TILES);
+    let width = (pit.width_tiles + 1).clamp(MIN_PLATFORM_WIDTH_TILES, MAX_PLATFORM_WIDTH_TILES);
     let inset = ((pit.width_tiles.saturating_sub(width)) as f32 * 0.5 * TILE).max(0.0);
     PlatformSpec {
         left: pit.left + inset,
@@ -335,6 +347,64 @@ mod tests {
                 assert!(platform.width_tiles <= MAX_PLATFORM_WIDTH_TILES);
             }
         }
+    }
+
+    #[test]
+    fn horizontal_counts_keep_the_old_hunt_pixel_length() {
+        assert_eq!(MIN_WIDTH_TILES, 90);
+        assert_eq!(MIN_WIDTH_TILES as f32 * TILE, 180.0 * 16.0);
+        assert_eq!(ENTRANCE_TILES, 4);
+        assert_eq!(BOSS_ARENA_TILES, 6);
+        assert_eq!(MIN_WIDTH_SEGMENT_TILES, 9);
+        assert_eq!(MAX_WIDTH_SEGMENT_TILES, 13);
+        assert_eq!(MIN_PLATFORM_WIDTH_TILES, 3);
+        assert_eq!(MAX_PLATFORM_WIDTH_TILES, 6);
+        assert_eq!(MIN_PIT_TILES, 2);
+        assert_eq!(MAX_PIT_TILES, 4);
+        assert_eq!(MIN_ENEMY_SPACING_TILES, 4);
+        assert_eq!(BACKDROP_ROWS, 8);
+    }
+
+    #[test]
+    fn generated_vertical_gaps_stay_inside_the_jump() {
+        let gravity = crate::graphics::DUNGEON_GRAVITY.abs();
+        let jump_speed = crate::graphics::DUNGEON_JUMP_SPEED;
+        let air_mult = crate::graphics::DUNGEON_AIR_JUMP_MULT;
+        let apex = jump_speed * jump_speed / (2.0 * gravity);
+        let air_speed = jump_speed * air_mult;
+        let with_air = apex + air_speed * air_speed / (2.0 * gravity);
+        let head = DUNGEON_FLOOR_Y + crate::graphics::HUNTER_BODY_PX.y;
+        let mut pits = 0;
+        let mut platforms = 0;
+
+        for seed in 0..200 {
+            let floor = generate_floor(seed);
+            let width_px = floor.width_tiles as f32 * TILE;
+            assert!(width_px >= 2_880.0, "seed {seed} width {width_px}");
+            assert!(width_px <= 5_600.0, "seed {seed} width {width_px}");
+            assert_eq!(floor.backdrop_rows, BACKDROP_ROWS);
+            assert!(floor.backdrop_rows as f32 * TILE >= head);
+
+            for platform in &floor.platforms {
+                let rise = platform.top_y - DUNGEON_FLOOR_Y;
+                assert!(
+                    rise >= MIN_PLATFORM_HEIGHT_TILES as f32 * TILE - 0.01,
+                    "seed {seed} rise {rise}"
+                );
+                assert!(rise <= MAX_PLATFORM_HEIGHT_TILES as f32 * TILE + 0.01);
+                assert!(
+                    rise <= with_air,
+                    "seed {seed} rise {rise} exceeds {with_air}"
+                );
+            }
+            pits += floor.pitfalls.len();
+            platforms += floor.platforms.len();
+        }
+
+        assert!(3.0 * TILE <= apex);
+        assert!(4.0 * TILE <= with_air);
+        assert!(pits > 40, "pits {pits}");
+        assert!(platforms > 40, "platforms {platforms}");
     }
 
     #[test]

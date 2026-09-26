@@ -3,16 +3,13 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::audio::CombatSfx;
-use crate::dungeon::{
-    DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
-    PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES, PLAYER_RUN_FRAMES,
-};
+use crate::dungeon::{DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss};
 use crate::player::Loadout;
 
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY, HIT_STOP_LIGHT};
 use super::hitbox::{
-    animation_facing, blade_root_from_center, enemy_aabb, hitbox_overlaps,
-    sword_blade_center_local, sword_swing_aabb, HitRect,
+    animation_facing, blade_root_from_center, enemy_aabb, hitbox_overlaps, sword_swing_aabb,
+    HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
@@ -107,37 +104,13 @@ pub struct HitFlash {
 /// Visual arc completes faster than the full attack timer (hit window unchanged).
 const SWORD_ARC_SPEED: f32 = 2.2;
 
-#[derive(Component)]
-pub struct WeaponSwingFx;
-
-#[derive(Component)]
-pub struct WeaponOnBack;
-
-/// Sheathed sword pose in player-local pixels (parent scale mirrors with facing).
-const SHEATHED_SWORD_X: f32 = -4.0;
-const SHEATHED_SWORD_Y: f32 = 8.0;
-const SHEATHED_SWORD_Z: f32 = -0.2;
-const SHEATHED_SWORD_ANGLE: f32 = 0.45;
-
-/// Per-frame Y offsets matching knight idle/run sprite bob (native pixels).
-const IDLE_SHEATHED_BOB: [f32; 4] = [0.0, -0.5, -1.0, -0.5];
-const RUN_SHEATHED_BOB: [f32; 4] = [-1.5, 0.5, 1.5, -1.0];
-
-struct SwingPose {
-    translation: Vec3,
-    rotation: Quat,
-}
-
 pub fn start_player_attack(
-    mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    art: Res<DungeonArt>,
     bindings: Res<SkillBindings>,
     keyboard: Res<ButtonInput<KeyCode>>,
     hit_stop: Res<HitStop>,
     mut player: Query<
         (
-            Entity,
             &EquippedWeapon,
             &mut PlayerAttack,
             &PlayerBlock,
@@ -150,7 +123,7 @@ pub fn start_player_attack(
         return;
     }
 
-    let Ok((entity, weapon, mut attack, block, special)) = player.get_single_mut() else {
+    let Ok((weapon, mut attack, block, special)) = player.get_single_mut() else {
         return;
     };
 
@@ -170,22 +143,11 @@ pub fn start_player_attack(
         return;
     }
 
-    begin_combo_step(
-        &mut commands,
-        &mut sfx,
-        &art,
-        entity,
-        &mut attack,
-        weapon.0,
-        0,
-    );
+    begin_combo_step(&mut sfx, &mut attack, weapon.0, 0);
 }
 
 fn begin_combo_step(
-    commands: &mut Commands,
     sfx: &mut EventWriter<CombatSfx>,
-    art: &DungeonArt,
-    entity: Entity,
     attack: &mut PlayerAttack,
     weapon: WeaponKind,
     step_index: usize,
@@ -200,122 +162,19 @@ fn begin_combo_step(
     attack.timer = Timer::from_seconds(step.duration, TimerMode::Once);
     attack.timer.reset();
     sfx.send(CombatSfx::SwordSwing);
-
-    // Refresh swing FX for this step.
-    commands.entity(entity).with_children(|parent| {
-        parent.spawn((
-            Sprite {
-                image: art.weapon_anime_sword.clone(),
-                ..default()
-            },
-            Transform {
-                translation: pose_for_step(step, 0.0).translation,
-                rotation: pose_for_step(step, 0.0).rotation,
-                ..default()
-            },
-            WeaponSwingFx,
-        ));
-    });
-}
-
-pub fn spawn_sheathed_sword(image: Handle<Image>) -> impl Bundle {
-    (
-        WeaponOnBack,
-        Sprite { image, ..default() },
-        Transform {
-            translation: Vec3::new(SHEATHED_SWORD_X, SHEATHED_SWORD_Y, SHEATHED_SWORD_Z),
-            rotation: Quat::from_rotation_z(SHEATHED_SWORD_ANGLE),
-            ..default()
-        },
-    )
-}
-
-pub fn sync_sheathed_weapon(
-    player: Query<
-        (
-            &PlayerAttack,
-            &EquippedWeapon,
-            &PlayerBlock,
-            Option<&PlayerSpecialMove>,
-            &PlayerAnimation,
-            &PlayerVelocity,
-        ),
-        With<DungeonPlayer>,
-    >,
-    mut sheathed: Query<(&mut Transform, &mut Visibility), With<WeaponOnBack>>,
-) {
-    let Ok((attack, weapon, block, special, animation, velocity)) = player.get_single() else {
-        return;
-    };
-
-    let visible = !player_is_busy(attack, block, special) && weapon.0.is_sword();
-    let bob = sheathed_bob_offset(animation, velocity);
-
-    for (mut transform, mut visibility) in &mut sheathed {
-        *visibility = if visible {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-        transform.translation.x = SHEATHED_SWORD_X;
-        transform.translation.y = SHEATHED_SWORD_Y + bob;
-    }
-}
-
-fn sheathed_bob_offset(animation: &PlayerAnimation, velocity: &PlayerVelocity) -> f32 {
-    if !velocity.grounded {
-        return 0.0;
-    }
-
-    if velocity.x.abs() > 1.0 {
-        let frame = animation.frame % PLAYER_RUN_FRAMES;
-        return RUN_SHEATHED_BOB[frame];
-    }
-
-    let frame = animation.frame % PLAYER_IDLE_FRAMES;
-    IDLE_SHEATHED_BOB[frame]
-}
-
-pub fn animate_weapon_swing(
-    mut commands: Commands,
-    player: Query<&PlayerAttack, With<DungeonPlayer>>,
-    mut swings: Query<(Entity, &WeaponSwingFx, &mut Transform)>,
-) {
-    let Ok(attack) = player.get_single() else {
-        return;
-    };
-
-    if !attack.is_active() {
-        for (entity, _, _) in &swings {
-            commands.entity(entity).try_despawn();
-        }
-        return;
-    }
-
-    let step = attack.step();
-    let progress = step_visual_progress(attack);
-
-    for (_, _swing, mut transform) in &mut swings {
-        let pose = pose_for_step(step, progress);
-        transform.translation = pose.translation;
-        transform.rotation = pose.rotation;
-    }
 }
 
 pub fn tick_player_attack(
     time: Res<Time>,
-    mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    art: Res<DungeonArt>,
     hit_stop: Res<HitStop>,
-    mut player: Query<(Entity, &mut PlayerAttack), With<DungeonPlayer>>,
-    swing_fx: Query<Entity, With<WeaponSwingFx>>,
+    mut player: Query<&mut PlayerAttack, With<DungeonPlayer>>,
 ) {
     if hit_stop.is_active() {
         return;
     }
 
-    let Ok((entity, mut attack)) = player.get_single_mut() else {
+    let Ok(mut attack) = player.get_single_mut() else {
         return;
     };
 
@@ -333,18 +192,7 @@ pub fn tick_player_attack(
     let weapon = attack.weapon;
     let next = attack.step_index + 1;
     if attack.queue_next && next < weapon.moveset().steps.len() {
-        for fx in &swing_fx {
-            commands.entity(fx).try_despawn();
-        }
-        begin_combo_step(
-            &mut commands,
-            &mut sfx,
-            &art,
-            entity,
-            &mut attack,
-            weapon,
-            next,
-        );
+        begin_combo_step(&mut sfx, &mut attack, weapon, next);
     } else {
         attack.queue_next = false;
         attack.step_index = 0;
@@ -481,47 +329,9 @@ fn sword_arc_progress(attack: &PlayerAttack) -> f32 {
     (attack.timer.elapsed_secs() / step.duration * SWORD_ARC_SPEED).clamp(0.0, 1.0)
 }
 
-fn step_visual_progress(attack: &PlayerAttack) -> f32 {
-    let step = attack.step();
-    match step.shape {
-        HitShape::SwordArc => sword_arc_progress(attack),
-        HitShape::SpearThrust | HitShape::SpearLunge => {
-            (attack.timer.elapsed_secs() / step.duration).clamp(0.0, 1.0)
-        }
-    }
-}
-
 /// Vertical sword starts raised and sweeps 90° downward in local space.
 fn swing_angle(progress: f32) -> f32 {
     -progress * FRAC_PI_2
-}
-
-fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
-    match step.shape {
-        HitShape::SwordArc => {
-            let angle = swing_angle(progress);
-            let center = sword_blade_center_local(angle);
-            SwingPose {
-                translation: Vec3::new(center.x, center.y, 0.5),
-                rotation: Quat::from_rotation_z(angle),
-            }
-        }
-        HitShape::SpearThrust | HitShape::SpearLunge => {
-            // Horizontal poke: extend forward over the thrust.
-            let extend = progress.clamp(0.0, 1.0);
-            let forward = 6.0
-                + extend
-                    * (if matches!(step.shape, HitShape::SpearLunge) {
-                        14.0
-                    } else {
-                        10.0
-                    });
-            SwingPose {
-                translation: Vec3::new(forward, 2.0, 0.5),
-                rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
-            }
-        }
-    }
 }
 
 #[cfg(test)]
