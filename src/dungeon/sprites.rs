@@ -38,10 +38,12 @@ pub struct DungeonArt {
     pub skeleton: Handle<Image>,
     pub zombie: Handle<Image>,
     pub arrow: Handle<Image>,
+    /// 1×1 white pixel for solid fills (boss body, hazard markers). Not resampled art.
+    pub fill: Handle<Image>,
 }
 
 impl DungeonArt {
-    pub fn load(asset_server: &AssetServer) -> Self {
+    pub fn load(asset_server: &AssetServer, images: &mut Assets<Image>) -> Self {
         Self {
             player_idle: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_idle_side.png")),
             player_run: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_run_side.png")),
@@ -58,6 +60,7 @@ impl DungeonArt {
             skeleton: asset_server.load(format!("{ENEMY_ROOT}/skeleton.png")),
             zombie: asset_server.load(format!("{ENEMY_ROOT}/zombie.png")),
             arrow: asset_server.load(format!("{PROJECTILE_ROOT}/arrow.png")),
+            fill: crate::graphics::solid_white_pixel(images),
         }
     }
 }

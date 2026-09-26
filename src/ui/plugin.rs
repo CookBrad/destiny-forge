@@ -4,7 +4,6 @@ use crate::combat::SkillBindings;
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::forging::RecipeBook;
-use crate::graphics::reset_camera_zoom;
 
 use super::carve_feedback::{
     cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
@@ -35,8 +34,9 @@ use super::loadout_strip::{
 };
 use super::menu::{
     cleanup_death_menu, cleanup_pause_menu, cleanup_title_menu, death_menu_input,
-    ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, resume_game_time,
-    set_title_clear_color, spawn_death_menu, spawn_pause_menu, spawn_title_menu, sync_title_hint,
+    ensure_time_running, open_pause_menu, pause_game_time, pause_menu_input, reset_title_camera,
+    resume_game_time, set_title_clear_color, spawn_death_menu, spawn_pause_menu, spawn_title_menu,
+    sync_title_hint,
 };
 use super::title_profiles::{
     handle_profile_rename_input, handle_title_profile_card_clicks,
@@ -52,12 +52,6 @@ use super::skill_bar::{
 
 fn clear_profile_rename_state(mut rename: ResMut<ProfileRenameState>) {
     rename.active = None;
-}
-
-fn reset_title_camera(mut camera: Query<&mut OrthographicProjection, With<Camera2d>>) {
-    for mut projection in &mut camera {
-        reset_camera_zoom(&mut projection);
-    }
 }
 
 pub struct UiPlugin;
