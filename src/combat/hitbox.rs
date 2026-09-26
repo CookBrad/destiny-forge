@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::dungeon::{player_half_extents, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
+use crate::graphics::hunter_blade_tip_reach;
 
 #[derive(Clone, Copy, Debug)]
 pub struct HitRect {
@@ -15,20 +16,24 @@ pub const SWORD_GUARD_ANGLE: f32 = -0.55;
 
 const SWORD_PIVOT_Y: f32 = -10.0;
 
-pub fn sword_guard_aabb(player: &Transform) -> HitRect {
-    let facing = animation_facing(player);
-    let player_center = player.translation.truncate();
-    let blade_local = sword_blade_center_local(SWORD_GUARD_ANGLE);
-    let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
-    sword_sprite_aabb(blade_world, SWORD_GUARD_ANGLE)
+/// How far a thrust's near edge sits back from the body edge, so the blade meets the hands.
+const BLADE_ROOT_OVERLAP: f32 = 8.0;
+
+/// Distance from the body center to where a thrust volume starts.
+pub fn blade_root_from_center(body_half_width: f32) -> f32 {
+    (body_half_width - BLADE_ROOT_OVERLAP).max(0.0)
 }
 
-pub fn sword_swing_aabb(player: &Transform, angle: f32) -> HitRect {
+pub fn sword_guard_aabb(player: &Transform) -> HitRect {
+    sword_swing_aabb(player, SWORD_GUARD_ANGLE, hunter_blade_tip_reach())
+}
+
+pub fn sword_swing_aabb(player: &Transform, angle: f32, blade_length: f32) -> HitRect {
     let facing = animation_facing(player);
     let player_center = player.translation.truncate();
-    let blade_local = sword_blade_center_local(angle);
+    let blade_local = blade_center_for_length(angle, blade_length);
     let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
-    sword_sprite_aabb(blade_world, angle)
+    sword_sprite_aabb(blade_world, angle, blade_length)
 }
 
 pub fn player_body_rect(player: &Transform) -> HitRect {
@@ -72,8 +77,13 @@ pub fn animation_facing(transform: &Transform) -> f32 {
     }
 }
 
+/// Overlay pose for the transparent 12×30 placeholder. Damage uses [`sword_swing_aabb`].
 pub fn sword_blade_center_local(angle: f32) -> Vec2 {
-    let half_height = SWORD_SPRITE_HEIGHT * 0.5;
+    blade_center_for_length(angle, SWORD_SPRITE_HEIGHT)
+}
+
+fn blade_center_for_length(angle: f32, blade_length: f32) -> Vec2 {
+    let half_height = blade_length * 0.5;
     Vec2::new(
         half_height * (-angle).sin(),
         SWORD_PIVOT_Y + half_height * (-angle).cos(),
@@ -81,16 +91,18 @@ pub fn sword_blade_center_local(angle: f32) -> Vec2 {
 }
 
 pub fn sword_sprite_hit_rect(center: Vec2, angle: f32) -> HitRect {
-    sword_sprite_aabb(center, angle)
+    sword_sprite_aabb(center, angle, hunter_blade_tip_reach())
 }
 
-fn sword_sprite_aabb(center: Vec2, angle: f32) -> HitRect {
+/// Axis-aligned blade. Horizontal reach equals `blade_length` (the painted hit-frame tip).
+/// Vertical span covers the body so a thrust meets enemies standing at the hunter's feet.
+fn sword_sprite_aabb(center: Vec2, angle: f32, blade_length: f32) -> HitRect {
     let half_w = SWORD_SPRITE_WIDTH * 0.5;
-    let half_h = SWORD_SPRITE_HEIGHT * 0.5;
+    let half_h = blade_length * 0.5;
     let c = angle.cos().abs();
     let s = angle.sin().abs();
     let extent_x = c * half_w + s * half_h;
-    let extent_y = s * half_w + c * half_h;
+    let extent_y = (s * half_w + c * half_h).max(player_half_extents().y);
 
     HitRect {
         min_x: center.x - extent_x,

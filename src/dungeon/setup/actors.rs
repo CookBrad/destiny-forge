@@ -7,8 +7,8 @@ use crate::combat::{
     PLAYER_MAX_HEALTH,
 };
 use crate::graphics::{
-    center_on_surface, hunter_body_anchor, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
-    HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
+    center_on_surface, hunter_body_anchor, solid_fill, world_transform, DUNGEON_FLOOR_Y,
+    ENEMY_DISPLAY_SIZE, HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
 };
 use crate::player::Loadout;
 
@@ -134,18 +134,12 @@ fn enemy_texture(art: &DungeonArt, kind: EnemyKind) -> Handle<Image> {
 }
 
 pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
-    let height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
-    let y = center_on_surface(spec.top_y, height);
-    let mut transform = world_transform(Vec2::new(spec.x, y), 6.0);
-    transform.scale = Vec3::splat(KING_SLIME_GAMEPLAY_SCALE);
+    let size = ENEMY_DISPLAY_SIZE * KING_SLIME_GAMEPLAY_SCALE;
+    let y = center_on_surface(spec.top_y, size.y);
 
     commands.spawn((
-        Sprite {
-            image: art.slime.clone(),
-            color: Color::srgb(0.55, 0.95, 0.45),
-            ..default()
-        },
-        transform,
+        solid_fill(art.fill.clone(), size, Color::srgb(0.55, 0.95, 0.45)),
+        world_transform(Vec2::new(spec.x, y), 6.0),
         KingSlimeBoss,
         BossAttackController::new(),
         EnemyHitbox::scaled(KING_SLIME_GAMEPLAY_SCALE),
