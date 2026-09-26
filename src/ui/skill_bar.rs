@@ -47,10 +47,16 @@ pub struct SkillBarDrag {
 }
 
 const SLOT_WIDTH: f32 = 54.0;
+/// Border box. Content is 44×58 after the 2px border and 3px padding.
+/// Key line ceil(12×1.2)=15, icon 32, name line ceil(9×1.2)=11 fill that
+/// exactly. A taller slot would meet the carve HUD at bottom 100.
 const SLOT_HEIGHT: f32 = 68.0;
+const SLOT_BORDER: f32 = 2.0;
+const SLOT_PADDING: f32 = 3.0;
 const SLOT_GAP: f32 = 6.0;
 const BAR_BOTTOM: f32 = 14.0;
-const ICON_SIZE: f32 = 16.0;
+const ICON_SIZE: f32 = 32.0;
+const KEY_FONT_SIZE: f32 = 12.0;
 const NAME_FONT_SIZE: f32 = 9.0;
 const GHOST_WIDTH: f32 = SLOT_WIDTH;
 const GHOST_HEIGHT: f32 = ICON_SIZE + NAME_FONT_SIZE + 6.0;
@@ -82,37 +88,19 @@ pub fn spawn_skill_bar(mut commands: Commands) {
         });
 }
 
-fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
+/// Icon plus the cooldown veil. The veil is parented to the icon so a full
+/// cooldown covers the glyph, not the key or the name under it.
+fn spawn_skill_icon(parent: &mut ChildBuilder<'_>, index: usize) {
     parent
-        .spawn((
-            SkillSlot { index },
-            Button,
-            Node {
-                width: Val::Px(SLOT_WIDTH),
-                height: Val::Px(SLOT_HEIGHT),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::SpaceBetween,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(3.0)),
-                border: UiRect::all(Val::Px(2.0)),
-                // Absolute cooldown overlay is positioned relative to this slot.
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.08, 0.08, 0.12, 0.92)),
-            BorderColor(Color::srgba(0.35, 0.38, 0.45, 0.9)),
-        ))
-        .with_children(|slot| {
-            slot.spawn((
-                SkillSlotKeyLabel,
-                Text::new((index + 1).to_string()),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.72, 0.76, 0.84)),
-            ));
-            slot.spawn((
+        .spawn(Node {
+            width: Val::Px(ICON_SIZE),
+            height: Val::Px(ICON_SIZE),
+            // A tight slot must clip, not squash the icon. Squash would resample it.
+            flex_shrink: 0.0,
+            ..default()
+        })
+        .with_children(|icon| {
+            icon.spawn((
                 SkillSlotImage { slot_index: index },
                 ImageNode {
                     image_mode: NodeImageMode::Stretch,
@@ -125,18 +113,52 @@ fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
                 },
                 Visibility::Hidden,
             ));
-            slot.spawn((
+            icon.spawn((
                 SkillSlotCooldownOverlay { slot_index: index },
                 Node {
                     position_type: PositionType::Absolute,
+                    left: Val::Px(0.0),
+                    bottom: Val::Px(0.0),
                     width: Val::Px(ICON_SIZE),
                     height: Val::Px(0.0),
-                    bottom: Val::Px(16.0),
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.05, 0.06, 0.1, 0.72)),
                 Visibility::Hidden,
             ));
+        });
+}
+
+fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
+    parent
+        .spawn((
+            SkillSlot { index },
+            Button,
+            Node {
+                width: Val::Px(SLOT_WIDTH),
+                height: Val::Px(SLOT_HEIGHT),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                padding: UiRect::all(Val::Px(SLOT_PADDING)),
+                border: UiRect::all(Val::Px(SLOT_BORDER)),
+                overflow: Overflow::clip(),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.08, 0.08, 0.12, 0.92)),
+            BorderColor(Color::srgba(0.35, 0.38, 0.45, 0.9)),
+        ))
+        .with_children(|slot| {
+            slot.spawn((
+                SkillSlotKeyLabel,
+                Text::new((index + 1).to_string()),
+                TextFont {
+                    font_size: KEY_FONT_SIZE,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.72, 0.76, 0.84)),
+            ));
+            spawn_skill_icon(slot, index);
             slot.spawn((
                 SkillSlotNameLabel { slot_index: index },
                 Text::new(""),
@@ -174,11 +196,7 @@ pub fn sync_skill_bar(
         (With<SkillSlotNameLabel>, Without<SkillSlotImage>),
     >,
     mut overlays: Query<
-        (
-            &SkillSlotCooldownOverlay,
-            &mut Node,
-            &mut Visibility,
-        ),
+        (&SkillSlotCooldownOverlay, &mut Node, &mut Visibility),
         (
             With<SkillSlotCooldownOverlay>,
             Without<SkillSlotImage>,
@@ -354,8 +372,8 @@ fn apply_slot_highlight(
     border: &mut BorderColor,
 ) {
     let dragging = drag_from == Some(slot.index);
-    let drop_target = drag_from.is_some()
-        && matches!(*interaction, Interaction::Hovered | Interaction::Pressed);
+    let drop_target =
+        drag_from.is_some() && matches!(*interaction, Interaction::Hovered | Interaction::Pressed);
 
     if dragging {
         bg.0 = Color::srgba(0.18, 0.2, 0.28, 0.96);
@@ -424,4 +442,49 @@ pub fn cleanup_skill_bar(
 
 pub fn setup_skill_icon_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(SkillIconAssets::load(&asset_server));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ICON_SIZE, KEY_FONT_SIZE, NAME_FONT_SIZE, SLOT_BORDER, SLOT_HEIGHT, SLOT_PADDING,
+        SLOT_WIDTH,
+    };
+    use crate::combat::SkillKind;
+
+    #[test]
+    fn icon_node_matches_the_texture_crop() {
+        for skill in [
+            SkillKind::Attack,
+            SkillKind::Block,
+            SkillKind::Charge,
+            SkillKind::Spin,
+        ] {
+            let rect = skill.icon_rect();
+            assert_eq!(rect.min.x, 0.0, "{skill:?}");
+            assert_eq!(rect.min.y, 0.0, "{skill:?}");
+            assert_eq!(rect.max.x, ICON_SIZE, "{skill:?}");
+            assert_eq!(rect.max.y, ICON_SIZE, "{skill:?}");
+        }
+    }
+
+    #[test]
+    fn slot_content_box_fits_the_icon_between_labels() {
+        // Bevy measures one text line as ceil(font_size * 1.2). Taffy treats
+        // width and height as the border box, so border and padding come out of the slot.
+        let inset = (SLOT_BORDER + SLOT_PADDING) * 2.0;
+        let content_width = SLOT_WIDTH - inset;
+        let content_height = SLOT_HEIGHT - inset;
+        let key_height = (KEY_FONT_SIZE * 1.2).ceil();
+        let name_height = (NAME_FONT_SIZE * 1.2).ceil();
+        assert!(
+            content_width >= ICON_SIZE,
+            "content width {content_width} < icon {ICON_SIZE}"
+        );
+        let stack = key_height + ICON_SIZE + name_height;
+        assert!(
+            content_height >= stack,
+            "content height {content_height} < label-and-icon stack {stack}"
+        );
+    }
 }
