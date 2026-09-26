@@ -216,15 +216,9 @@ pub fn death_visual_center(physics_center: Vec2, tilt: f32, sink: f32) -> Vec2 {
     planted + Quat::from_rotation_z(tilt).mul_vec3(upright).truncate()
 }
 
-/// `velocity_y` and `landed` select the death sheet once those cells exist.
-/// The signed strip has no death drawing, so both arguments stay idle cell 0.
-pub fn death_pose(
-    physics_center: Vec2,
-    _velocity_y: f32,
-    _landed: bool,
-    facing: f32,
-    fall: f32,
-) -> DeathPose {
+/// The signed strip has no death drawing, so this holds idle cell 0.
+/// Stagger and crumple selection arrives with that sheet.
+pub fn death_pose(physics_center: Vec2, facing: f32, fall: f32) -> DeathPose {
     let facing = facing.signum().clamp(-1.0, 1.0);
     let fall = fall.clamp(0.0, 1.0);
     let sink = fall * TILE * 0.35;
@@ -415,7 +409,7 @@ mod tests {
         let center = Vec2::new(12.0, 80.0);
         assert_eq!(death_visual_center(center, 0.0, 0.0), center);
 
-        let upright = death_pose(center, 40.0, false, 1.0, 0.0);
+        let upright = death_pose(center, 1.0, 0.0);
         assert_eq!(upright.visual_center, center);
         assert_eq!(upright.tilt, 0.0);
         assert_eq!(upright.cell, 0);
@@ -435,7 +429,7 @@ mod tests {
         );
         assert!(visual.distance(center) > 1.0);
 
-        let flop = death_pose(center, 0.0, true, 1.0, 1.0);
+        let flop = death_pose(center, 1.0, 1.0);
         assert!((flop.tilt - tilt).abs() < 1e-5);
         let sink = TILE * 0.35;
         assert_eq!(
@@ -449,7 +443,7 @@ mod tests {
                 .truncate();
         assert!(sunk_sole.distance(sunk) < 1e-3);
 
-        let left = death_pose(center, 0.0, true, -1.0, 1.0);
+        let left = death_pose(center, -1.0, 1.0);
         assert!((left.tilt - (DEATH_TILT * FRAC_PI_2)).abs() < 1e-5);
     }
 }
