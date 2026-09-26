@@ -201,6 +201,8 @@ Each family is a moveset, not a stat stick.
 | **Floor hunt** | 10–20 min | Packs + elites; carve common/uncommon parts; learn patterns |
 | **Boss hunt** | 10–25 min | Multi-phase set piece; rare parts; set unlocks |
 
+Environment tiles are 32×32 (see [Art Direction](#art-direction)). Halve the **horizontal** dungeon tile counts against the old 16×16 layouts so a floor hunt stays 10–20 min and a boss hunt stays 10–25 min. The floor minimum drops from 180 tiles to about 90 (`MIN_WIDTH_TILES`), and the per-segment width roll (today 18..=26) is halved with it. The same halving applies to the other horizontal spans in the floor generator (entrance, boss arena, platform width, pit width, spacing). Vertical counts are retuned for the jump. The apex is about 97 px (jump speed 385, gravity 760). Backdrop rows go from 6 to 8 so the wall clears the hunter's head: the floor stays at y=64 and the 160 px body tops out at y=224. Platform and bridge gaps sit around 2–4 tiles (64–128 px). Two or three tiles clear on one jump. A four-tile gap needs the air jump.
+
 **Boss design rules:**
 
 - Clear phase transitions (HP thresholds or scripted beats)
@@ -546,13 +548,16 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 ## Art Direction
 
-The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28; do not reopen that strip.
+The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28; do not reopen that strip. Brad (2026-09-26) allowed one edit on that strip: the opaque black background on `assets/player/combat/knight_*_side.png` may be removed so those sheets are transparent. Every character pixel stays exactly as signed. That edit does not reopen the strip.
 
 | Spec | Value |
 | ---- | ----- |
-| Tile size | 16×16 (homestead / dungeon environment) |
-| Hunter cell | ~160px tall, 1× nearest-neighbor. Idle ~163×160. Do **not** crush to 16×28. |
+| Tile size | 32×32 (homestead / dungeon environment) |
+| Homestead map | Working default pending Brad. See [Open Questions](#open-questions). |
+| Dungeon counts | Horizontal tile counts halved. Vertical counts retuned for the ~97 px jump. See [Hunt structure](#hunt-structure). |
+| Hunter cell | ~160px tall, 1× nearest-neighbor (~5 tiles at 32px). Idle ~163×160. Do **not** crush to 16×28. |
 | Attack strip | Windup chamber 139px (blade over the shoulder); hit 343px (reach is the blade). Uniform loader cell 343×160. |
+| Hunter matte | `knight_*_side.png` only: remove the opaque black background. Character pixels unchanged. |
 | Render | 1× nearest-neighbor, no smoothing, no linear filter |
 | Look | Gritty forge-meets-neon |
 | Palette | Weathered browns, dark grays, neon purple piping, electric-blue circuitry, brass |
@@ -560,10 +565,17 @@ The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference 
 | Homestead forge | Top-down pad-view landmark. Dual perspective stays. Not a side-view sheet. |
 | UI | Dark chrome with purple/cyan highlights |
 | Combat VFX | Readable silhouettes; wind-ups readable at a glance. Hurtbox is the body; reach is the blade. |
+| Redraw | All art redrawn in-house at the target size in this section. Never upscale the old 16px art. Signed hunter pixels stay (matte excepted). |
 
-Do **not** ship 64×64 tiles, 64×112 characters, or linear/anime filtering. That pipeline is a reject (PR #70).
+Do **not** ship 64×64 tiles, 64×112 characters, or linear/anime filtering. That pipeline is a reject (PR #70). 32×32 environment tiles are not that pipeline: the hunter stays ~160px at 1× nearest-neighbor, and filtering stays nearest-neighbor.
 
-**Pipeline:** source art under `assets/source/` → processed gameplay sprites under `assets/`. Attribution in `assets/ATTRIBUTION.txt`. Keep gameplay filenames stable for loaders (`knight_*`, `dwarf_m_*`, `forge_furnace.png`) even when the pixels are the hunter / grit-neon forge.
+### Enemy canvases
+
+Enemy canvas sizes, including King Slime, are working defaults pending Brad. The PR #70 reject still bans 64×64 tiles, a 64×112 player character, and linear or anime filtering.
+
+Furnace canvas, homestead hero size, skill icons, forest trees, enemy canvases, King Slime size, and the homestead map are working defaults pending Brad. See [Open Questions](#open-questions).
+
+**Pipeline:** source art under `assets/source/` → processed gameplay sprites under `assets/`. New pixels are an in-house redraw at the target size, never an upscale of old 16px art. `assets/ATTRIBUTION.txt` credits legacy art only, and only until that file is redrawn in-house. Signed hunter pixels are unchanged, so their credit stays. An in-house replacement drops the old credit for that file. Keep gameplay filenames stable for loaders (`knight_*`, `dwarf_m_*`, `forge_furnace.png`) even when the pixels are the hunter / grit-neon forge.
 
 ---
 
@@ -615,9 +627,16 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-07 | 4-slot sets; 4pc includes 2pc | Clear MH-style set goals |
 | 2026-07 | Carve: hold interact ~2s, interruptible | Readable, skill-adjacent risk |
 | 2026-08 | Art north star is grit-neon, not cozy Stardew | User reference supersedes GDD palette |
-| 2026-08 | Hunter ~160px 1× NN; tiles stay 16×16 | Crushing idle to 16×28 killed the look |
+| 2026-08 | Hunter ~160px 1× NN; tiles stay 16×16 (**superseded 2026-09**) | Crushing idle to 16×28 killed the look. Tile size moved to 32×32 in the 2026-09 rows. Hunter scale is unchanged |
 | 2026-08 | Dual perspective: hunter side-view, homestead forge top-down pad | Foreman lock; forge is not a side sheet |
 | 2026-08 | Attack strip Taste-signed: chamber 139 + hit 343 | Do not reopen; laterality brass+purple LEFT, sword RIGHT |
+| 2026-09 | Environment tiles 32×32. Hunter stays ~160px 1× NN (~5 tiles tall) | Homestead and dungeon share the new tile. Hunter scale is unchanged |
+| 2026-09 | All art redrawn in-house at the target size in Art Direction. Never upscale old 16px art | A redraw, not a scale-up of the 16px sheets. Signed hunter pixels stay (matte excepted). Furnace, homestead hero, icons, trees, enemy canvases, King Slime size, and the homestead map are still pending Brad |
+| 2026-09 | `knight_*_side.png`: opaque black background → transparent only | Character pixels unchanged. Allowed on the Taste-signed strip; does not reopen it |
+| 2026-09 | Halve horizontal dungeon tile counts; retune vertical counts for the ~97 px jump | Floor (10–20 min) and boss (10–25 min) stay. `MIN_WIDTH_TILES` 180 → ~90. Backdrop rows 6 → 8. Vertical gaps about 2–4 tiles |
+| 2026-09 | Homestead map size awaits Brad. See [Open Questions](#open-questions) | Working default until he picks |
+| 2026-09 | Enemy canvases and King Slime size await Brad. See [Open Questions](#open-questions) | Working defaults until he picks |
+| 2026-09 | `assets/ATTRIBUTION.txt` covers legacy art until that file is redrawn | Signed hunter pixels keep their credit. An in-house replacement drops the old credit for that file |
 
 ---
 
@@ -630,6 +649,16 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 - Whether spear/sword should share any specials after mastery split
 - Inventory size after lifestyle systems come online (24 may be tight)
 - Difficulty: static enemy stats vs light scaling on repeat clears
+
+These seven redraw calls are still Brad's. The figure on each line is the working default until he picks:
+
+- **Furnace canvas (not locked).** Working default: keep the Taste-passed 80×80 painting as it is. The other option is a 96×96 canvas (3×3 tiles) padded with transparency
+- **Homestead hero size.** Working default: 64×80, top-down (2 tiles by 2.5). Dual perspective stays. This is the homestead figure (`dwarf_m_*`), separate from the ~160 px side-view hunter
+- **Skill icons.** Working default: 32×32, centered in the 54×68 slot. 48×48 would fill that slot more tightly
+- **Forest trees.** Working default: 64×128 per cell, eight variants on a 256×256 sheet, still placed on about two fifths of interior tiles. A cell near 160 px tall would close the path
+- **Enemy canvases.** Working default: per-kind 1× nearest-neighbor on the 32 px module. Slime 64×64; King Slime 128×128 (twice the slime, 4 tiles, shorter than the 160 px hunter); Bat 96×48; Goblin 80×112; Skeleton 64×144; Zombie 96×128; Arrow and slime bolt 16×48; Slime blob 32×32
+- **King Slime size.** Working default: 128×128 (twice the slime, 4 tiles, shorter than the 160 px hunter)
+- **Homestead map.** Working default: 52×40 tiles. At 32 px the yard is 1664×1280, and the follow camera scrolls
 
 ---
 
