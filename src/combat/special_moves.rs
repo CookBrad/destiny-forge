@@ -7,7 +7,7 @@ use crate::dungeon::{
     player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
     KingSlimeBoss, PlayerAnimation, PlayerVelocity,
 };
-use crate::graphics::{PIXEL_SCALE, TILE};
+use crate::graphics::TILE;
 use crate::player::Loadout;
 
 use super::attack::{EnemyCorpse, PlayerAttack};
@@ -18,10 +18,10 @@ use super::hitbox::{
     HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
-use crate::dungeon::SWORD_SPRITE_HEIGHT;
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
 use super::weapon::{EquippedWeapon, WeaponFamily, WeaponKind};
+use crate::dungeon::SWORD_SPRITE_HEIGHT;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SpecialMoveKind {
@@ -181,11 +181,7 @@ pub fn player_is_busy(
 
 pub fn special_blocks_movement(special: Option<&PlayerSpecialMove>) -> bool {
     special.is_some_and(|m| {
-        m.is_active()
-            && matches!(
-                m.kind,
-                SpecialMoveKind::Charge | SpecialMoveKind::Thrust
-            )
+        m.is_active() && matches!(m.kind, SpecialMoveKind::Charge | SpecialMoveKind::Thrust)
     })
 }
 
@@ -399,9 +395,7 @@ pub fn animate_special_weapon(
     for mut transform in &mut fx {
         let pose = match special.kind {
             SpecialMoveKind::Charge => charge_weapon_pose(progress, special.charge_direction),
-            SpecialMoveKind::Spin => {
-                spin_weapon_pose(progress, special.charge_direction.signum())
-            }
+            SpecialMoveKind::Spin => spin_weapon_pose(progress, special.charge_direction.signum()),
             SpecialMoveKind::Thrust => thrust_weapon_pose(progress),
         };
         transform.translation = pose.translation;
@@ -472,11 +466,9 @@ pub fn resolve_special_move_hits(
 
         let airborne = kind.is_some_and(|kind| kind.is_airborne());
         let knockback = match special.kind {
-            SpecialMoveKind::Charge | SpecialMoveKind::Thrust => EnemyKnockback::from_charge(
-                special.charge_direction,
-                boss.is_some(),
-                airborne,
-            ),
+            SpecialMoveKind::Charge | SpecialMoveKind::Thrust => {
+                EnemyKnockback::from_charge(special.charge_direction, boss.is_some(), airborne)
+            }
             SpecialMoveKind::Spin => EnemyKnockback::away_from_player(
                 player_transform,
                 transform,
@@ -565,8 +557,7 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
     let facing = special.charge_direction.signum();
     let pose = spin_weapon_pose(progress, facing);
     let center = player.translation.truncate();
-    let blade_world =
-        center + Vec2::new(facing * pose.translation.x, pose.translation.y) * PIXEL_SCALE;
+    let blade_world = center + Vec2::new(facing * pose.translation.x, pose.translation.y);
 
     Some(sword_sprite_hit_rect(
         blade_world,
@@ -576,11 +567,11 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
 
 fn spin_pivot_world(player: &Transform) -> Vec2 {
     let center = player.translation.truncate();
-    center + Vec2::new(0.0, SPIN_PIVOT_Y * PIXEL_SCALE)
+    center + Vec2::new(0.0, SPIN_PIVOT_Y)
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS * PIXEL_SCALE + SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE + TILE * 0.35
+    SPIN_ARM_RADIUS + SWORD_SPRITE_HEIGHT * 0.5 + TILE * 0.35
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {

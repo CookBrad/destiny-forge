@@ -13,9 +13,10 @@ pub fn setup_forest(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
-    let forest_art = super::sprites::ForestArt::load(&asset_server);
-    let overworld_art = OverworldArt::load(&asset_server, &mut atlas_layouts);
+    let forest_art = super::sprites::ForestArt::load(&asset_server, &mut images);
+    let overworld_art = OverworldArt::load(&asset_server, &mut atlas_layouts, &mut images);
     let layout = ForestLayout::generate();
 
     spawn_forest(&mut commands, &forest_art, &layout);

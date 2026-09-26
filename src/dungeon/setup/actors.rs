@@ -3,38 +3,45 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::combat::{
-    spawn_sheathed_sword, ContactDamageCooldown, Health, PlayerAttack, PlayerBlock, PLAYER_MAX_HEALTH,
+    spawn_sheathed_sword, ContactDamageCooldown, Health, PlayerAttack, PlayerBlock,
+    PLAYER_MAX_HEALTH,
 };
 use crate::graphics::{
-    center_on_surface, scaled_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, PIXEL_SCALE, TILE,
+    center_on_surface, hunter_body_anchor, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
+    HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
 };
 use crate::player::Loadout;
 
-use super::DungeonEntity;
 use super::super::animation::PlayerAnimation;
 use super::super::boss::BossAttackController;
 use super::super::enemy::{
-    EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump, KingSlimeBoss, Patrol,
+    EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump, KingSlimeBoss,
+    Patrol,
 };
-use super::super::level::{ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec};
+use super::super::level::{
+    ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec,
+};
 use super::super::movement::{DungeonPlayer, PlayerAirJumps, PlayerVelocity};
-use super::super::sprites::{player_frame_rect, player_sprite_size, DungeonArt};
+use super::super::sprites::{player_frame_rect, DungeonArt};
+use super::DungeonEntity;
 
-const BOSS_DISPLAY_SCALE: f32 = 2.0;
 const BOSS_MAX_HEALTH: f32 = 120.0;
 
 pub fn spawn_player(commands: &mut Commands, art: &DungeonArt, start_x: f32, loadout: &Loadout) {
-    let height = player_sprite_size().y;
-    let start = Vec2::new(start_x, center_on_surface(DUNGEON_FLOOR_Y, height));
+    let start = Vec2::new(
+        start_x,
+        center_on_surface(DUNGEON_FLOOR_Y, HUNTER_BODY_PX.y),
+    );
 
     commands
         .spawn((
             Sprite {
                 image: art.player_idle.clone(),
                 rect: Some(player_frame_rect(0)),
+                anchor: hunter_body_anchor(),
                 ..default()
             },
-            scaled_transform(start, 10.0),
+            world_transform(start, 10.0),
             DungeonPlayer,
             PlayerVelocity::default(),
             PlayerAirJumps::default(),
@@ -93,11 +100,8 @@ fn spawn_enemy(
     };
 
     let mut entity = commands.spawn((
-        Sprite {
-            image,
-            ..default()
-        },
-        scaled_transform(Vec2::new(x, y), 5.0),
+        Sprite { image, ..default() },
+        world_transform(Vec2::new(x, y), 5.0),
         spec.kind,
         EnemyHitbox::standard(),
         Health::new(spec.kind.max_health()),
@@ -108,7 +112,10 @@ fn spawn_enemy(
 
     if spec.kind.shoots_projectiles() {
         let delay = rand::thread_rng().gen_range(0.5..spec.kind.shoot_cooldown());
-        entity.insert(EnemyShootCooldown(Timer::from_seconds(delay, TimerMode::Once)));
+        entity.insert(EnemyShootCooldown(Timer::from_seconds(
+            delay,
+            TimerMode::Once,
+        )));
     }
 
     if spec.kind == EnemyKind::Goblin {
@@ -127,8 +134,10 @@ fn enemy_texture(art: &DungeonArt, kind: EnemyKind) -> Handle<Image> {
 }
 
 pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
-    let y = center_on_surface(spec.top_y, ENEMY_DISPLAY_SIZE.y);
-    let boss_scale = PIXEL_SCALE * BOSS_DISPLAY_SCALE;
+    let height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
+    let y = center_on_surface(spec.top_y, height);
+    let mut transform = world_transform(Vec2::new(spec.x, y), 6.0);
+    transform.scale = Vec3::splat(KING_SLIME_GAMEPLAY_SCALE);
 
     commands.spawn((
         Sprite {
@@ -136,14 +145,10 @@ pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpa
             color: Color::srgb(0.55, 0.95, 0.45),
             ..default()
         },
-        Transform {
-            translation: Vec3::new(spec.x, y, 6.0),
-            scale: Vec3::splat(boss_scale),
-            ..default()
-        },
+        transform,
         KingSlimeBoss,
         BossAttackController::new(),
-        EnemyHitbox::scaled(BOSS_DISPLAY_SCALE),
+        EnemyHitbox::scaled(KING_SLIME_GAMEPLAY_SCALE),
         Health::new(BOSS_MAX_HEALTH),
         EnemyContactDamage(12.0),
         Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),

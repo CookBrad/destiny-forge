@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::dungeon::{player_half_extents, SWORD_SPRITE_HEIGHT, SWORD_SPRITE_WIDTH};
-use crate::graphics::PIXEL_SCALE;
 
 #[derive(Clone, Copy, Debug)]
 pub struct HitRect {
@@ -20,8 +19,7 @@ pub fn sword_guard_aabb(player: &Transform) -> HitRect {
     let facing = animation_facing(player);
     let player_center = player.translation.truncate();
     let blade_local = sword_blade_center_local(SWORD_GUARD_ANGLE);
-    let blade_world =
-        player_center + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
+    let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
     sword_sprite_aabb(blade_world, SWORD_GUARD_ANGLE)
 }
 
@@ -29,8 +27,7 @@ pub fn sword_swing_aabb(player: &Transform, angle: f32) -> HitRect {
     let facing = animation_facing(player);
     let player_center = player.translation.truncate();
     let blade_local = sword_blade_center_local(angle);
-    let blade_world =
-        player_center + Vec2::new(facing * blade_local.x, blade_local.y) * PIXEL_SCALE;
+    let blade_world = player_center + Vec2::new(facing * blade_local.x, blade_local.y);
     sword_sprite_aabb(blade_world, angle)
 }
 
@@ -88,8 +85,8 @@ pub fn sword_sprite_hit_rect(center: Vec2, angle: f32) -> HitRect {
 }
 
 fn sword_sprite_aabb(center: Vec2, angle: f32) -> HitRect {
-    let half_w = SWORD_SPRITE_WIDTH * 0.5 * PIXEL_SCALE;
-    let half_h = SWORD_SPRITE_HEIGHT * 0.5 * PIXEL_SCALE;
+    let half_w = SWORD_SPRITE_WIDTH * 0.5;
+    let half_h = SWORD_SPRITE_HEIGHT * 0.5;
     let c = angle.cos().abs();
     let s = angle.sin().abs();
     let extent_x = c * half_w + s * half_h;

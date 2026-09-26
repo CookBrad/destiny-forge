@@ -63,7 +63,9 @@ pub fn animate_player(
 
         apply_sheet_frame(&mut sprite, &art.player_attack, frame);
 
-        if special.kind == crate::combat::SpecialMoveKind::Spin && velocity.grounded && velocity.x.abs() > 1.0
+        if special.kind == crate::combat::SpecialMoveKind::Spin
+            && velocity.grounded
+            && velocity.x.abs() > 1.0
         {
             animation.timer.tick(time.delta());
             if animation.timer.just_finished() {
@@ -116,11 +118,7 @@ fn apply_sheet_frame(sprite: &mut Sprite, image: &Handle<Image>, frame: usize) {
 }
 
 fn apply_facing(transform: &mut Transform, facing: f32) {
-    transform.scale = Vec3::new(
-        facing * crate::graphics::PIXEL_SCALE,
-        crate::graphics::PIXEL_SCALE,
-        crate::graphics::PIXEL_SCALE,
-    );
+    transform.scale = crate::graphics::facing_scale(facing);
 }
 
 fn preserve_facing(animation: &mut PlayerAnimation, transform: &Transform) {

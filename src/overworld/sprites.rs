@@ -8,10 +8,7 @@ pub const ANIMAL_CELL: u32 = 16;
 pub const ANIMAL_SHEET_COLS: u32 = 8;
 pub const ANIMAL_SHEET_ROWS: u32 = 12;
 
-/// Match the homestead player footprint so camera zoom applies uniformly.
-pub const ANIMAL_DISPLAY_SIZE: Vec2 = Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
-
-pub const PLAYER_SPRITE_WIDTH: f32 = 16.0;
+/// Homestead dwarf sheet is 16×28. Height places the feet on the surface.
 pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
 pub const PLAYER_ANIM_FRAMES: usize = 4;
 
@@ -58,6 +55,7 @@ pub struct OverworldArt {
     pub wall: Handle<Image>,
     pub soil: Handle<Image>,
     pub roof: Handle<Image>,
+    /// 1×1 white pixel. Grid strokes are solid fills sized in world units, not a stretched tile.
     pub grid_line: Handle<Image>,
     pub forge_furnace: Handle<Image>,
     pub forge_workbench: Handle<Image>,
@@ -68,7 +66,11 @@ pub struct OverworldArt {
 }
 
 impl OverworldArt {
-    pub fn load(asset_server: &AssetServer, layouts: &mut Assets<TextureAtlasLayout>) -> Self {
+    pub fn load(
+        asset_server: &AssetServer,
+        layouts: &mut Assets<TextureAtlasLayout>,
+        images: &mut Assets<Image>,
+    ) -> Self {
         let animal = asset_server.load(ANIMAL_SHEET);
         let animal_layout = layouts.add(TextureAtlasLayout::from_grid(
             UVec2::new(ANIMAL_CELL, ANIMAL_CELL),
@@ -84,7 +86,7 @@ impl OverworldArt {
             wall: asset_server.load(format!("{ENV_ROOT}/wall.png")),
             soil: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             roof: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
-            grid_line: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
+            grid_line: crate::graphics::solid_white_pixel(images),
             forge_furnace: asset_server.load(format!("{OVERWORLD_ROOT}/forge_furnace.png")),
             forge_workbench: asset_server.load(format!("{OVERWORLD_ROOT}/forge_workbench.png")),
             forge_anvil: asset_server.load(format!("{OVERWORLD_ROOT}/forge_anvil.png")),

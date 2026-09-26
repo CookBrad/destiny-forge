@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::dungeon::DungeonPlayer;
-use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
+use crate::graphics::{CAMERA_ORTHO_SCALE, DUNGEON_FLOOR_Y, TILE};
 
 const CAMERA_HEIGHT_ABOVE_FLOOR: f32 = 5.5 * TILE;
 
@@ -12,27 +12,13 @@ pub struct DungeonScrollBounds {
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    commands.spawn((
-        Camera2d,
-        Projection::from(OrthographicProjection::default_2d()),
-        Transform::from_xyz(0.0, camera_y(), 0.0),
-    ));
+    // Camera2d already requires OrthographicProjection::default_2d at scale 1.
+    // A second Projection would fight it for Camera.clip_from_view every frame.
+    commands.spawn((Camera2d, Transform::from_xyz(0.0, camera_y(), 0.0)));
 }
 
-/// Zoom the 2D camera so one native art pixel renders `pixel_scale` screen pixels.
-pub fn set_camera_pixel_zoom(projection: &mut Projection, pixel_scale: f32) {
-    let Projection::Orthographic(ortho) = projection else {
-        return;
-    };
-    ortho.scale = 1.0 / pixel_scale.max(1.0);
-}
-
-pub fn reset_camera_zoom(projection: &mut Projection) {
-    set_camera_pixel_zoom(projection, 1.0);
-}
-
-pub fn apply_exploration_camera_zoom(projection: &mut Projection) {
-    set_camera_pixel_zoom(projection, PIXEL_SCALE);
+pub fn reset_camera_zoom(projection: &mut OrthographicProjection) {
+    projection.scale = CAMERA_ORTHO_SCALE;
 }
 
 pub fn init_dungeon_camera(
@@ -40,7 +26,7 @@ pub fn init_dungeon_camera(
     player: Query<&Transform, With<DungeonPlayer>>,
     window: Query<&Window>,
     mut camera: Query<
-        (&mut Transform, &mut Projection),
+        (&mut Transform, &mut OrthographicProjection),
         (With<Camera2d>, Without<DungeonPlayer>),
     >,
 ) {
@@ -55,7 +41,7 @@ pub fn init_dungeon_camera(
     };
 
     reset_camera_zoom(&mut projection);
-    let half_view = viewport_half_width(window);
+    let half_view = viewport_half_width(window, projection.scale);
     camera_transform.translation.x =
         clamp_camera_x(player_transform.translation.x, bounds.width, half_view);
     camera_transform.translation.y = camera_y();
@@ -65,19 +51,22 @@ pub fn follow_camera(
     bounds: Res<DungeonScrollBounds>,
     player: Query<&Transform, With<DungeonPlayer>>,
     window: Query<&Window>,
-    mut camera: Query<&mut Transform, (With<Camera2d>, Without<DungeonPlayer>)>,
+    mut camera: Query<
+        (&mut Transform, &OrthographicProjection),
+        (With<Camera2d>, Without<DungeonPlayer>),
+    >,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
     };
-    let Ok(mut camera_transform) = camera.get_single_mut() else {
+    let Ok((mut camera_transform, projection)) = camera.get_single_mut() else {
         return;
     };
     let Ok(window) = window.get_single() else {
         return;
     };
 
-    let half_view = viewport_half_width(window);
+    let half_view = viewport_half_width(window, projection.scale);
     let target_x = clamp_camera_x(player_transform.translation.x, bounds.width, half_view);
     camera_transform.translation.x = target_x;
     camera_transform.translation.y = camera_y();
@@ -93,9 +82,8 @@ fn clamp_camera_x(player_x: f32, dungeon_width: f32, half_viewport: f32) -> f32 
     player_x.clamp(min_x, max_x)
 }
 
-/// Default Bevy 2D maps window logical pixels 1:1 to world units.
-fn viewport_half_width(window: &Window) -> f32 {
-    window.width() * 0.5
+fn viewport_half_width(window: &Window, ortho_scale: f32) -> f32 {
+    window.width() * 0.5 * ortho_scale
 }
 
 pub fn dungeon_camera_center_y() -> f32 {

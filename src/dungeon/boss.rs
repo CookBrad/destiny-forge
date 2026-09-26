@@ -8,8 +8,8 @@ use crate::combat::{
     apply_player_hurt, damage_amount, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse,
     EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
+use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 use crate::player::Loadout;
-use crate::graphics::{DUNGEON_FLOOR_Y, PIXEL_SCALE, TILE};
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
 use super::movement::DungeonPlayer;
@@ -134,7 +134,11 @@ pub fn tick_boss_attacks(
             Option<&EnemyAggro>,
             Option<&BossCharging>,
         ),
-        (With<KingSlimeBoss>, Without<EnemyCorpse>, Without<DungeonPlayer>),
+        (
+            With<KingSlimeBoss>,
+            Without<EnemyCorpse>,
+            Without<DungeonPlayer>,
+        ),
     >,
 ) {
     let Ok(player_transform) = player.get_single() else {
@@ -165,7 +169,9 @@ pub fn tick_boss_attacks(
         let distance = to_player.length();
 
         if distance < BOSS_ATTACK_RANGE && aggro.is_none() {
-            commands.entity(entity).insert(EnemyAggro { lock_secs: 0.0 });
+            commands
+                .entity(entity)
+                .insert(EnemyAggro { lock_secs: 0.0 });
         }
 
         if knockback.is_some() {
@@ -182,11 +188,7 @@ pub fn tick_boss_attacks(
             windup.tick(time.delta());
             // Stronger telegraph: pulse orange during windup.
             let pulse = ((time.elapsed_secs() * 10.0).sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-            sprite.color = Color::srgb(
-                1.0,
-                0.45 + 0.25 * pulse,
-                0.12 + 0.1 * pulse,
-            );
+            sprite.color = Color::srgb(1.0, 0.45 + 0.25 * pulse, 0.12 + 0.1 * pulse);
 
             if windup.finished() {
                 if let Some(kind) = controller.pending.take() {
@@ -252,12 +254,7 @@ pub fn resolve_boss_hazards(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            &mut ContactDamageCooldown,
-        ),
+        (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
         (
             With<DungeonPlayer>,
             Without<BossGroundHazard>,
@@ -411,7 +408,14 @@ fn execute_attack(
     }
 }
 
-fn fire_slime_bolt(commands: &mut Commands, art: &DungeonArt, origin: Vec2, to_target: Vec2, damage: f32, speed: f32) {
+fn fire_slime_bolt(
+    commands: &mut Commands,
+    art: &DungeonArt,
+    origin: Vec2,
+    to_target: Vec2,
+    damage: f32,
+    speed: f32,
+) {
     let dir = to_target.normalize_or_zero();
     if dir == Vec2::ZERO {
         return;
@@ -423,7 +427,7 @@ fn fire_slime_bolt(commands: &mut Commands, art: &DungeonArt, origin: Vec2, to_t
         origin + dir * TILE * 0.9,
         dir * speed,
         damage,
-        PIXEL_SCALE,
+        1.0,
         Vec2::new(3.5, 10.5),
     );
 }
@@ -447,7 +451,7 @@ fn fire_slime_blob(
         origin + dir * TILE * 0.75,
         dir * speed,
         damage,
-        PIXEL_SCALE * scale,
+        scale,
         Vec2::new(8.0, 8.0),
     );
 }
@@ -460,7 +464,7 @@ fn spawn_falling_blob(commands: &mut Commands, art: &DungeonArt, origin: Vec2, d
         origin,
         Vec2::new(0.0, -210.0),
         damage,
-        PIXEL_SCALE * 0.9,
+        0.9,
         Vec2::new(7.0, 7.0),
     );
 }
@@ -491,9 +495,7 @@ fn spawn_projectile(
         },
         EnemyProjectile { damage },
         ProjectileVelocity(velocity),
-        ProjectileLifetime {
-            remaining: 4.5,
-        },
+        ProjectileLifetime { remaining: 4.5 },
         DeflectedProjectile::default(),
         DungeonEntity,
     ));
@@ -511,7 +513,7 @@ fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, target_x: f32) {
         },
         Transform {
             translation: Vec3::new(target_x, y, 2.0),
-            scale: Vec3::new(PIXEL_SCALE * 3.2, PIXEL_SCALE * 0.55, 1.0),
+            scale: Vec3::new(3.2, 0.55, 1.0),
             ..default()
         },
         BossGroundHazard {

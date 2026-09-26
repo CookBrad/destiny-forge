@@ -3,12 +3,12 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::core::{DungeonPlayState, GameState, ProfileDirty};
-use crate::overworld::setup::OverworldEntry;
 use crate::dungeon::{
     player_frame_rect, player_half_extents, DungeonArt, DungeonPlayer, PlatformCollider,
     PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES,
 };
-use crate::graphics::{DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, PIXEL_SCALE, TILE};
+use crate::graphics::{facing_scale, DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, TILE};
+use crate::overworld::setup::OverworldEntry;
 
 use super::attack::{WeaponOnBack, WeaponSwingFx};
 use super::block::WeaponBlockFx;
@@ -125,7 +125,8 @@ pub fn tick_player_death(
     >,
     mut visibility: Query<&mut Visibility>,
 ) {
-    let Ok((_entity, mut transform, mut velocity, mut death, children)) = player.get_single_mut() else {
+    let Ok((_entity, mut transform, mut velocity, mut death, children)) = player.get_single_mut()
+    else {
         return;
     };
 
@@ -186,12 +187,7 @@ pub fn tick_player_death(
 pub fn animate_player_death(
     art: Res<DungeonArt>,
     mut player: Query<
-        (
-            &PlayerDeath,
-            &PlayerAnimation,
-            &mut Sprite,
-            &mut Transform,
-        ),
+        (&PlayerDeath, &PlayerAnimation, &mut Sprite, &mut Transform),
         With<DungeonPlayer>,
     >,
 ) {
@@ -212,11 +208,7 @@ pub fn animate_player_death(
     sprite.rect = Some(player_frame_rect(frame));
 
     let facing = animation.facing.signum().max(-1.0).min(1.0);
-    transform.scale = Vec3::new(
-        facing * PIXEL_SCALE,
-        PIXEL_SCALE,
-        PIXEL_SCALE,
-    );
+    transform.scale = facing_scale(facing);
 
     let fall = ((t - 0.18) / 0.55).clamp(0.0, 1.0);
     let tilt = -facing * fall * FRAC_PI_2 * 0.9;

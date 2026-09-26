@@ -14,9 +14,9 @@ pub const SWORD_SPRITE_HEIGHT: f32 = 30.0;
 
 /// Native pixel size of each hunter frame (width × height).
 /// Uniform cell is the hit frame width so the attack strip can hold chamber + thrust.
-/// Hurtbox is the body; reach is the blade. Camera/hitbox retune is a Systems follow-up.
-pub const PLAYER_SPRITE_WIDTH: f32 = 343.0;
-pub const PLAYER_SPRITE_HEIGHT: f32 = 160.0;
+/// Hurtbox is the body; reach is the blade.
+pub const PLAYER_SPRITE_WIDTH: f32 = crate::graphics::HUNTER_CELL_PX.x;
+pub const PLAYER_SPRITE_HEIGHT: f32 = crate::graphics::HUNTER_CELL_PX.y;
 
 pub const PLAYER_IDLE_FRAMES: usize = 4;
 pub const PLAYER_RUN_FRAMES: usize = 4;
@@ -45,7 +45,8 @@ impl DungeonArt {
         Self {
             player_idle: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_idle_side.png")),
             player_run: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_run_side.png")),
-            player_attack: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png")),
+            player_attack: asset_server
+                .load(format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png")),
             weapon_anime_sword: asset_server.load(WEAPON_ANIME_SWORD),
             floor_ground: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             floor_platform: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
@@ -61,12 +62,9 @@ impl DungeonArt {
     }
 }
 
-pub fn player_sprite_size() -> Vec2 {
-    Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT)
-}
-
+/// Collision and feet use the GDD body, not the 343-wide cell.
 pub fn player_half_extents() -> Vec2 {
-    player_sprite_size() * 0.5
+    crate::graphics::HUNTER_BODY_PX * 0.5
 }
 
 pub fn player_frame_rect(frame: usize) -> Rect {
@@ -74,5 +72,20 @@ pub fn player_frame_rect(frame: usize) -> Rect {
     Rect {
         min: Vec2::new(x, 0.0),
         max: Vec2::new(x + PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_half_extents_are_the_body_not_the_cell() {
+        let half = player_half_extents();
+        assert_eq!(half, crate::graphics::HUNTER_BODY_PX * 0.5);
+        assert_ne!(
+            half,
+            Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT) * 0.5
+        );
     }
 }

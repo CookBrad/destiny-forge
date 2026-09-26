@@ -54,7 +54,7 @@ fn clear_profile_rename_state(mut rename: ResMut<ProfileRenameState>) {
     rename.active = None;
 }
 
-fn reset_title_camera(mut camera: Query<&mut Projection, With<Camera2d>>) {
+fn reset_title_camera(mut camera: Query<&mut OrthographicProjection, With<Camera2d>>) {
     for mut projection in &mut camera {
         reset_camera_zoom(&mut projection);
     }

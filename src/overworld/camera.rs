@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::graphics::apply_exploration_camera_zoom;
+use crate::graphics::reset_camera_zoom;
 
 use super::movement::{ExplorationMap, OverworldPlayer};
 
@@ -11,7 +11,7 @@ pub fn init_exploration_camera(
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
     mut camera: Query<
-        (&mut Transform, &mut Projection),
+        (&mut Transform, &mut OrthographicProjection),
         (With<Camera2d>, Without<OverworldPlayer>),
     >,
 ) {
@@ -25,7 +25,7 @@ pub fn init_exploration_camera(
         return;
     };
 
-    apply_exploration_camera_zoom(&mut projection);
+    reset_camera_zoom(&mut projection);
     let half_view = exploration_half_view(window, &projection);
     let world = Vec2::new(map.world_width, map.world_height);
     let target = clamp_camera(player_transform.translation.truncate(), half_view, world);
@@ -37,7 +37,7 @@ pub fn follow_exploration_camera(
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
     mut camera: Query<
-        (&mut Transform, &Projection),
+        (&mut Transform, &OrthographicProjection),
         (With<Camera2d>, Without<OverworldPlayer>),
     >,
 ) {
@@ -57,12 +57,8 @@ pub fn follow_exploration_camera(
     camera_transform.translation = target.extend(OVERWORLD_CAMERA_Z);
 }
 
-fn exploration_half_view(window: &Window, projection: &Projection) -> Vec2 {
-    let zoom = match projection {
-        Projection::Orthographic(ortho) => ortho.scale,
-        _ => 1.0,
-    };
-    Vec2::new(window.width() * 0.5, window.height() * 0.5) * zoom
+fn exploration_half_view(window: &Window, projection: &OrthographicProjection) -> Vec2 {
+    Vec2::new(window.width() * 0.5, window.height() * 0.5) * projection.scale
 }
 
 fn clamp_camera(player: Vec2, half_view: Vec2, world: Vec2) -> Vec2 {
