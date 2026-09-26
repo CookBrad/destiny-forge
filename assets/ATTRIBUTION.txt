@@ -34,7 +34,7 @@ Hunter (dungeon player)
   Author: Robert (0x72)
   URL: https://0x72.itch.io/dungeontileset-ii
   License: CC0 1.0 (public domain)
-  Used for: dungeon environment tiles, slime and bat enemies
+  Used for: slime and bat enemies
 
 Stealthix — Animated Slimes
   Author: Stealthix
@@ -62,10 +62,14 @@ Gameplay sprite map
   player/combat/knight_attack_side.png — Hunter attack (chamber, chamber, hit, hit)
   player/weapons/weapon_anime_sword.png — Transparent placeholder (blade is on the hunter)
 
-  dungeon/environment/floor_ground.png   — 0x72 floor tile
-  dungeon/environment/floor_platform.png   — 0x72 platform tile
-  dungeon/environment/floor_ladder.png     — 0x72 ladder tile
-  dungeon/environment/wall.png             — 0x72 wall tile
+  dungeon/environment/floor_ground.png     — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/floor_platform.png   — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/floor_ladder.png     — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/wall.png             — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/floor_pit.png        — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/pit_stake.png        — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/environment/pit_lip.png          — In-house, made by tools/draw_dungeon_environment.py
+  dungeon/vfx/ground_slam.png              — In-house, made by tools/draw_dungeon_environment.py
 
   dungeon/enemies/slime.png   — 0x72 tiny slug
   dungeon/enemies/bat.png     — 0x72 imp (flying enemy stand-in)
