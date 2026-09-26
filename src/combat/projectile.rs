@@ -2,18 +2,18 @@ use bevy::prelude::*;
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::combat::EnemyCorpse;
 use crate::audio::CombatSfx;
+use crate::combat::EnemyCorpse;
 use crate::dungeon::{
     DungeonArt, DungeonEntity, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback,
     EnemyShootCooldown, KingSlimeBoss, Patrol,
 };
-use crate::graphics::{PIXEL_SCALE, TILE};
+use crate::graphics::TILE;
 
 use super::attack::{player_sword_hit_rect, HitFlash, PlayerAttack};
-use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
 use super::hitbox::{enemy_aabb, hitbox_overlaps, player_body_rect, sword_guard_aabb, HitRect};
 use super::player_block::PlayerBlock;
+use super::special_moves::{spin_deflects_projectile, PlayerSpecialMove};
 use crate::player::Loadout;
 
 use super::health::{damage_amount, ContactDamageCooldown, Health};
@@ -115,7 +115,6 @@ pub fn enemy_shoot_projectiles(
             Transform {
                 translation: Vec3::new(spawn.x, spawn.y, PROJECTILE_Z),
                 rotation: Quat::from_rotation_z(angle),
-                scale: Vec3::splat(PIXEL_SCALE),
                 ..default()
             },
             EnemyProjectile {
@@ -139,7 +138,12 @@ pub fn move_enemy_projectiles(
     time: Res<Time>,
     mut commands: Commands,
     bounds: Res<crate::graphics::DungeonScrollBounds>,
-    mut projectiles: Query<(Entity, &mut Transform, &ProjectileVelocity, &mut ProjectileLifetime)>,
+    mut projectiles: Query<(
+        Entity,
+        &mut Transform,
+        &ProjectileVelocity,
+        &mut ProjectileLifetime,
+    )>,
 ) {
     let dt = time.delta_secs();
     let margin = TILE * 4.0;
@@ -250,10 +254,10 @@ pub fn resolve_deflected_projectile_hits(
                 continue;
             }
 
-            if !hitbox_overlaps(projectile_rect, enemy_aabb(
-                enemy_transform.translation.truncate(),
-                hitbox.0,
-            )) {
+            if !hitbox_overlaps(
+                projectile_rect,
+                enemy_aabb(enemy_transform.translation.truncate(), hitbox.0),
+            ) {
                 continue;
             }
 

@@ -1,5 +1,9 @@
 mod inventory;
 mod material;
 
-pub use inventory::{Inventory, INVENTORY_SLOT_COUNT, MAX_STACK};
+// Tests in other modules need this. A non-test `pub use` is `unused_imports`
+// under `-D warnings`; `-A dead_code` does not cover that lint.
+#[cfg(test)]
+pub use inventory::MAX_STACK;
+pub use inventory::{Inventory, INVENTORY_SLOT_COUNT};
 pub use material::MaterialId;

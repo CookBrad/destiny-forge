@@ -21,10 +21,11 @@ pub fn setup_overworld(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut images: ResMut<Assets<Image>>,
     entry: Option<Res<OverworldEntry>>,
     profile: Res<PlayerProfile>,
 ) {
-    let art = OverworldArt::load(&asset_server, &mut atlas_layouts);
+    let art = OverworldArt::load(&asset_server, &mut atlas_layouts, &mut images);
     let layout = OverworldLayout::homestead();
     let spawn = entry.map(|entry| *entry).unwrap_or_default();
 

@@ -11,17 +11,17 @@ use crate::player::Loadout;
 
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY, HIT_STOP_LIGHT};
 use super::hitbox::{
-    animation_facing, enemy_aabb, hitbox_overlaps, sword_blade_center_local, sword_swing_aabb,
-    HitRect,
+    animation_facing, blade_root_from_center, enemy_aabb, hitbox_overlaps,
+    sword_blade_center_local, sword_swing_aabb, HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
 use super::skills::{SkillBindings, SkillKind};
 use super::special_moves::{player_is_busy, PlayerSpecialMove};
 
-use crate::dungeon::player_half_extents;
 use super::health::{damage_amount, Health};
 use super::weapon::{ComboStep, EquippedWeapon, HitShape, WeaponKind};
+use crate::dungeon::player_half_extents;
 
 #[derive(Component)]
 pub struct PlayerAttack {
@@ -90,6 +90,7 @@ pub fn player_sword_hit_rect(player: &Transform, attack: &PlayerAttack) -> Optio
         HitShape::SwordArc => Some(sword_swing_aabb(
             player,
             swing_angle(sword_arc_progress(attack)),
+            attack.step().reach,
         )),
         HitShape::SpearThrust | HitShape::SpearLunge => None,
     }
@@ -220,10 +221,7 @@ fn begin_combo_step(
 pub fn spawn_sheathed_sword(image: Handle<Image>) -> impl Bundle {
     (
         WeaponOnBack,
-        Sprite {
-            image,
-            ..default()
-        },
+        Sprite { image, ..default() },
         Transform {
             translation: Vec3::new(SHEATHED_SWORD_X, SHEATHED_SWORD_Y, SHEATHED_SWORD_Z),
             rotation: Quat::from_rotation_z(SHEATHED_SWORD_ANGLE),
@@ -417,7 +415,11 @@ pub fn resolve_weapon_hits(
 
     if landed {
         let heavy = attack.step().power_mult >= 1.35;
-        hit_stop.request(if heavy { HIT_STOP_HEAVY } else { HIT_STOP_LIGHT });
+        hit_stop.request(if heavy {
+            HIT_STOP_HEAVY
+        } else {
+            HIT_STOP_LIGHT
+        });
     }
 }
 
@@ -442,7 +444,9 @@ pub fn tick_hit_flash(
 fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> HitRect {
     let step = attack.step();
     match step.shape {
-        HitShape::SwordArc => sword_swing_aabb(player, swing_angle(sword_arc_progress(attack))),
+        HitShape::SwordArc => {
+            sword_swing_aabb(player, swing_angle(sword_arc_progress(attack)), step.reach)
+        }
         HitShape::SpearThrust | HitShape::SpearLunge => {
             spear_thrust_hitbox(player, step.reach, facing, step.shape)
         }
@@ -452,18 +456,19 @@ fn swing_hitbox(player: &Transform, attack: &PlayerAttack, facing: f32) -> HitRe
 fn spear_thrust_hitbox(player: &Transform, reach: f32, facing: f32, shape: HitShape) -> HitRect {
     let half = player_half_extents();
     let center = player.translation.truncate();
-    let front = center.x + facing * half.x * 0.6;
+    let root = blade_root_from_center(half.x);
+    let front = center.x + facing * root;
     let tip_x = center.x + facing * reach;
-    let height = match shape {
+    let above = match shape {
         HitShape::SpearLunge => half.y * 0.55,
-        _ => half.y * 0.4,
+        _ => half.y * 0.45,
     };
 
     HitRect {
         min_x: front.min(tip_x),
         max_x: front.max(tip_x),
-        min_y: center.y - height,
-        max_y: center.y + height * 0.85,
+        min_y: center.y - half.y,
+        max_y: center.y + above,
     }
 }
 
@@ -504,11 +509,13 @@ fn pose_for_step(step: ComboStep, progress: f32) -> SwingPose {
         HitShape::SpearThrust | HitShape::SpearLunge => {
             // Horizontal poke: extend forward over the thrust.
             let extend = progress.clamp(0.0, 1.0);
-            let forward = 6.0 + extend * (if matches!(step.shape, HitShape::SpearLunge) {
-                14.0
-            } else {
-                10.0
-            });
+            let forward = 6.0
+                + extend
+                    * (if matches!(step.shape, HitShape::SpearLunge) {
+                        14.0
+                    } else {
+                        10.0
+                    });
             SwingPose {
                 translation: Vec3::new(forward, 2.0, 0.5),
                 rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
@@ -551,5 +558,186 @@ mod tests {
             legs: Some(ArmorKind::SlimeGreaves),
         };
         assert!(attack.step_power(&full) > attack.step_power(&base));
+    }
+
+    const SWORDS: [WeaponKind; 3] = [
+        WeaponKind::RustySword,
+        WeaponKind::IronSword,
+        WeaponKind::SlimeBlade,
+    ];
+
+    fn hunter(facing: f32) -> Transform {
+        let mut transform = Transform::from_xyz(
+            400.0,
+            crate::graphics::DUNGEON_FLOOR_Y + crate::graphics::HUNTER_BODY_PX.y * 0.5,
+            0.0,
+        );
+        transform.scale = crate::graphics::facing_scale(facing);
+        transform
+    }
+
+    fn attack_at(kind: WeaponKind, step: usize, elapsed: f32) -> PlayerAttack {
+        let mut attack = PlayerAttack::inactive();
+        attack.weapon = kind;
+        attack.step_index = step;
+        let duration = kind.moveset().steps[step].duration;
+        attack.timer = Timer::from_seconds(duration, TimerMode::Once);
+        attack
+            .timer
+            .tick(std::time::Duration::from_secs_f32(elapsed));
+        attack
+    }
+
+    fn forward_reach(rect: &HitRect, origin_x: f32, facing: f32) -> f32 {
+        if facing < 0.0 {
+            origin_x - rect.min_x
+        } else {
+            rect.max_x - origin_x
+        }
+    }
+
+    fn near_edge(rect: &HitRect, origin_x: f32, facing: f32) -> f32 {
+        if facing < 0.0 {
+            origin_x - rect.max_x
+        } else {
+            rect.min_x - origin_x
+        }
+    }
+
+    fn hit_at(kind: WeaponKind, step: usize, elapsed: f32, facing: f32) -> (Transform, HitRect) {
+        let player = hunter(facing);
+        let attack = attack_at(kind, step, elapsed);
+        assert!(
+            attack.in_hit_window(),
+            "{kind:?} step {step} at {elapsed}s is outside the hit window"
+        );
+        let rect = super::swing_hitbox(&player, &attack, facing);
+        (player, rect)
+    }
+
+    fn floor_enemy(origin_x: f32, facing: f32, ahead: f32) -> HitRect {
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        super::enemy_aabb(
+            Vec2::new(
+                origin_x + facing * ahead,
+                crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y,
+            ),
+            enemy_half,
+        )
+    }
+
+    #[test]
+    fn sword_combo_reaches_past_the_body_at_every_stage() {
+        let body_half = super::player_half_extents().x;
+        for kind in SWORDS {
+            let steps = kind.moveset().steps;
+            for (index, step) in steps.iter().enumerate() {
+                for facing in [1.0, -1.0] {
+                    for elapsed in [
+                        step.hit_start,
+                        (step.hit_start + step.hit_end) * 0.5,
+                        step.hit_end,
+                    ] {
+                        let (player, rect) = hit_at(kind, index, elapsed, facing);
+                        let reach = forward_reach(&rect, player.translation.x, facing);
+                        assert!(
+                            reach > body_half,
+                            "{kind:?} step {index} facing {facing} at {elapsed} reaches {reach}, body half {body_half}"
+                        );
+                    }
+                    let (player, rect) = hit_at(kind, index, step.hit_end, facing);
+                    let reach = forward_reach(&rect, player.translation.x, facing);
+                    assert!(
+                        (reach - step.reach).abs() < 1.0,
+                        "sword tip {reach} should match the hit-frame blade {}",
+                        step.reach
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn spear_combo_reaches_past_the_body_at_every_stage() {
+        let body_half = super::player_half_extents().x;
+        let spear = WeaponKind::RustySpear;
+        for (index, step) in spear.moveset().steps.iter().enumerate() {
+            for facing in [1.0, -1.0] {
+                for elapsed in [
+                    step.hit_start,
+                    (step.hit_start + step.hit_end) * 0.5,
+                    step.hit_end,
+                ] {
+                    let (player, rect) = hit_at(spear, index, elapsed, facing);
+                    let origin = player.translation.x;
+                    let tip = forward_reach(&rect, origin, facing);
+                    let root = near_edge(&rect, origin, facing);
+                    assert!(
+                        root < body_half,
+                        "spear step {index} root {root} should meet the body edge {body_half}"
+                    );
+                    assert!(
+                        tip > body_half,
+                        "spear step {index} tip {tip} should clear the body half {body_half}"
+                    );
+                    assert!(
+                        tip > root + body_half,
+                        "spear step {index} is a sliver: root {root} tip {tip}"
+                    );
+                    assert!((tip - step.reach).abs() < 0.01);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn spear_combo_reaches_farther_than_the_sword_at_every_stage() {
+        for (index, sword_step) in WeaponKind::RustySword.moveset().steps.iter().enumerate() {
+            let spear_step = WeaponKind::RustySpear.moveset().steps[index];
+            for facing in [1.0, -1.0] {
+                let (sword_player, sword_rect) =
+                    hit_at(WeaponKind::RustySword, index, sword_step.hit_end, facing);
+                let (spear_player, spear_rect) =
+                    hit_at(WeaponKind::RustySpear, index, spear_step.hit_end, facing);
+                let sword_tip = forward_reach(&sword_rect, sword_player.translation.x, facing);
+                let spear_tip = forward_reach(&spear_rect, spear_player.translation.x, facing);
+                assert!(
+                    spear_tip > sword_tip,
+                    "stage {index} facing {facing}: spear {spear_tip} should outrange sword {sword_tip}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn attack_hits_a_same_floor_enemy_just_outside_the_body_and_misses_past_the_tip() {
+        let body_half = super::player_half_extents().x;
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE.x * 0.5;
+        let weapons = [
+            WeaponKind::RustySword,
+            WeaponKind::IronSword,
+            WeaponKind::SlimeBlade,
+            WeaponKind::RustySpear,
+        ];
+        for kind in weapons {
+            for (index, step) in kind.moveset().steps.iter().enumerate() {
+                let elapsed = (step.hit_start + step.hit_end) * 0.5;
+                for facing in [1.0, -1.0] {
+                    let (player, rect) = hit_at(kind, index, elapsed, facing);
+                    let origin = player.translation.x;
+                    let just_outside = body_half + enemy_half + 1.0;
+                    assert!(
+                        super::hitbox_overlaps(rect, floor_enemy(origin, facing, just_outside)),
+                        "{kind:?} step {index} facing {facing} missed the slime just past the body"
+                    );
+                    let tip = forward_reach(&rect, origin, facing);
+                    let past_tip = tip + enemy_half + 2.0;
+                    assert!(
+                        !super::hitbox_overlaps(rect, floor_enemy(origin, facing, past_tip)),
+                        "{kind:?} step {index} facing {facing} hit past the blade tip {tip}"
+                    );
+                }
+            }
+        }
     }
 }

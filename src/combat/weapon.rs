@@ -1,6 +1,20 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::graphics::hunter_blade_tip_reach;
+
+/// Sword reach is the painted hit-frame blade, measured from the body center.
+const SWORD_BLADE_REACH: f32 = hunter_blade_tip_reach();
+/// Spear outranges that blade. Spread keeps the old poke / thrust / lunge ratios (40:30, 48:32, 58:34).
+const SPEAR_POKE_REACH: f32 = SWORD_BLADE_REACH * 40.0 / 30.0;
+const SPEAR_THRUST_REACH: f32 = SWORD_BLADE_REACH * 48.0 / 32.0;
+const SPEAR_LUNGE_REACH: f32 = SWORD_BLADE_REACH * 58.0 / 34.0;
+
+/// Spear special outranges the lunge by the old 64/58 margin.
+pub const fn spear_special_reach() -> f32 {
+    SPEAR_LUNGE_REACH * 64.0 / 58.0
+}
+
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct EquippedWeapon(pub WeaponKind);
 
@@ -37,7 +51,7 @@ pub struct ComboStep {
     pub hit_end: f32,
     /// Multiplier on weapon base power for this step.
     pub power_mult: f32,
-    /// Forward reach in world pixels (spear); swords ignore for arc geometry.
+    /// Forward reach in world pixels from the body center to the blade tip.
     pub reach: f32,
     pub shape: HitShape,
     /// Elapsed time when input can queue the next combo step.
@@ -66,7 +80,7 @@ const SWORD_COMBO: &[ComboStep] = &[
         hit_start: 0.07,
         hit_end: 0.16,
         power_mult: 1.0,
-        reach: 30.0,
+        reach: SWORD_BLADE_REACH,
         shape: HitShape::SwordArc,
         chain_start: 0.14,
     },
@@ -75,7 +89,7 @@ const SWORD_COMBO: &[ComboStep] = &[
         hit_start: 0.08,
         hit_end: 0.18,
         power_mult: 1.15,
-        reach: 32.0,
+        reach: SWORD_BLADE_REACH,
         shape: HitShape::SwordArc,
         chain_start: 0.16,
     },
@@ -84,7 +98,7 @@ const SWORD_COMBO: &[ComboStep] = &[
         hit_start: 0.1,
         hit_end: 0.24,
         power_mult: 1.4,
-        reach: 34.0,
+        reach: SWORD_BLADE_REACH,
         shape: HitShape::SwordArc,
         chain_start: 0.28,
     },
@@ -97,7 +111,7 @@ const SPEAR_COMBO: &[ComboStep] = &[
         hit_start: 0.08,
         hit_end: 0.18,
         power_mult: 1.0,
-        reach: 40.0,
+        reach: SPEAR_POKE_REACH,
         shape: HitShape::SpearThrust,
         chain_start: 0.16,
     },
@@ -106,7 +120,7 @@ const SPEAR_COMBO: &[ComboStep] = &[
         hit_start: 0.1,
         hit_end: 0.22,
         power_mult: 1.2,
-        reach: 48.0,
+        reach: SPEAR_THRUST_REACH,
         shape: HitShape::SpearThrust,
         chain_start: 0.18,
     },
@@ -115,7 +129,7 @@ const SPEAR_COMBO: &[ComboStep] = &[
         hit_start: 0.12,
         hit_end: 0.3,
         power_mult: 1.45,
-        reach: 58.0,
+        reach: SPEAR_LUNGE_REACH,
         shape: HitShape::SpearLunge,
         chain_start: 0.32,
     },
@@ -177,7 +191,15 @@ mod tests {
         assert_eq!(spear.steps.len(), 3);
         assert!(matches!(sword.steps[0].shape, HitShape::SwordArc));
         assert!(matches!(spear.steps[0].shape, HitShape::SpearThrust));
-        assert!(spear.steps[2].reach > sword.steps[2].reach);
+        let body_half = crate::graphics::HUNTER_BODY_PX.x * 0.5;
+        for step in 0..3 {
+            assert!(sword.steps[step].reach > body_half);
+            assert!(spear.steps[step].reach > sword.steps[step].reach);
+        }
+        assert_eq!(
+            sword.steps[0].reach,
+            crate::graphics::hunter_blade_tip_reach()
+        );
     }
 
     #[test]

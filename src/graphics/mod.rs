@@ -3,12 +3,12 @@ mod plugin;
 mod world_units;
 
 pub use camera::{
-    apply_exploration_camera_zoom, follow_camera, init_dungeon_camera, reset_camera_zoom,
-    viewport_bottom_y, DungeonScrollBounds,
+    follow_camera, init_dungeon_camera, reset_camera_zoom, viewport_bottom_y, DungeonScrollBounds,
 };
 pub use plugin::GraphicsPlugin;
 pub use world_units::{
-    center_on_surface, scaled_transform, world_transform, DUNGEON_FLOOR_Y,
-    DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
-    ENEMY_DISPLAY_SIZE, INTERACT_DISTANCE, PIXEL_SCALE, TILE,
+    center_on_surface, facing_scale, hunter_blade_tip_reach, hunter_body_anchor, solid_fill,
+    solid_white_pixel, world_transform, CAMERA_ORTHO_SCALE, DUNGEON_AIR_JUMP_MULT, DUNGEON_FLOOR_Y,
+    DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, ENEMY_DISPLAY_SIZE, HUNTER_BODY_PX, HUNTER_CELL_PX,
+    INTERACT_DISTANCE, KING_SLIME_GAMEPLAY_SCALE, PLAYER_WALK_SPEED, TILE,
 };

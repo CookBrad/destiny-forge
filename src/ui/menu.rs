@@ -1,11 +1,12 @@
 use bevy::prelude::*;
 
-use crate::audio::AudioSettings;
-use crate::core::{save_root_display, DungeonPlayState, GameState};
 use super::inventory_window::InventoryWindowOpen;
 use super::pause_audio::spawn_pause_audio_controls;
 use super::profile_picker::ProfilePicker;
 use super::title_profiles::spawn_title_profile_cards;
+use crate::audio::AudioSettings;
+use crate::core::{save_root_display, DungeonPlayState, GameState};
+use crate::graphics::reset_camera_zoom;
 
 #[derive(Component)]
 pub struct TitleMenu;
@@ -194,6 +195,12 @@ pub fn resume_game_time(mut time: ResMut<Time<Virtual>>) {
 
 pub fn set_title_clear_color(mut clear: ResMut<ClearColor>) {
     clear.0 = Color::srgb(0.08, 0.07, 0.1);
+}
+
+pub fn reset_title_camera(mut camera: Query<&mut OrthographicProjection, With<Camera2d>>) {
+    for mut projection in &mut camera {
+        reset_camera_zoom(&mut projection);
+    }
 }
 
 pub fn ensure_time_running(mut time: ResMut<Time<Virtual>>) {

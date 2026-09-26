@@ -4,7 +4,7 @@ use rand::Rng;
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
 use super::layout::OverworldEntity;
-use super::sprites::{animal_atlas_index, ANIMAL_DISPLAY_SIZE, PLAYER_SPRITE_HEIGHT};
+use super::sprites::animal_atlas_index;
 
 pub const PEN_MIN: Vec2 = Vec2::new(33.0 * TILE, 7.0 * TILE);
 pub const PEN_MAX: Vec2 = Vec2::new(48.0 * TILE, 17.0 * TILE);
@@ -44,10 +44,7 @@ pub fn spawn_farm_animal(
     wander: AnimalWander,
 ) -> Entity {
     let ground_y = position.y - TILE * 0.5;
-    let center = Vec2::new(
-        position.x,
-        center_on_surface(ground_y, PLAYER_SPRITE_HEIGHT),
-    );
+    let center = Vec2::new(position.x, center_on_surface(ground_y, TILE));
 
     commands
         .spawn((
@@ -57,7 +54,6 @@ pub fn spawn_farm_animal(
                     layout,
                     index: animal_atlas_index(creature_index, 0),
                 }),
-                custom_size: Some(ANIMAL_DISPLAY_SIZE),
                 ..default()
             },
             world_transform(center, z),
@@ -83,8 +79,7 @@ pub fn move_farm_animals(
             if wander.graze_timer.finished() {
                 wander.grazing = false;
                 wander.direction = random_direction(&mut rng);
-                wander.graze_timer =
-                    Timer::from_seconds(rng.gen_range(2.0..5.0), TimerMode::Once);
+                wander.graze_timer = Timer::from_seconds(rng.gen_range(2.0..5.0), TimerMode::Once);
             }
             continue;
         }

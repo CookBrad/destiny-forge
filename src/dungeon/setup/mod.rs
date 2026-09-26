@@ -14,7 +14,9 @@ use super::level::DungeonLayout;
 use super::sprites::DungeonArt;
 
 pub use actors::{spawn_enemies, spawn_king_slime, spawn_player};
-pub use terrain::{spawn_backdrop, spawn_ground, spawn_ladder_exit, spawn_pitfalls, spawn_platform};
+pub use terrain::{
+    spawn_backdrop, spawn_ground, spawn_ladder_exit, spawn_pitfalls, spawn_platform,
+};
 
 #[derive(Component)]
 pub struct DungeonEntity;
@@ -35,20 +37,29 @@ pub struct Pitfall;
 pub fn setup_dungeon(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
     loadout: Res<Loadout>,
     world_progress: Res<WorldProgress>,
 ) {
-    setup_dungeon_with_seed(&mut commands, &asset_server, None, &loadout, &world_progress);
+    setup_dungeon_with_seed(
+        &mut commands,
+        &asset_server,
+        &mut images,
+        None,
+        &loadout,
+        &world_progress,
+    );
 }
 
 pub fn setup_dungeon_with_seed(
     commands: &mut Commands,
     asset_server: &AssetServer,
+    images: &mut Assets<Image>,
     seed: Option<u64>,
     loadout: &Loadout,
     world_progress: &WorldProgress,
 ) {
-    let art = DungeonArt::load(asset_server);
+    let art = DungeonArt::load(asset_server, images);
     // Fresh entry gets a random seed; death retry reuses the layout seed.
     let seed = seed.unwrap_or_else(random_seed);
     let floor = generate_floor(seed);
@@ -130,6 +141,7 @@ pub fn retry_dungeon(
     world_progress: Res<WorldProgress>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
     entities: Query<Entity, With<DungeonEntity>>,
     parents: Query<&Parent>,
     mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
@@ -140,6 +152,7 @@ pub fn retry_dungeon(
         setup_dungeon_with_seed(
             &mut commands,
             &asset_server,
+            &mut images,
             seed,
             &loadout,
             &world_progress,

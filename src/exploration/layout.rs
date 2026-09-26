@@ -63,6 +63,7 @@ pub fn spawn_grid_overlay(
             Sprite {
                 image: grid_line.clone(),
                 color: style.line_color,
+                // Stroke length is a world-unit fill. The image is a 1×1 pixel, not tile art.
                 custom_size: Some(Vec2::new(1.0, world_height)),
                 ..default()
             },
@@ -77,6 +78,7 @@ pub fn spawn_grid_overlay(
             Sprite {
                 image: grid_line.clone(),
                 color: style.line_color,
+                // Stroke length is a world-unit fill. The image is a 1×1 pixel, not tile art.
                 custom_size: Some(Vec2::new(world_width, 1.0)),
                 ..default()
             },

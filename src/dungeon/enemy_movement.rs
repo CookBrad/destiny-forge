@@ -5,7 +5,8 @@ use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
 use super::boss::{BossAttackController, BossCharging};
 use super::enemy::{
-    EnemyAggro, EnemyKind, EnemyKnockback, GoblinJump, KingSlimeBoss, Patrol, PitClearing,
+    EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback, GoblinJump, KingSlimeBoss, Patrol,
+    PitClearing,
 };
 use super::level::{
     adjacent_pit_from_edge, constrain_ground_walk, ground_walk_bounds_at, is_on_ground_floor,
@@ -41,6 +42,7 @@ pub fn move_enemies(
             Option<&KingSlimeBoss>,
             Option<&BossAttackController>,
             Option<&mut BossCharging>,
+            &EnemyHitbox,
         ),
         (Without<EnemyCorpse>, Without<DungeonPlayer>),
     >,
@@ -65,6 +67,7 @@ pub fn move_enemies(
         boss,
         attack_ctrl,
         mut charge,
+        hitbox,
     ) in &mut enemies
     {
         let enemy_pos = transform.translation.truncate();
@@ -81,7 +84,8 @@ pub fn move_enemies(
             entity,
         );
 
-        let boss_winding_up = boss.is_some() && attack_ctrl.is_some_and(|c| c.windup_timer.is_some());
+        let boss_winding_up =
+            boss.is_some() && attack_ctrl.is_some_and(|c| c.windup_timer.is_some());
 
         let charging = apply_boss_charge(
             &mut commands,
@@ -103,8 +107,10 @@ pub fn move_enemies(
         }
 
         let is_goblin = kind.is_some_and(|kind| *kind == EnemyKind::Goblin);
+        // King slime's body is two tiles tall. Compare against that height, not transform scale.
+        let standing_y = standing_center_y(hitbox.0.y * 2.0);
         let goblin_airborne = goblin_jump.as_ref().is_some_and(|jump| jump.is_airborne())
-            || transform.translation.y > DUNGEON_FLOOR_Y + ENEMY_DISPLAY_SIZE.y * 0.5 + 0.5;
+            || transform.translation.y > standing_y + 0.5;
 
         if is_goblin && !under_knockback && !charging && !goblin_airborne {
             try_start_goblin_jump(
@@ -155,7 +161,13 @@ pub fn move_enemies(
             );
         }
 
-        snap_to_ground_floor(&mut transform, segments, airborne, goblin_airborne);
+        snap_to_ground_floor(
+            &mut transform,
+            segments,
+            airborne,
+            goblin_airborne,
+            hitbox.0.y * 2.0,
+        );
         reverse_patrol_at_bounds(
             &mut transform,
             &mut patrol,
@@ -185,7 +197,9 @@ fn update_aggro(
     }
 
     if distance < AGGRO_RANGE {
-        commands.entity(entity).insert(EnemyAggro { lock_secs: 0.0 });
+        commands
+            .entity(entity)
+            .insert(EnemyAggro { lock_secs: 0.0 });
         return true;
     }
 
@@ -268,7 +282,8 @@ fn idle_or_chase_velocity(
         let chase_speed = if is_boss {
             BOSS_CHASE_SPEED
         } else {
-            kind.map(|kind| kind.chase_speed()).unwrap_or(BOSS_CHASE_SPEED)
+            kind.map(|kind| kind.chase_speed())
+                .unwrap_or(BOSS_CHASE_SPEED)
         };
 
         if airborne {
@@ -343,9 +358,7 @@ fn integrate_goblin_airborne(
     let floor_y = DUNGEON_FLOOR_Y + half;
     let x = transform.translation.x;
     let over_pit = is_over_pit_gap(x, pitfalls);
-    let still_clearing = jump
-        .clearing
-        .is_some_and(|clearing| !clearing.cleared(x));
+    let still_clearing = jump.clearing.is_some_and(|clearing| !clearing.cleared(x));
 
     if still_clearing || over_pit {
         let min_y = floor_y + GOBLIN_PIT_CLEARANCE_Y;
@@ -407,16 +420,21 @@ fn snap_to_ground_floor(
     segments: &[super::level::PlatformSpec],
     airborne: bool,
     goblin_airborne: bool,
+    body_height: f32,
 ) {
     if airborne || goblin_airborne || !is_on_ground_floor(transform.translation.x, segments) {
         return;
     }
 
-    let half = ENEMY_DISPLAY_SIZE.y * 0.5;
-    let floor_y = DUNGEON_FLOOR_Y + half;
+    let floor_y = standing_center_y(body_height);
     if transform.translation.y < floor_y {
         transform.translation.y = floor_y;
     }
+}
+
+/// Center y whose feet sit on the floor. `body_height` is the gameplay body, not a texture scale.
+fn standing_center_y(body_height: f32) -> f32 {
+    DUNGEON_FLOOR_Y + body_height * 0.5
 }
 
 fn reverse_patrol_at_bounds(
@@ -438,5 +456,27 @@ fn reverse_patrol_at_bounds(
     } else if transform.translation.x >= patrol.max_x {
         transform.translation.x = patrol.max_x;
         patrol.direction = -1.0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graphics::KING_SLIME_GAMEPLAY_SCALE;
+
+    #[test]
+    fn standard_enemy_stands_one_tile_above_the_floor_line() {
+        let center = standing_center_y(ENEMY_DISPLAY_SIZE.y);
+        assert_eq!(center, DUNGEON_FLOOR_Y + ENEMY_DISPLAY_SIZE.y * 0.5);
+        assert_eq!(center - ENEMY_DISPLAY_SIZE.y * 0.5, DUNGEON_FLOOR_Y);
+    }
+
+    #[test]
+    fn king_slime_standing_height_keeps_feet_on_the_floor() {
+        let height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
+        let center = standing_center_y(height);
+        let half = height * 0.5;
+        assert_eq!(center - half, DUNGEON_FLOOR_Y);
+        assert_eq!(half, 16.0);
     }
 }
