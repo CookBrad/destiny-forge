@@ -39,6 +39,7 @@ pub struct DeflectedProjectile {
     pub hit_entities: Vec<Entity>,
 }
 
+/// Gameplay hit stays the legacy 7×21 box. The sheet is 16×48 and is not this hit.
 const ARROW_WIDTH: f32 = 7.0;
 const ARROW_HEIGHT: f32 = 21.0;
 const PROJECTILE_LIFETIME: f32 = 4.0;
@@ -387,5 +388,17 @@ fn projectile_rect(center: Vec2) -> HitRect {
         max_x: center.x + PROJECTILE_HIT_HALF.x,
         min_y: center.y - PROJECTILE_HIT_HALF.y,
         max_y: center.y + PROJECTILE_HIT_HALF.y,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn projectile_hit_stays_seven_by_twenty_one() {
+        assert_eq!(ARROW_WIDTH, 7.0);
+        assert_eq!(ARROW_HEIGHT, 21.0);
+        assert_eq!(PROJECTILE_HIT_HALF, Vec2::new(3.5, 10.5));
     }
 }

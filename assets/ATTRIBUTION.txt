@@ -1,7 +1,7 @@
 Destiny Forge — Asset Attribution
 ==================================
 
-Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/environment/
+Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/projectiles/, assets/dungeon/environment/
 Source packs and archives: assets/source/
 
 Primary stack (recommended)
@@ -29,12 +29,6 @@ Hunter (dungeon player)
   Gameplay filenames stay knight_* for loaders.
   Cell 343×160 1× nearest-neighbor. Sword is baked into the hunter.
   Signed cells stay. Added frames are in-house (tools/draw_hunter_frames.py) and add no third-party credit.
-
-0x72 — 16x16 DungeonTileset II v1.7
-  Author: Robert (0x72)
-  URL: https://0x72.itch.io/dungeontileset-ii
-  License: CC0 1.0 (public domain)
-  Used for: slime and bat enemies
 
 Stealthix — Animated Slimes
   Author: Stealthix
@@ -73,8 +67,15 @@ Gameplay sprite map
   dungeon/environment/pit_lip.png          — In-house, made by tools/draw_dungeon_environment.py
   dungeon/vfx/ground_slam.png              — In-house, made by tools/draw_dungeon_environment.py
 
-  dungeon/enemies/slime.png   — 0x72 tiny slug
-  dungeon/enemies/bat.png     — 0x72 imp (flying enemy stand-in)
+  dungeon/enemies/slime.png              — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/enemies/bat.png                — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/enemies/goblin.png             — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/enemies/skeleton.png           — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/enemies/zombie.png             — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/enemies/king_slime.png         — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/projectiles/arrow.png          — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/projectiles/slime_bolt.png     — In-house, made by tools/draw_dungeon_actors.py
+  dungeon/projectiles/slime_blob.png     — In-house, made by tools/draw_dungeon_actors.py
 
 Audio
 -----

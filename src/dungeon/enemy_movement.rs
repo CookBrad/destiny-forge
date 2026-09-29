@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::combat::EnemyCorpse;
-use crate::graphics::{DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
+use crate::graphics::{facing_scale, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 
 use super::boss::{BossAttackController, BossCharging};
 use super::enemy::{
@@ -177,6 +177,25 @@ pub fn move_enemies(
             is_aggro,
             boss.is_some(),
         );
+        // King sheet is a front view. Mirroring it would swap the crown.
+        if boss.is_none() {
+            apply_horizontal_facing(&mut transform, velocity.x);
+        }
+    }
+}
+
+/// Side-view sheets face right. Mirroring keeps the scale magnitude at 1.
+fn apply_horizontal_facing(transform: &mut Transform, velocity_x: f32) {
+    if let Some(scale) = facing_from_motion(velocity_x) {
+        transform.scale = scale;
+    }
+}
+
+fn facing_from_motion(velocity_x: f32) -> Option<Vec3> {
+    if velocity_x.abs() < 1.0 {
+        None
+    } else {
+        Some(facing_scale(velocity_x))
     }
 }
 
@@ -469,6 +488,23 @@ mod tests {
         let center = standing_center_y(ENEMY_DISPLAY_SIZE.y);
         assert_eq!(center, DUNGEON_FLOOR_Y + ENEMY_DISPLAY_SIZE.y * 0.5);
         assert_eq!(center - ENEMY_DISPLAY_SIZE.y * 0.5, DUNGEON_FLOOR_Y);
+    }
+
+    #[test]
+    fn aggro_distances_stay_on_the_tile() {
+        assert_eq!(AGGRO_RANGE, 20.0 * TILE);
+        assert_eq!(DEAGGRO_RANGE, 26.0 * TILE);
+    }
+
+    #[test]
+    fn facing_follows_horizontal_motion_at_scale_one() {
+        assert_eq!(facing_from_motion(0.0), None);
+        assert_eq!(facing_from_motion(0.5), None);
+        assert_eq!(facing_from_motion(22.0), Some(Vec3::ONE));
+        let left = facing_from_motion(-35.0).expect("left facing");
+        assert_eq!(left.x, -1.0);
+        assert_eq!(left.y, 1.0);
+        assert_eq!(left.z, 1.0);
     }
 
     #[test]

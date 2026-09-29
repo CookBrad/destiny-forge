@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use super::enemy::EnemyKind;
 use super::hunter_pose::HunterSheet;
 
 pub const ENV_ROOT: &str = "dungeon/environment";
@@ -40,8 +41,11 @@ pub struct DungeonArt {
     pub goblin: Handle<Image>,
     pub skeleton: Handle<Image>,
     pub zombie: Handle<Image>,
+    pub king_slime: Handle<Image>,
     pub arrow: Handle<Image>,
-    /// 1×1 white pixel for solid fills (king slime body until its art exists). Not resampled art.
+    pub slime_bolt: Handle<Image>,
+    pub slime_blob: Handle<Image>,
+    /// 1×1 white pixel for solid fills (bars, off-size blobs). Not a sprite.
     pub fill: Handle<Image>,
 }
 
@@ -69,7 +73,10 @@ impl DungeonArt {
             goblin: asset_server.load(format!("{ENEMY_ROOT}/goblin.png")),
             skeleton: asset_server.load(format!("{ENEMY_ROOT}/skeleton.png")),
             zombie: asset_server.load(format!("{ENEMY_ROOT}/zombie.png")),
+            king_slime: asset_server.load(format!("{ENEMY_ROOT}/king_slime.png")),
             arrow: asset_server.load(format!("{PROJECTILE_ROOT}/arrow.png")),
+            slime_bolt: asset_server.load(format!("{PROJECTILE_ROOT}/slime_bolt.png")),
+            slime_blob: asset_server.load(format!("{PROJECTILE_ROOT}/slime_blob.png")),
             fill: crate::graphics::solid_white_pixel(images),
         }
     }
@@ -89,6 +96,18 @@ impl DungeonArt {
 /// Collision and feet use the GDD body, not the 343-wide cell.
 pub fn player_half_extents() -> Vec2 {
     crate::graphics::HUNTER_BODY_PX * 0.5
+}
+
+/// Working-default canvases. King Slime is [`crate::graphics::KING_SLIME_CANVAS_PX`].
+/// Keep these in step with `tools/draw_dungeon_actors.py`.
+pub fn enemy_sheet_px(kind: EnemyKind) -> Vec2 {
+    match kind {
+        EnemyKind::Slime => Vec2::new(64.0, 64.0),
+        EnemyKind::Bat => Vec2::new(96.0, 48.0),
+        EnemyKind::Goblin => Vec2::new(80.0, 112.0),
+        EnemyKind::Skeleton => Vec2::new(64.0, 144.0),
+        EnemyKind::Zombie => Vec2::new(96.0, 128.0),
+    }
 }
 
 pub fn player_frame_rect(frame: usize) -> Rect {
@@ -111,5 +130,17 @@ mod tests {
             half,
             Vec2::new(PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT) * 0.5
         );
+    }
+
+    #[test]
+    fn enemy_sheets_use_the_working_default_canvases() {
+        assert_eq!(enemy_sheet_px(EnemyKind::Slime), Vec2::new(64.0, 64.0));
+        assert_eq!(enemy_sheet_px(EnemyKind::Bat), Vec2::new(96.0, 48.0));
+        assert_eq!(enemy_sheet_px(EnemyKind::Goblin), Vec2::new(80.0, 112.0));
+        assert_eq!(
+            enemy_sheet_px(EnemyKind::Skeleton),
+            Vec2::new(64.0, 144.0)
+        );
+        assert_eq!(enemy_sheet_px(EnemyKind::Zombie), Vec2::new(96.0, 128.0));
     }
 }
