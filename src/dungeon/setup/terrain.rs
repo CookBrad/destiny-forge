@@ -1,18 +1,17 @@
 use bevy::prelude::*;
 
-use crate::graphics::{solid_fill, world_transform, DUNGEON_FLOOR_Y, TILE};
+use crate::graphics::{center_on_surface, world_transform, DUNGEON_FLOOR_Y, TILE};
 
 use super::super::level::{GeneratedFloor, PitfallSpec, PlatformSpec};
 use super::super::sprites::DungeonArt;
 use super::{DungeonEntity, DungeonExit, Pitfall, PlatformCollider};
 
-const PIT_VOID_COLOR: Color = Color::srgb(0.04, 0.02, 0.07);
 const PIT_VOID_ROWS: u32 = 10;
-const PIT_WARNING_STAKE_COLOR: Color = Color::srgb(0.95, 0.82, 0.18);
-/// Placeholder stake until 1× pit art. A fill, not a scaled wall tile.
-const PIT_STAKE_SIZE: Vec2 = Vec2::new(TILE * 0.28, TILE * 1.35);
-/// Placeholder lip until 1× pit art. A fill, not a scaled ground tile.
-const PIT_LIP_SIZE: Vec2 = Vec2::new(TILE * 0.75, TILE * 0.55);
+const PIT_STAKE_HEIGHT: f32 = 40.0;
+const PIT_LIP_HEIGHT: f32 = 16.0;
+const LADDER_HEIGHT: f32 = 64.0;
+/// Pixels of the lip hidden behind the opaque floor tile.
+const PIT_LIP_TUCK: f32 = 4.0;
 
 pub fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFloor) {
     let wall = art.wall.clone();
@@ -53,15 +52,9 @@ pub fn spawn_pitfalls(commands: &mut Commands, art: &DungeonArt, pitfalls: &[Pit
             let x = pit.left + tile as f32 * TILE + TILE * 0.5;
             for row in 1..PIT_VOID_ROWS {
                 let y = DUNGEON_FLOOR_Y - TILE * (0.5 + row as f32);
-                let stripe = row % 2 == 0;
                 commands.spawn((
                     Sprite {
-                        image: art.wall.clone(),
-                        color: if stripe {
-                            PIT_VOID_COLOR
-                        } else {
-                            Color::srgb(0.08, 0.03, 0.12)
-                        },
+                        image: art.floor_pit.clone(),
                         ..default()
                     },
                     world_transform(Vec2::new(x, y), 0.35),
@@ -74,22 +67,26 @@ pub fn spawn_pitfalls(commands: &mut Commands, art: &DungeonArt, pitfalls: &[Pit
 }
 
 fn spawn_pit_warning_stake(commands: &mut Commands, art: &DungeonArt, x: f32) {
+    let y = center_on_surface(DUNGEON_FLOOR_Y, PIT_STAKE_HEIGHT);
     commands.spawn((
-        solid_fill(art.fill.clone(), PIT_STAKE_SIZE, PIT_WARNING_STAKE_COLOR),
-        Transform::from_xyz(x, DUNGEON_FLOOR_Y + TILE * 0.55, 0.65),
+        Sprite {
+            image: art.pit_stake.clone(),
+            ..default()
+        },
+        world_transform(Vec2::new(x, y), 0.65),
         Pitfall,
         DungeonEntity,
     ));
 }
 
 fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32) {
+    let y = DUNGEON_FLOOR_Y - TILE - PIT_LIP_HEIGHT * 0.5 + PIT_LIP_TUCK;
     commands.spawn((
-        solid_fill(
-            art.fill.clone(),
-            PIT_LIP_SIZE,
-            Color::srgb(0.28, 0.22, 0.26),
-        ),
-        Transform::from_xyz(x, DUNGEON_FLOOR_Y - TILE * 1.1, 0.5),
+        Sprite {
+            image: art.pit_lip.clone(),
+            ..default()
+        },
+        world_transform(Vec2::new(x, y), 0.5),
         Pitfall,
         DungeonEntity,
     ));
@@ -135,7 +132,7 @@ fn spawn_platform_tiles(
 
 pub fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile: u32) {
     let x = ladder_tile as f32 * TILE + TILE * 0.5;
-    let y = DUNGEON_FLOOR_Y - TILE * 0.5;
+    let y = center_on_surface(DUNGEON_FLOOR_Y, LADDER_HEIGHT);
 
     commands.spawn((
         Sprite {
@@ -151,4 +148,18 @@ pub fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile:
         DungeonExit,
         DungeonEntity,
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pit_and_ladder_sprites_use_their_authored_heights() {
+        assert_eq!(PIT_STAKE_HEIGHT, 40.0);
+        assert_eq!(PIT_LIP_HEIGHT, 16.0);
+        assert_eq!(LADDER_HEIGHT, 64.0);
+        assert_eq!(LADDER_HEIGHT, TILE * 2.0);
+        assert_eq!(PIT_VOID_ROWS, 10);
+    }
 }

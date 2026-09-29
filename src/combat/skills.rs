@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use super::weapon::{WeaponFamily, WeaponKind};
 
 pub const SKILL_SLOT_COUNT: usize = 9;
-const ICON_TILE: f32 = 16.0;
+/// Edge length of a skill icon. Each file under `assets/ui/skills/` is one
+/// 32×32 image drawn by `tools/draw_skill_icons.py`, not a multi-cell sheet.
+const ICON_TILE: f32 = 32.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SkillKind {
@@ -41,16 +43,13 @@ impl SkillKind {
         }
     }
 
+    /// Whole-image crop. Charge and Spin used to sample cells out of sheets.
     pub fn icon_rect(&self) -> Rect {
-        let (x, y) = match self {
-            Self::Attack => (0.0, 0.0),
-            Self::Block => (0.0, 0.0),
-            Self::Charge => (16.0, 0.0),
-            Self::Spin => (32.0, 16.0),
-        };
-        Rect {
-            min: Vec2::new(x, y),
-            max: Vec2::new(x + ICON_TILE, y + ICON_TILE),
+        match self {
+            Self::Attack | Self::Block | Self::Charge | Self::Spin => Rect {
+                min: Vec2::ZERO,
+                max: Vec2::new(ICON_TILE, ICON_TILE),
+            },
         }
     }
 }
@@ -128,8 +127,7 @@ impl SkillBindings {
     ) -> bool {
         bindings.slots.iter().enumerate().any(|(slot, bound)| {
             bound == &Some(skill)
-                && Self::key_for_slot(slot)
-                    .is_some_and(|key| keyboard.just_pressed(key))
+                && Self::key_for_slot(slot).is_some_and(|key| keyboard.just_pressed(key))
         })
     }
 
@@ -140,8 +138,62 @@ impl SkillBindings {
     ) -> bool {
         bindings.slots.iter().enumerate().any(|(slot, bound)| {
             bound == &Some(skill)
-                && Self::key_for_slot(slot)
-                    .is_some_and(|key| keyboard.pressed(key))
+                && Self::key_for_slot(slot).is_some_and(|key| keyboard.pressed(key))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SkillKind;
+
+    const SKILL_KINDS: [SkillKind; 4] = [
+        SkillKind::Attack,
+        SkillKind::Block,
+        SkillKind::Charge,
+        SkillKind::Spin,
+    ];
+
+    #[test]
+    fn icon_rect_covers_the_full_image_at_the_origin() {
+        for skill in SKILL_KINDS {
+            let rect = skill.icon_rect();
+            assert_eq!(rect.min.x, 0.0, "{skill:?}");
+            assert_eq!(rect.min.y, 0.0, "{skill:?}");
+            assert_eq!(rect.max.x - rect.min.x, 32.0, "{skill:?}");
+            assert_eq!(rect.max.y - rect.min.y, 32.0, "{skill:?}");
+        }
+    }
+
+    #[test]
+    fn skill_icon_files_are_32px_rgba_pngs() {
+        for skill in SKILL_KINDS {
+            let path = format!(
+                "{}/assets/{}",
+                env!("CARGO_MANIFEST_DIR"),
+                skill.icon_path()
+            );
+            assert_png_rgba32(&path);
+        }
+    }
+
+    fn assert_png_rgba32(path: &str) {
+        let bytes = std::fs::read(path).unwrap_or_else(|err| panic!("read {path}: {err}"));
+        assert!(bytes.len() >= 26, "{path} is too small to be a PNG");
+        assert_eq!(
+            &bytes[..8],
+            &[137, 80, 78, 71, 13, 10, 26, 10],
+            "{path} is not a PNG"
+        );
+        assert_eq!(&bytes[12..16], b"IHDR", "{path} is missing IHDR");
+        let width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
+        let height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+        let bit_depth = bytes[24];
+        let color_type = bytes[25];
+        assert_eq!(
+            (width, height, bit_depth, color_type),
+            (32, 32, 8, 6),
+            "{path} is not a 32×32 RGBA8 PNG"
+        );
     }
 }

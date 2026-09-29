@@ -1,21 +1,18 @@
 use bevy::prelude::*;
 
-use std::f32::consts::FRAC_PI_2;
-
 use crate::core::{DungeonPlayState, GameState, ProfileDirty};
+use crate::dungeon::hunter_pose::death_pose;
 use crate::dungeon::{
     player_frame_rect, player_half_extents, DungeonArt, DungeonPlayer, PlatformCollider,
-    PlayerAnimation, PlayerVelocity, PLAYER_IDLE_FRAMES,
+    PlayerAnimation, PlayerVelocity,
 };
-use crate::graphics::{facing_scale, DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY, TILE};
+use crate::graphics::{facing_scale, DungeonScrollBounds, DUNGEON_FLOOR_Y, DUNGEON_GRAVITY};
 use crate::overworld::setup::OverworldEntry;
 
-use super::attack::{WeaponOnBack, WeaponSwingFx};
-use super::block::WeaponBlockFx;
 use super::health::Health;
 use super::player_block::PlayerBlock;
 use super::player_hurt::{PlayerHitFlash, PlayerKnockback};
-use super::special_moves::{PlayerSpecialMove, WeaponSpecialFx};
+use super::special_moves::PlayerSpecialMove;
 use super::PlayerAttack;
 
 const DEATH_DURATION: f32 = 1.45;
@@ -29,15 +26,16 @@ pub struct PlayerFallDeath;
 pub struct PlayerDeath {
     pub timer: Timer,
     pub knockback: Vec2,
-    pub ground_y: f32,
+    /// Upright body center. The flop orbits the sprite and must not feed that pose back into collision.
+    pub physics_center: Vec2,
 }
 
 impl PlayerDeath {
-    pub fn new(facing: f32, ground_y: f32) -> Self {
+    pub fn new(facing: f32, physics_center: Vec2) -> Self {
         Self {
             timer: Timer::from_seconds(DEATH_DURATION, TimerMode::Once),
             knockback: Vec2::new(-facing.signum() * DEATH_KNOCKBACK_X, DEATH_KNOCKBACK_Y),
-            ground_y,
+            physics_center,
         }
     }
 
@@ -92,7 +90,7 @@ pub fn detect_player_death(
     }
 
     commands.entity(entity).insert((
-        PlayerDeath::new(animation.facing, transform.translation.y),
+        PlayerDeath::new(animation.facing, transform.translation.truncate()),
         PlayerVelocity {
             x: 0.0,
             y: 0.0,
@@ -113,20 +111,9 @@ pub fn tick_player_death(
     time: Res<Time>,
     bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
-    mut player: Query<
-        (
-            Entity,
-            &mut Transform,
-            &mut PlayerVelocity,
-            &mut PlayerDeath,
-            &Children,
-        ),
-        With<DungeonPlayer>,
-    >,
-    mut visibility: Query<&mut Visibility>,
+    mut player: Query<(&mut Transform, &mut PlayerVelocity, &mut PlayerDeath), With<DungeonPlayer>>,
 ) {
-    let Ok((_entity, mut transform, mut velocity, mut death, children)) = player.get_single_mut()
-    else {
+    let Ok((mut transform, mut velocity, mut death)) = player.get_single_mut() else {
         return;
     };
 
@@ -145,7 +132,7 @@ pub fn tick_player_death(
 
     let half = player_half_extents();
     let delta = Vec2::new(velocity.x, velocity.y) * dt;
-    let mut position = transform.translation.truncate();
+    let mut position = death.physics_center;
     position.x = (position.x + delta.x).clamp(half.x, bounds.width - half.x);
     position.y += delta.y;
 
@@ -171,17 +158,9 @@ pub fn tick_player_death(
         velocity.x *= 0.2;
     }
 
+    death.physics_center = position;
     transform.translation.x = position.x;
     transform.translation.y = position.y;
-    death.ground_y = position.y;
-
-    if death.timer.elapsed_secs() > 0.08 {
-        for child in children.iter() {
-            if let Ok(mut vis) = visibility.get_mut(*child) {
-                *vis = Visibility::Hidden;
-            }
-        }
-    }
 }
 
 pub fn animate_player_death(
@@ -196,26 +175,17 @@ pub fn animate_player_death(
     };
 
     let t = death.progress();
-    let frame = if t < 0.22 {
-        1
-    } else if t < 0.5 {
-        2
-    } else {
-        (PLAYER_IDLE_FRAMES - 1).min(3)
-    };
-
-    sprite.image = art.player_idle.clone();
-    sprite.rect = Some(player_frame_rect(frame));
-
-    let facing = animation.facing.signum().max(-1.0).min(1.0);
-    transform.scale = facing_scale(facing);
-
+    let facing = animation.facing.signum().clamp(-1.0, 1.0);
     let fall = ((t - 0.18) / 0.55).clamp(0.0, 1.0);
-    let tilt = -facing * fall * FRAC_PI_2 * 0.9;
-    transform.rotation = Quat::from_rotation_z(tilt);
+    let pose = death_pose(death.physics_center, facing, fall);
 
-    let sink = fall * TILE * 0.35;
-    transform.translation.y = death.ground_y - sink;
+    sprite.image = art.hunter_image(pose.sheet);
+    sprite.rect = Some(player_frame_rect(pose.cell));
+    sprite.anchor = pose.anchor;
+    transform.scale = facing_scale(facing);
+    transform.rotation = Quat::from_rotation_z(pose.tilt);
+    transform.translation.x = pose.visual_center.x;
+    transform.translation.y = pose.visual_center.y;
 
     let alpha = if t > 0.78 {
         1.0 - ((t - 0.78) / 0.22)
@@ -240,31 +210,5 @@ pub fn finish_player_death(
         profile_dirty.mark();
         commands.insert_resource(OverworldEntry::DungeonReturn);
         next_game.set(GameState::Overworld);
-    }
-}
-
-pub fn hide_death_weapons(
-    player: Query<&Children, (With<DungeonPlayer>, With<PlayerDeath>)>,
-    weapons: Query<
-        Entity,
-        Or<(
-            With<WeaponOnBack>,
-            With<WeaponSwingFx>,
-            With<WeaponBlockFx>,
-            With<WeaponSpecialFx>,
-        )>,
-    >,
-    mut visibility: Query<&mut Visibility>,
-) {
-    let Ok(children) = player.get_single() else {
-        return;
-    };
-
-    for child in children.iter() {
-        if weapons.get(*child).is_ok() {
-            if let Ok(mut vis) = visibility.get_mut(*child) {
-                *vis = Visibility::Hidden;
-            }
-        }
     }
 }

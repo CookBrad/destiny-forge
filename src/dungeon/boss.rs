@@ -8,7 +8,7 @@ use crate::combat::{
     apply_player_hurt, damage_amount, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse,
     EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
-use crate::graphics::{solid_fill, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
+use crate::graphics::{world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 use crate::player::Loadout;
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
@@ -17,6 +17,10 @@ use super::setup::DungeonEntity;
 use super::sprites::DungeonArt;
 
 const BOSS_ATTACK_RANGE: f32 = 22.0 * TILE;
+/// Hurtbox of `ground_slam.png` (96×24). The 1.35 is seconds, not a scale.
+const GROUND_SLAM_HALF_WIDTH: f32 = 48.0;
+const GROUND_SLAM_HALF_HEIGHT: f32 = 12.0;
+const GROUND_SLAM_LIFETIME_SECS: f32 = 1.35;
 
 const BOSS_COLOR_IDLE: Color = Color::srgb(0.55, 0.95, 0.45);
 const BOSS_COLOR_RELEASE: Color = Color::srgb(0.72, 1.0, 0.55);
@@ -533,23 +537,32 @@ fn spawn_projectile(
 }
 
 fn spawn_ground_slam(commands: &mut Commands, art: &DungeonArt, target_x: f32) {
-    let half_width = TILE * 2.8;
-    let half_height = TILE * 0.75;
-    let y = DUNGEON_FLOOR_Y + half_height;
+    let y = DUNGEON_FLOOR_Y + GROUND_SLAM_HALF_HEIGHT;
 
     commands.spawn((
-        solid_fill(
-            art.fill.clone(),
-            Vec2::new(half_width * 2.0, half_height * 2.0),
-            Color::srgba(0.95, 0.25, 0.15, 0.7),
-        ),
-        Transform::from_xyz(target_x, y, 2.0),
+        Sprite {
+            image: art.ground_slam.clone(),
+            ..default()
+        },
+        world_transform(Vec2::new(target_x, y), 2.0),
         BossGroundHazard {
             damage: 16.0,
-            lifetime: Timer::from_seconds(1.35, TimerMode::Once),
-            half_width,
-            half_height,
+            lifetime: Timer::from_seconds(GROUND_SLAM_LIFETIME_SECS, TimerMode::Once),
+            half_width: GROUND_SLAM_HALF_WIDTH,
+            half_height: GROUND_SLAM_HALF_HEIGHT,
         },
         DungeonEntity,
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ground_slam_hurtbox_matches_the_authored_sprite() {
+        assert_eq!(GROUND_SLAM_HALF_WIDTH * 2.0, 96.0);
+        assert_eq!(GROUND_SLAM_HALF_HEIGHT * 2.0, 24.0);
+        assert_eq!(GROUND_SLAM_LIFETIME_SECS, 1.35);
+    }
 }

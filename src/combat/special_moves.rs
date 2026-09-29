@@ -4,8 +4,8 @@ use std::f32::consts::{FRAC_PI_2, TAU};
 
 use crate::audio::CombatSfx;
 use crate::dungeon::{
-    player_half_extents, DungeonArt, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback,
-    KingSlimeBoss, PlayerAnimation, PlayerVelocity,
+    player_half_extents, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
+    PlayerAnimation, PlayerVelocity,
 };
 use crate::graphics::{hunter_blade_tip_reach, TILE};
 use crate::player::Loadout;
@@ -14,8 +14,8 @@ use super::attack::{EnemyCorpse, PlayerAttack};
 use super::health::{damage_amount, Health};
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY};
 use super::hitbox::{
-    blade_root_from_center, enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_blade_center_local,
-    sword_sprite_hit_rect, HitRect,
+    blade_root_from_center, enemy_aabb, expand_hit_rect, hitbox_overlaps, sword_sprite_hit_rect,
+    HitRect,
 };
 use super::hits::{apply_enemy_strike, EnemyStrike};
 use super::player_block::PlayerBlock;
@@ -133,22 +133,23 @@ impl PlayerSpecialMove {
         }
     }
 
+    pub fn hit_window(&self) -> (f32, f32) {
+        match self.kind {
+            SpecialMoveKind::Charge => (CHARGE_HIT_START, CHARGE_HIT_END),
+            SpecialMoveKind::Spin => (SPIN_HIT_START, SPIN_HIT_END),
+            SpecialMoveKind::Thrust => (THRUST_HIT_START, THRUST_HIT_END),
+        }
+    }
+
     pub fn in_hit_window(&self) -> bool {
         if !self.is_active() {
             return false;
         }
         let elapsed = self.timer.elapsed_secs();
-        let (start, end) = match self.kind {
-            SpecialMoveKind::Charge => (CHARGE_HIT_START, CHARGE_HIT_END),
-            SpecialMoveKind::Spin => (SPIN_HIT_START, SPIN_HIT_END),
-            SpecialMoveKind::Thrust => (THRUST_HIT_START, THRUST_HIT_END),
-        };
+        let (start, end) = self.hit_window();
         elapsed >= start && elapsed <= end
     }
 }
-
-#[derive(Component)]
-pub struct WeaponSpecialFx;
 
 const CHARGE_SPEED: f32 = 310.0;
 const CHARGE_SECS: f32 = 0.4;
@@ -160,8 +161,13 @@ const SPIN_SECS: f32 = 0.5;
 const SPIN_HIT_START: f32 = 0.1;
 const SPIN_HIT_END: f32 = 0.42;
 const SPIN_ATTACK_POWER: f32 = 18.0;
-const SPIN_ARM_RADIUS: f32 = TILE * 1.85;
-const SPIN_SWORD_HIT_PADDING: f32 = TILE * 0.85;
+/// Spin distances were tuned against the 160 px hunter when a tile was 16 px.
+/// Multiplying by TILE would double the whirl on the 32 px module.
+const SPIN_TUNED_TILE: f32 = 16.0;
+const SPIN_ARM_RADIUS: f32 = SPIN_TUNED_TILE * 1.85;
+const SPIN_SWORD_HIT_PADDING: f32 = SPIN_TUNED_TILE * 0.85;
+const SPIN_REACH_PAD: f32 = SPIN_TUNED_TILE * 0.35;
+const SPIN_DEFLECT_PAD: f32 = SPIN_TUNED_TILE * 0.25;
 const SPIN_PIVOT_Y: f32 = 2.0;
 
 const THRUST_SECS: f32 = 0.38;
@@ -220,7 +226,7 @@ pub fn spin_deflects_projectile(
     }
 
     let pivot = spin_pivot_world(player);
-    let reach = spin_world_reach() + TILE * 0.25;
+    let reach = spin_world_reach() + SPIN_DEFLECT_PAD;
     pivot.distance(projectile_center) <= reach
 }
 
@@ -239,7 +245,6 @@ pub fn start_player_special_moves(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut cooldowns: ResMut<SpecialCooldownState>,
-    art: Res<DungeonArt>,
     bindings: Res<SkillBindings>,
     loadout: Res<Loadout>,
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -320,36 +325,6 @@ pub fn start_player_special_moves(
         SpecialMoveKind::Charge => CombatSfx::Charge,
         SpecialMoveKind::Spin | SpecialMoveKind::Thrust => CombatSfx::Spin,
     });
-
-    commands.entity(entity).with_children(|parent| {
-        parent.spawn((
-            Sprite {
-                image: art.weapon_anime_sword.clone(),
-                ..default()
-            },
-            Transform::default(),
-            WeaponSpecialFx,
-        ));
-    });
-}
-
-pub fn cleanup_special_weapon(
-    mut commands: Commands,
-    player: Query<&PlayerSpecialMove, With<DungeonPlayer>>,
-    fx: Query<Entity, With<WeaponSpecialFx>>,
-) {
-    let Ok(special) = player.get_single() else {
-        for entity in &fx {
-            commands.entity(entity).try_despawn();
-        }
-        return;
-    };
-
-    if !special.is_active() {
-        for entity in &fx {
-            commands.entity(entity).try_despawn();
-        }
-    }
 }
 
 pub fn tick_player_special_moves(
@@ -374,31 +349,6 @@ pub fn tick_player_special_moves(
 
     if special.timer.finished() {
         commands.entity(entity).remove::<PlayerSpecialMove>();
-    }
-}
-
-pub fn animate_special_weapon(
-    player: Query<&PlayerSpecialMove, With<DungeonPlayer>>,
-    mut fx: Query<&mut Transform, With<WeaponSpecialFx>>,
-) {
-    let Ok(special) = player.get_single() else {
-        return;
-    };
-
-    if !special.is_active() {
-        return;
-    }
-
-    let progress = (special.timer.elapsed_secs() / special.duration()).clamp(0.0, 1.0);
-
-    for mut transform in &mut fx {
-        let pose = match special.kind {
-            SpecialMoveKind::Charge => charge_weapon_pose(progress, special.charge_direction),
-            SpecialMoveKind::Spin => spin_weapon_pose(progress, special.charge_direction.signum()),
-            SpecialMoveKind::Thrust => thrust_weapon_pose(progress),
-        };
-        transform.translation = pose.translation;
-        transform.rotation = pose.rotation;
     }
 }
 
@@ -499,30 +449,7 @@ pub fn resolve_special_move_hits(
 
 struct WeaponPose {
     translation: Vec3,
-    rotation: Quat,
-}
-
-fn charge_weapon_pose(_progress: f32, direction: f32) -> WeaponPose {
-    let angle = if direction > 0.0 {
-        -FRAC_PI_2 * 0.18
-    } else {
-        FRAC_PI_2 * 0.18
-    };
-    let forward = direction * TILE * 0.75;
-    let blade = sword_blade_center_local(angle) + Vec2::new(forward, 0.0);
-
-    WeaponPose {
-        translation: Vec3::new(blade.x, blade.y, 0.55),
-        rotation: Quat::from_rotation_z(angle),
-    }
-}
-
-fn thrust_weapon_pose(progress: f32) -> WeaponPose {
-    let extend = progress.clamp(0.0, 1.0);
-    WeaponPose {
-        translation: Vec3::new(8.0 + extend * 16.0, 2.0, 0.55),
-        rotation: Quat::from_rotation_z(-FRAC_PI_2 * 0.95),
-    }
+    angle: f32,
 }
 
 fn spin_orbit_angle(progress: f32) -> f32 {
@@ -535,7 +462,7 @@ fn spin_weapon_pose(progress: f32, facing: f32) -> WeaponPose {
 
     WeaponPose {
         translation: Vec3::new(offset.x, offset.y, 0.55),
-        rotation: Quat::from_rotation_z(sword_angle),
+        angle: sword_angle,
     }
 }
 
@@ -558,10 +485,7 @@ fn spin_blade_hit_rect(player: &Transform, special: &PlayerSpecialMove) -> Optio
     let center = player.translation.truncate();
     let blade_world = center + Vec2::new(facing * pose.translation.x, pose.translation.y);
 
-    Some(sword_sprite_hit_rect(
-        blade_world,
-        spin_orbit_angle(progress) - FRAC_PI_2,
-    ))
+    Some(sword_sprite_hit_rect(blade_world, pose.angle))
 }
 
 fn spin_pivot_world(player: &Transform) -> Vec2 {
@@ -570,7 +494,7 @@ fn spin_pivot_world(player: &Transform) -> Vec2 {
 }
 
 fn spin_world_reach() -> f32 {
-    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + TILE * 0.35
+    SPIN_ARM_RADIUS + hunter_blade_tip_reach() * 0.5 + SPIN_REACH_PAD
 }
 
 fn spin_sweep_rect(player: &Transform) -> HitRect {
@@ -673,6 +597,13 @@ mod tests {
         let body_half = player_half_extents().x;
         assert!(sweep.max_x - player.translation.x > body_half);
         assert!(player.translation.x - sweep.min_x > body_half);
+    }
+
+    #[test]
+    fn spin_arm_stays_on_the_sixteen_px_orbit() {
+        assert_eq!(SPIN_ARM_RADIUS, 16.0 * 1.85);
+        assert!(SPIN_ARM_RADIUS < TILE * 1.85);
+        assert_eq!(SPIN_SWORD_HIT_PADDING, 16.0 * 0.85);
     }
 
     #[test]
