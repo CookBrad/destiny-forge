@@ -136,6 +136,7 @@ pub fn tick_player_death(
     position.x = (position.x + delta.x).clamp(half.x, bounds.width - half.x);
     position.y += delta.y;
 
+    let mut landed = false;
     let feet_y = position.y - half.y;
     if velocity.y <= 0.0 {
         for collider in &platforms {
@@ -146,6 +147,7 @@ pub fn tick_player_death(
                     position.y = collider.top_y + half.y;
                     velocity.y = 0.0;
                     velocity.x *= 0.35;
+                    landed = true;
                     break;
                 }
             }
@@ -156,8 +158,10 @@ pub fn tick_player_death(
         position.y = DUNGEON_FLOOR_Y + half.y;
         velocity.y = 0.0;
         velocity.x *= 0.2;
+        landed = true;
     }
 
+    velocity.grounded = landed;
     death.physics_center = position;
     transform.translation.x = position.x;
     transform.translation.y = position.y;
@@ -166,18 +170,31 @@ pub fn tick_player_death(
 pub fn animate_player_death(
     art: Res<DungeonArt>,
     mut player: Query<
-        (&PlayerDeath, &PlayerAnimation, &mut Sprite, &mut Transform),
+        (
+            &PlayerDeath,
+            &PlayerAnimation,
+            &PlayerVelocity,
+            &mut Sprite,
+            &mut Transform,
+        ),
         With<DungeonPlayer>,
     >,
 ) {
-    let Ok((death, animation, mut sprite, mut transform)) = player.get_single_mut() else {
+    let Ok((death, animation, velocity, mut sprite, mut transform)) = player.get_single_mut()
+    else {
         return;
     };
 
     let t = death.progress();
     let facing = animation.facing.signum().clamp(-1.0, 1.0);
     let fall = ((t - 0.18) / 0.55).clamp(0.0, 1.0);
-    let pose = death_pose(death.physics_center, facing, fall);
+    let pose = death_pose(
+        death.physics_center,
+        velocity.y,
+        velocity.grounded,
+        facing,
+        fall,
+    );
 
     sprite.image = art.hunter_image(pose.sheet);
     sprite.rect = Some(player_frame_rect(pose.cell));

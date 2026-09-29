@@ -4,4 +4,5 @@
 .venv_assets
 __pycache__/
 *.pyc
-assets/source
+assets/source/*
+!assets/source/hunter_signed/

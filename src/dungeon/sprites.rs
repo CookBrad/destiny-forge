@@ -24,6 +24,9 @@ pub struct DungeonArt {
     pub player_idle: Handle<Image>,
     pub player_run: Handle<Image>,
     pub player_attack: Handle<Image>,
+    pub player_jump: Handle<Image>,
+    pub player_fall: Handle<Image>,
+    pub player_death: Handle<Image>,
     pub floor_ground: Handle<Image>,
     pub floor_platform: Handle<Image>,
     pub floor_ladder: Handle<Image>,
@@ -49,6 +52,10 @@ impl DungeonArt {
             player_run: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_run_side.png")),
             player_attack: asset_server
                 .load(format!("{PLAYER_COMBAT_ROOT}/knight_attack_side.png")),
+            player_jump: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_jump_side.png")),
+            player_fall: asset_server.load(format!("{PLAYER_COMBAT_ROOT}/knight_fall_side.png")),
+            player_death: asset_server
+                .load(format!("{PLAYER_COMBAT_ROOT}/knight_death_side.png")),
             floor_ground: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
             floor_platform: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
             floor_ladder: asset_server.load(format!("{ENV_ROOT}/floor_ladder.png")),
@@ -72,6 +79,9 @@ impl DungeonArt {
             HunterSheet::Idle => self.player_idle.clone(),
             HunterSheet::Run => self.player_run.clone(),
             HunterSheet::Attack => self.player_attack.clone(),
+            HunterSheet::Jump => self.player_jump.clone(),
+            HunterSheet::Fall => self.player_fall.clone(),
+            HunterSheet::Death => self.player_death.clone(),
         }
     }
 }
