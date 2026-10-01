@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::combat::{health_bar_color, EnemyCorpse, Health};
-use crate::dungeon::{DungeonPlayer, EnemyHitbox};
+use crate::dungeon::{DungeonPlayer, EnemyHitbox, SpriteCanvas};
 use crate::graphics::solid_white_pixel;
 
 const ENEMY_BAR_HEIGHT: f32 = 4.0;
@@ -104,16 +104,19 @@ pub fn spawn_player_health_bar(mut commands: Commands) {
 pub fn spawn_enemy_health_bars(
     mut commands: Commands,
     assets: Res<HealthBarAssets>,
-    enemies: Query<(Entity, &Transform, &EnemyHitbox), (With<Health>, Without<DungeonPlayer>)>,
+    enemies: Query<
+        (Entity, &Transform, &EnemyHitbox, &SpriteCanvas),
+        (With<Health>, Without<DungeonPlayer>),
+    >,
     existing: Query<&EnemyHealthBar>,
 ) {
     let covered: HashSet<Entity> = existing.iter().map(|bar| bar.owner).collect();
 
-    for (owner, transform, hitbox) in &enemies {
+    for (owner, transform, hitbox, canvas) in &enemies {
         if covered.contains(&owner) {
             continue;
         }
-        let offset_y = bar_offset_y(hitbox);
+        let offset_y = bar_offset_y(canvas);
         let bar_width = enemy_bar_width(hitbox);
         let bar_translation = transform.translation + Vec3::new(0.0, offset_y, ENEMY_BAR_Z);
 
@@ -178,6 +181,7 @@ pub fn update_enemy_health_bars(
             &Transform,
             &Health,
             &EnemyHitbox,
+            &SpriteCanvas,
             Option<&EnemyCorpse>,
         ),
         (
@@ -206,7 +210,7 @@ pub fn update_enemy_health_bars(
     children: Query<&Children>,
 ) {
     for (bar_entity, bar, mut bar_transform, mut visibility) in &mut bars {
-        let Ok((_, transform, health, hitbox, corpse)) = owners.get(bar.owner) else {
+        let Ok((_, transform, health, hitbox, canvas, corpse)) = owners.get(bar.owner) else {
             *visibility = Visibility::Hidden;
             continue;
         };
@@ -220,7 +224,7 @@ pub fn update_enemy_health_bars(
         };
         let bar_width = enemy_bar_width(hitbox);
         bar_transform.translation =
-            transform.translation + Vec3::new(0.0, bar_offset_y(hitbox), ENEMY_BAR_Z);
+            transform.translation + Vec3::new(0.0, bar_offset_y(canvas), ENEMY_BAR_Z);
 
         let Ok(bar_children) = children.get(bar_entity) else {
             continue;
@@ -248,10 +252,29 @@ pub fn cleanup_health_bars(
     }
 }
 
+/// Width stays the gameplay body. The sheet is taller, so Y uses the painted top.
 fn enemy_bar_width(hitbox: &EnemyHitbox) -> f32 {
     hitbox.0.x * 2.0
 }
 
-fn bar_offset_y(hitbox: &EnemyHitbox) -> f32 {
-    hitbox.0.y + ENEMY_BAR_PADDING
+fn bar_offset_y(canvas: &SpriteCanvas) -> f32 {
+    canvas.top_above_origin() + ENEMY_BAR_PADDING
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bar_sits_above_the_painted_sheet() {
+        let slime = SpriteCanvas::grounded(Vec2::new(64.0, 64.0), 32.0);
+        assert_eq!(bar_offset_y(&slime), 48.0 + ENEMY_BAR_PADDING);
+        let king = SpriteCanvas::grounded(Vec2::new(192.0, 192.0), 64.0);
+        assert_eq!(bar_offset_y(&king), 160.0 + ENEMY_BAR_PADDING);
+        assert_eq!(enemy_bar_width(&EnemyHitbox::standard()), 32.0);
+        assert_eq!(
+            enemy_bar_width(&EnemyHitbox::scaled(2.0)),
+            64.0
+        );
+    }
 }

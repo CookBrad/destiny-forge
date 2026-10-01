@@ -8,7 +8,7 @@ use crate::combat::{
     apply_player_hurt, damage_amount, ContactDamageCooldown, DeflectedProjectile, EnemyCorpse,
     EnemyProjectile, Health, PlayerHitFlash, ProjectileLifetime, ProjectileVelocity,
 };
-use crate::graphics::{world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
+use crate::graphics::{solid_fill, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE, TILE};
 use crate::player::Loadout;
 
 use super::enemy::{EnemyAggro, EnemyKnockback, KingSlimeBoss};
@@ -22,8 +22,9 @@ const GROUND_SLAM_HALF_WIDTH: f32 = 48.0;
 const GROUND_SLAM_HALF_HEIGHT: f32 = 12.0;
 const GROUND_SLAM_LIFETIME_SECS: f32 = 1.35;
 
-const BOSS_COLOR_IDLE: Color = Color::srgb(0.55, 0.95, 0.45);
-const BOSS_COLOR_RELEASE: Color = Color::srgb(0.72, 1.0, 0.55);
+/// Untinted, so the painted sheet shows. The old green was the placeholder fill.
+const BOSS_COLOR_IDLE: Color = Color::WHITE;
+const BOSS_COLOR_RELEASE: Color = Color::WHITE;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BossAttackKind {
@@ -244,7 +245,8 @@ pub fn tick_boss_phase_flash(
 ) {
     for (entity, mut flash, mut sprite) in &mut flashes {
         flash.timer.tick(time.delta());
-        sprite.color = Color::srgb(1.0, 1.0, 1.0);
+        // White would match the untinted sheet, so the phase pop stays visible.
+        sprite.color = Color::srgb(0.78, 0.45, 1.0);
         if flash.timer.finished() {
             sprite.color = BOSS_COLOR_IDLE;
             commands.entity(entity).remove::<BossPhaseFlash>();
@@ -442,9 +444,11 @@ fn fire_slime_bolt(
     }
     spawn_projectile(
         commands,
-        art.arrow.clone(),
-        None,
-        Color::srgb(0.55, 1.0, 0.45),
+        Sprite {
+            image: art.slime_bolt.clone(),
+            color: Color::WHITE,
+            ..default()
+        },
         origin + dir * TILE * 0.9,
         dir * speed,
         damage,
@@ -486,7 +490,8 @@ fn spawn_falling_blob(commands: &mut Commands, art: &DungeonArt, origin: Vec2, d
     );
 }
 
-/// A slime-sized blob keeps the 1× sprite. Any other diameter is a solid fill, not a scaled texture.
+/// A one-tile blob uses the 32×32 sheet at 1×. Any other diameter stays a solid fill.
+/// The sheet is not fitted to those other diameters.
 fn spawn_blob(
     commands: &mut Commands,
     art: &DungeonArt,
@@ -497,19 +502,22 @@ fn spawn_blob(
     diameter: f32,
 ) {
     let native = (diameter - ENEMY_DISPLAY_SIZE.x).abs() < 0.01;
-    let (image, size) = if native {
-        (art.slime.clone(), None)
+    let sprite = if native {
+        Sprite {
+            image: art.slime_blob.clone(),
+            color: Color::WHITE,
+            ..default()
+        }
     } else {
-        (art.fill.clone(), Some(Vec2::splat(diameter)))
+        // Off-size diameters stay a 1×1 fill. The 32×32 sheet is not scaled to fit them.
+        solid_fill(art.fill.clone(), Vec2::splat(diameter), color)
     };
-    spawn_projectile(commands, image, size, color, position, velocity, damage);
+    spawn_projectile(commands, sprite, position, velocity, damage);
 }
 
 fn spawn_projectile(
     commands: &mut Commands,
-    image: Handle<Image>,
-    custom_size: Option<Vec2>,
-    color: Color,
+    sprite: Sprite,
     position: Vec2,
     velocity: Vec2,
     damage: f32,
@@ -517,12 +525,7 @@ fn spawn_projectile(
     let angle = velocity.y.atan2(velocity.x) - FRAC_PI_2;
 
     commands.spawn((
-        Sprite {
-            image,
-            color,
-            custom_size,
-            ..default()
-        },
+        sprite,
         Transform {
             translation: Vec3::new(position.x, position.y, 4.5),
             rotation: Quat::from_rotation_z(angle),
@@ -564,5 +567,10 @@ mod tests {
         assert_eq!(GROUND_SLAM_HALF_WIDTH * 2.0, 96.0);
         assert_eq!(GROUND_SLAM_HALF_HEIGHT * 2.0, 24.0);
         assert_eq!(GROUND_SLAM_LIFETIME_SECS, 1.35);
+    }
+
+    #[test]
+    fn boss_attack_range_stays_twenty_two_tiles() {
+        assert_eq!(BOSS_ATTACK_RANGE, 22.0 * TILE);
     }
 }

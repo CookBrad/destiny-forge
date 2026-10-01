@@ -4,8 +4,8 @@ use rand::Rng;
 
 use crate::combat::{ContactDamageCooldown, Health, PlayerAttack, PlayerBlock, PLAYER_MAX_HEALTH};
 use crate::graphics::{
-    center_on_surface, solid_fill, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
-    HUNTER_BODY_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
+    center_on_surface, sole_anchor, world_transform, DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE,
+    HUNTER_BODY_PX, KING_SLIME_CANVAS_PX, KING_SLIME_GAMEPLAY_SCALE, TILE,
 };
 use crate::player::Loadout;
 
@@ -13,14 +13,15 @@ use super::super::animation::PlayerAnimation;
 use super::super::boss::BossAttackController;
 use super::super::enemy::{
     EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump, KingSlimeBoss,
-    Patrol,
+    Patrol, SpriteCanvas,
 };
+use super::super::enemy_anim::{enemy_cell_rect, EnemyAnimation};
 use super::super::hunter_pose::{playback_for, pose_anchor, sheet_for, HunterPose};
 use super::super::level::{
     ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec,
 };
 use super::super::movement::{DungeonPlayer, PlayerAirJumps, PlayerVelocity};
-use super::super::sprites::{player_frame_rect, DungeonArt};
+use super::super::sprites::{enemy_sheet_px, player_frame_rect, DungeonArt};
 use super::DungeonEntity;
 
 const BOSS_MAX_HEALTH: f32 = 120.0;
@@ -87,6 +88,7 @@ fn spawn_enemy(
     };
     let patrol = Patrol::between(patrol_min, patrol_max, spec.kind.patrol_speed());
     let image = enemy_texture(art, spec.kind);
+    let canvas = canvas_for(spec.kind);
 
     let (x, y) = if spec.kind.is_airborne() {
         (spec.x, spec.top_y + 3.0 * TILE)
@@ -95,13 +97,15 @@ fn spawn_enemy(
     };
 
     let mut entity = commands.spawn((
-        Sprite { image, ..default() },
+        authored_sprite(image, canvas),
         world_transform(Vec2::new(x, y), 5.0),
         spec.kind,
         EnemyHitbox::standard(),
+        canvas,
         Health::new(spec.kind.max_health()),
         EnemyContactDamage(spec.kind.contact_damage()),
         patrol,
+        EnemyAnimation::standing_at(x),
         DungeonEntity,
     ));
 
@@ -128,19 +132,41 @@ fn enemy_texture(art: &DungeonArt, kind: EnemyKind) -> Handle<Image> {
     }
 }
 
+fn canvas_for(kind: EnemyKind) -> SpriteCanvas {
+    let size = enemy_sheet_px(kind);
+    if kind.is_airborne() {
+        SpriteCanvas::centered(size)
+    } else {
+        SpriteCanvas::grounded(size, ENEMY_DISPLAY_SIZE.y)
+    }
+}
+
+/// One cell of the strip. The anchor pins the sole; scale stays 1.
+fn authored_sprite(image: Handle<Image>, canvas: SpriteCanvas) -> Sprite {
+    Sprite {
+        image,
+        rect: Some(enemy_cell_rect(0, canvas.size)),
+        anchor: sole_anchor(canvas.size.y, canvas.sole_below_origin),
+        ..default()
+    }
+}
+
 pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpawn) {
-    let size = ENEMY_DISPLAY_SIZE * KING_SLIME_GAMEPLAY_SCALE;
-    let y = center_on_surface(spec.top_y, size.y);
+    let gameplay_height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
+    let y = center_on_surface(spec.top_y, gameplay_height);
+    let canvas = SpriteCanvas::grounded(KING_SLIME_CANVAS_PX, gameplay_height);
 
     commands.spawn((
-        solid_fill(art.fill.clone(), size, Color::srgb(0.55, 0.95, 0.45)),
+        authored_sprite(art.king_slime.clone(), canvas),
         world_transform(Vec2::new(spec.x, y), 6.0),
         KingSlimeBoss,
         BossAttackController::new(),
         EnemyHitbox::scaled(KING_SLIME_GAMEPLAY_SCALE),
+        canvas,
         Health::new(BOSS_MAX_HEALTH),
         EnemyContactDamage(12.0),
         Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),
+        EnemyAnimation::standing_at(spec.x),
         DungeonEntity,
     ));
 }

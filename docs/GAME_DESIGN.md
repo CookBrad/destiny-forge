@@ -563,7 +563,7 @@ The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference 
 | Death | New sheet, two cells, 686×160. Stagger, then a crumpled fall. The pivot is the feet. |
 | Foot point | Cell x = 81.5, sole on row 158 (1 px above the cell bottom). New grounded frames use it. Signed cells keep their pixels; code places those measured contacts on the same world point. |
 | Hunter matte | `knight_*_side.png` only: remove the opaque black background. Character pixels unchanged. |
-| King Slime canvas | 192×192 (6 tiles), taller than the ~160 px hunter. This replaces the 128×128 working default. The in-game boss stays the current two-tile fill until the enemy redraw. A 192 px body standing on the floor (y = 64) tops at y = 256, flush with the 8-row wall. |
+| King Slime canvas | 192×192 (6 tiles), taller than the ~160 px hunter. This replaces the 128×128 working default. The in-game boss is the 192×192 sheet; the gameplay body stays the two-tile hitbox. A 192 px body standing on the floor (y = 64) tops at y = 256, flush with the 8-row wall. |
 | Render | 1× nearest-neighbor, no smoothing, no linear filter |
 | Look | Gritty forge-meets-neon |
 | Palette | Weathered browns, dark grays, neon purple piping, electric-blue circuitry, brass |
@@ -644,7 +644,7 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-09 | Enemy canvases other than King Slime await Brad. See Open Questions. | Working defaults until he picks |
 | 2026-09 | `assets/ATTRIBUTION.txt` covers legacy art until that file is redrawn | Signed hunter pixels keep their credit. An in-house replacement drops the old credit for that file |
 | 2026-09-26 | New in-house frames may be added beside the signed hunter cells | Run cycle (8 played frames), attack in-between and recover, jump, fall, death. Idle, run lean, chamber, and thrust pixels stay. Foot point is cell x = 81.5, sole row 158. Supersedes the 2026-08 reopen ban for added frames only. |
-| 2026-09-26 | King Slime canvas is 192×192 | 6 tiles, taller than the ~160 px hunter. Replaces the 128×128 working default. The live fill stays the current placeholder until the enemy redraw. |
+| 2026-09-26 | King Slime canvas is 192×192 | 6 tiles, taller than the ~160 px hunter. Replaces the 128×128 working default. The sheet replaces the live fill. The gameplay body stays two tiles. |
 
 ---
 

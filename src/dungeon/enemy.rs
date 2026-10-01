@@ -104,7 +104,7 @@ impl EnemyAggro {
     }
 }
 
-/// Logical collision half-extents in native sprite pixels (independent of transform scale).
+/// Logical collision half-extents in world pixels (independent of the sheet size).
 #[derive(Component, Clone, Copy)]
 pub struct EnemyHitbox(pub Vec2);
 
@@ -115,6 +115,35 @@ impl EnemyHitbox {
 
     pub fn scaled(multiplier: f32) -> Self {
         Self(ENEMY_DISPLAY_SIZE * 0.5 * multiplier)
+    }
+}
+
+/// Painted sheet. The hitbox stays [`EnemyHitbox`]; this only places the
+/// sprite and lifts the health bar to the painted top.
+#[derive(Component, Clone, Copy, Debug)]
+pub struct SpriteCanvas {
+    pub size: Vec2,
+    /// Canvas bottom edge, in pixels below the entity origin.
+    pub sole_below_origin: f32,
+}
+
+impl SpriteCanvas {
+    pub fn grounded(size: Vec2, gameplay_height: f32) -> Self {
+        Self {
+            size,
+            sole_below_origin: gameplay_height * 0.5,
+        }
+    }
+
+    pub fn centered(size: Vec2) -> Self {
+        Self {
+            size,
+            sole_below_origin: size.y * 0.5,
+        }
+    }
+
+    pub fn top_above_origin(self) -> f32 {
+        self.size.y - self.sole_below_origin
     }
 }
 
@@ -242,5 +271,21 @@ pub fn track_boss_defeat(
         world_progress.record_boss_defeated_floor_1();
         profile_dirty.mark();
         info!("King Slime defeated — ladder exit unlocked.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hitboxes_stay_on_the_gameplay_body() {
+        assert_eq!(EnemyHitbox::standard().0, ENEMY_DISPLAY_SIZE * 0.5);
+        assert_eq!(EnemyHitbox::scaled(2.0).0, Vec2::splat(32.0));
+        let skeleton = SpriteCanvas::grounded(Vec2::new(64.0, 144.0), ENEMY_DISPLAY_SIZE.y);
+        assert_eq!(skeleton.sole_below_origin, 16.0);
+        let bat = SpriteCanvas::centered(Vec2::new(96.0, 48.0));
+        assert_eq!(bat.sole_below_origin, 24.0);
+        assert_eq!(bat.top_above_origin(), 24.0);
     }
 }
