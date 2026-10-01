@@ -3,6 +3,7 @@ mod boss;
 pub mod carve;
 mod carve_loot;
 mod enemy;
+mod enemy_anim;
 mod enemy_movement;
 mod enemy_stats;
 mod floor1;

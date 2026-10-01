@@ -15,6 +15,7 @@ use super::super::enemy::{
     EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyShootCooldown, GoblinJump, KingSlimeBoss,
     Patrol, SpriteCanvas,
 };
+use super::super::enemy_anim::{enemy_cell_rect, EnemyAnimation};
 use super::super::hunter_pose::{playback_for, pose_anchor, sheet_for, HunterPose};
 use super::super::level::{
     ground_patrol_range, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec,
@@ -104,6 +105,7 @@ fn spawn_enemy(
         Health::new(spec.kind.max_health()),
         EnemyContactDamage(spec.kind.contact_damage()),
         patrol,
+        EnemyAnimation::standing_at(x),
         DungeonEntity,
     ));
 
@@ -139,10 +141,11 @@ fn canvas_for(kind: EnemyKind) -> SpriteCanvas {
     }
 }
 
-/// The sheet is not the hitbox. The anchor pins the sole; scale stays 1.
+/// One cell of the strip. The anchor pins the sole; scale stays 1.
 fn authored_sprite(image: Handle<Image>, canvas: SpriteCanvas) -> Sprite {
     Sprite {
         image,
+        rect: Some(enemy_cell_rect(0, canvas.size)),
         anchor: sole_anchor(canvas.size.y, canvas.sole_below_origin),
         ..default()
     }
@@ -163,6 +166,7 @@ pub fn spawn_king_slime(commands: &mut Commands, art: &DungeonArt, spec: BossSpa
         Health::new(BOSS_MAX_HEALTH),
         EnemyContactDamage(12.0),
         Patrol::between(spec.patrol_min_x, spec.patrol_max_x, 22.0),
+        EnemyAnimation::standing_at(spec.x),
         DungeonEntity,
     ));
 }

@@ -67,15 +67,18 @@ Gameplay sprite map
   dungeon/environment/pit_lip.png          — In-house, made by tools/draw_dungeon_environment.py
   dungeon/vfx/ground_slam.png              — In-house, made by tools/draw_dungeon_environment.py
 
-  dungeon/enemies/slime.png              — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/enemies/bat.png                — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/enemies/goblin.png             — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/enemies/skeleton.png           — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/enemies/zombie.png             — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/enemies/king_slime.png         — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/projectiles/arrow.png          — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/projectiles/slime_bolt.png     — In-house, made by tools/draw_dungeon_actors.py
-  dungeon/projectiles/slime_blob.png     — In-house, made by tools/draw_dungeon_actors.py
+  The nine actor sheets below are Grok Imagine pixels: image_gen, then image_edit against the signed hunter. tools/draw_dungeon_actors.py is not the pixel source, and re-running that script does not write these bytes.
+  Enemy files are 4-frame horizontal movement strips from a further image_edit of those stills. Arrow, slime bolt, and slime blob stay one cell.
+
+  dungeon/enemies/slime.png              — Grok Imagine, 4-frame hop strip
+  dungeon/enemies/bat.png                — Grok Imagine, 4-frame wing strip
+  dungeon/enemies/goblin.png             — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/skeleton.png           — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/zombie.png             — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/king_slime.png         — Grok Imagine, 4-frame hop strip
+  dungeon/projectiles/arrow.png          — Grok Imagine, one cell
+  dungeon/projectiles/slime_bolt.png     — Grok Imagine, one cell
+  dungeon/projectiles/slime_blob.png     — Grok Imagine, one cell
 
 Audio
 -----
