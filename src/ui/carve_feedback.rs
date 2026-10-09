@@ -26,7 +26,12 @@ pub struct LootLogLine {
 }
 
 pub fn spawn_carve_feedback_ui(mut commands: Commands) {
-    // Progress bar — bottom-center, above skill bar.
+    spawn_carve_progress_bar(&mut commands);
+    spawn_loot_log(&mut commands);
+}
+
+/// Bottom-center, above the skill bar.
+fn spawn_carve_progress_bar(commands: &mut Commands) {
     commands
         .spawn((
             CarveProgressHud,
@@ -77,8 +82,10 @@ pub fn spawn_carve_feedback_ui(mut commands: Commands) {
                 ));
             });
         });
+}
 
-    // Loot log — lower-left, stacks upward.
+/// Lower-left; newest line at the bottom, older lines stack upward.
+fn spawn_loot_log(commands: &mut Commands) {
     commands.spawn((
         LootLogHud,
         Node {
@@ -161,38 +168,46 @@ pub fn drain_loot_log_to_ui(
         return;
     };
 
-    // Cap total lines.
-    let existing = lines.iter().count();
-    let overflow = existing
-        .saturating_add(loot_log.pending.len())
-        .saturating_sub(LOG_MAX_ENTRIES);
-    if overflow > 0 {
-        let oldest: Vec<_> = lines.iter().collect();
-        // Despawn arbitrary extras; age system will clean more cleanly.
-        for entity in oldest.into_iter().take(overflow) {
-            commands.entity(entity).try_despawn_recursive();
-        }
+    despawn_loot_log_overflow(&mut commands, &lines, loot_log.pending.len());
+    for entry in loot_log.pending.drain(..) {
+        commands
+            .entity(root)
+            .with_children(|parent| spawn_loot_log_line(parent, entry.text));
     }
+}
 
-    let entries: Vec<_> = loot_log.pending.drain(..).collect();
-    for entry in entries {
-        commands.entity(root).with_children(|parent| {
-            parent.spawn((
-                LootLogLine { age: 0.0 },
-                Text::new(entry.text),
-                TextFont {
-                    font_size: 15.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.95, 0.92, 0.78)),
-                Node {
-                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.06, 0.07, 0.1, 0.82)),
-            ));
-        });
+/// Makes room so the log never shows more than `LOG_MAX_ENTRIES` lines once
+/// `incoming` lines land. Which lines go is query order; aging fades the rest.
+fn despawn_loot_log_overflow(
+    commands: &mut Commands,
+    lines: &Query<Entity, With<LootLogLine>>,
+    incoming: usize,
+) {
+    let overflow = lines
+        .iter()
+        .count()
+        .saturating_add(incoming)
+        .saturating_sub(LOG_MAX_ENTRIES);
+    for entity in lines.iter().take(overflow) {
+        commands.entity(entity).try_despawn_recursive();
     }
+}
+
+fn spawn_loot_log_line(parent: &mut ChildBuilder, text: String) {
+    parent.spawn((
+        LootLogLine { age: 0.0 },
+        Text::new(text),
+        TextFont {
+            font_size: 15.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.95, 0.92, 0.78)),
+        Node {
+            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.06, 0.07, 0.1, 0.82)),
+    ));
 }
 
 pub fn tick_loot_log_lines(
