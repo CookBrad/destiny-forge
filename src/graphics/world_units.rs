@@ -3,9 +3,7 @@ use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::sprite::Anchor;
 
-/// One source pixel is one world unit in every area.
 pub const WORLD_UNITS_PER_SOURCE_PX: f32 = 1.0;
-/// Base `OrthographicProjection.scale`. Only the homestead camera zooms past it (3×).
 pub const CAMERA_ORTHO_SCALE: f32 = 1.0;
 
 pub const TILE: f32 = 32.0;

@@ -6,10 +6,7 @@ use super::movement::{ExplorationMap, OverworldPlayer};
 
 const OVERWORLD_CAMERA_Z: f32 = 100.0;
 
-/// 2026-10: the home area was too small to read at 1×, so the homestead camera
-/// draws one world unit as three screen pixels again. Art and transforms stay 1×.
 pub const HOMESTEAD_PIXEL_ZOOM: f32 = 3.0;
-/// The forest keeps the shared 1× camera; only the homestead was re-locked to 3×.
 pub const FOREST_PIXEL_ZOOM: f32 = 1.0;
 
 pub fn init_exploration_camera(
@@ -63,7 +60,6 @@ pub fn follow_exploration_camera(
     camera_transform.translation = target.extend(OVERWORLD_CAMERA_Z);
 }
 
-/// A zoom below 1× would shrink the map further, so it clamps to the shared 1× camera.
 fn apply_pixel_zoom(projection: &mut OrthographicProjection, pixel_zoom: f32) {
     projection.scale = CAMERA_ORTHO_SCALE / pixel_zoom.max(1.0);
 }
