@@ -6,8 +6,8 @@ use crate::combat::{
     PlayerKnockback, PlayerSpecialMove,
 };
 use crate::graphics::{
-    viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_GRAVITY,
-    DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
+    viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_CEILING_Y,
+    DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
 };
 
 use super::sprites::player_half_extents;
@@ -155,6 +155,10 @@ pub fn dungeon_movement(
 
     position.y += delta.y;
     velocity.grounded = false;
+    if hits_ceiling(position.y, half.y, velocity.y) {
+        position.y = DUNGEON_CEILING_Y - half.y;
+        velocity.y = 0.0;
+    }
 
     let feet_y = position.y - half.y;
     if velocity.y <= 0.0 {
@@ -184,6 +188,10 @@ pub fn dungeon_movement(
     transform.translation.y = position.y;
 }
 
+fn hits_ceiling(center_y: f32, half_height: f32, velocity_y: f32) -> bool {
+    velocity_y > 0.0 && center_y + half_height >= DUNGEON_CEILING_Y
+}
+
 fn feet_was_above(platform_top: f32, previous_feet: f32) -> bool {
     previous_feet >= platform_top - 0.5
 }
@@ -192,4 +200,17 @@ fn overlaps_x(center_x: f32, half_width: f32, collider: &PlatformCollider) -> bo
     let left = center_x - half_width;
     let right = center_x + half_width;
     right > collider.min_x && left < collider.max_x
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rising_head_bonks_on_the_ceiling_beam() {
+        let half = player_half_extents().y;
+        assert!(hits_ceiling(DUNGEON_CEILING_Y - half, half, 10.0));
+        assert!(!hits_ceiling(DUNGEON_CEILING_Y - half - 1.0, half, 10.0));
+        assert!(!hits_ceiling(DUNGEON_CEILING_Y, half, -10.0));
+    }
 }

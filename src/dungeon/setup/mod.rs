@@ -1,4 +1,5 @@
 mod actors;
+mod props;
 mod terrain;
 
 use std::collections::HashSet;
@@ -14,8 +15,10 @@ use super::level::DungeonLayout;
 use super::sprites::DungeonArt;
 
 pub use actors::{spawn_enemies, spawn_king_slime, spawn_player};
+pub use props::spawn_props;
 pub use terrain::{
-    spawn_backdrop, spawn_ground, spawn_ladder_exit, spawn_pitfalls, spawn_platform,
+    spawn_backdrop, spawn_ceiling, spawn_ground, spawn_ladder_exit, spawn_pitfalls,
+    spawn_platform,
 };
 
 #[derive(Component)]
@@ -76,6 +79,8 @@ pub fn setup_dungeon_with_seed(
     });
 
     spawn_backdrop(commands, &art, &floor);
+    spawn_ceiling(commands, &art, &floor);
+    spawn_props(commands, &art, &floor);
     for segment in &floor.ground_segments {
         spawn_ground(commands, &art, *segment);
     }

@@ -3,8 +3,7 @@ use bevy::prelude::*;
 use crate::dungeon::DungeonPlayer;
 use crate::graphics::{CAMERA_ORTHO_SCALE, DUNGEON_FLOOR_Y};
 
-/// Pinned in pixels. 5.5 * TILE would be 176 at the 32 px module and drop the 160 px body.
-const CAMERA_HEIGHT_ABOVE_FLOOR: f32 = 140.0;
+const CAMERA_HEIGHT_ABOVE_FLOOR: f32 = 264.0;
 
 /// Horizontal span of the current dungeon floor in native world pixels.
 #[derive(Resource, Clone, Copy)]
@@ -104,15 +103,19 @@ fn camera_y() -> f32 {
 mod tests {
     use super::*;
 
+    use crate::graphics::{DUNGEON_CEILING_Y, HUNTER_BODY_PX, TILE};
+
+    const VIEW_HALF_HEIGHT_720P: f32 = 360.0;
+
     #[test]
-    fn camera_height_is_pinned_so_the_hunter_stays_in_a_720p_view() {
-        assert_eq!(CAMERA_HEIGHT_ABOVE_FLOOR, 140.0);
+    fn camera_frames_the_ground_the_hunter_and_the_ceiling_in_a_720p_view() {
+        assert_eq!(CAMERA_HEIGHT_ABOVE_FLOOR, 264.0);
         let center = dungeon_camera_center_y();
-        assert_eq!(center, DUNGEON_FLOOR_Y + 140.0);
-        let half = 360.0;
-        let feet = DUNGEON_FLOOR_Y;
-        let head = DUNGEON_FLOOR_Y + 160.0;
-        assert!(feet > center - half);
-        assert!(head < center + half);
+        assert_eq!(center, DUNGEON_FLOOR_Y + 264.0);
+        let bottom = center - VIEW_HALF_HEIGHT_720P;
+        let top = center + VIEW_HALF_HEIGHT_720P;
+        assert_eq!(DUNGEON_FLOOR_Y - bottom, 3.0 * TILE, "three ground rows show");
+        assert!(DUNGEON_FLOOR_Y + HUNTER_BODY_PX.y < top);
+        assert!(DUNGEON_CEILING_Y + TILE < top, "the ceiling beam shows");
     }
 }
