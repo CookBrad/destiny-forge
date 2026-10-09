@@ -73,7 +73,7 @@ impl SpecialCooldownState {
 impl SpecialMoveKind {
     pub fn base_cooldown(self) -> f32 {
         match self {
-            Self::Charge => 4.0,
+            Self::Charge => CHARGE_COOLDOWN_SECS,
             Self::Spin => 5.0,
             Self::Thrust => 3.5,
         }
@@ -141,6 +141,7 @@ const CHARGE_SECS: f32 = 0.4;
 const CHARGE_HIT_START: f32 = 0.04;
 const CHARGE_HIT_END: f32 = 0.36;
 const CHARGE_ATTACK_POWER: f32 = 22.0;
+const CHARGE_COOLDOWN_SECS: f32 = 2.0;
 
 const SPIN_SECS: f32 = 0.5;
 const SPIN_HIT_START: f32 = 0.1;
@@ -582,6 +583,14 @@ mod tests {
         assert_eq!(SPIN_ARM_RADIUS, 16.0 * 1.85);
         assert!(SPIN_ARM_RADIUS < TILE * 1.85);
         assert_eq!(SPIN_SWORD_HIT_PADDING, 16.0 * 0.85);
+    }
+
+    #[test]
+    fn charge_cooldown_is_shorter_than_thrust_and_spin() {
+        let charge = SpecialMoveKind::Charge.base_cooldown();
+        assert_eq!(charge, CHARGE_COOLDOWN_SECS);
+        assert!(charge < SpecialMoveKind::Thrust.base_cooldown());
+        assert!(charge < SpecialMoveKind::Spin.base_cooldown());
     }
 
     #[test]

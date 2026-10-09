@@ -26,6 +26,10 @@ const MIN_BRIDGE_HEIGHT_TILES: u32 = 4;
 const MAX_BRIDGE_HEIGHT_TILES: u32 = 5;
 const MIN_PLATFORM_WIDTH_TILES: u32 = 3;
 const MAX_PLATFORM_WIDTH_TILES: u32 = 6;
+const PLATFORM_CHANCE_PER_SEGMENT: f64 = 0.6;
+const SECOND_PLATFORM_CHANCE: f64 = 0.1;
+const BRIDGE_OVER_PIT_CHANCE: f64 = 0.4;
+const MIN_PLATFORM_GAP_TILES: u32 = 4;
 const MIN_ENEMY_SPACING_TILES: u32 = 4;
 const MAX_ENEMY_SPAWN_ATTEMPTS: u32 = 16;
 const MIN_GROUND_RUN_TILES: u32 = 4;
@@ -59,8 +63,11 @@ pub fn generate_floor(seed: u64) -> GeneratedFloor {
         generate_segments(&mut rng, ENTRANCE_TILES, boss_arena_start, &ground_segments);
 
     for pit in &pitfalls {
-        if rng.gen_bool(0.55) {
-            platforms.push(bridge_over_pit(&mut rng, pit));
+        if rng.gen_bool(BRIDGE_OVER_PIT_CHANCE) {
+            let bridge = bridge_over_pit(&mut rng, pit);
+            if !crowds_platforms(&bridge, &platforms) {
+                platforms.push(bridge);
+            }
         }
     }
 
@@ -179,8 +186,12 @@ fn generate_segments(
             }
         }
 
-        if rng.gen_bool(0.88) && segment_end > cursor + 3 {
-            let platform_count = if rng.gen_bool(0.22) { 2 } else { 1 };
+        if rng.gen_bool(PLATFORM_CHANCE_PER_SEGMENT) && segment_end > cursor + 3 {
+            let platform_count = if rng.gen_bool(SECOND_PLATFORM_CHANCE) {
+                2
+            } else {
+                1
+            };
             for _step in 0..platform_count {
                 let plat_width = rng.gen_range(MIN_PLATFORM_WIDTH_TILES..=MAX_PLATFORM_WIDTH_TILES);
                 let max_left = segment_end.saturating_sub(plat_width + 1);
@@ -191,12 +202,15 @@ fn generate_segments(
                 let height_tiles =
                     rng.gen_range(MIN_PLATFORM_HEIGHT_TILES..=MAX_PLATFORM_HEIGHT_TILES);
                 let top_y = DUNGEON_FLOOR_Y + height_tiles as f32 * TILE;
-
-                platforms.push(PlatformSpec {
+                let platform = PlatformSpec {
                     left: plat_left as f32 * TILE,
                     width_tiles: plat_width,
                     top_y,
-                });
+                };
+                if crowds_platforms(&platform, &platforms) {
+                    continue;
+                }
+                platforms.push(platform);
 
                 if rng.gen_bool(0.6) {
                     bats.push(BatSpawn {
@@ -255,6 +269,19 @@ fn bridge_over_pit(rng: &mut StdRng, pit: &PitfallSpec) -> PlatformSpec {
         top_y: DUNGEON_FLOOR_Y
             + rng.gen_range(MIN_BRIDGE_HEIGHT_TILES..=MAX_BRIDGE_HEIGHT_TILES) as f32 * TILE,
     }
+}
+
+fn crowds_platforms(candidate: &PlatformSpec, platforms: &[PlatformSpec]) -> bool {
+    let min_gap = MIN_PLATFORM_GAP_TILES as f32 * TILE;
+    platforms
+        .iter()
+        .any(|platform| horizontal_gap(candidate, platform) < min_gap)
+}
+
+fn horizontal_gap(a: &PlatformSpec, b: &PlatformSpec) -> f32 {
+    let a_right = a.left + a.width_tiles as f32 * TILE;
+    let b_right = b.left + b.width_tiles as f32 * TILE;
+    (b.left - a_right).max(a.left - b_right)
 }
 
 fn is_on_floor(x: f32, segments: &[PlatformSpec]) -> bool {
@@ -403,6 +430,32 @@ mod tests {
         assert!(MAX_PLATFORM_HEIGHT_TILES as f32 * TILE <= with_air);
         assert!(pits > 40, "pits {pits}");
         assert!(platforms > 40, "platforms {platforms}");
+    }
+
+    #[test]
+    fn platforms_keep_a_minimum_horizontal_gap() {
+        let min_gap = MIN_PLATFORM_GAP_TILES as f32 * TILE;
+        for seed in 0..200 {
+            let floor = generate_floor(seed);
+            for (i, left) in floor.platforms.iter().enumerate() {
+                for right in floor.platforms.iter().skip(i + 1) {
+                    let gap = horizontal_gap(left, right);
+                    assert!(gap >= min_gap, "seed {seed}: platform gap {gap}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn platforms_are_sparse_enough_for_the_room_to_breathe() {
+        let floors: Vec<GeneratedFloor> = (0..200).map(generate_floor).collect();
+        let tiles: u32 = floors.iter().map(|floor| floor.width_tiles).sum();
+        let platforms: usize = floors.iter().map(|floor| floor.platforms.len()).sum();
+        let tiles_per_platform = tiles as f32 / platforms as f32;
+        assert!(
+            tiles_per_platform >= 16.0,
+            "one platform every {tiles_per_platform} tiles"
+        );
     }
 
     #[test]
