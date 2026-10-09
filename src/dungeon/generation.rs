@@ -6,8 +6,9 @@ use crate::graphics::{DUNGEON_FLOOR_Y, TILE};
 use super::enemy::EnemyKind;
 use super::level::{BatSpawn, BossSpawn, EnemySpawn, GeneratedFloor, PitfallSpec, PlatformSpec};
 
-/// Eight 32 px rows reach y=256, above the hunter's head (floor 64 + body 160 = 224).
-const BACKDROP_ROWS: u32 = 8;
+/// Eighteen 32 px rows reach the ceiling beam at y=576: 512 px of room over the
+/// floor, about three hunters (160 px) tall. Keep in step with `DUNGEON_CEILING_Y`.
+pub(super) const BACKDROP_ROWS: u32 = 18;
 const PLAYER_START_X: f32 = 1.5 * TILE;
 /// Horizontal spans are half the old 16 px layout, so a hunt stays about 2880 px.
 const ENTRANCE_TILES: u32 = 4;
@@ -21,11 +22,13 @@ const MIN_FEATURE_SEGMENT_TILES: u32 = 9;
 const MAX_FEATURE_SEGMENT_TILES: u32 = 14;
 const MIN_PIT_TILES: u32 = 2;
 const MAX_PIT_TILES: u32 = 4;
-/// 2 tiles (64 px) clear on one jump. 4 tiles (128 px) need the air jump (~173 px).
-const MIN_PLATFORM_HEIGHT_TILES: u32 = 2;
-const MAX_PLATFORM_HEIGHT_TILES: u32 = 4;
-const MIN_BRIDGE_HEIGHT_TILES: u32 = 2;
-const MAX_BRIDGE_HEIGHT_TILES: u32 = 4;
+/// 4–5 tiles (128–160 px) clear on one ~170 px jump. 6 tiles (192 px) needs the
+/// air jump (~300 px), and its underside clears the hunter's 160 px head.
+pub(super) const MIN_PLATFORM_HEIGHT_TILES: u32 = 4;
+pub(super) const MAX_PLATFORM_HEIGHT_TILES: u32 = 6;
+/// Bridges stay on one jump so a pit crossing never needs the air jump.
+const MIN_BRIDGE_HEIGHT_TILES: u32 = 4;
+const MAX_BRIDGE_HEIGHT_TILES: u32 = 5;
 const MIN_PLATFORM_WIDTH_TILES: u32 = 3;
 const MAX_PLATFORM_WIDTH_TILES: u32 = 6;
 const MIN_ENEMY_SPACING_TILES: u32 = 4;
@@ -190,8 +193,8 @@ fn generate_segments(
                     continue;
                 }
                 let plat_left = rng.gen_range((cursor + 1)..=max_left);
-                // Both steps stay inside 2..=4 tiles. Stacking on top of that
-                // used to clear the ~173 px air-jump and left a ledge you cannot reach.
+                // Both steps stay inside 4..=6 tiles off the floor. Stacking one on
+                // the other would leave a ledge past the air jump.
                 let height_tiles =
                     rng.gen_range(MIN_PLATFORM_HEIGHT_TILES..=MAX_PLATFORM_HEIGHT_TILES);
                 let top_y = DUNGEON_FLOOR_Y + height_tiles as f32 * TILE;
@@ -362,7 +365,6 @@ mod tests {
         assert_eq!(MIN_PIT_TILES, 2);
         assert_eq!(MAX_PIT_TILES, 4);
         assert_eq!(MIN_ENEMY_SPACING_TILES, 4);
-        assert_eq!(BACKDROP_ROWS, 8);
     }
 
     #[test]
@@ -374,6 +376,7 @@ mod tests {
         let air_speed = jump_speed * air_mult;
         let with_air = apex + air_speed * air_speed / (2.0 * gravity);
         let head = DUNGEON_FLOOR_Y + crate::graphics::HUNTER_BODY_PX.y;
+        let ceiling = crate::graphics::DUNGEON_CEILING_Y;
         let mut pits = 0;
         let mut platforms = 0;
 
@@ -383,12 +386,14 @@ mod tests {
             assert!(width_px >= 2_880.0, "seed {seed} width {width_px}");
             assert!(width_px <= 5_600.0, "seed {seed} width {width_px}");
             assert_eq!(floor.backdrop_rows, BACKDROP_ROWS);
-            assert!(floor.backdrop_rows as f32 * TILE >= head);
+            assert_eq!(floor.backdrop_rows as f32 * TILE, ceiling);
+            assert!(ceiling - head >= 2.0 * crate::graphics::HUNTER_BODY_PX.y);
 
             for platform in &floor.platforms {
                 let rise = platform.top_y - DUNGEON_FLOOR_Y;
                 assert!(
-                    rise >= MIN_PLATFORM_HEIGHT_TILES as f32 * TILE - 0.01,
+                    rise >= MIN_BRIDGE_HEIGHT_TILES.min(MIN_PLATFORM_HEIGHT_TILES) as f32 * TILE
+                        - 0.01,
                     "seed {seed} rise {rise}"
                 );
                 assert!(rise <= MAX_PLATFORM_HEIGHT_TILES as f32 * TILE + 0.01);
@@ -401,8 +406,8 @@ mod tests {
             platforms += floor.platforms.len();
         }
 
-        assert!(3.0 * TILE <= apex);
-        assert!(4.0 * TILE <= with_air);
+        assert!(MAX_BRIDGE_HEIGHT_TILES as f32 * TILE <= apex);
+        assert!(MAX_PLATFORM_HEIGHT_TILES as f32 * TILE <= with_air);
         assert!(pits > 40, "pits {pits}");
         assert!(platforms > 40, "platforms {platforms}");
     }
