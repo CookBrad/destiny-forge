@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::overworld::sprites::ENV_ROOT;
+
 pub const TREE_SHEET: &str = "forest/trees.png";
 pub const TREE_CELL_W: f32 = 32.0;
 pub const TREE_CELL_H: f32 = 48.0;
@@ -17,8 +19,8 @@ pub struct ForestArt {
 impl ForestArt {
     pub fn load(asset_server: &AssetServer, images: &mut Assets<Image>) -> Self {
         Self {
-            grass: asset_server.load("dungeon/environment/floor_ground.png"),
-            path: asset_server.load("dungeon/environment/floor_platform.png"),
+            grass: asset_server.load(format!("{ENV_ROOT}/floor_ground.png")),
+            path: asset_server.load(format!("{ENV_ROOT}/floor_platform.png")),
             grid_line: crate::graphics::solid_white_pixel(images),
             trees: asset_server.load(TREE_SHEET),
         }
