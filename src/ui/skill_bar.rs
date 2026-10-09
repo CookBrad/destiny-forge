@@ -455,7 +455,7 @@ mod tests {
         SLOT_PADDING, SLOT_WIDTH,
     };
     use crate::combat::{SkillKind, SpecialCooldownState, SpecialMoveKind, WeaponKind};
-    use crate::player::Loadout;
+    use crate::player::{ArmorKind, Loadout};
 
     #[test]
     fn cooldown_veil_fills_from_the_special_the_weapon_fired() {
@@ -482,6 +482,33 @@ mod tests {
             0.0
         );
         assert_eq!(cooldown_fill(None, &cooldowns, &spear), 0.0);
+    }
+
+    #[test]
+    fn two_piece_thrust_veil_drains_over_the_shortened_cooldown() {
+        let mut spear = Loadout {
+            weapon: WeaponKind::RustySpear,
+            ..Loadout::default()
+        };
+        spear.armor.head = Some(ArmorKind::SlimeHelm);
+        spear.armor.chest = Some(ArmorKind::SlimeMail);
+        let full = SpecialMoveKind::Thrust.base_cooldown() * spear.special_cooldown_multiplier();
+        assert!((full - 3.5 * 0.9).abs() < 1e-5);
+
+        let mut cooldowns = SpecialCooldownState::default();
+        cooldowns.start(SpecialMoveKind::Thrust, full);
+        cooldowns.tick(full / 2.0);
+        let fill = cooldown_fill(Some(SkillKind::Spin), &cooldowns, &spear);
+        assert!(
+            (fill - 0.5).abs() < 1e-5,
+            "half of 3.15s left should be a half veil, got {fill}"
+        );
+
+        cooldowns.tick(full / 2.0);
+        assert_eq!(
+            cooldown_fill(Some(SkillKind::Spin), &cooldowns, &spear),
+            0.0
+        );
     }
 
     #[test]
