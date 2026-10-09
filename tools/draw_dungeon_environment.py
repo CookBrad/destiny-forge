@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""In-house dungeon environment sprites at the 32 px module.
+"""In-house dungeon environment sprites, drawn at hunter scale.
 
-Authored pixel-by-pixel at the target size (Pillow 11.3). Deterministic:
-no RNG, no resample, no upscale of the old 16 px sheets. Re-running
-rewrites the same PNGs.
+The hunter is ~160 px tall at 1x nearest-neighbor (5 tiles of 32 px). The
+environment is drawn to that body: 32x16 bricks, 64 px floor slabs and girder
+bays, a 256 px exit ladder, a 512 px pillar, and warning posts, torches and
+chains sized against him. TILE stays 32: repeat textures are 128 or 256 px patterns
+and the game samples one 32x32 cell per tile, so seams never land on a tile
+edge.
+
+Authored pixel-by-pixel at the target size (Pillow). Deterministic: no RNG,
+no resample, no upscale of the old 16 px sheets. Re-running rewrites the same
+PNGs.
 
 Palette is weathered brown, dark gray, neon purple piping, electric-blue
 circuitry, and brass. Edges are hard 1 px. Alpha is only where a sprite
-needs a hole (ladder, stake, lip, ground slam).
+needs a hole (platform underside, ladder, stake, lip, props, ground slam).
 """
 
 from __future__ import annotations
@@ -110,289 +117,453 @@ def rivet(canvas: Canvas, x: int, y: int) -> None:
     canvas.put(x + 1, y + 1, BRASS_LT)
 
 
-def draw_floor() -> Canvas:
-    canvas = Canvas(32, 32, MORTAR)
-    stones = (
-        (1, 1, 15, 15, BROWN),
-        (17, 1, 31, 15, BROWN_DK),
-        (1, 17, 15, 31, shade(BROWN, -8)),
-        (17, 17, 31, 31, shade(BROWN_DK, 10)),
-    )
-    for x0, y0, x1, y1, base in stones:
-        canvas.fill_rect(x0, y0, x1, y1, base)
-        for y in range(y0 + 1, y1 - 1):
-            for x in range(x0 + 1, x1 - 1):
-                canvas.put(x, y, shade(base, speck(x, y)))
+
+TILE_PX = 32
+
+
+def hash2(x: int, y: int, salt: int = 0) -> int:
+    """Stable 0..255 pick per cell. Deterministic, no RNG state."""
+    value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
+    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (value ^ (value >> 16)) & 0xFF
+
+
+def bevel_block(
+    canvas: Canvas,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    base: tuple[int, int, int, int],
+    wrap: bool = False,
+) -> None:
+    """A stone or iron block with a 2 px lit top-left and a 2 px shadowed bottom-right.
+
+    `wrap` puts pixels that fall off the canvas back on the other side, so a
+    running-bond course tiles without a seam.
+    """
+    for y in range(y0, y1):
         for x in range(x0, x1):
-            canvas.put(x, y0, shade(base, 28))
-            canvas.put(x, y1 - 1, shade(base, -28))
-        for y in range(y0, y1):
-            canvas.put(x0, y, shade(base, 18))
-            canvas.put(x1 - 1, y, shade(base, -22))
+            color = shade(base, speck(x, y))
+            if y < y0 + 2 or x < x0 + 2:
+                color = shade(color, 20 if (y == y0 or x == x0) else 10)
+            if y >= y1 - 2 or x >= x1 - 2:
+                color = shade(color, -24 if (y == y1 - 1 or x == x1 - 1) else -12)
+            if wrap:
+                canvas.put(x % canvas.width, y % canvas.height, color)
+            else:
+                canvas.put(x, y, color)
 
-    # Chips so the blocks are not perfect rectangles. Mortar shows through.
-    for x, y in (
-        (2, 2),
-        (14, 3),
-        (18, 13),
-        (29, 4),
-        (3, 29),
-        (13, 18),
-        (28, 28),
-        (19, 19),
-    ):
-        canvas.put(x, y, MORTAR_DK)
 
-    # Cracks.
-    for x, y in (
-        (4, 6),
-        (5, 7),
-        (6, 7),
-        (7, 8),
-        (8, 9),
-        (21, 5),
-        (22, 5),
-        (23, 6),
-        (24, 6),
-        (25, 6),
-        (5, 22),
-        (6, 23),
-        (7, 24),
-        (8, 24),
-        (22, 22),
-        (23, 23),
-        (24, 24),
-        (25, 25),
-        (26, 25),
-    ):
-        canvas.put(x, y, BROWN_DEEP)
+def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> None:
+    """Hard 1 px polyline. Neon cracks read as the electric-blue circuitry."""
+    for (ax, ay), (bx, by) in zip(points, points[1:]):
+        steps = max(abs(bx - ax), abs(by - ay), 1)
+        for step in range(steps + 1):
+            x = ax + (bx - ax) * step // steps
+            y = ay + (by - ay) * step // steps
+            canvas.put(x, y, glow if step % 3 == 0 else color)
 
-    # Brass stud and a short blue circuit in the lower-left block.
-    rivet(canvas, 24, 7)
-    for x in range(5, 12):
-        canvas.put(x, 26, BLUE_DK)
-    canvas.put(5, 26, BLUE)
-    canvas.put(8, 25, BLUE)
-    canvas.put(8, 26, BLUE_LT)
-    canvas.put(8, 27, BLUE)
 
-    # Dark vertical joint so the four blocks stay separate when the tile repeats.
-    for y in range(32):
-        if y in (15, 16):
-            continue
-        canvas.put(15, y, MORTAR_DK)
-        canvas.put(16, y, MORTAR)
+# Hunter is ~160 px tall (5 tiles). Bricks are 32x16 so a course reads at
+# about one tenth of the body. The old 14x7 brick read as gravel next to him.
+WALL_BRICK_W = 32
+WALL_BRICK_H = 16
+WALL_PATTERN = 256
 
-    # Purple pipe in the horizontal joint. Full width so neighboring tiles connect.
-    for x in range(32):
-        canvas.put(x, 15, PURPLE_DK if x % 8 else PURPLE)
-        canvas.put(x, 16, MORTAR_DK)
-    canvas.put(8, 15, PURPLE_LT)
-    canvas.put(24, 15, PURPLE_LT)
-    # Coupling.
-    canvas.put(15, 15, BRASS_DK)
-    canvas.put(16, 15, BRASS)
+
+def draw_wall() -> Canvas:
+    """256x256 repeat (eight tiles each way). The game samples one 32x32 cell
+    per tile, so the bond and the cracks do not repeat every few steps."""
+    canvas = Canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DK)
+    stones = (shade(GRAY, -10), shade(GRAY_DK, 4), shade(GRAY, -18), shade(GRAY_DK, -4))
+    for course in range(WALL_PATTERN // WALL_BRICK_H):
+        y0 = course * WALL_BRICK_H
+        offset = WALL_BRICK_W // 2 if course % 2 else 0
+        for brick in range(WALL_PATTERN // WALL_BRICK_W + 1):
+            x0 = brick * WALL_BRICK_W - offset
+            pick = hash2(brick, course, 3)
+            base = stones[pick % 4] if pick > 20 else shade(BROWN_DK, -10)
+            bevel_block(
+                canvas,
+                x0 + 1,
+                y0 + 1,
+                x0 + WALL_BRICK_W - 1,
+                y0 + WALL_BRICK_H - 1,
+                base,
+                wrap=True,
+            )
+            if pick % 9 == 0:
+                # Chipped corner shows the mortar behind.
+                for d in range(4):
+                    canvas.put((x0 + 1 + d) % WALL_PATTERN, y0 + 1, MORTAR_DK)
+                    canvas.put((x0 + 1) % WALL_PATTERN, y0 + 1 + d, MORTAR_DK)
+    # Mortar lines catch a little light on the top edge.
+    for y in range(0, WALL_PATTERN, WALL_BRICK_H):
+        for x in range(WALL_PATTERN):
+            canvas.put(x, y, MORTAR if (x // 4) % 3 else MORTAR_DK)
+    crack(canvas, ((10, 20), (16, 26), (22, 27), (27, 33), (30, 40), (36, 44)), BLUE_DK, BLUE)
+    crack(canvas, ((150, 66), (156, 70), (164, 70), (169, 77), (176, 79), (180, 86)), BLUE_DK, BLUE)
+    crack(canvas, ((70, 180), (76, 186), (82, 186), (85, 192), (92, 197)), PURPLE_DK, PURPLE)
+    crack(canvas, ((210, 200), (214, 208), (220, 210), (222, 220)), BLUE_DK, BLUE_DK)
+    # One brass vent plate per repeat, about a hand wide on the hunter.
+    canvas.fill_rect(104, 97, 120, 111, BRASS_DK)
+    for x in range(105, 119):
+        canvas.put(x, 98, BRASS_LT)
+    for y in range(101, 109, 3):
+        for x in range(106, 118):
+            canvas.put(x, y, INK)
+    rivet(canvas, 105, 108)
+    rivet(canvas, 117, 108)
+    return canvas
+
+
+SLAB_W = 64
+GROUND_PATTERN_W = 128
+
+
+def draw_floor() -> Canvas:
+    """Walkway slab row, 128x32 repeat of two 64 px flagstones.
+
+    Row 0 is the floor line the hunter's sole sits on."""
+    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DK)
+    for slab in range(GROUND_PATTERN_W // SLAB_W):
+        x0 = slab * SLAB_W
+        base = BROWN if slab % 2 == 0 else shade(BROWN_DK, 12)
+        bevel_block(canvas, x0 + 1, 4, x0 + SLAB_W - 1, TILE_PX - 1, base)
+        rivet(canvas, x0 + 6, 9)
+        rivet(canvas, x0 + SLAB_W - 8, 9)
+        # Inlaid circuit groove down the slab.
+        for x in range(x0 + 14, x0 + SLAB_W - 14):
+            canvas.put(x, 20, BLUE_DK if x % 6 else BLUE)
+        canvas.put(x0 + 14, 19, BLUE)
+        canvas.put(x0 + SLAB_W - 15, 21, BLUE)
+    # Worn brass lip along the walking surface.
+    for x in range(GROUND_PATTERN_W):
+        canvas.put(x, 0, BRASS_LT if x % 16 else BRASS)
+        canvas.put(x, 1, BRASS)
+        canvas.put(x, 2, BRASS_DK)
+        canvas.put(x, 3, INK)
+    for x in (18, 19, 20, 85, 86, 101):
+        canvas.put(x, 1, BRASS_DK)
+    return canvas
+
+
+def draw_ground_fill() -> Canvas:
+    """Foundation under the floor and above the ceiling beam. 128x128 repeat
+    of 64x32 blocks, darker than the wall so the room reads as carved out."""
+    canvas = Canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, INK)
+    for course in range(GROUND_PATTERN_W // 32):
+        offset = 32 if course % 2 else 0
+        for block in range(GROUND_PATTERN_W // SLAB_W + 1):
+            x0 = block * SLAB_W - offset
+            pick = hash2(block, course, 11)
+            base = (BROWN_DEEP, shade(BROWN_DEEP, -10), shade(GRAY_DK, -6))[pick % 3]
+            bevel_block(canvas, x0 + 1, course * 32 + 1, x0 + SLAB_W - 1, course * 32 + 31, base, wrap=True)
+    crack(canvas, ((20, 40), (28, 48), (36, 49), (44, 58)), PURPLE_DK, PURPLE_DK)
+    crack(canvas, ((90, 100), (96, 104), (104, 104), (110, 112)), BLUE_DK, BLUE_DK)
+    return canvas
+
+
+def draw_ceiling_beam() -> Canvas:
+    """Iron header where the wall meets the rock. 128x32 repeat."""
+    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, IRON)
+    bevel_block(canvas, 0, 0, GROUND_PATTERN_W, TILE_PX - 4, IRON)
+    for x in range(GROUND_PATTERN_W):
+        canvas.put(x, 3, GRAY)
+        canvas.put(x, TILE_PX - 8, PURPLE_DK if x % 8 else PURPLE)
+        canvas.put(x, TILE_PX - 7, PURPLE if x % 8 else PURPLE_LT)
+        canvas.put(x, TILE_PX - 6, PURPLE_DK)
+        for y in range(TILE_PX - 4, TILE_PX):
+            canvas.put(x, y, INK if y > TILE_PX - 3 else IRON_DK)
+    for x in range(8, GROUND_PATTERN_W, 32):
+        rivet(canvas, x, 9)
+        rivet(canvas, x + 16, 15)
+    # Hook rings for the hanging chains (the game hangs one every few tiles).
+    for x in (30, 94):
+        canvas.put(x, TILE_PX - 3, BRASS)
+        canvas.put(x + 1, TILE_PX - 3, BRASS_LT)
+        canvas.put(x, TILE_PX - 2, BRASS_DK)
+        canvas.put(x + 1, TILE_PX - 2, BRASS)
     return canvas
 
 
 def draw_platform() -> Canvas:
-    canvas = Canvas(32, 32, IRON)
-    for y in range(32):
-        for x in range(32):
-            canvas.put(x, y, shade(IRON, speck(x, y) // 2))
-
-    for x in range(32):
-        end = x < 2 or x > 29
-        canvas.put(x, 0, BRASS_LT if end else PURPLE_LT)
-        canvas.put(x, 1, BRASS if end else PURPLE)
-        canvas.put(x, 2, BRASS_DK if end else PURPLE_DK)
-
-    for y in range(3, 32):
-        canvas.put(0, y, GRAY_LT)
-        canvas.put(1, y, GRAY)
-        canvas.put(30, y, GRAY_DK)
-        canvas.put(31, y, INK)
-
-    canvas.fill_rect(4, 6, 28, 28, IRON_DK)
-    for x in range(4, 28):
-        canvas.put(x, 6, GRAY)
-        canvas.put(x, 27, INK)
-    for y in range(6, 28):
-        canvas.put(4, y, GRAY_DK)
-        canvas.put(27, y, INK)
-
-    for x, y in ((6, 9), (23, 9), (6, 23), (23, 23)):
-        rivet(canvas, x, y)
-
-    for x in range(8, 24):
-        canvas.put(x, 17, BLUE_DK)
-        if x % 5 == 0:
-            canvas.put(x, 17, BLUE)
-            canvas.put(x, 18, BLUE_DK)
-    canvas.put(15, 16, BLUE)
-    canvas.put(15, 17, BLUE_LT)
-    canvas.put(15, 18, BLUE)
-    canvas.put(16, 17, BLUE)
-
-    for x in range(32):
-        canvas.put(x, 31, INK)
-        canvas.put(x, 30, GRAY_DK)
-    return canvas
-
-
-def draw_wall() -> Canvas:
-    canvas = Canvas(32, 32, MORTAR)
-    for y in range(32):
-        row = y // 8
-        in_brick = y % 8 != 0
-        offset = 8 if row % 2 else 0
-        for x in range(32):
-            if not in_brick:
-                canvas.put(x, y, MORTAR if (x + y) % 5 else MORTAR_DK)
-                continue
-            local = (x + offset) % 16
-            if local >= 14:
-                canvas.put(x, y, MORTAR_DK if local == 15 else MORTAR)
-                continue
-            col = ((x + offset) // 16) % 2
-            base = GRAY if (col + row) % 2 == 0 else GRAY_DK
-            color = shade(base, speck(x, y) // 2)
-            if y % 8 == 1 or local == 0:
-                color = shade(color, 22)
-            elif y % 8 == 7 or local == 13:
-                color = shade(color, -20)
-            canvas.put(x, y, color)
-
-    # Electric-blue cracks, kept off the mortar so the brick course still wraps.
-    for x, y in (
-        (3, 3),
-        (4, 4),
-        (5, 4),
-        (6, 5),
-        (18, 11),
-        (19, 12),
-        (20, 12),
-        (9, 19),
-        (10, 20),
-        (11, 21),
-        (22, 27),
-        (23, 28),
-        (24, 28),
-    ):
-        canvas.put(x, y, BLUE if (x + y) % 2 == 0 else BLUE_DK)
-
-    rivet(canvas, 18, 4)
+    """Iron girder, 128x32 repeat of two 64 px bays with X bracing."""
+    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
+    for bay in range(GROUND_PATTERN_W // SLAB_W):
+        x0 = bay * SLAB_W
+        canvas.fill_rect(x0, 0, x0 + SLAB_W, TILE_PX, IRON_DK)
+        # Top chord with neon strip, bottom chord.
+        for x in range(x0, x0 + SLAB_W):
+            canvas.put(x, 0, PURPLE_LT)
+            canvas.put(x, 1, PURPLE)
+            canvas.put(x, 2, PURPLE_DK)
+            for y in range(3, 8):
+                canvas.put(x, y, shade(IRON, 14 if y == 3 else speck(x, y)))
+            for y in range(TILE_PX - 6, TILE_PX):
+                canvas.put(x, y, shade(IRON, -6 if y < TILE_PX - 1 else -30))
+        # X bracing between the chords.
+        for step in range(TILE_PX - 14):
+            for dx in (0, 1, 2):
+                left = x0 + 4 + step * (SLAB_W - 8) // (TILE_PX - 14) + dx
+                right = x0 + SLAB_W - 5 - step * (SLAB_W - 8) // (TILE_PX - 14) - dx
+                canvas.put(left, 8 + step, GRAY if dx == 0 else GRAY_DK)
+                canvas.put(right, 8 + step, GRAY if dx == 0 else GRAY_DK)
+        # Brass posts at each bay end.
+        for y in range(3, TILE_PX):
+            for dx, color in ((0, BRASS_LT), (1, BRASS), (2, BRASS), (3, BRASS_DK)):
+                canvas.put(x0 + dx, y, color)
+        rivet(canvas, x0 + 1, 5)
+        rivet(canvas, x0 + 1, TILE_PX - 5)
+        canvas.put(x0 + SLAB_W // 2, 17, BLUE_LT)
+        canvas.put(x0 + SLAB_W // 2 - 1, 17, BLUE)
+        canvas.put(x0 + SLAB_W // 2 + 1, 17, BLUE)
     return canvas
 
 
 def draw_pit() -> Canvas:
-    canvas = Canvas(32, 32, VOID)
-    for y in range(32):
-        for x in range(32):
-            # Vertical streak so a stack of tiles reads as a shaft, not a flat stamp.
-            column = 10 if x % 8 == 3 else 0
-            canvas.put(x, y, shade(VOID, column + speck(x, y) // 3))
-
-    # Cross meets the next pit tile. Branches stay inside the cell.
-    for x in range(32):
-        canvas.put(x, 16, BLUE if x % 4 == 0 else BLUE_DK)
-    for y in range(32):
-        if y != 16:
-            canvas.put(16, y, BLUE if y % 4 == 0 else BLUE_DK)
-    for step in range(1, 9):
-        for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-            color = PURPLE_DK if step % 2 == 0 else BLUE_DK
-            canvas.put(16 + sx * step, 16 + sy * step, color)
-    for x, y in ((8, 8), (23, 8), (8, 23), (23, 23)):
+    """Opaque shaft, 128x128 repeat. Depth streaks and slow circuit veins."""
+    canvas = Canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, VOID)
+    for y in range(GROUND_PATTERN_W):
+        for x in range(GROUND_PATTERN_W):
+            streak = 8 if (x // 4) % 9 == 2 else 0
+            canvas.put(x, y, shade(VOID, streak + speck(x, y) // 3))
+    for x0 in (22, 88):
+        for y in range(GROUND_PATTERN_W):
+            wobble = (y // 16) % 2
+            canvas.put(x0 + wobble, y, BLUE_DK if y % 12 else BLUE)
+    for y0 in (40, 104):
+        for x in range(23, 89):
+            canvas.put(x, y0, PURPLE_DK if x % 10 else PURPLE)
+    for x, y in ((23, 40), (89, 104), (89, 40), (23, 104)):
         canvas.put(x, y, BLUE_LT)
-        canvas.put(x + 1, y, BLUE)
-        canvas.put(x, y + 1, BLUE)
-    canvas.put(16, 16, BLUE_LT)
-    canvas.put(15, 16, PURPLE)
-    canvas.put(17, 16, PURPLE)
-    canvas.put(16, 15, PURPLE)
-    canvas.put(16, 17, PURPLE)
-    # Dim depth lights. Opaque: the pit tile has no holes.
-    for x, y in ((3, 5), (27, 7), (6, 28), (26, 27)):
+    for x, y in ((8, 12), (60, 74), (110, 20), (44, 120), (100, 64)):
         canvas.put(x, y, PURPLE_DK)
     return canvas
 
 
+LADDER_W = 64
+LADDER_H = 256
+
+
 def draw_ladder() -> Canvas:
-    canvas = Canvas(32, 64, CLEAR)
-    for y in range(64):
-        canvas.put(7, y, BRASS_LT)
-        canvas.put(8, y, BRASS)
-        canvas.put(9, y, BRASS_DK)
-        canvas.put(22, y, BRASS_LT)
-        canvas.put(23, y, BRASS)
-        canvas.put(24, y, BRASS_DK)
-        # Cable tied to the right rail.
-        canvas.put(26, y, PURPLE_DK)
-        canvas.put(27, y, PURPLE if y % 8 else PURPLE_LT)
-
-    for rung, y in enumerate(range(6, 58, 8)):
-        dark = GRAY_DK if rung % 2 == 0 else INK
-        for x in range(10, 22):
+    """Exit ladder, 64x256: 1.6x the hunter so it reads as the way out."""
+    canvas = Canvas(LADDER_W, LADDER_H, CLEAR)
+    rails = (10, 48)
+    for y in range(LADDER_H):
+        for rail in rails:
+            for dx, color in enumerate((BRASS_LT, BRASS, BRASS, BRASS_DK, shade(BRASS_DK, -20), INK)):
+                canvas.put(rail + dx, y, color)
+        # Neon cable lashed to the right rail.
+        canvas.put(56, y, PURPLE_DK)
+        canvas.put(57, y, PURPLE if y % 16 else PURPLE_LT)
+        canvas.put(58, y, PURPLE_DK)
+    for rung, y in enumerate(range(20, LADDER_H - 16, 28)):
+        for x in range(16, 48):
             canvas.put(x, y, GRAY_LT)
-            canvas.put(x, y + 1, dark)
-        canvas.put(10, y, BRASS_DK)
-        canvas.put(21, y, BRASS_DK)
-
+            canvas.put(x, y + 1, GRAY)
+            canvas.put(x, y + 2, GRAY_DK)
+            canvas.put(x, y + 3, INK)
+        rivet(canvas, 16, y + 1)
+        rivet(canvas, 46, y + 1)
+        if rung % 2 == 0:
+            canvas.put(56, y, BRASS)
+            canvas.put(57, y, BRASS_LT)
+    # Glowing hatch at the top: the exit reads from across the boss arena.
+    canvas.fill_rect(4, 0, 60, 14, IRON_DK)
+    for x in range(4, 60):
+        canvas.put(x, 0, BRASS_LT)
+        canvas.put(x, 1, BRASS)
+        canvas.put(x, 12, PURPLE)
+        canvas.put(x, 13, PURPLE_DK)
+    for x in range(10, 54):
+        for y in range(4, 10):
+            canvas.put(x, y, BLUE_LT if y in (6, 7) else BLUE)
     # Feet bolted to the floor. The sprite bottom is the floor line.
-    for y in range(58, 64):
-        for x in range(5, 12):
-            canvas.put(x, y, BRASS_DK if y > 60 else BRASS)
-        for x in range(20, 28):
-            canvas.put(x, y, BRASS_DK if y > 60 else BRASS)
-    rivet(canvas, 6, 60)
-    rivet(canvas, 22, 60)
+    for y in range(LADDER_H - 10, LADDER_H):
+        for x in range(6, 20):
+            canvas.put(x, y, BRASS_DK if y > LADDER_H - 4 else BRASS)
+        for x in range(44, 58):
+            canvas.put(x, y, BRASS_DK if y > LADDER_H - 4 else BRASS)
+    rivet(canvas, 8, LADDER_H - 7)
+    rivet(canvas, 52, LADDER_H - 7)
     return canvas
+
+
+STAKE_W = 24
+STAKE_H = 112
 
 
 def draw_stake() -> Canvas:
-    canvas = Canvas(8, 40, CLEAR)
-    # Point, then a 4 px shaft, purple band, flared foot.
-    canvas.put(3, 0, BRASS_LT)
-    canvas.put(4, 0, BRASS)
-    for x in range(2, 6):
-        canvas.put(x, 1, BRASS_LT if x == 2 else BRASS)
-        canvas.put(x, 2, BRASS)
-    for y in range(3, 36):
-        canvas.put(2, y, BRASS_LT)
-        canvas.put(3, y, BRASS)
-        canvas.put(4, y, BRASS_DK)
-        canvas.put(5, y, shade(BRASS_DK, -16))
-    for y in range(8, 13):
-        for x in range(2, 6):
-            canvas.put(x, y, PURPLE_LT if y == 8 else PURPLE if y < 11 else PURPLE_DK)
-    for y in range(36, 40):
-        for x in range(1, 7):
-            canvas.put(x, y, BRASS if y == 36 else BRASS_DK)
-    canvas.put(2, 37, BRASS_LT)
+    """Pit warning post, 24x112: about hip-to-shoulder on the hunter."""
+    canvas = Canvas(STAKE_W, STAKE_H, CLEAR)
+    # Warning lamp on top.
+    for y in range(0, 12):
+        for x in range(5, 19):
+            if (x - 11.5) ** 2 + (y - 7) ** 2 <= 36:
+                canvas.put(x, y, BLUE_LT if y < 6 else BLUE)
+    canvas.fill_rect(4, 12, 20, 16, BRASS_DK)
+    for x in range(4, 20):
+        canvas.put(x, 12, BRASS_LT)
+    for y in range(16, STAKE_H - 8):
+        for x, color in ((7, BRASS_LT), (8, BRASS), (9, BRASS), (10, BRASS), (11, BRASS), (12, BRASS_DK), (13, BRASS_DK), (14, INK)):
+            canvas.put(x + 1, y, color)
+        # Hazard bands, purple and ink, every 16 px.
+        if 24 <= y < 72 and (y // 8) % 2 == 0:
+            for x in range(8, 15):
+                canvas.put(x, y, PURPLE if x < 12 else PURPLE_DK)
+    for y in range(STAKE_H - 8, STAKE_H):
+        for x in range(2, 22):
+            canvas.put(x, y, BRASS if y < STAKE_H - 3 else BRASS_DK)
+    rivet(canvas, 4, STAKE_H - 6)
+    rivet(canvas, 18, STAKE_H - 6)
     return canvas
 
 
+LIP_W = 24
+LIP_H = 96
+
+
 def draw_lip() -> Canvas:
-    """One connected slab. Top rows tuck under the floor; the underside is jagged."""
-    canvas = Canvas(32, 16, CLEAR)
-    depths = (
-        14, 12, 13, 10, 11, 15, 13, 9,
-        12, 16, 14, 11, 13, 15, 12, 10,
-        11, 15, 16, 13, 12, 14, 10, 13,
-        15, 11, 9, 12, 14, 13, 11, 12,
+    """Crumbling pit wall, 24x96. Left column is flush with the pit edge;
+    the right side is jagged where the floor broke away. Mirrored for the far edge."""
+    canvas = Canvas(LIP_W, LIP_H, CLEAR)
+    for y in range(LIP_H):
+        reach = 10 + (hash2(0, y // 6, 5) % 12) - y // 12
+        reach = max(4, min(LIP_W, reach))
+        for x in range(reach):
+            base = BROWN_DEEP if (y // 24) % 2 == 0 else shade(GRAY_DK, -4)
+            color = shade(base, speck(x, y))
+            if x >= reach - 2:
+                color = shade(color, -20)
+            if x < 2:
+                color = shade(color, 14)
+            canvas.put(x, y, color)
+    for x in range(LIP_W):
+        canvas.put(x, 0, BRASS if x < 18 else BRASS_DK)
+        canvas.put(x, 1, BRASS_DK)
+    for y in range(10, 70, 9):
+        canvas.put(3 + y % 5, y, BLUE_DK)
+    return canvas
+
+
+PILLAR_W = 64
+PILLAR_H = 512
+
+
+def draw_pillar() -> Canvas:
+    """Floor-to-beam column, 64x512 (the full room height). Three hunters tall."""
+    canvas = Canvas(PILLAR_W, PILLAR_H, CLEAR)
+    shaft_x0, shaft_x1 = 8, 56
+    for y in range(PILLAR_H):
+        for x in range(shaft_x0, shaft_x1):
+            # Rounded shading across the shaft.
+            t = (x - shaft_x0) / (shaft_x1 - shaft_x0)
+            delta = int(18 - 44 * abs(t - 0.35))
+            canvas.put(x, y, shade(shade(GRAY, delta), speck(x, y)))
+        # Drum joints every 48 px.
+        if y % 48 == 0:
+            for x in range(shaft_x0, shaft_x1):
+                canvas.put(x, y, MORTAR_DK)
+                canvas.put(x, y + 1, shade(GRAY, 24))
+        # Neon conduit up the face.
+        canvas.put(38, y, PURPLE_DK)
+        canvas.put(39, y, PURPLE if y % 24 else PURPLE_LT)
+        canvas.put(40, y, PURPLE_DK)
+    # Capital and base: wider brass-banded blocks.
+    for y0, y1 in ((0, 28), (PILLAR_H - 32, PILLAR_H)):
+        bevel_block(canvas, 0, y0, PILLAR_W, y1, shade(GRAY_DK, 6))
+        for x in range(PILLAR_W):
+            canvas.put(x, y0 + 6, BRASS)
+            canvas.put(x, y0 + 7, BRASS_DK)
+            canvas.put(x, y1 - 8, BRASS_LT)
+            canvas.put(x, y1 - 7, BRASS)
+        for x in range(6, PILLAR_W, 16):
+            rivet(canvas, x, y0 + 12)
+    # Brass bands mid-shaft.
+    for y0 in (160, 320):
+        for y in range(y0, y0 + 8):
+            for x in range(shaft_x0 - 2, shaft_x1 + 2):
+                canvas.put(x, y, BRASS_LT if y == y0 else BRASS if y < y0 + 6 else BRASS_DK)
+        rivet(canvas, 14, y0 + 3)
+        rivet(canvas, 48, y0 + 3)
+    crack(canvas, ((18, 210), (22, 220), (20, 232), (26, 244)), BLUE_DK, BLUE)
+    return canvas
+
+
+TORCH_W = 32
+TORCH_H = 64
+
+
+def draw_torch() -> Canvas:
+    """Wall sconce with a neon flame, 32x64. Mounted above the hunter's head."""
+    canvas = Canvas(TORCH_W, TORCH_H, CLEAR)
+    flame = (
+        (16, 4, 3, PURPLE_LT),
+        (16, 12, 7, PURPLE),
+        (16, 18, 9, PURPLE_DK),
     )
-    for x, depth in enumerate(depths):
-        for y in range(depth):
-            base = BROWN if (x // 8) % 2 == 0 else GRAY_DK
-            if y < 3:
-                base = shade(base, 18)
-            canvas.put(x, y, shade(base, speck(x, y)))
-    for x, y in ((6, 6), (7, 7), (8, 7), (20, 8), (21, 8), (22, 9), (23, 9)):
-        canvas.put(x, y, BROWN_DEEP)
-    rivet(canvas, 14, 1)
-    canvas.put(3, 2, BRASS)
-    canvas.put(28, 2, BRASS_DK)
+    for cx, cy, radius, color in reversed(flame):
+        for y in range(cy - radius, cy + radius + 1):
+            for x in range(cx - radius, cx + radius + 1):
+                if (x - cx) ** 2 + ((y - cy) * 1.4) ** 2 <= radius * radius:
+                    canvas.put(x, y, color)
+    for y in range(8, 22):
+        canvas.put(16, y, BLUE_LT if y < 16 else BLUE)
+        canvas.put(15, y + 2, BLUE)
+    # Brass cup and wall bracket.
+    for y in range(24, 32):
+        inset = (y - 24) // 2
+        for x in range(6 + inset, 26 - inset):
+            canvas.put(x, y, BRASS_LT if y == 24 else BRASS if x < 20 - inset else BRASS_DK)
+    for y in range(32, 56):
+        for x, color in ((14, BRASS_LT), (15, BRASS), (16, BRASS), (17, BRASS_DK)):
+            canvas.put(x, y, color)
+    canvas.fill_rect(8, 52, 24, 64, IRON)
+    for x in range(8, 24):
+        canvas.put(x, 52, GRAY_LT)
+        canvas.put(x, 63, INK)
+    rivet(canvas, 10, 56)
+    rivet(canvas, 20, 56)
+    return canvas
+
+
+CHAIN_W = 16
+CHAIN_H = 160
+
+
+def draw_chain() -> Canvas:
+    """Hanging chain with a hook, 16x160. Links alternate face and edge."""
+    canvas = Canvas(CHAIN_W, CHAIN_H, CLEAR)
+    link_h = 12
+    for index, y0 in enumerate(range(0, CHAIN_H - 24, link_h - 2)):
+        if index % 2 == 0:
+            for y in range(y0, y0 + link_h):
+                for x in range(3, 13):
+                    edge = x in (3, 12) or y in (y0, y0 + link_h - 1)
+                    inner = x in (4, 11) or y in (y0 + 1, y0 + link_h - 2)
+                    if edge:
+                        canvas.put(x, y, IRON_DK)
+                    elif inner:
+                        canvas.put(x, y, GRAY_LT if x < 8 else GRAY)
+        else:
+            for y in range(y0, y0 + link_h):
+                canvas.put(7, y, GRAY_LT)
+                canvas.put(8, y, GRAY)
+                canvas.put(9, y, IRON_DK)
+    # Hook.
+    hook_top = CHAIN_H - 24
+    for y in range(hook_top, CHAIN_H - 6):
+        canvas.put(7, y, BRASS_LT)
+        canvas.put(8, y, BRASS)
+    for x in range(3, 9):
+        canvas.put(x, CHAIN_H - 6, BRASS)
+        canvas.put(x, CHAIN_H - 5, BRASS_DK)
+    for y in range(CHAIN_H - 12, CHAIN_H - 5):
+        canvas.put(3, y, BRASS)
+        canvas.put(2, y, BRASS_DK)
+    canvas.put(3, CHAIN_H - 13, BRASS_LT)
     return canvas
 
 
@@ -448,13 +619,18 @@ def assert_size(path: Path, width: int, height: int, opaque: bool) -> None:
 
 def main() -> None:
     targets = (
-        (draw_floor(), ENV / "floor_ground.png", 32, 32, True),
-        (draw_platform(), ENV / "floor_platform.png", 32, 32, True),
-        (draw_wall(), ENV / "wall.png", 32, 32, True),
-        (draw_pit(), ENV / "floor_pit.png", 32, 32, True),
-        (draw_ladder(), ENV / "floor_ladder.png", 32, 64, False),
-        (draw_stake(), ENV / "pit_stake.png", 8, 40, False),
-        (draw_lip(), ENV / "pit_lip.png", 32, 16, False),
+        (draw_wall(), ENV / "wall.png", WALL_PATTERN, WALL_PATTERN, True),
+        (draw_floor(), ENV / "floor_ground.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_ground_fill(), ENV / "ground_fill.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
+        (draw_ceiling_beam(), ENV / "ceiling_beam.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_platform(), ENV / "floor_platform.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_pit(), ENV / "floor_pit.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
+        (draw_ladder(), ENV / "floor_ladder.png", LADDER_W, LADDER_H, False),
+        (draw_stake(), ENV / "pit_stake.png", STAKE_W, STAKE_H, False),
+        (draw_lip(), ENV / "pit_lip.png", LIP_W, LIP_H, False),
+        (draw_pillar(), ENV / "pillar.png", PILLAR_W, PILLAR_H, False),
+        (draw_torch(), ENV / "torch.png", TORCH_W, TORCH_H, False),
+        (draw_chain(), ENV / "chain.png", CHAIN_W, CHAIN_H, False),
         (draw_ground_slam(), VFX / "ground_slam.png", 96, 24, False),
     )
     for canvas, path, width, height, opaque in targets:

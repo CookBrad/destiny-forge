@@ -63,7 +63,7 @@ pub fn update_dungeon_interaction_prompt(
 
 fn near_exit(player: &Transform, exits: &Query<&Transform, With<DungeonExit>>) -> bool {
     exits.iter().any(|exit| {
-        player.translation.distance(exit.translation) <= INTERACT_DISTANCE
+        player.translation.truncate().distance(exit.translation.truncate()) <= INTERACT_DISTANCE
     })
 }
 
