@@ -47,17 +47,6 @@ impl BossAttackKind {
             Self::RoyalCharge => 0.55,
         }
     }
-
-    fn all() -> [Self; 6] {
-        [
-            Self::SlimeBolt,
-            Self::TripleSpread,
-            Self::SlimeRain,
-            Self::RingBurst,
-            Self::GroundSlam,
-            Self::RoyalCharge,
-        ]
-    }
 }
 
 #[derive(Component)]

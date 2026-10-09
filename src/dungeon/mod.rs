@@ -6,6 +6,7 @@ mod enemy;
 mod enemy_anim;
 mod enemy_movement;
 mod enemy_stats;
+#[cfg(test)]
 mod floor1;
 mod generation;
 pub(crate) mod hunter_pose;
@@ -19,7 +20,7 @@ mod sprites;
 pub use animation::PlayerAnimation;
 pub use enemy::{
     DungeonProgress, EnemyAggro, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyKnockback,
-    EnemyShootCooldown, KingSlimeBoss, Patrol, SpriteCanvas,
+    EnemyShootCooldown, KingSlimeBoss, KnockbackTarget, Patrol, SpriteCanvas,
 };
 pub use enemy_movement::move_enemies;
 pub use movement::{DungeonPlayer, PlayerVelocity};

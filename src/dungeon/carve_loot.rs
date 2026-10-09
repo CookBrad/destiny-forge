@@ -137,7 +137,8 @@ impl CarveLootBook {
         roll_table(table, rng, rare_chance_multiplier)
     }
 
-    /// Deterministic loot for tests / debugging (every bonus part granted).
+    /// Deterministic loot with every bonus part granted.
+    #[cfg(test)]
     pub fn max_loot(&self, target: CarveTarget) -> Vec<(MaterialId, u32)> {
         let Some(table) = self.table_for(target) else {
             return Vec::new();

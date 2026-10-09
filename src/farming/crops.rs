@@ -38,14 +38,6 @@ impl CropKind {
             Self::Potato => "Potato",
         }
     }
-
-    pub fn from_seed(material: MaterialId) -> Option<Self> {
-        match material {
-            MaterialId::TurnipSeed => Some(Self::Turnip),
-            MaterialId::PotatoSeed => Some(Self::Potato),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,18 +55,6 @@ pub enum PlotStage {
 impl Default for PlotStage {
     fn default() -> Self {
         Self::Soil
-    }
-}
-
-impl PlotStage {
-    pub fn display_hint(self) -> &'static str {
-        match self {
-            Self::Soil => "untilled",
-            Self::Tilled => "tilled — plant seeds",
-            Self::Growing { watered: true, .. } => "growing (watered)",
-            Self::Growing { watered: false, .. } => "growing — needs water",
-            Self::Ready { .. } => "ready to harvest",
-        }
     }
 }
 
