@@ -3,7 +3,9 @@ use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
 use crate::audio::CombatSfx;
-use crate::dungeon::{DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss};
+use crate::dungeon::{
+    DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss, KnockbackTarget,
+};
 use crate::player::Loadout;
 
 use super::hit_stop::{HitStop, HIT_STOP_HEAVY, HIT_STOP_LIGHT};
@@ -131,11 +133,8 @@ pub fn start_player_attack(
         return;
     }
 
-    // Buffer next combo step during chain window.
     if attack.is_active() {
-        if attack.can_chain() {
-            attack.queue_next = true;
-        }
+        buffer_next_combo_step(&mut attack);
         return;
     }
 
@@ -144,6 +143,12 @@ pub fn start_player_attack(
     }
 
     begin_combo_step(&mut sfx, &mut attack, weapon.0, 0);
+}
+
+fn buffer_next_combo_step(attack: &mut PlayerAttack) {
+    if attack.can_chain() {
+        attack.queue_next = true;
+    }
 }
 
 fn begin_combo_step(
@@ -188,11 +193,14 @@ pub fn tick_player_attack(
         return;
     }
 
-    // Advance combo or end.
+    advance_or_end_combo(&mut sfx, &mut attack);
+}
+
+fn advance_or_end_combo(sfx: &mut EventWriter<CombatSfx>, attack: &mut PlayerAttack) {
     let weapon = attack.weapon;
     let next = attack.step_index + 1;
     if attack.queue_next && next < weapon.moveset().steps.len() {
-        begin_combo_step(&mut sfx, &mut attack, weapon, next);
+        begin_combo_step(sfx, attack, weapon, next);
     } else {
         attack.queue_next = false;
         attack.step_index = 0;
@@ -253,8 +261,7 @@ pub fn resolve_weapon_hits(
                 knockback: EnemyKnockback::away_from_player(
                     player_transform,
                     transform,
-                    if boss.is_some() { 0.35 } else { 1.0 },
-                    kind.is_some_and(|kind| kind.is_airborne()),
+                    KnockbackTarget::of(kind, boss),
                 ),
             },
         );

@@ -39,17 +39,4 @@ impl MaterialId {
             Self::WateringCan => "Watering Can",
         }
     }
-
-    pub fn is_seed(self) -> bool {
-        matches!(self, Self::TurnipSeed | Self::PotatoSeed)
-    }
-
-    pub fn energy_cost(self) -> f32 {
-        match self {
-            Self::Hoe => 5.0,
-            Self::WateringCan => 3.0,
-            m if m.is_seed() => 1.0,
-            _ => 0.0,
-        }
-    }
 }

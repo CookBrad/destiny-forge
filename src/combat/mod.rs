@@ -36,7 +36,7 @@ pub use projectile::{
 pub use skills::{SkillBindings, SkillIconAssets, SkillKind, SKILL_SLOT_COUNT};
 pub use special_moves::{
     resolve_special_move_hits, special_blocks_movement, special_move_speed,
-    start_player_special_moves, tick_player_special_moves, tick_special_cooldowns,
-    PlayerSpecialMove, SpecialCooldownState, SpecialMoveKind,
+    special_for_weapon, start_player_special_moves, tick_player_special_moves,
+    tick_special_cooldowns, PlayerSpecialMove, SpecialCooldownState, SpecialMoveKind,
 };
 pub use weapon::{EquippedWeapon, WeaponKind};

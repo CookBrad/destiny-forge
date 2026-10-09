@@ -5,7 +5,7 @@ use std::f32::consts::{FRAC_PI_2, TAU};
 use crate::audio::CombatSfx;
 use crate::dungeon::{
     player_half_extents, DungeonPlayer, EnemyHitbox, EnemyKind, EnemyKnockback, KingSlimeBoss,
-    PlayerAnimation, PlayerVelocity,
+    KnockbackTarget, PlayerAnimation, PlayerVelocity,
 };
 use crate::graphics::{hunter_blade_tip_reach, TILE};
 use crate::player::Loadout;
@@ -76,21 +76,6 @@ impl SpecialMoveKind {
             Self::Charge => 4.0,
             Self::Spin => 5.0,
             Self::Thrust => 3.5,
-        }
-    }
-
-    pub fn skill_slot(self) -> SkillKind {
-        match self {
-            Self::Charge => SkillKind::Charge,
-            Self::Spin | Self::Thrust => SkillKind::Spin,
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Charge => "Charge",
-            Self::Spin => "Spin",
-            Self::Thrust => "Thrust",
         }
     }
 }
@@ -197,10 +182,6 @@ pub fn special_move_speed(special: &PlayerSpecialMove) -> f32 {
         SpecialMoveKind::Thrust => special.charge_direction * 95.0,
         SpecialMoveKind::Spin => 0.0,
     }
-}
-
-pub fn charge_speed() -> f32 {
-    CHARGE_SPEED
 }
 
 /// Whirlwind deflects for the full spin using the blade path plus sweep volume.
@@ -413,17 +394,14 @@ pub fn resolve_special_move_hits(
             continue;
         }
 
-        let airborne = kind.is_some_and(|kind| kind.is_airborne());
+        let target = KnockbackTarget::of(kind, boss);
         let knockback = match special.kind {
             SpecialMoveKind::Charge | SpecialMoveKind::Thrust => {
-                EnemyKnockback::from_charge(special.charge_direction, boss.is_some(), airborne)
+                EnemyKnockback::from_charge(special.charge_direction, target)
             }
-            SpecialMoveKind::Spin => EnemyKnockback::away_from_player(
-                player_transform,
-                transform,
-                if boss.is_some() { 0.35 } else { 1.0 },
-                airborne,
-            ),
+            SpecialMoveKind::Spin => {
+                EnemyKnockback::away_from_player(player_transform, transform, target)
+            }
         };
 
         apply_enemy_strike(

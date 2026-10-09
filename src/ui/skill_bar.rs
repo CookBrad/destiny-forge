@@ -3,7 +3,8 @@ use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
 
 use crate::combat::{
-    SkillBindings, SkillIconAssets, SkillKind, SpecialCooldownState, SKILL_SLOT_COUNT,
+    special_for_weapon, SkillBindings, SkillIconAssets, SkillKind, SpecialCooldownState,
+    SKILL_SLOT_COUNT,
 };
 use crate::core::ProfileDirty;
 use crate::player::Loadout;
@@ -172,6 +173,20 @@ fn spawn_skill_slot(parent: &mut ChildBuilder<'_>, index: usize) {
         });
 }
 
+/// Share of the icon the cooldown veil covers. The full cooldown is the one the
+/// equipped weapon's special actually started, so Thrust and set bonuses fill correctly.
+fn cooldown_fill(
+    skill: Option<SkillKind>,
+    cooldowns: &SpecialCooldownState,
+    loadout: &Loadout,
+) -> f32 {
+    let Some(special) = skill.and_then(|skill| special_for_weapon(loadout.weapon, skill)) else {
+        return 0.0;
+    };
+    let full_cooldown = special.base_cooldown() * loadout.special_cooldown_multiplier();
+    (cooldowns.remaining(special) / full_cooldown).clamp(0.0, 1.0)
+}
+
 pub fn sync_skill_bar(
     bindings: Res<SkillBindings>,
     cooldowns: Res<SpecialCooldownState>,
@@ -231,20 +246,9 @@ pub fn sync_skill_bar(
     }
 
     for (overlay, mut node, mut visibility) in &mut overlays {
-        let skill = bindings.slots[overlay.slot_index];
-        let remaining = skill
-            .map(|s| cooldowns.remaining_for_skill(s))
-            .unwrap_or(0.0);
-        let is_special = matches!(skill, Some(SkillKind::Charge) | Some(SkillKind::Spin));
-        if is_special && remaining > 0.0 {
-            // Approximate max CD for fill (Charge 4s / Spin 5s base).
-            let max_cd = match skill {
-                Some(SkillKind::Charge) => 4.0,
-                Some(SkillKind::Spin) => 5.0,
-                _ => 4.0,
-            };
-            let fraction = (remaining / max_cd).clamp(0.0, 1.0);
-            node.height = Val::Px(ICON_SIZE * fraction);
+        let fill = cooldown_fill(bindings.slots[overlay.slot_index], &cooldowns, &loadout);
+        if fill > 0.0 {
+            node.height = Val::Px(ICON_SIZE * fill);
             *visibility = Visibility::Visible;
         } else {
             node.height = Val::Px(0.0);
@@ -447,10 +451,65 @@ pub fn setup_skill_icon_assets(mut commands: Commands, asset_server: Res<AssetSe
 #[cfg(test)]
 mod tests {
     use super::{
-        ICON_SIZE, KEY_FONT_SIZE, NAME_FONT_SIZE, SLOT_BORDER, SLOT_HEIGHT, SLOT_PADDING,
-        SLOT_WIDTH,
+        cooldown_fill, ICON_SIZE, KEY_FONT_SIZE, NAME_FONT_SIZE, SLOT_BORDER, SLOT_HEIGHT,
+        SLOT_PADDING, SLOT_WIDTH,
     };
-    use crate::combat::SkillKind;
+    use crate::combat::{SkillKind, SpecialCooldownState, SpecialMoveKind, WeaponKind};
+    use crate::player::{ArmorKind, Loadout};
+
+    #[test]
+    fn cooldown_veil_fills_from_the_special_the_weapon_fired() {
+        let spear = Loadout {
+            weapon: WeaponKind::RustySpear,
+            ..Loadout::default()
+        };
+        let mut cooldowns = SpecialCooldownState::default();
+        cooldowns.start(
+            SpecialMoveKind::Thrust,
+            SpecialMoveKind::Thrust.base_cooldown(),
+        );
+
+        assert_eq!(
+            cooldown_fill(Some(SkillKind::Spin), &cooldowns, &spear),
+            1.0
+        );
+        assert_eq!(
+            cooldown_fill(Some(SkillKind::Charge), &cooldowns, &spear),
+            0.0
+        );
+        assert_eq!(
+            cooldown_fill(Some(SkillKind::Attack), &cooldowns, &spear),
+            0.0
+        );
+        assert_eq!(cooldown_fill(None, &cooldowns, &spear), 0.0);
+    }
+
+    #[test]
+    fn two_piece_thrust_veil_drains_over_the_shortened_cooldown() {
+        let mut spear = Loadout {
+            weapon: WeaponKind::RustySpear,
+            ..Loadout::default()
+        };
+        spear.armor.head = Some(ArmorKind::SlimeHelm);
+        spear.armor.chest = Some(ArmorKind::SlimeMail);
+        let full = SpecialMoveKind::Thrust.base_cooldown() * spear.special_cooldown_multiplier();
+        assert!((full - 3.5 * 0.9).abs() < 1e-5);
+
+        let mut cooldowns = SpecialCooldownState::default();
+        cooldowns.start(SpecialMoveKind::Thrust, full);
+        cooldowns.tick(full / 2.0);
+        let fill = cooldown_fill(Some(SkillKind::Spin), &cooldowns, &spear);
+        assert!(
+            (fill - 0.5).abs() < 1e-5,
+            "half of 3.15s left should be a half veil, got {fill}"
+        );
+
+        cooldowns.tick(full / 2.0);
+        assert_eq!(
+            cooldown_fill(Some(SkillKind::Spin), &cooldowns, &spear),
+            0.0
+        );
+    }
 
     #[test]
     fn icon_node_matches_the_texture_crop() {
