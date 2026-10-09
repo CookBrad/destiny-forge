@@ -3,7 +3,8 @@ use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
 
 use crate::combat::{
-    SkillBindings, SkillIconAssets, SkillKind, SpecialCooldownState, SKILL_SLOT_COUNT,
+    SkillBindings, SkillIconAssets, SkillKind, SpecialCooldownState, SpecialMoveKind,
+    SKILL_SLOT_COUNT,
 };
 use crate::core::ProfileDirty;
 use crate::player::Loadout;
@@ -237,9 +238,8 @@ pub fn sync_skill_bar(
             .unwrap_or(0.0);
         let is_special = matches!(skill, Some(SkillKind::Charge) | Some(SkillKind::Spin));
         if is_special && remaining > 0.0 {
-            // Approximate max CD for fill (Charge 4s / Spin 5s base).
             let max_cd = match skill {
-                Some(SkillKind::Charge) => 4.0,
+                Some(SkillKind::Charge) => SpecialMoveKind::Charge.base_cooldown(),
                 Some(SkillKind::Spin) => 5.0,
                 _ => 4.0,
             };
