@@ -63,16 +63,6 @@ pub struct WeaponMoveset {
     pub steps: &'static [ComboStep],
 }
 
-/// Legacy single-swing stats used by non-combo callers; prefer `moveset` + `base_power`.
-#[derive(Clone, Copy, Debug)]
-pub struct WeaponStats {
-    pub attack_power: f32,
-    pub reach: f32,
-    pub swing_secs: f32,
-    pub hit_start: f32,
-    pub hit_end: f32,
-}
-
 // --- Sword combo: fast multi-hit ---
 const SWORD_COMBO: &[ComboStep] = &[
     ComboStep {
@@ -143,14 +133,6 @@ impl WeaponKind {
         }
     }
 
-    pub fn is_sword(self) -> bool {
-        matches!(self.family(), WeaponFamily::Sword)
-    }
-
-    pub fn is_spear(self) -> bool {
-        matches!(self.family(), WeaponFamily::Spear)
-    }
-
     pub fn base_power(self) -> f32 {
         match self {
             Self::RustySword => 10.0,
@@ -164,17 +146,6 @@ impl WeaponKind {
         match self.family() {
             WeaponFamily::Sword => WeaponMoveset { steps: SWORD_COMBO },
             WeaponFamily::Spear => WeaponMoveset { steps: SPEAR_COMBO },
-        }
-    }
-
-    pub fn stats(self) -> WeaponStats {
-        let step = self.moveset().steps[0];
-        WeaponStats {
-            attack_power: self.base_power(),
-            reach: step.reach,
-            swing_secs: step.duration,
-            hit_start: step.hit_start,
-            hit_end: step.hit_end,
         }
     }
 }
@@ -204,7 +175,7 @@ mod tests {
 
     #[test]
     fn slime_blade_keeps_sword_family() {
-        assert!(WeaponKind::SlimeBlade.is_sword());
+        assert_eq!(WeaponKind::SlimeBlade.family(), WeaponFamily::Sword);
         assert_eq!(WeaponKind::SlimeBlade.base_power(), 18.0);
     }
 }
