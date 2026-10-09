@@ -11,14 +11,10 @@ pub const CAMERA_ORTHO_SCALE: f32 = 1.0;
 pub const TILE: f32 = 32.0;
 
 pub const PLAYER_WALK_SPEED: f32 = 138.0;
-/// Apex is about 170 px, a little over the hunter's own 160 px height.
-/// The old 385 / -760 pair topped out at 97 px, so every ledge sat at his chest.
 pub const DUNGEON_JUMP_SPEED: f32 = 600.0;
 pub const DUNGEON_AIR_JUMP_MULT: f32 = 0.88;
 pub const DUNGEON_GRAVITY: f32 = -1060.0;
 pub const DUNGEON_FLOOR_Y: f32 = 64.0;
-/// Underside of the ceiling beam: 18 rows of 32 px, 512 px (3.2 hunters) above the floor.
-/// The hunter's head stops here.
 pub const DUNGEON_CEILING_Y: f32 = 576.0;
 /// 1.5 tiles. 20 px was short of an 80 px forge station on the new module.
 pub const INTERACT_DISTANCE: f32 = 48.0;

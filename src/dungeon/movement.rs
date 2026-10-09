@@ -188,7 +188,6 @@ pub fn dungeon_movement(
     transform.translation.y = position.y;
 }
 
-/// Rising head at or past the ceiling beam. Falling never bonks.
 fn hits_ceiling(center_y: f32, half_height: f32, velocity_y: f32) -> bool {
     velocity_y > 0.0 && center_y + half_height >= DUNGEON_CEILING_Y
 }

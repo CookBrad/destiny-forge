@@ -9,22 +9,14 @@ use super::super::level::{GeneratedFloor, PitfallSpec, PlatformSpec};
 use super::super::sprites::DungeonArt;
 use super::{DungeonEntity, DungeonExit, Pitfall, PlatformCollider};
 
-/// Repeat textures are larger than a tile so bricks and slabs read at hunter
-/// scale. Each tile samples its own 32x32 cell, still drawn 1x.
 const WALL_PATTERN_PX: UVec2 = UVec2::new(256, 256);
-/// Floor slab row, platform girder and ceiling beam: two 64 px bays.
 const STRIP_PATTERN_PX: UVec2 = UVec2::new(128, 32);
-/// Foundation rock and pit shaft.
 const BLOCK_PATTERN_PX: UVec2 = UVec2::new(128, 128);
 
-/// Rows under the floor slab and down the pit shaft. Both stop at y = -256,
-/// below the 720p view (-32) and a 1080p view (-212).
 const GROUND_FILL_ROWS: u32 = 9;
 const PIT_VOID_ROWS: u32 = 10;
-/// Rock over the ceiling beam, up to y = 896, past the top of a 1080p view (868).
 const CEILING_ROCK_ROWS: u32 = 9;
 
-/// The wall darkens toward the ceiling so the floor band where the fight is stays lit.
 const WALL_SHADE_FIRST_ROW: u32 = 2;
 const WALL_SHADE_PER_ROW: f32 = 0.025;
 const WALL_SHADE_FLOOR: f32 = 0.55;
@@ -39,8 +31,6 @@ const Z_STAKE: f32 = 0.65;
 const Z_GROUND: f32 = 1.0;
 const Z_PIT_LIP: f32 = 1.1;
 
-/// The 32x32 cell of a repeat texture for world tile (`column`, `row`).
-/// Rows count up from the bottom, image rows count down, so the pattern stays upright.
 fn pattern_cell(column: u32, row: u32, pattern: UVec2) -> Rect {
     let tile = TILE as u32;
     let columns = pattern.x / tile;
@@ -58,7 +48,6 @@ fn pattern_sprite(image: &Handle<Image>, column: u32, row: u32, pattern: UVec2) 
     }
 }
 
-/// Center of the tile whose bottom-left corner is (`column`, `bottom_y`).
 fn tile_center(column: u32, bottom_y: f32) -> Vec2 {
     Vec2::new(column as f32 * TILE + TILE * 0.5, bottom_y + TILE * 0.5)
 }
@@ -87,7 +76,6 @@ pub fn spawn_backdrop(commands: &mut Commands, art: &DungeonArt, floor: &Generat
     }
 }
 
-/// Iron beam at the top of the wall, then rock above it.
 pub fn spawn_ceiling(commands: &mut Commands, art: &DungeonArt, floor: &GeneratedFloor) {
     for column in 0..floor.width_tiles {
         commands.spawn((
@@ -130,7 +118,6 @@ pub fn spawn_platform(commands: &mut Commands, art: &DungeonArt, spec: PlatformS
     spawn_walkable_strip(commands, &art.floor_platform, spec);
 }
 
-/// One row of tiles whose top edge is the walkable surface.
 fn spawn_walkable_strip(commands: &mut Commands, image: &Handle<Image>, spec: PlatformSpec) {
     let collider = PlatformCollider {
         min_x: spec.left,
@@ -203,17 +190,12 @@ fn spawn_pit_warning_stake(commands: &mut Commands, art: &DungeonArt, x: f32) {
     ));
 }
 
-/// Which side of a pit a crumble lip hangs from.
 #[derive(Clone, Copy)]
 enum PitEdge {
-    /// Left edge, where the hunter walks in.
     Near,
-    /// Right edge, mirrored.
     Far,
 }
 
-/// Broken floor edge hanging into the pit. The art's straight side is the
-/// pit edge, so the far edge mirrors it.
 fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32, edge: PitEdge) {
     let y = DUNGEON_FLOOR_Y - PIT_LIP_SIZE.y * 0.5;
     commands.spawn((
@@ -228,14 +210,11 @@ fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32, edge
     ));
 }
 
-/// Exit origin height: level with the hunter's body center, so the
-/// interact distance measures across, not up the ladder.
 fn ladder_exit_origin_y() -> f32 {
     center_on_surface(DUNGEON_FLOOR_Y, HUNTER_BODY_PX.y)
 }
 
 pub fn spawn_ladder_exit(commands: &mut Commands, art: &DungeonArt, ladder_tile: u32) {
-    // 64 px wide: spans `ladder_tile` and the next tile.
     let x = (ladder_tile + 1) as f32 * TILE;
     let origin_above_floor = ladder_exit_origin_y() - DUNGEON_FLOOR_Y;
 

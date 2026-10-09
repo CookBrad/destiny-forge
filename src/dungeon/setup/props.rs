@@ -1,6 +1,3 @@
-//! Hunter-height set dressing: pillars, wall torches and hanging chains.
-//! Background only. No colliders, no gameplay.
-
 use bevy::prelude::*;
 
 use crate::graphics::{
@@ -11,13 +8,11 @@ use super::super::level::{is_on_ground_floor, GeneratedFloor};
 use super::super::sprites::DungeonArt;
 use super::DungeonEntity;
 
-/// One bay is 12 tiles (384 px): a pillar, a chain a quarter in, a torch at the middle.
 const BAY_TILES: u32 = 12;
 const FIRST_PILLAR_TILE: u32 = 2;
 const PILLAR_SIZE: Vec2 = Vec2::new(64.0, 512.0);
 const TORCH_SIZE: Vec2 = Vec2::new(32.0, 64.0);
 const CHAIN_SIZE: Vec2 = Vec2::new(16.0, 160.0);
-/// Torch cup sits 48 px over the hunter's 160 px head.
 const TORCH_BOTTOM_ABOVE_FLOOR: f32 = 208.0;
 const CHAIN_OFFSET_TILES: u32 = 3;
 const TORCH_OFFSET_TILES: u32 = 6;
@@ -66,7 +61,6 @@ fn spawn_prop(commands: &mut Commands, image: &Handle<Image>, position: Vec2, z:
     ));
 }
 
-/// A pillar stands on solid floor only: never over a pit or past the end wall.
 fn pillar_has_floor(column: u32, floor: &GeneratedFloor) -> bool {
     let pillar_tiles = (PILLAR_SIZE.x / TILE) as u32;
     if column + pillar_tiles > floor.width_tiles {

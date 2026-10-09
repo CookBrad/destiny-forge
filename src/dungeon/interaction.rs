@@ -61,8 +61,6 @@ pub fn update_dungeon_interaction_prompt(
     prompt.set(best_prompt(&candidates));
 }
 
-/// Measured in the play plane. The player draws at z 10 and the ladder at z 1,
-/// so a 3D distance never came within reach.
 fn near_exit(player: &Transform, exits: &Query<&Transform, With<DungeonExit>>) -> bool {
     exits.iter().any(|exit| {
         player.translation.truncate().distance(exit.translation.truncate()) <= INTERACT_DISTANCE

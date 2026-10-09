@@ -3,8 +3,6 @@ use bevy::prelude::*;
 use crate::dungeon::DungeonPlayer;
 use crate::graphics::{CAMERA_ORTHO_SCALE, DUNGEON_FLOOR_Y};
 
-/// Pinned in pixels, still 1x. In a 720 px view this frames the whole room:
-/// three rows of ground under the floor, the ceiling beam and some rock over it.
 const CAMERA_HEIGHT_ABOVE_FLOOR: f32 = 264.0;
 
 /// Horizontal span of the current dungeon floor in native world pixels.
