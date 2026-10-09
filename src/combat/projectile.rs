@@ -6,7 +6,7 @@ use crate::audio::CombatSfx;
 use crate::combat::EnemyCorpse;
 use crate::dungeon::{
     DungeonArt, DungeonEntity, DungeonPlayer, EnemyAggro, EnemyHitbox, EnemyKind, EnemyKnockback,
-    EnemyShootCooldown, KingSlimeBoss, Patrol,
+    EnemyShootCooldown, KingSlimeBoss, KnockbackTarget, Patrol,
 };
 use crate::graphics::TILE;
 
@@ -275,8 +275,7 @@ pub fn resolve_deflected_projectile_hits(
                 EnemyKnockback::away_from_player(
                     transform,
                     enemy_transform,
-                    if boss.is_some() { 0.35 } else { 1.0 },
-                    kind.is_some_and(|kind| kind.is_airborne()),
+                    KnockbackTarget::of(kind, boss),
                 ),
             ));
 
