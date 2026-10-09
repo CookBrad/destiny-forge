@@ -18,8 +18,9 @@ pub const DUNGEON_FLOOR_Y: f32 = 64.0;
 /// 1.5 tiles. 20 px was short of an 80 px forge station on the new module.
 pub const INTERACT_DISTANCE: f32 = 48.0;
 
-/// One environment tile. Enemy sheets are still 16 px until the actors redraw;
-/// the hitbox follows this module, so those sprites sit high until that pass.
+/// Gameplay body for every non-boss enemy: one tile. Sheets are larger.
+/// The hitbox follows this size. Sprites are anchored so the painted sole
+/// sits on this box's floor edge. Not a texture size.
 pub const ENEMY_DISPLAY_SIZE: Vec2 = Vec2::new(TILE, TILE);
 
 /// Uniform hunter sheet cell (hit frame width). The full cell still draws.
@@ -27,9 +28,12 @@ pub const HUNTER_CELL_PX: Vec2 = Vec2::new(343.0, 160.0);
 /// GDD body inside that cell, left-aligned. Hurtbox and feet use this, not the cell.
 pub const HUNTER_BODY_PX: Vec2 = Vec2::new(163.0, 160.0);
 
-/// King slime's body is two slime-tiles across. Drawn as a 1× solid fill until boss art exists.
-/// Gameplay size only — sprite transforms stay at scale 1.
+/// King slime's gameplay body is two tiles. The sheet is [`KING_SLIME_CANVAS_PX`].
+/// This is not a texture scale; sprite transforms stay at magnitude 1.
 pub const KING_SLIME_GAMEPLAY_SCALE: f32 = 2.0;
+
+/// Locked king canvas: 6 tiles, taller than the ~160 px hunter.
+pub const KING_SLIME_CANVAS_PX: Vec2 = Vec2::new(192.0, 192.0);
 
 /// Distance from the body center to the hit-frame blade tip.
 /// The cell is left-aligned on the body, so the tip is one cell width from the body's left edge.
@@ -120,9 +124,20 @@ pub fn hunter_body_anchor() -> Anchor {
     ))
 }
 
+/// Puts the canvas bottom `sole_below_origin` pixels under the entity.
+/// The entity stays the hitbox center, so a taller sheet is not a scale.
+pub fn sole_anchor(canvas_height: f32, sole_below_origin: f32) -> Anchor {
+    Anchor::Custom(Vec2::new(0.0, sole_below_origin / canvas_height - 0.5))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Bevy places the quad's min corner at `size * (-anchor - 0.5)`.
+    fn quad_bottom(canvas_height: f32, anchor: Anchor) -> f32 {
+        canvas_height * (-anchor.as_vec().y - 0.5)
+    }
 
     #[test]
     fn tile_is_thirty_two_logical_px() {
@@ -174,19 +189,37 @@ mod tests {
     }
 
     #[test]
-    fn king_slime_fill_is_two_tiles_at_scale_one() {
-        let height = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
-        let center = center_on_surface(DUNGEON_FLOOR_Y, height);
-        assert_eq!(center - height * 0.5, DUNGEON_FLOOR_Y);
+    fn taller_sheet_sole_stays_on_the_gameplay_floor() {
+        let canvas_h = 64.0;
+        let origin_above_floor = ENEMY_DISPLAY_SIZE.y * 0.5;
+        let bottom = quad_bottom(canvas_h, sole_anchor(canvas_h, origin_above_floor));
+        let center = center_on_surface(DUNGEON_FLOOR_Y, ENEMY_DISPLAY_SIZE.y);
+        assert!((center + bottom - DUNGEON_FLOOR_Y).abs() < 0.01);
+        let top = center + bottom + canvas_h;
+        assert!((top - (DUNGEON_FLOOR_Y + canvas_h)).abs() < 0.01);
+    }
+
+    #[test]
+    fn king_slime_sheet_tops_the_wall_and_the_body_stays_two_tiles() {
+        assert_eq!(KING_SLIME_CANVAS_PX, Vec2::new(192.0, 192.0));
+        let gameplay_h = ENEMY_DISPLAY_SIZE.y * KING_SLIME_GAMEPLAY_SCALE;
+        assert_eq!(gameplay_h, 64.0);
+        assert_eq!(KING_SLIME_GAMEPLAY_SCALE, 2.0);
+        let bottom = quad_bottom(
+            KING_SLIME_CANVAS_PX.y,
+            sole_anchor(KING_SLIME_CANVAS_PX.y, gameplay_h * 0.5),
+        );
+        let center = center_on_surface(DUNGEON_FLOOR_Y, gameplay_h);
+        assert!((center + bottom - DUNGEON_FLOOR_Y).abs() < 0.01);
+        let top = center + bottom + KING_SLIME_CANVAS_PX.y;
+        assert!((top - 256.0).abs() < 0.01);
         let logical = logical_screen_px(
-            1.0,
+            KING_SLIME_CANVAS_PX.y,
             WORLD_UNITS_PER_SOURCE_PX,
             CAMERA_ORTHO_SCALE,
-            Some(height),
+            None,
         );
-        assert_eq!(logical, TILE * KING_SLIME_GAMEPLAY_SCALE);
-        assert_eq!(logical, 64.0);
-        assert_eq!(WORLD_UNITS_PER_SOURCE_PX, 1.0);
+        assert_eq!(logical, 192.0);
     }
 
     #[test]

@@ -17,6 +17,7 @@ use super::animation::animate_player;
 use super::boss::{resolve_boss_hazards, tick_boss_attacks, tick_boss_phase_flash};
 use super::carve::carve_corpses;
 use super::enemy::track_boss_defeat;
+use super::enemy_anim::animate_enemies;
 use super::enemy_movement::move_enemies;
 use super::interaction::{ladder_interaction, update_dungeon_interaction_prompt};
 use super::movement::dungeon_movement;
@@ -84,6 +85,7 @@ impl Plugin for DungeonPlugin {
                         dungeon_movement,
                         follow_camera,
                         animate_player,
+                        animate_enemies,
                     ),
                     (
                         resolve_weapon_hits,

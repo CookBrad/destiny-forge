@@ -1,7 +1,7 @@
 Destiny Forge — Asset Attribution
 ==================================
 
-Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/environment/
+Gameplay sprites: assets/player/, assets/dungeon/enemies/, assets/dungeon/projectiles/, assets/dungeon/environment/
 Source packs and archives: assets/source/
 
 Primary stack (recommended)
@@ -29,12 +29,6 @@ Hunter (dungeon player)
   Gameplay filenames stay knight_* for loaders.
   Cell 343×160 1× nearest-neighbor. Sword is baked into the hunter.
   Signed cells stay. Added frames are in-house (tools/draw_hunter_frames.py) and add no third-party credit.
-
-0x72 — 16x16 DungeonTileset II v1.7
-  Author: Robert (0x72)
-  URL: https://0x72.itch.io/dungeontileset-ii
-  License: CC0 1.0 (public domain)
-  Used for: slime and bat enemies
 
 Stealthix — Animated Slimes
   Author: Stealthix
@@ -73,8 +67,18 @@ Gameplay sprite map
   dungeon/environment/pit_lip.png          — In-house, made by tools/draw_dungeon_environment.py
   dungeon/vfx/ground_slam.png              — In-house, made by tools/draw_dungeon_environment.py
 
-  dungeon/enemies/slime.png   — 0x72 tiny slug
-  dungeon/enemies/bat.png     — 0x72 imp (flying enemy stand-in)
+  The nine actor sheets below are Grok Imagine pixels: image_gen, then image_edit against the signed hunter. tools/draw_dungeon_actors.py is not the pixel source, and re-running that script does not write these bytes.
+  Enemy files are 4-frame horizontal movement strips from a further image_edit of those stills. Arrow, slime bolt, and slime blob stay one cell.
+
+  dungeon/enemies/slime.png              — Grok Imagine, 4-frame hop strip
+  dungeon/enemies/bat.png                — Grok Imagine, 4-frame wing strip
+  dungeon/enemies/goblin.png             — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/skeleton.png           — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/zombie.png             — Grok Imagine, 4-frame walk strip
+  dungeon/enemies/king_slime.png         — Grok Imagine, 4-frame hop strip
+  dungeon/projectiles/arrow.png          — Grok Imagine, one cell
+  dungeon/projectiles/slime_bolt.png     — Grok Imagine, one cell
+  dungeon/projectiles/slime_blob.png     — Grok Imagine, one cell
 
 Audio
 -----

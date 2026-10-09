@@ -3,6 +3,7 @@ mod boss;
 pub mod carve;
 mod carve_loot;
 mod enemy;
+mod enemy_anim;
 mod enemy_movement;
 mod enemy_stats;
 mod floor1;
@@ -18,7 +19,7 @@ mod sprites;
 pub use animation::PlayerAnimation;
 pub use enemy::{
     DungeonProgress, EnemyAggro, EnemyContactDamage, EnemyHitbox, EnemyKind, EnemyKnockback,
-    EnemyShootCooldown, KingSlimeBoss, Patrol,
+    EnemyShootCooldown, KingSlimeBoss, Patrol, SpriteCanvas,
 };
 pub use enemy_movement::move_enemies;
 pub use movement::{DungeonPlayer, PlayerVelocity};

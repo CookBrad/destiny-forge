@@ -92,3 +92,22 @@ const ZOMBIE: EnemyStats = EnemyStats {
     shoot_cooldown: 0.0,
     shoot_range: 0.0,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ranged_reach_and_patrol_radii_stay_on_the_tile() {
+        assert_eq!(BAT.shoot_range, 11.0 * TILE);
+        assert_eq!(GOBLIN.shoot_range, 9.0 * TILE);
+        assert_eq!(SKELETON.shoot_range, 14.0 * TILE);
+        assert_eq!(SLIME.shoot_range, 0.0);
+        assert_eq!(ZOMBIE.shoot_range, 0.0);
+        assert_eq!(SLIME.patrol_radius_tiles, 2.0);
+        assert_eq!(BAT.patrol_radius_tiles, 1.0);
+        assert_eq!(GOBLIN.patrol_radius_tiles, 3.0);
+        assert_eq!(SKELETON.patrol_radius_tiles, 2.5);
+        assert_eq!(ZOMBIE.patrol_radius_tiles, 1.5);
+    }
+}
