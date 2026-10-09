@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub const ENV_ROOT: &str = "dungeon/environment";
+pub const ENV_ROOT: &str = "overworld/environment";
 pub const OVERWORLD_ROOT: &str = "overworld";
 pub const PLAYER_NON_COMBAT_ROOT: &str = "player/non-combat";
 pub const ANIMAL_SHEET: &str = "overworld/animals/quadraped.png";
