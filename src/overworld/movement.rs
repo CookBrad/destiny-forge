@@ -9,6 +9,7 @@ pub struct ExplorationMap {
     pub solids: Vec<Rect>,
     pub world_width: f32,
     pub world_height: f32,
+    pub pixel_zoom: f32,
 }
 
 /// Prevents immediately bouncing back after a map transition.

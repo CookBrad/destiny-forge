@@ -42,6 +42,7 @@ pub fn setup_overworld(
         solids: layout.solids.clone(),
         world_width: super::layout::WORLD_WIDTH,
         world_height: super::layout::WORLD_HEIGHT,
+        pixel_zoom: super::camera::HOMESTEAD_PIXEL_ZOOM,
     });
     commands.insert_resource(MapTransitionCooldown::default());
     commands.insert_resource(art);

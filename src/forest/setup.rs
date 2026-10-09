@@ -26,6 +26,7 @@ pub fn setup_forest(
         solids: layout.solids(),
         world_width: super::layout::WORLD_WIDTH,
         world_height: super::layout::WORLD_HEIGHT,
+        pixel_zoom: crate::overworld::camera::FOREST_PIXEL_ZOOM,
     });
     commands.insert_resource(MapTransitionCooldown::default());
     commands.insert_resource(forest_art);
