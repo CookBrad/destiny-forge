@@ -645,6 +645,7 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-09 | `assets/ATTRIBUTION.txt` covers legacy art until that file is redrawn | Signed hunter pixels keep their credit. An in-house replacement drops the old credit for that file |
 | 2026-09-26 | New in-house frames may be added beside the signed hunter cells | Run cycle (8 played frames), attack in-between and recover, jump, fall, death. Idle, run lean, chamber, and thrust pixels stay. Foot point is cell x = 81.5, sole row 158. Supersedes the 2026-08 reopen ban for added frames only. |
 | 2026-09-26 | King Slime canvas is 192×192 | 6 tiles, taller than the ~160 px hunter. Replaces the 128×128 working default. The sheet replaces the live fill. The gameplay body stays two tiles. |
+| 2026-10 | Homestead camera back to 3× (`HOMESTEAD_PIXEL_ZOOM`) | Brad: the home area was too small to read at 1×. Camera zoom only; art, transforms, and tiles stay 1× 32 px. Forest and dungeon cameras stay 1× |
 
 ---
 
