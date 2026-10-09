@@ -201,7 +201,7 @@ Each family is a moveset, not a stat stick.
 | **Floor hunt** | 10–20 min | Packs + elites; carve common/uncommon parts; learn patterns |
 | **Boss hunt** | 10–25 min | Multi-phase set piece; rare parts; set unlocks |
 
-Environment tiles are 32×32 (see [Art Direction](#art-direction)). Halve the **horizontal** dungeon tile counts against the old 16×16 layouts so a floor hunt stays 10–20 min and a boss hunt stays 10–25 min. The floor minimum drops from 180 tiles to about 90 (`MIN_WIDTH_TILES`), and the per-segment width roll (today 18..=26) is halved with it. The same halving applies to the other horizontal spans in the floor generator (entrance, boss arena, platform width, pit width, spacing). Vertical counts are drawn to the hunter (Brad 2026-10-09: "just make them the same scale, redraw if needed"). The jump apex is about 170 px (jump speed 600, gravity 1060), a little over the 160 px body; the air jump reaches about 300 px. The room is 18 backdrop rows: the floor stays at y=64 and the ceiling beam sits at y=576, 512 px (about three hunters) up, with rock above it. The hunter's head stops at the beam. Ground is a 32 px slab with foundation rock under it, and pits are shafts, both down past the bottom of the view. The camera is pinned 264 px over the floor (still 1×): a 720 px view shows three ground rows, the full room, and the beam. Platforms sit 4–6 tiles (128–192 px) up. Four or five tiles clear on one jump; six needs the air jump, and its underside clears the hunter's head. Bridges over pits sit 4–5 tiles up so a crossing never needs the air jump.
+Environment tiles are 32×32 (see [Art Direction](#art-direction)). Halve the **horizontal** dungeon tile counts against the old 16×16 layouts so a floor hunt stays 10–20 min and a boss hunt stays 10–25 min. The floor minimum drops from 180 tiles to about 90 (`MIN_WIDTH_TILES`), and the per-segment width roll (today 18..=26) is halved with it. The same halving applies to the other horizontal spans in the floor generator (entrance, boss arena, platform width, pit width, spacing). Vertical counts are drawn to the hunter (locked 2026-10-09: same scale as the hunter, redraw if needed). The jump apex is about 170 px (jump speed 600, gravity 1060), a little over the 160 px body; the air jump reaches about 300 px. The room is 18 backdrop rows: the floor stays at y=64 and the ceiling beam sits at y=576, 512 px (about three hunters) up, with rock above it. The hunter's head stops at the beam. Ground is a 32 px slab with foundation rock under it, and pits are shafts, both down past the bottom of the view. The camera is pinned 264 px over the floor (still 1×): a 720 px view shows three ground rows, the full room, and the beam. Platforms sit 4–6 tiles (128–192 px) up. Four or five tiles clear on one jump; six needs the air jump, and its underside clears the hunter's head. Bridges over pits sit 4–5 tiles up so a crossing never needs the air jump.
 
 **Boss design rules:**
 
@@ -548,12 +548,12 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 ## Art Direction
 
-The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28. The signed cells stay byte-for-byte once the matte is gone: idle, the run lean, the attack chamber, and the attack thrust. Brad (2026-09-26) allowed two further edits on `assets/player/combat/knight_*_side.png`. The opaque black background may be removed. New in-house frames may be added beside those signed cells: a played run cycle, an attack in-between, an attack recover, and jump, fall, and death poses. An added frame does not redraw a signed cell.
+The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28. The signed cells stay byte-for-byte once the matte is gone: idle, the run lean, the attack chamber, and the attack thrust. A 2026-09-26 decision allowed two further edits on `assets/player/combat/knight_*_side.png`. The opaque black background may be removed. New in-house frames may be added beside those signed cells: a played run cycle, an attack in-between, an attack recover, and jump, fall, and death poses. An added frame does not redraw a signed cell.
 
 | Spec | Value |
 | ---- | ----- |
 | Tile size | 32×32 (homestead / dungeon environment) |
-| Homestead map | Working default pending Brad. See [Open Questions](#open-questions). |
+| Homestead map | Working default pending sign-off. See [Open Questions](#open-questions). |
 | Dungeon counts | Horizontal tile counts halved. Vertical counts drawn to the hunter: ~170 px jump, 512 px room, platforms 4–6 tiles up. See [Hunt structure](#hunt-structure). |
 | Dungeon environment | Drawn to the ~160 px hunter on the 32 px grid. Bricks 32×16; floor slabs and girder bays 64 px (128 px repeats); wall a 256 px repeat. Each tile samples one 32×32 cell of the repeat at 1×. Exit ladder 64×256; pillar 64×512 (floor to beam); pit post 24×112; pit lip 24×96; torch 32×64 mounted over the head; chain 16×160. Source of truth: `tools/draw_dungeon_environment.py`. |
 | Hunter cell | ~160 px tall, 1× nearest-neighbor (~5 tiles at 32 px). Idle ~163×160. Do **not** crush to 16×28. Uniform loader cell stays 343×160. |
@@ -578,9 +578,9 @@ Do **not** ship 64×64 tiles, 64×112 characters, or linear/anime filtering. Tha
 
 ### Enemy canvases
 
-Enemy canvas sizes other than King Slime are working defaults pending Brad. King Slime's canvas is 192×192 (see the table). The PR #70 reject still bans 64×64 tiles, a 64×112 player character, and linear or anime filtering.
+Enemy canvas sizes other than King Slime are working defaults pending sign-off. King Slime's canvas is 192×192 (see the table). The PR #70 reject still bans 64×64 tiles, a 64×112 player character, and linear or anime filtering.
 
-Furnace canvas, homestead hero size, skill icons, forest trees, enemy canvases, and the homestead map are working defaults pending Brad. See [Open Questions](#open-questions).
+Furnace canvas, homestead hero size, skill icons, forest trees, enemy canvases, and the homestead map are working defaults pending sign-off. See [Open Questions](#open-questions).
 
 **Pipeline:** source art under `assets/source/` → processed gameplay sprites under `assets/`. New pixels are an in-house redraw at the target size, never an upscale of old 16px art. `assets/ATTRIBUTION.txt` credits legacy art only, and only until that file is redrawn in-house. Signed hunter cells are unchanged once the matte is gone, so their credit stays. New frames on those sheets are in-house and add no third-party credit. An in-house replacement of a legacy file drops the old credit for that file. Keep gameplay filenames stable for loaders (`knight_*`, `dwarf_m_*`, `forge_furnace.png`) even when the pixels are the hunter / grit-neon forge.
 
@@ -638,12 +638,12 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-08 | Dual perspective: hunter side-view, homestead forge top-down pad | Foreman lock; forge is not a side sheet |
 | 2026-08 | Attack strip Taste-signed: chamber 139 + hit 343 | Do not reopen; laterality brass+purple LEFT, sword RIGHT |
 | 2026-09 | Environment tiles 32×32. Hunter stays ~160px 1× NN (~5 tiles tall) | Homestead and dungeon share the new tile. Hunter scale is unchanged |
-| 2026-09 | All art redrawn in-house at the target size in Art Direction. Never upscale old 16px art | A redraw, not a scale-up of the 16px sheets. Signed hunter pixels stay (matte excepted). Furnace, homestead hero, icons, trees, enemy canvases, and the homestead map are still pending Brad. King Slime size superseded 2026-09-26. |
+| 2026-09 | All art redrawn in-house at the target size in Art Direction. Never upscale old 16px art | A redraw, not a scale-up of the 16px sheets. Signed hunter pixels stay (matte excepted). Furnace, homestead hero, icons, trees, enemy canvases, and the homestead map are still pending sign-off. King Slime size superseded 2026-09-26. |
 | 2026-09 | `knight_*_side.png`: opaque black background → transparent only | Character pixels unchanged. Allowed on the Taste-signed strip; does not reopen it |
 | 2026-09 | Halve horizontal dungeon tile counts; retune vertical counts for the ~97 px jump | Floor (10–20 min) and boss (10–25 min) stay. `MIN_WIDTH_TILES` 180 → ~90. Backdrop rows 6 → 8. Vertical gaps about 2–4 tiles |
-| 2026-10-09 | Dungeon environment drawn to the hunter's scale (Brad: "just make them the same scale, redraw if needed") | TILE stays 32 (no 64 px tiles). Jump apex ~97 → ~170 px. Backdrop rows 8 → 18 with a ceiling beam at y=576. Platforms 2–4 → 4–6 tiles. Camera 140 → 264 px over the floor, still 1×. Walls, floor, platforms, pit, ladder and props redrawn in-house at the target size; no upscale. Supersedes the 2026-09 vertical numbers |
-| 2026-09 | Homestead map size awaits Brad. See [Open Questions](#open-questions) | Working default until he picks |
-| 2026-09 | Enemy canvases other than King Slime await Brad. See Open Questions. | Working defaults until he picks |
+| 2026-10-09 | Dungeon environment drawn to the hunter's scale (locked: same scale as the hunter, redraw if needed) | TILE stays 32 (no 64 px tiles). Jump apex ~97 → ~170 px. Backdrop rows 8 → 18 with a ceiling beam at y=576. Platforms 2–4 → 4–6 tiles. Camera 140 → 264 px over the floor, still 1×. Walls, floor, platforms, pit, ladder and props redrawn in-house at the target size; no upscale. Supersedes the 2026-09 vertical numbers |
+| 2026-09 | Homestead map size awaits sign-off. See [Open Questions](#open-questions) | Working default until one is picked |
+| 2026-09 | Enemy canvases other than King Slime await sign-off. See Open Questions. | Working defaults until one is picked |
 | 2026-09 | `assets/ATTRIBUTION.txt` covers legacy art until that file is redrawn | Signed hunter pixels keep their credit. An in-house replacement drops the old credit for that file |
 | 2026-09-26 | New in-house frames may be added beside the signed hunter cells | Run cycle (8 played frames), attack in-between and recover, jump, fall, death. Idle, run lean, chamber, and thrust pixels stay. Foot point is cell x = 81.5, sole row 158. Supersedes the 2026-08 reopen ban for added frames only. |
 | 2026-09-26 | King Slime canvas is 192×192 | 6 tiles, taller than the ~160 px hunter. Replaces the 128×128 working default. The sheet replaces the live fill. The gameplay body stays two tiles. |
@@ -660,7 +660,7 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 - Inventory size after lifestyle systems come online (24 may be tight)
 - Difficulty: static enemy stats vs light scaling on repeat clears
 
-These six redraw calls are still Brad's. The figure on each line is the working default until he picks:
+These six redraw calls are still open. The figure on each line is the working default until one is picked:
 
 - **Furnace canvas (not locked).** Working default: keep the Taste-passed 80×80 painting as it is. The other option is a 96×96 canvas (3×3 tiles) padded with transparency
 - **Homestead hero size.** Working default: 64×80, top-down (2 tiles by 2.5). Dual perspective stays. This is the homestead figure (`dwarf_m_*`), separate from the ~160 px side-view hunter
