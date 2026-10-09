@@ -154,8 +154,18 @@ pub fn spawn_pitfalls(commands: &mut Commands, art: &DungeonArt, pitfalls: &[Pit
 
         spawn_pit_warning_stake(commands, art, pit.left - TILE * 0.5);
         spawn_pit_warning_stake(commands, art, pit_right + TILE * 0.5);
-        spawn_pit_crumble_lip(commands, art, pit.left + PIT_LIP_SIZE.x * 0.5, false);
-        spawn_pit_crumble_lip(commands, art, pit_right - PIT_LIP_SIZE.x * 0.5, true);
+        spawn_pit_crumble_lip(
+            commands,
+            art,
+            pit.left + PIT_LIP_SIZE.x * 0.5,
+            PitEdge::Near,
+        );
+        spawn_pit_crumble_lip(
+            commands,
+            art,
+            pit_right - PIT_LIP_SIZE.x * 0.5,
+            PitEdge::Far,
+        );
         spawn_pit_shaft(commands, art, pit);
     }
 }
@@ -193,14 +203,23 @@ fn spawn_pit_warning_stake(commands: &mut Commands, art: &DungeonArt, x: f32) {
     ));
 }
 
+/// Which side of a pit a crumble lip hangs from.
+#[derive(Clone, Copy)]
+enum PitEdge {
+    /// Left edge, where the hunter walks in.
+    Near,
+    /// Right edge, mirrored.
+    Far,
+}
+
 /// Broken floor edge hanging into the pit. The art's straight side is the
 /// pit edge, so the far edge mirrors it.
-fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32, far_edge: bool) {
+fn spawn_pit_crumble_lip(commands: &mut Commands, art: &DungeonArt, x: f32, edge: PitEdge) {
     let y = DUNGEON_FLOOR_Y - PIT_LIP_SIZE.y * 0.5;
     commands.spawn((
         Sprite {
             image: art.pit_lip.clone(),
-            flip_x: far_edge,
+            flip_x: matches!(edge, PitEdge::Far),
             ..default()
         },
         world_transform(Vec2::new(x, y), Z_PIT_LIP),
