@@ -6,7 +6,7 @@ use super::movement::{ExplorationMap, OverworldPlayer};
 
 const OVERWORLD_CAMERA_Z: f32 = 100.0;
 
-/// Brad (2026-10): the home area was too small to read at 1×, so the homestead camera
+/// 2026-10: the home area was too small to read at 1×, so the homestead camera
 /// draws one world unit as three screen pixels again. Art and transforms stay 1×.
 pub const HOMESTEAD_PIXEL_ZOOM: f32 = 3.0;
 /// The forest keeps the shared 1× camera; only the homestead was re-locked to 3×.
