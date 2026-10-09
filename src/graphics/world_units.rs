@@ -9,10 +9,11 @@ pub const CAMERA_ORTHO_SCALE: f32 = 1.0;
 pub const TILE: f32 = 32.0;
 
 pub const PLAYER_WALK_SPEED: f32 = 138.0;
-pub const DUNGEON_JUMP_SPEED: f32 = 385.0;
+pub const DUNGEON_JUMP_SPEED: f32 = 600.0;
 pub const DUNGEON_AIR_JUMP_MULT: f32 = 0.88;
-pub const DUNGEON_GRAVITY: f32 = -760.0;
+pub const DUNGEON_GRAVITY: f32 = -1060.0;
 pub const DUNGEON_FLOOR_Y: f32 = 64.0;
+pub const DUNGEON_CEILING_Y: f32 = 576.0;
 /// 1.5 tiles. 20 px was short of an 80 px forge station on the new module.
 pub const INTERACT_DISTANCE: f32 = 48.0;
 
@@ -220,19 +221,30 @@ mod tests {
         assert_eq!(logical, 192.0);
     }
 
+    fn jump_apex(speed: f32) -> f32 {
+        speed * speed / (2.0 * DUNGEON_GRAVITY.abs())
+    }
+
     #[test]
-    fn jump_clears_three_tiles_and_the_air_jump_clears_four() {
-        let gravity = DUNGEON_GRAVITY.abs();
-        let apex = DUNGEON_JUMP_SPEED * DUNGEON_JUMP_SPEED / (2.0 * gravity);
-        let air_speed = DUNGEON_JUMP_SPEED * DUNGEON_AIR_JUMP_MULT;
-        let with_air = apex + air_speed * air_speed / (2.0 * gravity);
-        assert!((apex - 97.5).abs() < 0.05, "apex {apex}");
-        assert!(3.0 * TILE <= apex, "three tiles must clear on one jump");
-        assert!(4.0 * TILE > apex, "four tiles need the air jump");
-        assert!(
-            4.0 * TILE <= with_air,
-            "four tiles must clear with the air jump"
-        );
+    fn jump_clears_the_hunter_height_and_the_air_jump_clears_six_tiles() {
+        let apex = jump_apex(DUNGEON_JUMP_SPEED);
+        let with_air = apex + jump_apex(DUNGEON_JUMP_SPEED * DUNGEON_AIR_JUMP_MULT);
+        assert!((140.0..=170.0).contains(&apex), "apex {apex}");
+        assert!(5.0 * TILE <= apex, "five tiles must clear on one jump");
+        assert!(HUNTER_BODY_PX.y <= apex, "a jump clears the hunter's own height");
+        assert!(6.0 * TILE > apex, "six tiles need the air jump");
+        assert!(6.0 * TILE <= with_air, "six tiles must clear with the air jump");
+    }
+
+    #[test]
+    fn ceiling_is_three_hunters_up_and_clears_a_double_jump_from_the_floor() {
+        assert_eq!(DUNGEON_CEILING_Y, 18.0 * TILE);
+        let room = DUNGEON_CEILING_Y - DUNGEON_FLOOR_Y;
+        assert!(room >= 3.0 * HUNTER_BODY_PX.y, "room {room}");
+        let with_air = jump_apex(DUNGEON_JUMP_SPEED)
+            + jump_apex(DUNGEON_JUMP_SPEED * DUNGEON_AIR_JUMP_MULT);
+        let head = DUNGEON_FLOOR_Y + with_air + HUNTER_BODY_PX.y;
+        assert!(head < DUNGEON_CEILING_Y, "head {head}");
     }
 
     #[test]
