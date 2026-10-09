@@ -115,10 +115,6 @@ impl DayClock {
         self.calendar_day
     }
 
-    pub fn phase_progress(&self) -> f32 {
-        (self.phase_elapsed_secs / PHASE_DURATION_SECS).clamp(0.0, 1.0)
-    }
-
     /// Entering a dungeon hunt costs a large share of the day.
     /// Returns true when the phase actually changed.
     pub fn apply_hunt_day_cost(&mut self) -> bool {
@@ -163,14 +159,6 @@ impl ToolEnergy {
 
     pub fn restore_full(&mut self) {
         self.current = self.max;
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.current >= self.max
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.current <= 0.0
     }
 
     pub fn fraction(&self) -> f32 {
@@ -266,7 +254,7 @@ mod tests {
         assert_eq!(day, 4);
         assert_eq!(clock.phase, DayPhase::Morning);
         assert_eq!(clock.phase_elapsed_secs, 0.0);
-        assert!(energy.is_full());
+        assert_eq!(energy.current, energy.max);
     }
 
     #[test]
@@ -312,7 +300,7 @@ mod tests {
         assert!(!energy.try_spend(70.0));
         assert!((energy.current - 60.0).abs() < 0.01);
         assert!(energy.try_spend(60.0));
-        assert!(energy.is_empty());
+        assert_eq!(energy.current, 0.0);
         assert!(!energy.try_spend(1.0));
     }
 }

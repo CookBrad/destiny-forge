@@ -7,7 +7,7 @@ use super::level::{BatSpawn, BossSpawn, EnemySpawn, GeneratedFloor, PlatformSpec
 const WIDTH_TILES: u32 = 36;
 const LADDER_TILE: u32 = WIDTH_TILES - 3;
 
-/// Hand-authored Floor 1 layout (tests / fallback). Live runs use `generation::generate_floor`.
+/// Hand-authored Floor 1 layout, kept as a test fixture. Live runs use `generation::generate_floor`.
 pub fn floor_one() -> GeneratedFloor {
     const BOSS_TILE: f32 = 29.0;
     GeneratedFloor {

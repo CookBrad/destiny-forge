@@ -6,6 +6,7 @@ mod enemy;
 mod enemy_anim;
 mod enemy_movement;
 mod enemy_stats;
+#[cfg(test)]
 mod floor1;
 mod generation;
 pub(crate) mod hunter_pose;

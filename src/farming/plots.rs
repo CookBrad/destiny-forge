@@ -2,7 +2,6 @@
 
 use bevy::prelude::*;
 
-use crate::exploration::tile_rect;
 use crate::graphics::{world_transform, TILE};
 use crate::overworld::layout::{tile_center, OverworldEntity};
 use crate::overworld::sprites::OverworldArt;
@@ -11,11 +10,6 @@ use crate::core::SavedCropPlot;
 
 use super::crops::{advance_plot_day, CropKind, PlotStage};
 use super::persist::restored_stage;
-
-/// Same rect as the former decorative till markers (`tile_rect(4, 7, 20, 17)`).
-pub fn crop_field_rect() -> Rect {
-    tile_rect(4, 7, 20, 17)
-}
 
 #[derive(Component, Clone, Debug)]
 pub struct CropPlot {
