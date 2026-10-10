@@ -11,6 +11,7 @@ use crate::overworld::movement::{
 use crate::overworld::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
 use super::layout::{mine_solids, spawn_mine, MineEntity, ARRIVAL_TILE, WORLD_HEIGHT, WORLD_WIDTH};
+use super::swing::DwarfPickaxeSwingFrames;
 
 pub fn set_mine_clear_color(mut clear: ResMut<ClearColor>) {
     clear.0 = Color::srgb(0.06, 0.05, 0.06);
@@ -49,6 +50,7 @@ pub fn setup_mine(
     });
     commands.insert_resource(MapTransitionCooldown::default());
     commands.insert_resource(art);
+    commands.insert_resource(DwarfPickaxeSwingFrames::load(&asset_server));
 }
 
 pub fn cleanup_mine(
@@ -60,6 +62,7 @@ pub fn cleanup_mine(
         commands.entity(entity).try_despawn_recursive();
     }
     commands.remove_resource::<OverworldArt>();
+    commands.remove_resource::<DwarfPickaxeSwingFrames>();
     commands.remove_resource::<ExplorationMap>();
     commands.remove_resource::<MapTransitionCooldown>();
 }

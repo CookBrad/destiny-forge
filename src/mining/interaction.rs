@@ -56,6 +56,7 @@ pub fn start_pickaxe_swing_at_nearest_ore(
     energy: Res<ToolEnergy>,
     inventory: Res<Inventory>,
     player: Query<&Transform, With<OverworldPlayer>>,
+    mut player_sprites: Query<&mut Sprite, With<OverworldPlayer>>,
     nodes: Query<(Entity, &Transform, &OreNode)>,
     swings_in_progress: Query<(), With<PickaxeSwing>>,
 ) {
@@ -92,13 +93,10 @@ pub fn start_pickaxe_swing_at_nearest_ore(
         return;
     }
 
-    let node_is_left_of_player = node_transform.translation.x < player_transform.translation.x;
-    spawn_pickaxe_swing(
-        &mut commands,
-        player_transform,
-        node_entity,
-        node_is_left_of_player,
-    );
+    if let Ok(mut player_sprite) = player_sprites.get_single_mut() {
+        player_sprite.flip_x = node_transform.translation.x < player_transform.translation.x;
+    }
+    spawn_pickaxe_swing(&mut commands, node_entity);
 }
 
 pub fn land_pickaxe_swing_on_ore_node(

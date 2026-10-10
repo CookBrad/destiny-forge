@@ -1,24 +1,30 @@
-use std::f32::consts::FRAC_PI_2;
-
 use bevy::prelude::*;
 
 use crate::overworld::movement::OverworldPlayer;
+use crate::overworld::sprites::PLAYER_NON_COMBAT_ROOT;
 
 use super::layout::MineEntity;
 
 pub const PICKAXE_SWING_SECONDS: f32 = 0.3;
-const RAISED_ANGLE: f32 = -FRAC_PI_2 * 0.5;
-const STRUCK_ANGLE: f32 = FRAC_PI_2 * 1.2;
-const HANDLE_LENGTH: f32 = 16.0;
-const HANDLE_COLOR: Color = Color::srgb(0.5, 0.34, 0.18);
-const HEAD_COLOR: Color = Color::srgb(0.7, 0.72, 0.78);
-const SWING_Z_ABOVE_PLAYER: f32 = 0.5;
+pub const DWARF_PICKAXE_SWING_FRAME_COUNT: usize = 4;
+
+#[derive(Resource, Clone)]
+pub struct DwarfPickaxeSwingFrames(pub [Handle<Image>; DWARF_PICKAXE_SWING_FRAME_COUNT]);
+
+impl DwarfPickaxeSwingFrames {
+    pub fn load(asset_server: &AssetServer) -> Self {
+        Self(std::array::from_fn(|frame| {
+            asset_server.load(format!(
+                "{PLAYER_NON_COMBAT_ROOT}/dwarf_m_pickaxe_swing_f{frame}.png"
+            ))
+        }))
+    }
+}
 
 #[derive(Component)]
 pub struct PickaxeSwing {
     pub timer: Timer,
     pub target_node: Entity,
-    pub swings_left: bool,
 }
 
 #[derive(Event)]
@@ -30,70 +36,35 @@ pub fn swing_progress(swing: &PickaxeSwing) -> f32 {
     swing.timer.fraction().clamp(0.0, 1.0)
 }
 
-pub fn pickaxe_clockwise_angle_from_upright(progress: f32, swings_left: bool) -> f32 {
-    let angle_when_swinging_right = RAISED_ANGLE + (STRUCK_ANGLE - RAISED_ANGLE) * progress;
-    if swings_left {
-        -angle_when_swinging_right
-    } else {
-        angle_when_swinging_right
-    }
+pub fn dwarf_pickaxe_swing_frame_index(progress: f32) -> usize {
+    let frame = (progress.clamp(0.0, 1.0) * DWARF_PICKAXE_SWING_FRAME_COUNT as f32) as usize;
+    frame.min(DWARF_PICKAXE_SWING_FRAME_COUNT - 1)
 }
 
-pub fn spawn_pickaxe_swing(
-    commands: &mut Commands,
-    player_transform: &Transform,
-    target_node: Entity,
-    swings_left: bool,
-) {
-    let swing = PickaxeSwing {
-        timer: Timer::from_seconds(PICKAXE_SWING_SECONDS, TimerMode::Once),
-        target_node,
-        swings_left,
-    };
-    let transform = pickaxe_transform_at(player_transform, &swing);
-    commands
-        .spawn((swing, transform, Visibility::default(), MineEntity))
-        .with_children(|pickaxe| {
-            pickaxe.spawn((
-                Sprite {
-                    color: HANDLE_COLOR,
-                    custom_size: Some(Vec2::new(3.0, HANDLE_LENGTH)),
-                    ..default()
-                },
-                Transform::from_xyz(0.0, HANDLE_LENGTH * 0.5, 0.0),
-            ));
-            pickaxe.spawn((
-                Sprite {
-                    color: HEAD_COLOR,
-                    custom_size: Some(Vec2::new(14.0, 4.0)),
-                    ..default()
-                },
-                Transform::from_xyz(0.0, HANDLE_LENGTH, 0.01),
-            ));
-        });
-}
-
-fn pickaxe_transform_at(player_transform: &Transform, swing: &PickaxeSwing) -> Transform {
-    let angle = pickaxe_clockwise_angle_from_upright(swing_progress(swing), swing.swings_left);
-    Transform {
-        translation: player_transform.translation + Vec3::Z * SWING_Z_ABOVE_PLAYER,
-        rotation: Quat::from_rotation_z(-angle),
-        scale: player_transform.scale,
-    }
+pub fn spawn_pickaxe_swing(commands: &mut Commands, target_node: Entity) {
+    commands.spawn((
+        PickaxeSwing {
+            timer: Timer::from_seconds(PICKAXE_SWING_SECONDS, TimerMode::Once),
+            target_node,
+        },
+        MineEntity,
+    ));
 }
 
 pub fn animate_pickaxe_swing(
     time: Res<Time>,
+    swing_frames: Res<DwarfPickaxeSwingFrames>,
     mut commands: Commands,
     mut landed_swings: EventWriter<PickaxeSwingLanded>,
-    player: Query<&Transform, (With<OverworldPlayer>, Without<PickaxeSwing>)>,
-    mut swings: Query<(Entity, &mut PickaxeSwing, &mut Transform)>,
+    mut player_sprites: Query<&mut Sprite, With<OverworldPlayer>>,
+    mut swings: Query<(Entity, &mut PickaxeSwing)>,
 ) {
-    let player_transform = player.get_single().ok();
-    for (swing_entity, mut swing, mut transform) in &mut swings {
+    for (swing_entity, mut swing) in &mut swings {
         swing.timer.tick(time.delta());
-        if let Some(player_transform) = player_transform {
-            *transform = pickaxe_transform_at(player_transform, &swing);
+        let frame = dwarf_pickaxe_swing_frame_index(swing_progress(&swing));
+        if let Ok(mut player_sprite) = player_sprites.get_single_mut() {
+            player_sprite.image = swing_frames.0[frame].clone();
+            player_sprite.rect = None;
         }
         if swing.timer.just_finished() {
             landed_swings.send(PickaxeSwingLanded {
@@ -108,25 +79,42 @@ pub fn animate_pickaxe_swing(
 mod tests {
     use super::*;
 
-    fn is_close(actual: f32, expected: f32) -> bool {
-        (actual - expected).abs() < 1e-5
+    #[test]
+    fn swing_frames_run_raised_to_strike_in_order_and_hold_the_strike_at_the_end() {
+        let frames_at_each_step: Vec<usize> = (0..=20)
+            .map(|step| dwarf_pickaxe_swing_frame_index(step as f32 / 20.0))
+            .collect();
+        assert_eq!(frames_at_each_step.first(), Some(&0));
+        assert_eq!(
+            frames_at_each_step.last(),
+            Some(&(DWARF_PICKAXE_SWING_FRAME_COUNT - 1))
+        );
+        assert!(frames_at_each_step
+            .windows(2)
+            .all(|pair| pair[1] >= pair[0]));
+        for frame in 0..DWARF_PICKAXE_SWING_FRAME_COUNT {
+            assert!(frames_at_each_step.contains(&frame));
+        }
     }
 
     #[test]
-    fn pickaxe_sweeps_from_raised_to_struck_and_mirrors_for_left_swings() {
-        assert!(is_close(
-            pickaxe_clockwise_angle_from_upright(0.0, false),
-            RAISED_ANGLE
-        ));
-        assert!(is_close(
-            pickaxe_clockwise_angle_from_upright(1.0, false),
-            STRUCK_ANGLE
-        ));
-        let halfway = pickaxe_clockwise_angle_from_upright(0.5, false);
-        assert!(halfway > RAISED_ANGLE && halfway < STRUCK_ANGLE);
-        assert!(is_close(
-            pickaxe_clockwise_angle_from_upright(0.3, true),
-            -pickaxe_clockwise_angle_from_upright(0.3, false)
-        ));
+    fn every_swing_frame_png_is_a_distinct_in_house_sprite_centred_on_the_dwarf() {
+        let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join(PLAYER_NON_COMBAT_ROOT);
+        let frame_bytes: Vec<Vec<u8>> = (0..DWARF_PICKAXE_SWING_FRAME_COUNT)
+            .map(|frame| {
+                std::fs::read(folder.join(format!("dwarf_m_pickaxe_swing_f{frame}.png")))
+                    .expect("swing frame png is committed")
+            })
+            .collect();
+        for (index, bytes) in frame_bytes.iter().enumerate() {
+            let png_width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
+            let png_height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+            assert_eq!((png_width, png_height), (48, 60), "frame {index}");
+            for later in &frame_bytes[index + 1..] {
+                assert_ne!(bytes, later);
+            }
+        }
     }
 }
