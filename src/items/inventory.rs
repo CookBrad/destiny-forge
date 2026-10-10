@@ -35,12 +35,13 @@ impl Default for Inventory {
 }
 
 impl Inventory {
-    /// Hoe, watering can, and starter seeds for a new homestead profile.
-    /// Does not grant pickaxe or fishing rod.
+    /// Hoe, watering can, tier-1 pickaxe, and starter seeds for a new homestead profile.
+    /// Does not grant the tier-2 pickaxe (forged) or a fishing rod.
     pub fn with_starter_seeds() -> Self {
         let mut inventory = Self::default();
         inventory.try_add(MaterialId::Hoe, 1);
         inventory.try_add(MaterialId::WateringCan, 1);
+        inventory.try_add(MaterialId::PickaxeTier1, 1);
         inventory.try_add(MaterialId::TurnipSeed, 8);
         inventory.try_add(MaterialId::PotatoSeed, 4);
         inventory
@@ -121,6 +122,13 @@ impl Inventory {
         false
     }
 
+    /// True when at least one more `material` fits (existing stack or empty slot).
+    pub fn has_room_for(&self, material: MaterialId) -> bool {
+        self.slots.iter().any(|slot| {
+            slot.material.is_none() || (slot.material == Some(material) && slot.count < MAX_STACK)
+        })
+    }
+
     pub fn has_materials(&self, costs: &[(MaterialId, u32)]) -> bool {
         costs
             .iter()
@@ -152,9 +160,11 @@ mod tests {
     }
 
     #[test]
-    fn starter_seeds_are_hoe_can_turnip_potato_only() {
+    fn starter_kit_is_hoe_can_pickaxe_turnip_potato_only() {
         let inventory = Inventory::with_starter_seeds();
         assert_eq!(inventory.count(MaterialId::Hoe), 1);
+        assert_eq!(inventory.count(MaterialId::PickaxeTier1), 1);
+        assert_eq!(inventory.count(MaterialId::PickaxeTier2), 0);
         assert_eq!(inventory.count(MaterialId::WateringCan), 1);
         assert_eq!(inventory.count(MaterialId::TurnipSeed), 8);
         assert_eq!(inventory.count(MaterialId::PotatoSeed), 4);

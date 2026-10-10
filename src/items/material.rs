@@ -18,6 +18,13 @@ pub enum MaterialId {
     Potato,
     Hoe,
     WateringCan,
+    // Mining (#mining-ore-tiers). Raw ore feeds the forge directly — no smelting.
+    CopperOre,
+    IronOre,
+    /// Starter pickaxe: mines copper only.
+    PickaxeTier1,
+    /// Forged pickaxe: mines copper and iron.
+    PickaxeTier2,
 }
 
 impl MaterialId {
@@ -37,6 +44,10 @@ impl MaterialId {
             Self::Potato => "Potato",
             Self::Hoe => "Hoe",
             Self::WateringCan => "Watering Can",
+            Self::CopperOre => "Copper Ore",
+            Self::IronOre => "Iron Ore",
+            Self::PickaxeTier1 => "Copper Pickaxe",
+            Self::PickaxeTier2 => "Iron Pickaxe",
         }
     }
 }

@@ -52,6 +52,10 @@ pub struct PlayerProfile {
     /// Sparse: only tiles whose stage is not Soil.
     #[serde(default)]
     pub crop_plots: Vec<SavedCropPlot>,
+    /// Mine ore nodes mined out since the last sleep (stable node ids). Cleared on sleep
+    /// so every node respawns. `#[serde(default)]`; does not bump PROFILE_VERSION.
+    #[serde(default)]
+    pub depleted_ore_nodes: Vec<u16>,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -68,6 +72,7 @@ impl Default for PlayerProfile {
             day_phase: DayPhase::Morning,
             tool_energy: default_tool_energy(),
             crop_plots: Vec::new(),
+            depleted_ore_nodes: Vec::new(),
             settings: ProfileSettings::default(),
         }
     }

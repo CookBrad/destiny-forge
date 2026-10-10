@@ -28,11 +28,15 @@ pub fn update_player_facing(
     }
 }
 
-/// Ensure hoe, can, and starter seeds exist for older saves. Never grants pickaxe/rod.
+/// Ensure hoe, can, T1 pickaxe, and starter seeds exist for older saves.
+/// Never grants the forged T2 pickaxe or a rod.
 pub fn ensure_starter_seeds(mut inventory: ResMut<Inventory>, mut dirty: ResMut<ProfileDirty>) {
     let mut changed = false;
     changed |= grant_if_missing(&mut inventory, MaterialId::Hoe, 1);
     changed |= grant_if_missing(&mut inventory, MaterialId::WateringCan, 1);
+    if inventory.count(MaterialId::PickaxeTier2) == 0 {
+        changed |= grant_if_missing(&mut inventory, MaterialId::PickaxeTier1, 1);
+    }
     let has_seed = inventory.count(MaterialId::TurnipSeed) > 0
         || inventory.count(MaterialId::PotatoSeed) > 0;
     if !has_seed {
@@ -42,7 +46,7 @@ pub fn ensure_starter_seeds(mut inventory: ResMut<Inventory>, mut dirty: ResMut<
     }
     if changed {
         dirty.mark();
-        info!("Restocked homestead hoe, watering can, and starter seeds.");
+        info!("Restocked homestead hoe, watering can, pickaxe, and starter seeds.");
     }
 }
 

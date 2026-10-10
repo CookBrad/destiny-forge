@@ -275,7 +275,7 @@ Mix-and-match is allowed; full sets remain the power fantasy.
 | Source | MVP / now | Target |
 | ------ | --------- | ------ |
 | Monster carve | Primary unique parts | Expanded tables per species / break parts later |
-| Ore | Placeholder drops (`IronScrap`) | Surface mining + pickaxe tiers |
+| Ore | One-layer homestead mine: `CopperOre` (T1 pickaxe, 2 hits) + `IronOre` (T2 pickaxe, 4 hits); raw ore goes straight into forge recipes (no smelting). `IronScrap` is no longer a metal recipe cost. Nodes respawn on sleep. | More ore types / depth layers later |
 | Crops / fish | — | Food buffs + secondary reagents |
 
 ---
