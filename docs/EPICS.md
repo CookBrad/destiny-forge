@@ -113,8 +113,8 @@ Zones, transitions, persistence, menus.
 | 18 | Homestead tool equip + use | ✅ `feature/homestead-farm-18-20` |
 | 19 | Crop plots: till/plant/water/harvest | ✅ `feature/homestead-farm-18-20` |
 | 20 | Starter crops (2–3) | ✅ `feature/homestead-farm-18-20` |
-| 21 | Cooking + pre-hunt food buffs | ⬜ |
-| 22 | Inventory UX for crops/food/ore | ⬜ |
+| 21 | Cooking + pre-hunt food buffs | ✅ [PR #96](https://github.com/CookBrad/destiny-forge/pull/96) |
+| 22 | Inventory UX for crops/food/ore | ✅ [PR #96](https://github.com/CookBrad/destiny-forge/pull/96) |
 
 ---
 
@@ -172,7 +172,7 @@ Zones, transitions, persistence, menus.
 | Armor set skills | #1, #41 | 🔧 |
 | Day cycle / energy | #2 | ⬜ |
 | Farming | #2 | 🔧 till/plant/water/harvest + persist (`feature/homestead-farm-18-20`) |
-| Food buffs | #2 | ⬜ |
+| Food buffs | #2 | ✅ cook + eat + Fed chip ([PR #96](https://github.com/CookBrad/destiny-forge/pull/96)) |
 | Mining / ore | #3 | ⬜ |
 | Fishing | #4 | ⬜ |
 | Floor 2 / more sets | #5 | ⬜ |

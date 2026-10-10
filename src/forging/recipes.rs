@@ -13,6 +13,7 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 pub enum RecipeOutput {
     Weapon(WeaponKind),
     Armor(ArmorKind),
+    Food(MaterialId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +84,12 @@ pub fn can_craft_recipe(inventory: &Inventory, loadout: &Loadout, recipe: &Recip
         return false;
     }
 
+    if let RecipeOutput::Food(food) = recipe.output {
+        if !has_room_after_costs(inventory, recipe, food) {
+            return false;
+        }
+    }
+
     if let Some(required_weapon) = recipe.requires_weapon {
         if loadout.weapon != required_weapon {
             return false;
@@ -112,9 +119,20 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
             }
         }
         RecipeOutput::Armor(armor) => loadout.equip_forged_armor(armor),
+        RecipeOutput::Food(food) => {
+            inventory.try_add(food, 1);
+        }
     }
 
     true
+}
+
+fn has_room_after_costs(inventory: &Inventory, recipe: &Recipe, output: MaterialId) -> bool {
+    let mut inventory_after_costs = inventory.clone();
+    for (material, amount) in &recipe.costs {
+        inventory_after_costs.try_remove(*material, *amount);
+    }
+    inventory_after_costs.try_add(output, 1) == 0
 }
 
 pub fn material_name(material: MaterialId) -> &'static str {
@@ -165,6 +183,7 @@ pub fn forge_status(inventory: &Inventory, loadout: &Loadout, recipe: &Recipe) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::items::INVENTORY_SLOT_COUNT;
 
     fn book() -> RecipeBook {
         RecipeBook::load()
@@ -236,6 +255,41 @@ mod tests {
 
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &helm));
         assert_eq!(loadout.armor.head, Some(ArmorKind::SlimeHelm));
+    }
+
+    #[test]
+    fn cooks_food_from_starter_crops_into_inventory() {
+        let book = book();
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::Turnip, 3);
+        inventory.try_add(MaterialId::Potato, 2);
+
+        let roast = recipe_named(&book, "Roast Turnip");
+        assert!(try_craft_recipe(&mut inventory, &mut loadout, &roast));
+        assert_eq!(inventory.count(MaterialId::RoastTurnip), 1);
+        assert_eq!(inventory.count(MaterialId::Turnip), 1);
+
+        let stew = recipe_named(&book, "Potato Stew");
+        assert!(try_craft_recipe(&mut inventory, &mut loadout, &stew));
+        assert_eq!(inventory.count(MaterialId::PotatoStew), 1);
+        assert_eq!(inventory.count(MaterialId::Potato), 0);
+        assert_eq!(inventory.count(MaterialId::Turnip), 0);
+        assert_eq!(loadout, Loadout::default());
+    }
+
+    #[test]
+    fn cooking_with_full_inventory_keeps_ingredients() {
+        let roast = recipe_named(&book(), "Roast Turnip");
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::Turnip, 99 + 2);
+        let filler = (INVENTORY_SLOT_COUNT as u32 - 2) * 99;
+        assert_eq!(inventory.try_add(MaterialId::Fang, filler), 0);
+
+        assert!(!try_craft_recipe(&mut inventory, &mut loadout, &roast));
+        assert_eq!(inventory.count(MaterialId::Turnip), 101);
+        assert_eq!(inventory.count(MaterialId::RoastTurnip), 0);
     }
 
     #[test]

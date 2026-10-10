@@ -1,3 +1,4 @@
+mod food;
 mod inventory;
 mod material;
 
@@ -5,5 +6,6 @@ mod material;
 // under `-D warnings`; `-A dead_code` does not cover that lint.
 #[cfg(test)]
 pub use inventory::MAX_STACK;
+pub use food::FoodBuff;
 pub use inventory::{Inventory, INVENTORY_SLOT_COUNT};
 pub use material::MaterialId;

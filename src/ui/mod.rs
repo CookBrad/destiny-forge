@@ -1,6 +1,8 @@
 pub mod carve_feedback;
 mod day_hud;
+pub mod eat_feedback;
 mod energy_hud;
+mod food_buff_hud;
 mod health_bars;
 pub mod forge_window;
 pub mod interaction_prompt;

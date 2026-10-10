@@ -61,4 +61,21 @@
         output: Armor(SlimeGreaves),
         requires_weapon: None,
     ),
+    (
+        name: "Roast Turnip",
+        costs: [
+            (Turnip, 2),
+        ],
+        output: Food(RoastTurnip),
+        requires_weapon: None,
+    ),
+    (
+        name: "Potato Stew",
+        costs: [
+            (Potato, 2),
+            (Turnip, 1),
+        ],
+        output: Food(PotatoStew),
+        requires_weapon: None,
+    ),
 ]

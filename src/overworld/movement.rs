@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::graphics::{PLAYER_WALK_SPEED, TILE};
 
+use super::eating::HomesteadEatCycle;
 use super::sprites::{OverworldArt, PLAYER_ANIM_FRAMES};
 
 #[derive(Resource, Clone)]
@@ -44,7 +45,10 @@ pub fn exploration_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     map: Res<ExplorationMap>,
-    mut player: Query<(&mut Transform, &mut OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
+    mut player: Query<
+        (&mut Transform, &mut OverworldVelocity, &mut Sprite),
+        (With<OverworldPlayer>, Without<HomesteadEatCycle>),
+    >,
 ) {
     let Ok((mut transform, mut velocity, mut sprite)) = player.get_single_mut() else {
         return;
@@ -92,7 +96,10 @@ pub fn exploration_movement(
 pub fn animate_overworld_player(
     time: Res<Time>,
     art: Res<OverworldArt>,
-    mut player: Query<(&OverworldVelocity, &mut Sprite), With<OverworldPlayer>>,
+    mut player: Query<
+        (&OverworldVelocity, &mut Sprite),
+        (With<OverworldPlayer>, Without<HomesteadEatCycle>),
+    >,
 ) {
     let Ok((velocity, mut sprite)) = player.get_single_mut() else {
         return;

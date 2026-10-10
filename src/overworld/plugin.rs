@@ -2,10 +2,11 @@ use bevy::prelude::*;
 
 use crate::core::{sync_overworld_ambient, DayClock, GameState};
 use crate::ui::forge_window::forge_closed;
-use crate::ui::inventory_window::inventory_closed;
+use crate::ui::inventory_window::{handle_inventory_eat_request, inventory_closed};
 
 use super::animals::move_farm_animals;
 use super::camera::{follow_exploration_camera, init_exploration_camera};
+use super::eating::{play_homestead_eat_cycle, start_homestead_eat_cycle};
 use super::interaction::{
     overworld_interaction, try_sleep_at_bed, update_overworld_interaction_prompt,
 };
@@ -44,6 +45,13 @@ impl Plugin for OverworldPlugin {
                 .run_if(in_state(GameState::Overworld))
                 .run_if(inventory_closed)
                 .run_if(forge_closed),
+        )
+        .add_systems(
+            Update,
+            (start_homestead_eat_cycle, play_homestead_eat_cycle)
+                .chain()
+                .after(handle_inventory_eat_request)
+                .run_if(in_state(GameState::Overworld)),
         )
         .add_systems(
             Update,

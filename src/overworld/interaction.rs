@@ -91,6 +91,7 @@ pub fn try_sleep_at_bed(
     mut profile_dirty: ResMut<ProfileDirty>,
     mut clear: ResMut<ClearColor>,
     mut plots: Query<&mut CropPlot>,
+    mut loadout: ResMut<Loadout>,
 ) {
     if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
         return;
@@ -106,6 +107,7 @@ pub fn try_sleep_at_bed(
 
     let day = perform_sleep(&mut day_clock, &mut tool_energy);
     advance_all_plots_on_sleep(&mut plots);
+    loadout.clear_food_buff();
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
@@ -169,4 +171,38 @@ fn near_any_bed(position: Vec2, beds: &Query<&Transform, With<Bed>>) -> bool {
 
 fn distance_to_zone(position: Vec2, bounds: &Rect) -> f32 {
     position.distance(bounds.center())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    use crate::items::MaterialId;
+
+    #[test]
+    fn sleeping_ends_the_food_buff() {
+        let mut app = App::new();
+        let mut keyboard = ButtonInput::<KeyCode>::default();
+        keyboard.press(KeyCode::KeyE);
+        let mut loadout = Loadout::default();
+        loadout.food_buff = Some(MaterialId::RoastTurnip);
+        app.insert_resource(keyboard)
+            .insert_resource(loadout)
+            .init_resource::<InventoryWindowOpen>()
+            .init_resource::<ForgeWindowOpen>()
+            .init_resource::<DayClock>()
+            .init_resource::<ToolEnergy>()
+            .init_resource::<PlayerProfile>()
+            .init_resource::<ProfileDirty>()
+            .init_resource::<ClearColor>();
+        app.world_mut()
+            .spawn((OverworldPlayer, Transform::default()));
+        app.world_mut().spawn((Bed, Transform::default()));
+
+        app.world_mut().run_system_once(try_sleep_at_bed).unwrap();
+
+        assert_eq!(app.world().resource::<Loadout>().food_buff, None);
+        assert_eq!(app.world().resource::<DayClock>().calendar_day, 2);
+    }
 }
