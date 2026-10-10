@@ -21,6 +21,7 @@ Pixel Crawler — Free Pack 2.1
 
   player/non-combat/dwarf_m_idle_anim_f0..3.png — 0x72 dwarf_m idle (overworld player)
   player/non-combat/dwarf_m_run_anim_f0..3.png  — 0x72 dwarf_m run (overworld player)
+  player/non-combat/dwarf_m_eat_anim_f0..3.png  — In-house eat cycle on the dwarf_m idle body (tools/draw_homestead_eat_frames.py)
 
   overworld/animals/quadraped.png — Dawnlike Quadraped0 sheet (farm animals)
 
