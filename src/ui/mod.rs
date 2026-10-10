@@ -1,3 +1,4 @@
+mod buff_hud;
 pub mod carve_feedback;
 mod day_hud;
 mod energy_hud;

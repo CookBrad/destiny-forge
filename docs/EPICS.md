@@ -113,8 +113,8 @@ Zones, transitions, persistence, menus.
 | 18 | Homestead tool equip + use | ✅ `feature/homestead-farm-18-20` |
 | 19 | Crop plots: till/plant/water/harvest | ✅ `feature/homestead-farm-18-20` |
 | 20 | Starter crops (2–3) | ✅ `feature/homestead-farm-18-20` |
-| 21 | Cooking + pre-hunt food buffs | ⬜ |
-| 22 | Inventory UX for crops/food/ore | ⬜ |
+| 21 | Cooking + pre-hunt food buffs | 🔧 `feat/food-inventory` |
+| 22 | Inventory UX for crops/food/ore | 🔧 `feat/food-inventory` |
 
 ---
 

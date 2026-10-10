@@ -11,6 +11,7 @@ use crate::combat::{
 };
 use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::graphics::{follow_camera, init_dungeon_camera};
+use crate::player::expire_food_buff_after_hunt;
 use crate::ui::inventory_window::inventory_closed;
 
 use super::animation::animate_player;
@@ -45,7 +46,10 @@ impl Plugin for DungeonPlugin {
             )
             .add_systems(
                 OnExit(GameState::Dungeon),
-                cleanup_dungeon.after(DungeonUiTeardown),
+                (
+                    cleanup_dungeon.after(DungeonUiTeardown),
+                    expire_food_buff_after_hunt,
+                ),
             )
             .add_systems(
                 Update,

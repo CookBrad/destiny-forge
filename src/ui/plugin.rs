@@ -5,6 +5,7 @@ use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::forging::RecipeBook;
 
+use super::buff_hud::{cleanup_buff_hud, setup_buff_hud, sync_buff_hud};
 use super::carve_feedback::{
     cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
     sync_carve_progress_ui, tick_loot_log_lines,
@@ -25,9 +26,10 @@ use super::interaction_prompt::{
     InteractionPrompt,
 };
 use super::inventory_window::{
-    cleanup_inventory_window, handle_inventory_close_button, handle_inventory_slot_click,
-    inventory_window_open, rebuild_inventory_on_loadout_change, sync_inventory_display,
-    toggle_inventory_window, InventorySelectedSlot, InventoryWindowOpen,
+    cleanup_inventory_window, handle_inventory_close_button, handle_inventory_item_actions,
+    handle_inventory_slot_click, inventory_window_open, rebuild_inventory_on_loadout_change,
+    sync_inventory_display, sync_inventory_item_info, toggle_inventory_window,
+    InventorySelectedSlot, InventoryWindowOpen,
 };
 use super::loadout_strip::{
     handle_loadout_swap_keys, handle_stash_armor_click, handle_stash_weapon_click,
@@ -80,6 +82,7 @@ impl Plugin for UiPlugin {
                     spawn_title_menu,
                     cleanup_day_hud,
                     cleanup_energy_hud,
+                    cleanup_buff_hud,
                     cleanup_interaction_prompt,
                 )
                     .chain(),
@@ -90,24 +93,33 @@ impl Plugin for UiPlugin {
             )
             .add_systems(
                 OnEnter(GameState::Overworld),
-                (setup_day_hud, setup_energy_hud, setup_interaction_prompt),
+                (
+                    setup_day_hud,
+                    setup_energy_hud,
+                    setup_buff_hud,
+                    setup_interaction_prompt,
+                ),
             )
             .add_systems(
                 OnEnter(GameState::Forest),
-                (setup_day_hud, setup_energy_hud),
+                (setup_day_hud, setup_energy_hud, setup_buff_hud),
             )
-            .add_systems(OnEnter(GameState::Dungeon), setup_interaction_prompt)
+            .add_systems(
+                OnEnter(GameState::Dungeon),
+                (setup_interaction_prompt, setup_buff_hud),
+            )
             .add_systems(
                 OnExit(GameState::Overworld),
                 (
                     cleanup_day_hud,
                     cleanup_energy_hud,
+                    cleanup_buff_hud,
                     cleanup_interaction_prompt,
                 ),
             )
             .add_systems(
                 OnExit(GameState::Forest),
-                (cleanup_day_hud, cleanup_energy_hud),
+                (cleanup_day_hud, cleanup_energy_hud, cleanup_buff_hud),
             )
             .add_systems(
                 Update,
@@ -120,6 +132,11 @@ impl Plugin for UiPlugin {
                     ),
                     sync_interaction_prompt_ui.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
+                    ),
+                    sync_buff_hud.run_if(
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Dungeon)),
                     ),
                 ),
             )
@@ -150,11 +167,13 @@ impl Plugin for UiPlugin {
                     (
                         handle_inventory_close_button,
                         handle_inventory_slot_click,
+                        handle_inventory_item_actions,
                         handle_stash_weapon_click,
                         handle_stash_armor_click,
                         handle_loadout_swap_keys,
                         rebuild_inventory_on_loadout_change,
                         sync_inventory_display,
+                        sync_inventory_item_info,
                     )
                         .chain()
                         .run_if(inventory_window_open),
@@ -228,6 +247,7 @@ impl Plugin for UiPlugin {
                     cleanup_health_bars,
                     cleanup_interaction_prompt,
                     cleanup_carve_feedback_ui,
+                    cleanup_buff_hud,
                 )
                     .chain()
                     .in_set(DungeonUiTeardown),

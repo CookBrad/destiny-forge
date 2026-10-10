@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::combat::{EquippedWeapon, WeaponKind};
+use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArmorKind {
@@ -41,6 +42,9 @@ pub struct Loadout {
     /// Additive so old profiles deserialize without this field.
     #[serde(default)]
     pub stash: GearStash,
+    /// Food eaten at the hub. Lasts one hunt or until sleep; one at a time.
+    #[serde(default)]
+    pub food_buff: Option<MaterialId>,
 }
 
 impl Default for Loadout {
@@ -49,6 +53,7 @@ impl Default for Loadout {
             weapon: WeaponKind::RustySword,
             armor: ArmorSlots::default(),
             stash: GearStash::default(),
+            food_buff: None,
         }
     }
 }
@@ -177,8 +182,23 @@ impl Loadout {
         self.stash.armor.retain(|stored| *stored != kind);
     }
 
+    /// Consumes one food and replaces any active food buff.
+    pub fn eat(&mut self, inventory: &mut Inventory, food: MaterialId) -> bool {
+        if food.food_buff().is_none() || !inventory.try_remove(food, 1) {
+            return false;
+        }
+        self.food_buff = Some(food);
+        true
+    }
+
+    pub fn active_food_buff(&self) -> FoodBuff {
+        self.food_buff
+            .and_then(MaterialId::food_buff)
+            .unwrap_or(FoodBuff::NONE)
+    }
+
     pub fn total_defense(&self) -> f32 {
-        let mut total = 0.0;
+        let mut total = self.active_food_buff().defense_bonus;
         if let Some(kind) = self.armor.head {
             total += kind.defense();
         }
@@ -202,11 +222,12 @@ impl Loadout {
     }
 
     pub fn carve_speed_multiplier(&self) -> f32 {
-        if self.slime_set_pieces() >= 2 {
+        let set = if self.slime_set_pieces() >= 2 {
             1.1
         } else {
             1.0
-        }
+        };
+        set * self.active_food_buff().carve_mult
     }
 
     /// 2pc combat skill: special cooldowns resolve slightly faster.
@@ -228,11 +249,19 @@ impl Loadout {
 
     /// 4pc combat skill: +10% attack power on weapons and specials.
     pub fn attack_power_multiplier(&self) -> f32 {
-        if self.slime_set_pieces() >= 4 {
+        let set = if self.slime_set_pieces() >= 4 {
             1.1
         } else {
             1.0
-        }
+        };
+        set * self.active_food_buff().attack_mult
+    }
+}
+
+/// A food buff lasts one hunt: it ends whenever the player leaves the dungeon.
+pub fn expire_food_buff_after_hunt(mut loadout: ResMut<Loadout>) {
+    if loadout.food_buff.is_some() {
+        loadout.food_buff = None;
     }
 }
 
@@ -248,6 +277,7 @@ pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
 
     fn full_slime() -> Loadout {
         let mut loadout = Loadout::default();
@@ -309,6 +339,75 @@ mod tests {
         let mut loadout = Loadout::default();
         assert!(!loadout.swap_to_stashed_weapon(WeaponKind::IronSword));
         assert_eq!(loadout.weapon, WeaponKind::RustySword);
+    }
+
+    #[test]
+    fn eating_consumes_one_food_and_sets_buff() {
+        let mut loadout = Loadout::default();
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::RoastTurnip, 2);
+
+        assert!(loadout.eat(&mut inventory, MaterialId::RoastTurnip));
+        assert_eq!(inventory.count(MaterialId::RoastTurnip), 1);
+        assert_eq!(loadout.food_buff, Some(MaterialId::RoastTurnip));
+    }
+
+    #[test]
+    fn eating_rejects_non_food_and_missing_food() {
+        let mut loadout = Loadout::default();
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::Turnip, 1);
+
+        assert!(!loadout.eat(&mut inventory, MaterialId::Turnip));
+        assert!(!loadout.eat(&mut inventory, MaterialId::PotatoStew));
+        assert_eq!(inventory.count(MaterialId::Turnip), 1);
+        assert_eq!(loadout.food_buff, None);
+    }
+
+    #[test]
+    fn eating_again_replaces_buff_instead_of_stacking() {
+        let mut loadout = Loadout::default();
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::RoastTurnip, 1);
+        inventory.try_add(MaterialId::PotatoStew, 1);
+
+        assert!(loadout.eat(&mut inventory, MaterialId::RoastTurnip));
+        assert!(loadout.eat(&mut inventory, MaterialId::PotatoStew));
+        assert_eq!(loadout.food_buff, Some(MaterialId::PotatoStew));
+        assert!((loadout.attack_power_multiplier() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn food_buffs_fold_into_combat_multipliers() {
+        let mut loadout = full_slime();
+        loadout.food_buff = Some(MaterialId::RoastTurnip);
+        assert!((loadout.attack_power_multiplier() - 1.1 * 1.08).abs() < 1e-5);
+
+        loadout.food_buff = Some(MaterialId::PotatoStew);
+        assert!((loadout.total_defense() - (9.0 + 2.0)).abs() < f32::EPSILON);
+        assert!((loadout.carve_speed_multiplier() - 1.1 * 1.1).abs() < 1e-5);
+        assert!((loadout.attack_power_multiplier() - 1.1).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn food_buff_ends_when_leaving_the_dungeon() {
+        let mut app = App::new();
+        let mut loadout = Loadout::default();
+        loadout.food_buff = Some(MaterialId::PotatoStew);
+        app.insert_resource(loadout);
+
+        app.world_mut()
+            .run_system_once(expire_food_buff_after_hunt)
+            .unwrap();
+
+        assert_eq!(app.world().resource::<Loadout>().food_buff, None);
+    }
+
+    #[test]
+    fn old_loadout_without_food_buff_field_loads() {
+        let old = "(weapon: RustySword, armor: (head: None, chest: None, arms: None, legs: None))";
+        let loadout: Loadout = ron::from_str(old).unwrap();
+        assert_eq!(loadout.food_buff, None);
     }
 
     #[test]

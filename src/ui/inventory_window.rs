@@ -7,7 +7,7 @@ use crate::player::Loadout;
 
 use super::loadout_strip::{spawn_loadout_strip, LoadoutSwapAccess};
 
-const GRID_COLUMNS: usize = 4;
+const GRID_COLUMNS: usize = 8;
 const SLOT_SIZE: f32 = 52.0;
 const SLOT_GAP: f32 = 3.0;
 const PANEL_PADDING: f32 = 10.0;
@@ -21,6 +21,11 @@ const SLOT_BORDER: Color = Color::srgb(0.24, 0.17, 0.11);
 const SLOT_SELECTED: Color = Color::srgb(0.95, 0.48, 0.1);
 const CLOSE_BUTTON: Color = Color::srgb(0.72, 0.14, 0.1);
 const FOOTER_BG: Color = Color::srgb(0.09, 0.06, 0.04);
+const INFO_NAME: Color = Color::srgb(0.94, 0.9, 0.82);
+const INFO_TEXT: Color = Color::srgb(0.72, 0.7, 0.66);
+const INFO_BUFF: Color = Color::srgb(0.95, 0.72, 0.36);
+const ACTION_BG: Color = Color::srgb(0.18, 0.14, 0.1);
+const ACTION_BORDER: Color = Color::srgb(0.42, 0.32, 0.18);
 
 #[derive(Resource, Default, Debug)]
 pub struct InventoryWindowOpen(pub bool);
@@ -59,11 +64,27 @@ pub struct InventoryIconLabel;
 #[derive(Component)]
 pub struct InventoryCloseButton;
 
+#[derive(Component)]
+pub struct InventoryItemName;
+
+#[derive(Component)]
+pub struct InventoryItemDetail;
+
+#[derive(Component)]
+pub struct InventoryItemBuff;
+
+#[derive(Component)]
+pub struct InventoryEatButton;
+
+#[derive(Component)]
+pub struct InventorySortButton;
+
 pub fn spawn_inventory_window(
     commands: &mut Commands,
     inventory: &Inventory,
     loadout: &Loadout,
     access: LoadoutSwapAccess,
+    selected: usize,
 ) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
@@ -106,7 +127,8 @@ pub fn spawn_inventory_window(
                         ))
                         .with_children(|panel| {
                             spawn_header(panel);
-                            spawn_slot_grid(panel, inventory, grid_width);
+                            spawn_slot_grid(panel, inventory, grid_width, selected);
+                            spawn_item_info(panel, inventory, loadout, access, selected);
                             spawn_loadout_strip(panel, loadout, access);
                             spawn_currency_footer(panel);
                         });
@@ -192,7 +214,12 @@ fn spawn_header(parent: &mut ChildBuilder<'_>) {
         });
 }
 
-fn spawn_slot_grid(parent: &mut ChildBuilder<'_>, inventory: &Inventory, grid_width: f32) {
+fn spawn_slot_grid(
+    parent: &mut ChildBuilder<'_>,
+    inventory: &Inventory,
+    grid_width: f32,
+    selected: usize,
+) {
     parent
         .spawn(Node {
             width: Val::Px(grid_width),
@@ -204,14 +231,13 @@ fn spawn_slot_grid(parent: &mut ChildBuilder<'_>, inventory: &Inventory, grid_wi
         })
         .with_children(|grid| {
             for index in 0..INVENTORY_SLOT_COUNT {
-                spawn_slot(grid, inventory, index);
+                spawn_slot(grid, inventory, index, index == selected);
             }
         });
 }
 
-fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize) {
+fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize, selected: bool) {
     let (icon_color, icon_label, stack) = slot_visuals(inventory, index);
-    let selected = index == 0;
 
     parent
         .spawn((
@@ -279,6 +305,163 @@ fn spawn_slot(parent: &mut ChildBuilder<'_>, inventory: &Inventory, index: usize
                 ));
             });
         });
+}
+
+fn spawn_item_info(
+    parent: &mut ChildBuilder<'_>,
+    inventory: &Inventory,
+    loadout: &Loadout,
+    access: LoadoutSwapAccess,
+    selected: usize,
+) {
+    let info = item_info(inventory, loadout, access, selected);
+
+    parent
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::SpaceBetween,
+            column_gap: Val::Px(8.0),
+            padding: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(0.0), Val::Px(8.0)),
+            ..default()
+        })
+        .with_children(|row| {
+            row.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                flex_grow: 1.0,
+                row_gap: Val::Px(2.0),
+                ..default()
+            })
+            .with_children(|text| {
+                text.spawn((
+                    InventoryItemName,
+                    Text::new(info.name),
+                    TextFont {
+                        font_size: 14.0,
+                        ..default()
+                    },
+                    TextColor(INFO_NAME),
+                ));
+                text.spawn((
+                    InventoryItemDetail,
+                    Text::new(info.detail),
+                    TextFont {
+                        font_size: 11.0,
+                        ..default()
+                    },
+                    TextColor(INFO_TEXT),
+                ));
+                text.spawn((
+                    InventoryItemBuff,
+                    Text::new(info.buff),
+                    TextFont {
+                        font_size: 11.0,
+                        ..default()
+                    },
+                    TextColor(INFO_BUFF),
+                ));
+            });
+
+            row.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(4.0),
+                ..default()
+            })
+            .with_children(|actions| {
+                if access == LoadoutSwapAccess::Hub {
+                    spawn_action_button(actions, InventoryEatButton, "Eat [E]");
+                }
+                spawn_action_button(actions, InventorySortButton, "Sort");
+            });
+        });
+}
+
+fn spawn_action_button(parent: &mut ChildBuilder<'_>, marker: impl Component, label: &str) {
+    parent
+        .spawn((
+            Button,
+            marker,
+            Node {
+                min_width: Val::Px(64.0),
+                height: Val::Px(22.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                padding: UiRect::horizontal(Val::Px(6.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(ACTION_BG),
+            BorderColor(ACTION_BORDER),
+        ))
+        .with_children(|button| {
+            button.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(INFO_NAME),
+            ));
+        });
+}
+
+struct ItemInfo {
+    name: String,
+    detail: String,
+    buff: String,
+}
+
+fn item_info(
+    inventory: &Inventory,
+    loadout: &Loadout,
+    access: LoadoutSwapAccess,
+    selected: usize,
+) -> ItemInfo {
+    let active = loadout
+        .food_buff
+        .map(|food| {
+            format!(
+                "Active: {} ({})",
+                food.display_name(),
+                loadout.active_food_buff().summary()
+            )
+        })
+        .unwrap_or_default();
+
+    let slot = inventory.slots.get(selected).copied().unwrap_or_default();
+    let Some(material) = slot.material.filter(|_| slot.count > 0) else {
+        return ItemInfo {
+            name: "Empty slot".to_string(),
+            detail: String::new(),
+            buff: active,
+        };
+    };
+
+    let name = format!(
+        "{} \u{00d7}{}  \u{00b7}  {}",
+        material.display_name(),
+        slot.count,
+        material.category().label()
+    );
+    let detail = material.description().to_string();
+    let buff = match material.food_buff() {
+        Some(buff) => {
+            let action = if access == LoadoutSwapAccess::Hub {
+                "E to eat"
+            } else {
+                "Eat on the homestead"
+            };
+            let mut line = format!("{}  \u{00b7}  {action}", buff.summary());
+            if !active.is_empty() {
+                line = format!("{line}\n{active}");
+            }
+            line
+        }
+        None => active,
+    };
+
+    ItemInfo { name, detail, buff }
 }
 
 fn spawn_currency_footer(parent: &mut ChildBuilder<'_>) {
@@ -355,6 +538,7 @@ pub fn toggle_inventory_window(
     mut commands: Commands,
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
+    selected: Res<InventorySelectedSlot>,
     windows: Query<Entity, With<InventoryWindow>>,
     game: Res<State<GameState>>,
     dungeon: Option<Res<State<DungeonPlayState>>>,
@@ -387,6 +571,7 @@ pub fn toggle_inventory_window(
             &inventory,
             &loadout,
             LoadoutSwapAccess::from_game_state(game.get()),
+            selected.0,
         );
         time.pause();
     }
@@ -396,6 +581,7 @@ pub fn rebuild_inventory_on_loadout_change(
     loadout: Res<Loadout>,
     inventory: Res<Inventory>,
     open: Res<InventoryWindowOpen>,
+    selected: Res<InventorySelectedSlot>,
     game: Res<State<GameState>>,
     mut commands: Commands,
     windows: Query<Entity, With<InventoryWindow>>,
@@ -412,6 +598,7 @@ pub fn rebuild_inventory_on_loadout_change(
         &inventory,
         &loadout,
         LoadoutSwapAccess::from_game_state(game.get()),
+        selected.0,
     );
 }
 
@@ -464,6 +651,46 @@ pub fn handle_inventory_slot_click(
                 *border = BorderColor(SLOT_BORDER);
             }
         }
+    }
+}
+
+pub fn handle_inventory_item_actions(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    eat_buttons: Query<&Interaction, (Changed<Interaction>, With<InventoryEatButton>)>,
+    sort_buttons: Query<&Interaction, (Changed<Interaction>, With<InventorySortButton>)>,
+    game: Res<State<GameState>>,
+    mut selected: ResMut<InventorySelectedSlot>,
+    mut inventory: ResMut<Inventory>,
+    mut loadout: ResMut<Loadout>,
+) {
+    let pressed = |interaction: &Interaction| *interaction == Interaction::Pressed;
+
+    if sort_buttons.iter().any(pressed) {
+        inventory.sort();
+        selected.0 = 0;
+        return;
+    }
+
+    let eat_requested = keyboard.just_pressed(KeyCode::KeyE) || eat_buttons.iter().any(pressed);
+    if !eat_requested || LoadoutSwapAccess::from_game_state(game.get()) != LoadoutSwapAccess::Hub {
+        return;
+    }
+
+    let Some(food) = inventory
+        .slots
+        .get(selected.0)
+        .and_then(|slot| slot.material)
+        .filter(|material| material.food_buff().is_some())
+    else {
+        return;
+    };
+
+    if loadout.eat(&mut inventory, food) {
+        info!(
+            "Ate {} — {} until the next hunt ends or you sleep.",
+            food.display_name(),
+            loadout.active_food_buff().summary()
+        );
     }
 }
 
@@ -535,6 +762,41 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
         MaterialId::Potato => (Color::srgb(0.78, 0.68, 0.42), "Pota"),
         MaterialId::Hoe => (Color::srgb(0.55, 0.4, 0.22), "Hoe"),
         MaterialId::WateringCan => (Color::srgb(0.28, 0.48, 0.72), "Water"),
+        MaterialId::RoastTurnip => (Color::srgb(0.82, 0.46, 0.22), "Roast"),
+        MaterialId::PotatoStew => (Color::srgb(0.7, 0.5, 0.26), "Stew"),
+    }
+}
+
+pub fn sync_inventory_item_info(
+    inventory: Res<Inventory>,
+    loadout: Res<Loadout>,
+    open: Res<InventoryWindowOpen>,
+    selected: Res<InventorySelectedSlot>,
+    game: Res<State<GameState>>,
+    mut texts: ParamSet<(
+        Query<&mut Text, With<InventoryItemName>>,
+        Query<&mut Text, With<InventoryItemDetail>>,
+        Query<&mut Text, With<InventoryItemBuff>>,
+    )>,
+) {
+    if !open.0 || !(inventory.is_changed() || selected.is_changed() || loadout.is_changed()) {
+        return;
+    }
+
+    let info = item_info(
+        &inventory,
+        &loadout,
+        LoadoutSwapAccess::from_game_state(game.get()),
+        selected.0,
+    );
+    for mut text in &mut texts.p0() {
+        text.0 = info.name.clone();
+    }
+    for mut text in &mut texts.p1() {
+        text.0 = info.detail.clone();
+    }
+    for mut text in &mut texts.p2() {
+        text.0 = info.buff.clone();
     }
 }
 
@@ -591,5 +853,71 @@ pub fn sync_inventory_display(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn eat_app(game: GameState) -> App {
+        let mut app = App::new();
+        let mut keyboard = ButtonInput::<KeyCode>::default();
+        keyboard.press(KeyCode::KeyE);
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::PotatoStew, 2);
+        app.insert_resource(keyboard)
+            .insert_resource(State::new(game))
+            .insert_resource(inventory)
+            .init_resource::<Loadout>()
+            .init_resource::<InventorySelectedSlot>();
+        app
+    }
+
+    #[test]
+    fn e_eats_selected_food_on_the_homestead() {
+        let mut app = eat_app(GameState::Overworld);
+        app.world_mut()
+            .run_system_once(handle_inventory_item_actions)
+            .unwrap();
+
+        let world = app.world();
+        let stew = world.resource::<Inventory>().count(MaterialId::PotatoStew);
+        assert_eq!(stew, 1);
+        assert_eq!(
+            world.resource::<Loadout>().food_buff,
+            Some(MaterialId::PotatoStew)
+        );
+    }
+
+    #[test]
+    fn eating_is_locked_in_the_dungeon() {
+        let mut app = eat_app(GameState::Dungeon);
+        app.world_mut()
+            .run_system_once(handle_inventory_item_actions)
+            .unwrap();
+
+        let world = app.world();
+        let stew = world.resource::<Inventory>().count(MaterialId::PotatoStew);
+        assert_eq!(stew, 2);
+        assert_eq!(world.resource::<Loadout>().food_buff, None);
+    }
+
+    #[test]
+    fn info_line_names_item_and_buff() {
+        let mut inventory = Inventory::default();
+        inventory.try_add(MaterialId::RoastTurnip, 3);
+        let loadout = Loadout::default();
+
+        let hub = item_info(&inventory, &loadout, LoadoutSwapAccess::Hub, 0);
+        assert_eq!(hub.name, "Roast Turnip \u{00d7}3  \u{00b7}  Food");
+        assert_eq!(hub.buff, "+8% attack  \u{00b7}  E to eat");
+
+        let locked = item_info(&inventory, &loadout, LoadoutSwapAccess::Locked, 0);
+        assert_eq!(locked.buff, "+8% attack  \u{00b7}  Eat on the homestead");
+
+        let empty = item_info(&inventory, &loadout, LoadoutSwapAccess::Hub, 5);
+        assert_eq!(empty.name, "Empty slot");
     }
 }

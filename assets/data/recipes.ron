@@ -1,5 +1,6 @@
 // Forge recipes — edit here, restart game (or cargo run) to pick up changes.
 // Enum variants match Rust: MaterialId, WeaponKind, ArmorKind.
+// Food(..) recipes cook crops into inventory food (eaten before a hunt).
 [
     (
         name: "Iron Sword",
@@ -59,6 +60,23 @@
             (SlimeGel, 3),
         ],
         output: Armor(SlimeGreaves),
+        requires_weapon: None,
+    ),
+    (
+        name: "Roast Turnip",
+        costs: [
+            (Turnip, 2),
+        ],
+        output: Food(RoastTurnip),
+        requires_weapon: None,
+    ),
+    (
+        name: "Potato Stew",
+        costs: [
+            (Potato, 2),
+            (Turnip, 1),
+        ],
+        output: Food(PotatoStew),
         requires_weapon: None,
     ),
 ]
