@@ -1,16 +1,3 @@
-//! Headless `App` proof of the real homestead <-> mine transition path.
-//!
-//! Runs the production systems `overworld_interaction` and `mine_interaction` with the
-//! same `in_state` / `inventory_closed` / `forge_closed` run conditions the plugins use,
-//! plus the real `cleanup_overworld` / `cleanup_mine` OnExit hooks, against the real
-//! `OverworldLayout::homestead()` MineEntrance zone and a `MineExit` ladder at `EXIT_TILE`.
-//!
-//! Only the asset-loading OnEnter setups (`setup_overworld`, `setup_mine`) are stood in
-//! for: they call `OverworldArt::load`, which needs `AssetServer` + render `Image` assets
-//! that a windowless `MinimalPlugins` app does not have. The stand-ins spawn the same
-//! gameplay components at the same positions production uses (`ENTRY_TILE`,
-//! `mine_return_tile()`), and insert the same fresh `MapTransitionCooldown`.
-
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -32,46 +19,47 @@ use crate::ui::forge_window::{forge_closed, ForgeSelectedRecipe, ForgeWindowOpen
 use crate::ui::inventory_window::{inventory_closed, InventoryWindowOpen};
 
 use super::interaction::mine_interaction;
-use super::layout::{MineEntity, MineExit, ENTRY_TILE, EXIT_TILE};
+use super::layout::{MineEntity, MineLadder, ARRIVAL_TILE, LADDER_TILE};
 use super::setup::cleanup_mine;
 
-fn player_at(pixels: Vec2) -> Transform {
+fn player_transform_standing_at(pixels: Vec2) -> Transform {
     world_transform(
         Vec2::new(pixels.x, center_on_surface(pixels.y, PLAYER_SPRITE_HEIGHT)),
         5.0,
     )
 }
 
-/// Stand-in for `setup_overworld` minus art: player at the `OverworldEntry` spawn.
-fn enter_overworld_headless(mut commands: Commands, entry: Option<Res<OverworldEntry>>) {
-    let spawn = entry.map(|e| *e).unwrap_or_default();
-    let start = match spawn {
+fn spawn_homestead_player_without_art(mut commands: Commands, entry: Option<Res<OverworldEntry>>) {
+    let entry = entry.map(|entry| *entry).unwrap_or_default();
+    let start = match entry {
         OverworldEntry::MineReturn => mine_return_tile(),
-        // Test starts at the mine mouth: centre of the real MineEntrance zone.
         _ => mine_entrance_rect().center(),
     };
-    commands.spawn((player_at(start), OverworldPlayer, OverworldVelocity::default()));
+    commands.spawn((
+        player_transform_standing_at(start),
+        OverworldPlayer,
+        OverworldVelocity::default(),
+    ));
     commands.insert_resource(MapTransitionCooldown::default());
     commands.insert_resource(OverworldLayout::homestead());
     commands.remove_resource::<OverworldEntry>();
 }
 
-/// Stand-in for `setup_mine` minus art: ladder at `EXIT_TILE`, player at `ENTRY_TILE`.
-fn enter_mine_headless(mut commands: Commands) {
+fn spawn_mine_ladder_and_player_without_art(mut commands: Commands) {
     commands.spawn((
-        world_transform(tile_center(EXIT_TILE.0, EXIT_TILE.1), 1.8),
-        MineExit,
+        world_transform(tile_center(LADDER_TILE.0, LADDER_TILE.1), 1.8),
+        MineLadder,
         MineEntity,
     ));
     commands.spawn((
-        player_at(tile_center(ENTRY_TILE.0, ENTRY_TILE.1)),
+        player_transform_standing_at(tile_center(ARRIVAL_TILE.0, ARRIVAL_TILE.1)),
         OverworldPlayer,
         OverworldVelocity::default(),
     ));
     commands.insert_resource(MapTransitionCooldown::default());
 }
 
-fn headless_app() -> App {
+fn headless_app_with_real_map_transition_systems() -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin))
         .init_state::<GameState>()
@@ -82,12 +70,16 @@ fn headless_app() -> App {
         .init_resource::<Inventory>()
         .init_resource::<Loadout>()
         .init_resource::<RecipeBook>()
-        // Same OnEnter ordering as the plugins, art loading stubbed (see module docs).
-        .add_systems(OnEnter(GameState::Overworld), enter_overworld_headless)
+        .add_systems(
+            OnEnter(GameState::Overworld),
+            spawn_homestead_player_without_art,
+        )
         .add_systems(OnExit(GameState::Overworld), cleanup_overworld)
-        .add_systems(OnEnter(GameState::Mine), enter_mine_headless)
+        .add_systems(
+            OnEnter(GameState::Mine),
+            spawn_mine_ladder_and_player_without_art,
+        )
         .add_systems(OnExit(GameState::Mine), cleanup_mine)
-        // Real interaction systems with the plugins' run conditions.
         .add_systems(
             Update,
             overworld_interaction
@@ -104,20 +96,19 @@ fn headless_app() -> App {
     app
 }
 
-fn state(app: &App) -> GameState {
+fn current_state(app: &App) -> GameState {
     app.world().resource::<State<GameState>>().get().clone()
 }
 
-fn go_to(app: &mut App, target: GameState) {
+fn transition_to(app: &mut App, target: GameState) {
     app.world_mut()
         .resource_mut::<NextState<GameState>>()
         .set(target.clone());
     app.update();
-    assert_eq!(state(app), target);
+    assert_eq!(current_state(app), target);
 }
 
-/// One frame with KeyE just pressed (InputPlugin is absent, so press/clear by hand).
-fn press_e(app: &mut App) {
+fn press_key_e_for_one_frame(app: &mut App) {
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::KeyE);
@@ -127,86 +118,99 @@ fn press_e(app: &mut App) {
     keys.clear();
 }
 
-fn pending(app: &App) -> Option<GameState> {
+fn queued_state(app: &App) -> Option<GameState> {
     match app.world().resource::<NextState<GameState>>() {
-        NextState::Pending(s) => Some(s.clone()),
+        NextState::Pending(queued) => Some(queued.clone()),
         NextState::Unchanged => None,
     }
 }
 
-fn player_position(app: &mut App) -> Vec2 {
-    let mut q = app
+fn only_player_position(app: &mut App) -> Vec2 {
+    let mut player_query = app
         .world_mut()
         .query_filtered::<&Transform, With<OverworldPlayer>>();
-    let players: Vec<Vec2> = q
+    let players: Vec<Vec2> = player_query
         .iter(app.world())
-        .map(|t| t.translation.truncate())
+        .map(|transform| transform.translation.truncate())
         .collect();
     assert_eq!(players.len(), 1, "exactly one player after the transition");
     players[0]
 }
 
-fn expire_cooldown(app: &mut App) {
+fn expire_map_transition_cooldown(app: &mut App) {
     app.world_mut()
         .resource_mut::<MapTransitionCooldown>()
         .0
         .tick(Duration::from_secs(1));
 }
 
+fn move_player_to(app: &mut App, pixels: Vec2) {
+    let mut player_query = app
+        .world_mut()
+        .query_filtered::<&mut Transform, With<OverworldPlayer>>();
+    let mut player = player_query.single_mut(app.world_mut());
+    *player = player_transform_standing_at(pixels);
+}
+
 #[test]
 fn key_e_at_mine_entrance_enters_mine_and_ladder_returns_to_homestead() {
-    let mut app = headless_app();
+    let mut app = headless_app_with_real_map_transition_systems();
     app.update();
-    go_to(&mut app, GameState::Overworld);
+    transition_to(&mut app, GameState::Overworld);
 
-    // 1. Overworld: player stands in the real MineEntrance zone.
-    let start = player_position(&mut app);
+    let start_position = only_player_position(&mut app);
     let layout = app.world().resource::<OverworldLayout>().clone();
     assert_eq!(
-        layout.zone_at(start).map(|z| z.zone),
+        layout.zone_at(start_position).map(|zone| zone.zone),
         Some(HomesteadZone::MineEntrance)
     );
 
-    // 2. KeyE -> overworld_interaction queues GameState::Mine; next frame applies it.
-    press_e(&mut app);
-    assert_eq!(pending(&app), Some(GameState::Mine));
+    press_key_e_for_one_frame(&mut app);
+    assert_eq!(queued_state(&app), Some(GameState::Mine));
     app.update();
-    assert_eq!(state(&app), GameState::Mine);
-    assert!(app.world().get_resource::<OverworldLayout>().is_none(), "cleanup_overworld ran");
+    assert_eq!(current_state(&app), GameState::Mine);
+    assert!(
+        app.world().get_resource::<OverworldLayout>().is_none(),
+        "cleanup_overworld ran"
+    );
 
-    // 3. Mine: E at the ladder is ignored until the transition cooldown expires.
-    let ladder = tile_center(EXIT_TILE.0, EXIT_TILE.1);
-    {
-        let mut q = app
-            .world_mut()
-            .query_filtered::<&mut Transform, With<OverworldPlayer>>();
-        let mut player = q.single_mut(app.world_mut());
-        *player = player_at(ladder);
-    }
-    press_e(&mut app);
-    assert_eq!(pending(&app), None, "fresh cooldown blocks an instant bounce");
+    let ladder_position = tile_center(LADDER_TILE.0, LADDER_TILE.1);
+    move_player_to(&mut app, ladder_position);
+    press_key_e_for_one_frame(&mut app);
+    assert_eq!(
+        queued_state(&app),
+        None,
+        "fresh cooldown blocks an instant bounce"
+    );
 
-    // KeyE at the ladder -> mine_interaction sets MineReturn + GameState::Overworld.
-    expire_cooldown(&mut app);
-    press_e(&mut app);
-    assert_eq!(pending(&app), Some(GameState::Overworld));
+    expire_map_transition_cooldown(&mut app);
+    press_key_e_for_one_frame(&mut app);
+    assert_eq!(queued_state(&app), Some(GameState::Overworld));
     assert!(matches!(
         app.world().get_resource::<OverworldEntry>(),
         Some(OverworldEntry::MineReturn)
     ));
     app.update();
-    assert_eq!(state(&app), GameState::Overworld);
+    assert_eq!(current_state(&app), GameState::Overworld);
 
-    // Back on the homestead at the mine-return tile, mine entities torn down.
-    let mut mine_q = app.world_mut().query_filtered::<Entity, With<MineEntity>>();
-    assert_eq!(mine_q.iter(app.world()).count(), 0, "cleanup_mine ran");
-    let back = player_position(&mut app);
-    assert_eq!(back, player_at(mine_return_tile()).translation.truncate());
+    let mut mine_entities = app.world_mut().query_filtered::<Entity, With<MineEntity>>();
+    assert_eq!(
+        mine_entities.iter(app.world()).count(),
+        0,
+        "cleanup_mine ran"
+    );
+    let returned_position = only_player_position(&mut app);
+    assert_eq!(
+        returned_position,
+        player_transform_standing_at(mine_return_tile())
+            .translation
+            .truncate()
+    );
     assert_ne!(
         app.world()
             .resource::<OverworldLayout>()
-            .zone_at(back)
-            .map(|z| z.zone),
+            .zone_at(returned_position)
+            .map(|zone| zone.zone),
         Some(HomesteadZone::MineEntrance),
         "return tile must not sit inside the entrance zone"
     );
@@ -214,18 +218,12 @@ fn key_e_at_mine_entrance_enters_mine_and_ladder_returns_to_homestead() {
 
 #[test]
 fn key_e_away_from_mine_entrance_stays_on_homestead() {
-    let mut app = headless_app();
+    let mut app = headless_app_with_real_map_transition_systems();
     app.update();
-    go_to(&mut app, GameState::Overworld);
-    {
-        let mut q = app
-            .world_mut()
-            .query_filtered::<&mut Transform, With<OverworldPlayer>>();
-        let mut player = q.single_mut(app.world_mut());
-        *player = player_at(mine_return_tile() + Vec2::new(-400.0, 0.0));
-    }
-    press_e(&mut app);
-    assert_eq!(pending(&app), None);
+    transition_to(&mut app, GameState::Overworld);
+    move_player_to(&mut app, mine_return_tile() + Vec2::new(-400.0, 0.0));
+    press_key_e_for_one_frame(&mut app);
+    assert_eq!(queued_state(&app), None);
     app.update();
-    assert_eq!(state(&app), GameState::Overworld);
+    assert_eq!(current_state(&app), GameState::Overworld);
 }

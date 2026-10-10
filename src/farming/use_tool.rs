@@ -28,9 +28,7 @@ pub fn update_player_facing(
     }
 }
 
-/// Ensure hoe, can, T1 pickaxe, and starter seeds exist for older saves.
-/// Never grants the forged T2 pickaxe or a rod.
-pub fn ensure_starter_seeds(mut inventory: ResMut<Inventory>, mut dirty: ResMut<ProfileDirty>) {
+pub fn ensure_starter_kit(mut inventory: ResMut<Inventory>, mut dirty: ResMut<ProfileDirty>) {
     let mut changed = false;
     changed |= grant_if_missing(&mut inventory, MaterialId::Hoe, 1);
     changed |= grant_if_missing(&mut inventory, MaterialId::WateringCan, 1);

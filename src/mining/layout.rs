@@ -1,5 +1,3 @@
-//! Mine map: one small cavern layer. Tinted stock tiles only (no new art).
-
 use bevy::prelude::*;
 
 use crate::exploration::{
@@ -17,26 +15,95 @@ pub const MAP_TILES_H: u32 = 20;
 pub const WORLD_WIDTH: f32 = MAP_TILES_W as f32 * TILE;
 pub const WORLD_HEIGHT: f32 = MAP_TILES_H as f32 * TILE;
 
-/// Ladder back up to the homestead (bottom-left).
-pub const EXIT_TILE: (u32, u32) = (3, 1);
-/// Where the player appears on entering.
-pub const ENTRY_TILE: (u32, u32) = (3, 3);
+pub const LADDER_TILE: (u32, u32) = (3, 1);
+pub const ARRIVAL_TILE: (u32, u32) = (3, 3);
 
-/// Stable node ids — persisted in `PlayerProfile::depleted_ore_nodes`. Append only.
-pub const ORE_NODES: [(u16, OreKind, u32, u32); 13] = [
-    (0, OreKind::Copper, 7, 4),
-    (1, OreKind::Copper, 10, 7),
-    (2, OreKind::Copper, 6, 11),
-    (3, OreKind::Copper, 12, 14),
-    (4, OreKind::Copper, 15, 5),
-    (5, OreKind::Copper, 18, 10),
-    (6, OreKind::Copper, 9, 16),
-    (7, OreKind::Copper, 21, 15),
-    (8, OreKind::Iron, 22, 6),
-    (9, OreKind::Iron, 25, 9),
-    (10, OreKind::Iron, 24, 14),
-    (11, OreKind::Iron, 27, 4),
-    (12, OreKind::Iron, 26, 17),
+pub struct OreNodePlacement {
+    pub id: u16,
+    pub kind: OreKind,
+    pub tile_x: u32,
+    pub tile_y: u32,
+}
+
+pub const ORE_NODE_PLACEMENTS: [OreNodePlacement; 13] = [
+    OreNodePlacement {
+        id: 0,
+        kind: OreKind::Copper,
+        tile_x: 7,
+        tile_y: 4,
+    },
+    OreNodePlacement {
+        id: 1,
+        kind: OreKind::Copper,
+        tile_x: 10,
+        tile_y: 7,
+    },
+    OreNodePlacement {
+        id: 2,
+        kind: OreKind::Copper,
+        tile_x: 6,
+        tile_y: 11,
+    },
+    OreNodePlacement {
+        id: 3,
+        kind: OreKind::Copper,
+        tile_x: 12,
+        tile_y: 14,
+    },
+    OreNodePlacement {
+        id: 4,
+        kind: OreKind::Copper,
+        tile_x: 15,
+        tile_y: 5,
+    },
+    OreNodePlacement {
+        id: 5,
+        kind: OreKind::Copper,
+        tile_x: 18,
+        tile_y: 10,
+    },
+    OreNodePlacement {
+        id: 6,
+        kind: OreKind::Copper,
+        tile_x: 9,
+        tile_y: 16,
+    },
+    OreNodePlacement {
+        id: 7,
+        kind: OreKind::Copper,
+        tile_x: 21,
+        tile_y: 15,
+    },
+    OreNodePlacement {
+        id: 8,
+        kind: OreKind::Iron,
+        tile_x: 22,
+        tile_y: 6,
+    },
+    OreNodePlacement {
+        id: 9,
+        kind: OreKind::Iron,
+        tile_x: 25,
+        tile_y: 9,
+    },
+    OreNodePlacement {
+        id: 10,
+        kind: OreKind::Iron,
+        tile_x: 24,
+        tile_y: 14,
+    },
+    OreNodePlacement {
+        id: 11,
+        kind: OreKind::Iron,
+        tile_x: 27,
+        tile_y: 4,
+    },
+    OreNodePlacement {
+        id: 12,
+        kind: OreKind::Iron,
+        tile_x: 26,
+        tile_y: 17,
+    },
 ];
 
 pub fn mine_solids() -> Vec<Rect> {
@@ -56,25 +123,26 @@ pub fn ore_tint(kind: OreKind) -> Color {
 pub struct MineEntity;
 
 #[derive(Component)]
-pub struct MineExit;
+pub struct MineLadder;
 
 #[derive(Component)]
 pub struct OreNode {
     pub id: u16,
     pub kind: OreKind,
-    pub hits: u32,
+    pub hits_taken: u32,
 }
 
-pub fn spawn_mine(commands: &mut Commands, art: &OverworldArt, depleted: &[u16]) {
-    let floor = Color::srgb(0.3, 0.27, 0.26);
-    let wall = Color::srgb(0.2, 0.18, 0.2);
+pub fn spawn_mine(commands: &mut Commands, art: &OverworldArt, depleted_node_ids: &[u16]) {
+    let floor_color = Color::srgb(0.3, 0.27, 0.26);
+    let wall_color = Color::srgb(0.2, 0.18, 0.2);
     for ty in 0..MAP_TILES_H {
         for tx in 0..MAP_TILES_W {
-            let edge = tx == 0 || ty == 0 || tx + 1 == MAP_TILES_W || ty + 1 == MAP_TILES_H;
-            let (image, tint, z) = if edge {
-                (art.wall.clone(), wall, 1.0)
+            let is_border_tile =
+                tx == 0 || ty == 0 || tx + 1 == MAP_TILES_W || ty + 1 == MAP_TILES_H;
+            let (image, tint, z) = if is_border_tile {
+                (art.wall.clone(), wall_color, 1.0)
             } else {
-                (art.path.clone(), floor, 0.0)
+                (art.path.clone(), floor_color, 0.0)
             };
             commands.spawn((
                 Sprite {
@@ -110,23 +178,27 @@ pub fn spawn_mine(commands: &mut Commands, art: &OverworldArt, depleted: &[u16])
             color: Color::srgb(0.66, 0.56, 0.36),
             ..default()
         },
-        world_transform(tile_center(EXIT_TILE.0, EXIT_TILE.1), 1.8),
-        MineExit,
+        world_transform(tile_center(LADDER_TILE.0, LADDER_TILE.1), 1.8),
+        MineLadder,
         MineEntity,
     ));
 
-    for (id, kind, tx, ty) in ORE_NODES {
-        if depleted.contains(&id) {
+    for placement in &ORE_NODE_PLACEMENTS {
+        if depleted_node_ids.contains(&placement.id) {
             continue;
         }
         commands.spawn((
             Sprite {
                 image: art.wall.clone(),
-                color: ore_tint(kind),
+                color: ore_tint(placement.kind),
                 ..default()
             },
-            world_transform(tile_center(tx, ty), 2.0),
-            OreNode { id, kind, hits: 0 },
+            world_transform(tile_center(placement.tile_x, placement.tile_y), 2.0),
+            OreNode {
+                id: placement.id,
+                kind: placement.kind,
+                hits_taken: 0,
+            },
             MineEntity,
         ));
     }
@@ -137,21 +209,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn node_ids_are_unique_and_inside_the_cavern() {
-        let mut ids: Vec<u16> = ORE_NODES.iter().map(|n| n.0).collect();
+    fn ore_node_ids_are_unique_and_nodes_sit_inside_the_cavern() {
+        let mut ids: Vec<u16> = ORE_NODE_PLACEMENTS
+            .iter()
+            .map(|placement| placement.id)
+            .collect();
         ids.sort_unstable();
         ids.dedup();
-        assert_eq!(ids.len(), ORE_NODES.len());
-        for (_, _, tx, ty) in ORE_NODES {
-            assert!(tx > 0 && ty > 0 && tx + 1 < MAP_TILES_W && ty + 1 < MAP_TILES_H);
-            assert_ne!((tx, ty), EXIT_TILE);
-            assert_ne!((tx, ty), ENTRY_TILE);
+        assert_eq!(ids.len(), ORE_NODE_PLACEMENTS.len());
+        for placement in &ORE_NODE_PLACEMENTS {
+            let tile = (placement.tile_x, placement.tile_y);
+            assert!(
+                tile.0 > 0 && tile.1 > 0 && tile.0 + 1 < MAP_TILES_W && tile.1 + 1 < MAP_TILES_H
+            );
+            assert_ne!(tile, LADDER_TILE);
+            assert_ne!(tile, ARRIVAL_TILE);
         }
     }
 
     #[test]
     fn mine_has_both_ore_kinds() {
-        assert!(ORE_NODES.iter().any(|n| n.1 == OreKind::Copper));
-        assert!(ORE_NODES.iter().any(|n| n.1 == OreKind::Iron));
+        assert!(ORE_NODE_PLACEMENTS
+            .iter()
+            .any(|placement| placement.kind == OreKind::Copper));
+        assert!(ORE_NODE_PLACEMENTS
+            .iter()
+            .any(|placement| placement.kind == OreKind::Iron));
     }
 }

@@ -10,7 +10,7 @@ use crate::overworld::movement::{
 };
 use crate::overworld::sprites::{OverworldArt, PLAYER_SPRITE_HEIGHT};
 
-use super::layout::{mine_solids, spawn_mine, MineEntity, ENTRY_TILE, WORLD_HEIGHT, WORLD_WIDTH};
+use super::layout::{mine_solids, spawn_mine, MineEntity, ARRIVAL_TILE, WORLD_HEIGHT, WORLD_WIDTH};
 
 pub fn set_mine_clear_color(mut clear: ResMut<ClearColor>) {
     clear.0 = Color::srgb(0.06, 0.05, 0.06);
@@ -24,9 +24,9 @@ pub fn setup_mine(
     profile: Res<PlayerProfile>,
 ) {
     let art = OverworldArt::load(&asset_server, &mut atlas_layouts, &mut images);
-    spawn_mine(&mut commands, &art, &profile.depleted_ore_nodes);
+    spawn_mine(&mut commands, &art, &profile.depleted_ore_node_ids);
 
-    let start = tile_center(ENTRY_TILE.0, ENTRY_TILE.1);
+    let start = tile_center(ARRIVAL_TILE.0, ARRIVAL_TILE.1);
     commands.spawn((
         Sprite {
             image: art.player.idle[0].clone(),

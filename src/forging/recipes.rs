@@ -13,7 +13,6 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 pub enum RecipeOutput {
     Weapon(WeaponKind),
     Armor(ArmorKind),
-    /// One item into the inventory (e.g. the tier-2 pickaxe).
     Item(MaterialId),
 }
 
@@ -121,7 +120,6 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
         }
         RecipeOutput::Armor(armor) => loadout.equip_forged_armor(armor),
         RecipeOutput::Item(material) => {
-            // Room was checked in can_craft_recipe; removing costs only frees space.
             inventory.try_add(material, 1);
         }
     }
@@ -243,13 +241,17 @@ mod tests {
 
     #[test]
     fn iron_pickaxe_forges_from_five_iron_ore() {
-        let pick = recipe_named(&book(), "Iron Pickaxe");
-        assert_eq!(pick.costs, vec![(MaterialId::IronOre, 5)]);
+        let iron_pickaxe = recipe_named(&book(), "Iron Pickaxe");
+        assert_eq!(iron_pickaxe.costs, vec![(MaterialId::IronOre, 5)]);
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         inventory.try_add(MaterialId::IronOre, 5);
 
-        assert!(try_craft_recipe(&mut inventory, &mut loadout, &pick));
+        assert!(try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &iron_pickaxe
+        ));
         assert_eq!(inventory.count(MaterialId::PickaxeTier2), 1);
         assert_eq!(inventory.count(MaterialId::IronOre), 0);
         assert_eq!(loadout.weapon, WeaponKind::RustySword);
@@ -257,13 +259,20 @@ mod tests {
 
     #[test]
     fn iron_pickaxe_alternate_takes_three_copper_ore() {
-        let pick = recipe_named(&book(), "Iron Pickaxe (copper-bound)");
-        assert_eq!(pick.costs, vec![(MaterialId::CopperOre, 3)]);
+        let copper_bound_iron_pickaxe = recipe_named(&book(), "Iron Pickaxe (copper-bound)");
+        assert_eq!(
+            copper_bound_iron_pickaxe.costs,
+            vec![(MaterialId::CopperOre, 3)]
+        );
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         inventory.try_add(MaterialId::CopperOre, 3);
 
-        assert!(try_craft_recipe(&mut inventory, &mut loadout, &pick));
+        assert!(try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &copper_bound_iron_pickaxe
+        ));
         assert_eq!(inventory.count(MaterialId::PickaxeTier2), 1);
         assert_eq!(inventory.count(MaterialId::CopperOre), 0);
     }

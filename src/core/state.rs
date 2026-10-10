@@ -6,7 +6,6 @@ pub enum GameState {
     Title,
     Overworld,
     Forest,
-    /// One-layer ore mine entered from the homestead.
     Mine,
     Dungeon,
 }

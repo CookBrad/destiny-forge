@@ -18,12 +18,9 @@ pub enum MaterialId {
     Potato,
     Hoe,
     WateringCan,
-    // Mining (#mining-ore-tiers). Raw ore feeds the forge directly — no smelting.
     CopperOre,
     IronOre,
-    /// Starter pickaxe: mines copper only.
     PickaxeTier1,
-    /// Forged pickaxe: mines copper and iron.
     PickaxeTier2,
 }
 

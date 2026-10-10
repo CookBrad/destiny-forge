@@ -14,7 +14,6 @@ pub enum PromptKind {
     LeaveMine,
     MineCopper,
     MineIron,
-    /// Iron node in range but only the tier-1 pickaxe is owned.
     NeedIronPickaxe,
 }
 

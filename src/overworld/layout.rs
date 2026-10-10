@@ -16,12 +16,10 @@ pub const MAP_TILES_H: u32 = 40;
 pub const WORLD_WIDTH: f32 = MAP_TILES_W as f32 * TILE;
 pub const WORLD_HEIGHT: f32 = MAP_TILES_H as f32 * TILE;
 
-/// Mine entrance on the east edge of the main path (one-layer mine).
 pub fn mine_entrance_rect() -> Rect {
     tile_rect(45, 21, 49, 24)
 }
 
-/// Where the player stands after climbing out of the mine.
 pub fn mine_return_tile() -> Vec2 {
     tile_center(46, 20)
 }
@@ -419,22 +417,25 @@ fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
     }
 }
 
-/// Mine mouth: dark tinted wall tiles with a lighter opening, like the dungeon gate.
-fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, mouth: Rect) {
-    let min_tx = (mouth.min.x / TILE).floor() as u32;
-    let max_tx = (mouth.max.x / TILE).ceil() as u32;
-    let min_ty = (mouth.min.y / TILE).floor() as u32;
-    let max_ty = (mouth.max.y / TILE).ceil() as u32;
-    let rock = Color::srgb(0.36, 0.32, 0.3);
-    let opening = Color::srgb(0.08, 0.07, 0.08);
+fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Rect) {
+    let min_tx = (entrance.min.x / TILE).floor() as u32;
+    let max_tx = (entrance.max.x / TILE).ceil() as u32;
+    let min_ty = (entrance.min.y / TILE).floor() as u32;
+    let max_ty = (entrance.max.y / TILE).ceil() as u32;
+    let rock_color = Color::srgb(0.36, 0.32, 0.3);
+    let opening_color = Color::srgb(0.08, 0.07, 0.08);
 
     for ty in min_ty..max_ty {
         for tx in min_tx..max_tx {
-            let inner = tx > min_tx && tx + 1 < max_tx && ty == min_ty;
+            let is_opening_tile = tx > min_tx && tx + 1 < max_tx && ty == min_ty;
             commands.spawn((
                 Sprite {
                     image: art.wall.clone(),
-                    color: if inner { opening } else { rock },
+                    color: if is_opening_tile {
+                        opening_color
+                    } else {
+                        rock_color
+                    },
                     ..default()
                 },
                 world_transform(tile_center(tx, ty), 1.8),

@@ -35,9 +35,7 @@ impl Default for Inventory {
 }
 
 impl Inventory {
-    /// Hoe, watering can, tier-1 pickaxe, and starter seeds for a new homestead profile.
-    /// Does not grant the tier-2 pickaxe (forged) or a fishing rod.
-    pub fn with_starter_seeds() -> Self {
+    pub fn with_starter_kit() -> Self {
         let mut inventory = Self::default();
         inventory.try_add(MaterialId::Hoe, 1);
         inventory.try_add(MaterialId::WateringCan, 1);
@@ -122,7 +120,6 @@ impl Inventory {
         false
     }
 
-    /// True when at least one more `material` fits (existing stack or empty slot).
     pub fn has_room_for(&self, material: MaterialId) -> bool {
         self.slots.iter().any(|slot| {
             slot.material.is_none() || (slot.material == Some(material) && slot.count < MAX_STACK)
@@ -161,7 +158,7 @@ mod tests {
 
     #[test]
     fn starter_kit_is_hoe_can_pickaxe_turnip_potato_only() {
-        let inventory = Inventory::with_starter_seeds();
+        let inventory = Inventory::with_starter_kit();
         assert_eq!(inventory.count(MaterialId::Hoe), 1);
         assert_eq!(inventory.count(MaterialId::PickaxeTier1), 1);
         assert_eq!(inventory.count(MaterialId::PickaxeTier2), 0);
