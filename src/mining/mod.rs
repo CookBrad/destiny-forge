@@ -6,6 +6,8 @@ mod layout;
 mod ore;
 mod plugin;
 mod setup;
+#[cfg(test)]
+mod transition_tests;
 
 pub use ore::respawn_ore_nodes_on_sleep;
 pub use plugin::MiningPlugin;

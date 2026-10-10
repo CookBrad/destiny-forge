@@ -1,6 +1,6 @@
 mod animals;
 pub mod camera;
-mod interaction;
+pub(crate) mod interaction;
 pub mod layout;
 pub mod movement;
 mod plugin;
