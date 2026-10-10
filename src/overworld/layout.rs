@@ -16,6 +16,14 @@ pub const MAP_TILES_H: u32 = 40;
 pub const WORLD_WIDTH: f32 = MAP_TILES_W as f32 * TILE;
 pub const WORLD_HEIGHT: f32 = MAP_TILES_H as f32 * TILE;
 
+pub fn mine_entrance_rect() -> Rect {
+    tile_rect(45, 21, 49, 24)
+}
+
+pub fn mine_return_tile() -> Vec2 {
+    tile_center(46, 20)
+}
+
 /// Northern edge of the west forest trail — walk up into this to enter the forest.
 pub fn homestead_forest_transition() -> Rect {
     tile_rect(2, 38, 5, 40)
@@ -33,6 +41,7 @@ pub enum HomesteadZone {
     Animals,
     ForestTrail,
     DungeonGate,
+    MineEntrance,
 }
 
 #[derive(Resource, Clone)]
@@ -75,6 +84,11 @@ impl OverworldLayout {
         zones.push(ZoneRect {
             zone: HomesteadZone::DungeonGate,
             bounds: tile_rect(22, 1, 29, 5),
+        });
+
+        zones.push(ZoneRect {
+            zone: HomesteadZone::MineEntrance,
+            bounds: mine_entrance_rect(),
         });
 
         build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
@@ -128,11 +142,13 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     // Crop plots are spawned by FarmingPlugin / setup_overworld (persist + till/plant).
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
+    spawn_mine_entrance(commands, art, mine_entrance_rect());
 }
 
 fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) {
     let on_path = (22..=29).contains(&tx) && ty <= 24
         || (tx >= 14 && tx <= 37 && (19..=24).contains(&ty))
+        || (tx >= 38 && tx <= 48 && (20..=23).contains(&ty))
         || (ty >= 25 && ty <= 28 && ((4..=13).contains(&tx) || (37..=46).contains(&tx)))
         || homestead_forest_trail(tx, ty);
 
@@ -401,6 +417,35 @@ fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
     }
 }
 
+fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Rect) {
+    let min_tx = (entrance.min.x / TILE).floor() as u32;
+    let max_tx = (entrance.max.x / TILE).ceil() as u32;
+    let min_ty = (entrance.min.y / TILE).floor() as u32;
+    let max_ty = (entrance.max.y / TILE).ceil() as u32;
+    let rock_color = Color::srgb(0.36, 0.32, 0.3);
+    let opening_color = Color::srgb(0.08, 0.07, 0.08);
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            let is_opening_tile = tx > min_tx && tx + 1 < max_tx && ty == min_ty;
+            commands.spawn((
+                Sprite {
+                    image: art.wall.clone(),
+                    color: if is_opening_tile {
+                        opening_color
+                    } else {
+                        rock_color
+                    },
+                    ..default()
+                },
+                world_transform(tile_center(tx, ty), 1.8),
+                MineEntrance,
+                OverworldEntity,
+            ));
+        }
+    }
+}
+
 pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
     Vec2::new(tx as f32 * TILE + TILE * 0.5, ty as f32 * TILE + TILE * 0.5)
 }
@@ -413,6 +458,9 @@ pub struct OverworldTile;
 
 #[derive(Component)]
 pub struct DungeonEntrance;
+
+#[derive(Component)]
+pub struct MineEntrance;
 
 #[derive(Component)]
 pub struct ForgeEntity;

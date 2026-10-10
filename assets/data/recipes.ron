@@ -1,11 +1,12 @@
 // Forge recipes — edit here, restart game (or cargo run) to pick up changes.
 // Enum variants match Rust: MaterialId, WeaponKind, ArmorKind.
+// Metal recipes take raw ore straight from the mine (no smelting, no Iron Scrap).
 [
     (
         name: "Iron Sword",
         costs: [
             (SlimeGel, 5),
-            (IronScrap, 3),
+            (IronOre, 3),
         ],
         output: Weapon(IronSword),
         requires_weapon: None,
@@ -59,6 +60,23 @@
             (SlimeGel, 3),
         ],
         output: Armor(SlimeGreaves),
+        requires_weapon: None,
+    ),
+    (
+        name: "Iron Pickaxe",
+        costs: [
+            (IronOre, 5),
+        ],
+        output: Item(PickaxeTier2),
+        requires_weapon: None,
+    ),
+    // Copper path: the starter pickaxe cannot mine iron, so T2 must be reachable from copper.
+    (
+        name: "Iron Pickaxe (copper-bound)",
+        costs: [
+            (CopperOre, 3),
+        ],
+        output: Item(PickaxeTier2),
         requires_weapon: None,
     ),
 ]

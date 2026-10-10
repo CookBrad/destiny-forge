@@ -8,6 +8,7 @@ mod forest;
 mod forging;
 mod graphics;
 mod items;
+mod mining;
 mod overworld;
 mod player;
 mod ui;
@@ -25,6 +26,7 @@ fn main() {
         .add_plugins(overworld::OverworldPlugin)
         .add_plugins(farming::FarmingPlugin)
         .add_plugins(forest::ForestPlugin)
+        .add_plugins(mining::MiningPlugin)
         .add_plugins(ui::UiPlugin)
         .run();
 }

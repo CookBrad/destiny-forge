@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn plant_requires_tilled_soil() {
-        let mut inv = Inventory::with_starter_seeds();
+        let mut inv = Inventory::with_starter_kit();
         let err = apply_tool(HomesteadTool::Seeds, PlotStage::Soil, &mut inv).unwrap_err();
         assert!(err.contains("till"));
         assert_eq!(inv.count(MaterialId::TurnipSeed), 8);
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn plant_uses_turnip_then_potato() {
-        let mut inv = Inventory::with_starter_seeds();
+        let mut inv = Inventory::with_starter_kit();
         let (stage, result) =
             apply_tool(HomesteadTool::Seeds, PlotStage::Tilled, &mut inv).unwrap();
         assert!(matches!(
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn hoe_tills_soil() {
-        let mut inv = Inventory::with_starter_seeds();
+        let mut inv = Inventory::with_starter_kit();
         let (stage, result) = apply_tool(HomesteadTool::Hoe, PlotStage::Soil, &mut inv).unwrap();
         assert_eq!(stage, PlotStage::Tilled);
         assert_eq!(result, FarmActionResult::Tilled);

@@ -10,7 +10,7 @@ use super::plots::sync_plot_visuals;
 use super::select_tool::select_homestead_tool;
 use super::tools::EquippedTool;
 use super::use_tool::{
-    capture_crop_plots_on_exit, ensure_starter_seeds, update_player_facing, use_homestead_tool,
+    capture_crop_plots_on_exit, ensure_starter_kit, update_player_facing, use_homestead_tool,
 };
 
 pub struct FarmingPlugin;
@@ -20,7 +20,7 @@ impl Plugin for FarmingPlugin {
         app.init_resource::<EquippedTool>()
             .add_systems(
                 OnEnter(GameState::Overworld),
-                (ensure_starter_seeds, setup_tool_hud).after(setup_overworld),
+                (ensure_starter_kit, setup_tool_hud).after(setup_overworld),
             )
             .add_systems(
                 OnExit(GameState::Overworld),

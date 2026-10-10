@@ -15,6 +15,7 @@ pub enum OverworldEntry {
     Yard,
     ForestTrail,
     DungeonReturn,
+    MineReturn,
 }
 
 pub fn setup_overworld(
@@ -55,6 +56,7 @@ fn spawn_overworld_player(commands: &mut Commands, art: &OverworldArt, entry: Ov
         OverworldEntry::Yard => Vec2::new(WORLD_WIDTH * 0.5, TILE * 12.0),
         OverworldEntry::ForestTrail => tile_center(3, 36),
         OverworldEntry::DungeonReturn => tile_center(25, 4),
+        OverworldEntry::MineReturn => super::layout::mine_return_tile(),
     };
     let y = center_on_surface(start.y, PLAYER_SPRITE_HEIGHT);
 
