@@ -29,7 +29,7 @@ const MAX_PLATFORM_WIDTH_TILES: u32 = 6;
 const PLATFORM_CHANCE_PER_SEGMENT: f64 = 0.6;
 const SECOND_PLATFORM_CHANCE: f64 = 0.1;
 const BRIDGE_OVER_PIT_CHANCE: f64 = 0.4;
-const MIN_PLATFORM_GAP_TILES: u32 = 4;
+const MIN_PLATFORM_GAP_TILES: u32 = 7;
 const MIN_ENEMY_SPACING_TILES: u32 = 4;
 const MAX_ENEMY_SPAWN_ATTEMPTS: u32 = 16;
 const MIN_GROUND_RUN_TILES: u32 = 4;
@@ -453,9 +453,21 @@ mod tests {
         let platforms: usize = floors.iter().map(|floor| floor.platforms.len()).sum();
         let tiles_per_platform = tiles as f32 / platforms as f32;
         assert!(
-            tiles_per_platform >= 16.0,
+            tiles_per_platform >= 22.0,
             "one platform every {tiles_per_platform} tiles"
         );
+    }
+
+    #[test]
+    fn every_floor_still_has_platforms_to_climb() {
+        for seed in 0..200 {
+            let floor = generate_floor(seed);
+            assert!(
+                floor.platforms.len() >= 2,
+                "seed {seed}: only {} platforms",
+                floor.platforms.len()
+            );
+        }
     }
 
     #[test]
