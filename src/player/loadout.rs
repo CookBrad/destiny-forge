@@ -42,7 +42,6 @@ pub struct Loadout {
     /// Additive so old profiles deserialize without this field.
     #[serde(default)]
     pub stash: GearStash,
-    /// Food eaten at the hub. Lasts one hunt or until sleep; one at a time.
     #[serde(default)]
     pub food_buff: Option<MaterialId>,
 }
@@ -182,13 +181,22 @@ impl Loadout {
         self.stash.armor.retain(|stored| *stored != kind);
     }
 
-    /// Consumes one food and replaces any active food buff.
-    pub fn eat(&mut self, inventory: &mut Inventory, food: MaterialId) -> bool {
+    pub fn eat_food_replacing_active_buff(
+        &mut self,
+        inventory: &mut Inventory,
+        food: MaterialId,
+    ) -> bool {
         if food.food_buff().is_none() || !inventory.try_remove(food, 1) {
             return false;
         }
         self.food_buff = Some(food);
         true
+    }
+
+    pub fn clear_food_buff(&mut self) {
+        if self.food_buff.is_some() {
+            self.food_buff = None;
+        }
     }
 
     pub fn active_food_buff(&self) -> FoodBuff {
@@ -222,12 +230,12 @@ impl Loadout {
     }
 
     pub fn carve_speed_multiplier(&self) -> f32 {
-        let set = if self.slime_set_pieces() >= 2 {
+        let slime_set_carve_multiplier = if self.slime_set_pieces() >= 2 {
             1.1
         } else {
             1.0
         };
-        set * self.active_food_buff().carve_mult
+        slime_set_carve_multiplier * self.active_food_buff().carve_speed_multiplier
     }
 
     /// 2pc combat skill: special cooldowns resolve slightly faster.
@@ -249,20 +257,17 @@ impl Loadout {
 
     /// 4pc combat skill: +10% attack power on weapons and specials.
     pub fn attack_power_multiplier(&self) -> f32 {
-        let set = if self.slime_set_pieces() >= 4 {
+        let slime_set_attack_multiplier = if self.slime_set_pieces() >= 4 {
             1.1
         } else {
             1.0
         };
-        set * self.active_food_buff().attack_mult
+        slime_set_attack_multiplier * self.active_food_buff().attack_multiplier
     }
 }
 
-/// A food buff lasts one hunt: it ends whenever the player leaves the dungeon.
 pub fn expire_food_buff_after_hunt(mut loadout: ResMut<Loadout>) {
-    if loadout.food_buff.is_some() {
-        loadout.food_buff = None;
-    }
+    loadout.clear_food_buff();
 }
 
 pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
@@ -347,7 +352,7 @@ mod tests {
         let mut inventory = Inventory::default();
         inventory.try_add(MaterialId::RoastTurnip, 2);
 
-        assert!(loadout.eat(&mut inventory, MaterialId::RoastTurnip));
+        assert!(loadout.eat_food_replacing_active_buff(&mut inventory, MaterialId::RoastTurnip));
         assert_eq!(inventory.count(MaterialId::RoastTurnip), 1);
         assert_eq!(loadout.food_buff, Some(MaterialId::RoastTurnip));
     }
@@ -358,8 +363,8 @@ mod tests {
         let mut inventory = Inventory::default();
         inventory.try_add(MaterialId::Turnip, 1);
 
-        assert!(!loadout.eat(&mut inventory, MaterialId::Turnip));
-        assert!(!loadout.eat(&mut inventory, MaterialId::PotatoStew));
+        assert!(!loadout.eat_food_replacing_active_buff(&mut inventory, MaterialId::Turnip));
+        assert!(!loadout.eat_food_replacing_active_buff(&mut inventory, MaterialId::PotatoStew));
         assert_eq!(inventory.count(MaterialId::Turnip), 1);
         assert_eq!(loadout.food_buff, None);
     }
@@ -371,8 +376,8 @@ mod tests {
         inventory.try_add(MaterialId::RoastTurnip, 1);
         inventory.try_add(MaterialId::PotatoStew, 1);
 
-        assert!(loadout.eat(&mut inventory, MaterialId::RoastTurnip));
-        assert!(loadout.eat(&mut inventory, MaterialId::PotatoStew));
+        assert!(loadout.eat_food_replacing_active_buff(&mut inventory, MaterialId::RoastTurnip));
+        assert!(loadout.eat_food_replacing_active_buff(&mut inventory, MaterialId::PotatoStew));
         assert_eq!(loadout.food_buff, Some(MaterialId::PotatoStew));
         assert!((loadout.attack_power_multiplier() - 1.0).abs() < f32::EPSILON);
     }

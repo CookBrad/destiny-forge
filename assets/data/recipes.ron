@@ -1,6 +1,5 @@
 // Forge recipes — edit here, restart game (or cargo run) to pick up changes.
 // Enum variants match Rust: MaterialId, WeaponKind, ArmorKind.
-// Food(..) recipes cook crops into inventory food (eaten before a hunt).
 [
     (
         name: "Iron Sword",

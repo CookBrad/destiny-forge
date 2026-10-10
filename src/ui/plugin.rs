@@ -5,13 +5,16 @@ use crate::core::{DungeonPlayState, DungeonUiTeardown, GameState};
 use crate::dungeon::move_enemies;
 use crate::forging::RecipeBook;
 
-use super::buff_hud::{cleanup_buff_hud, setup_buff_hud, sync_buff_hud};
 use super::carve_feedback::{
     cleanup_carve_feedback_ui, drain_loot_log_to_ui, spawn_carve_feedback_ui,
     sync_carve_progress_ui, tick_loot_log_lines,
 };
 use super::day_hud::{cleanup_day_hud, setup_day_hud, sync_day_hud};
+use super::eat_feedback::{
+    animate_eat_feedback_popup, cleanup_eat_feedback_popup, spawn_eat_feedback_popup, FoodEaten,
+};
 use super::energy_hud::{cleanup_energy_hud, setup_energy_hud, sync_energy_hud};
+use super::food_buff_hud::{cleanup_food_buff_hud, setup_food_buff_hud, sync_food_buff_hud};
 use super::health_bars::{
     cleanup_health_bars, despawn_orphan_enemy_health_bars, setup_health_bar_assets,
     spawn_enemy_health_bars, spawn_player_health_bar, update_enemy_health_bars,
@@ -26,10 +29,11 @@ use super::interaction_prompt::{
     InteractionPrompt,
 };
 use super::inventory_window::{
-    cleanup_inventory_window, handle_inventory_close_button, handle_inventory_item_actions,
-    handle_inventory_slot_click, inventory_window_open, rebuild_inventory_on_loadout_change,
-    sync_inventory_display, sync_inventory_item_info, toggle_inventory_window,
-    InventorySelectedSlot, InventoryWindowOpen,
+    cleanup_inventory_window, handle_inventory_close_button, handle_inventory_eat_request,
+    handle_inventory_slot_click, handle_inventory_sort_button, inventory_window_open,
+    rebuild_inventory_on_loadout_change, sync_inventory_display,
+    sync_inventory_selected_item_description, toggle_inventory_window, InventorySelectedSlot,
+    InventoryWindowOpen,
 };
 use super::loadout_strip::{
     handle_loadout_swap_keys, handle_stash_armor_click, handle_stash_weapon_click,
@@ -71,6 +75,7 @@ impl Plugin for UiPlugin {
             .init_resource::<HealthBarAssets>()
             .init_resource::<SkillBindings>()
             .init_resource::<SkillBarDrag>()
+            .add_event::<FoodEaten>()
             .add_systems(Startup, (setup_health_bar_assets, setup_skill_icon_assets))
             .add_systems(
                 OnEnter(GameState::Title),
@@ -82,7 +87,7 @@ impl Plugin for UiPlugin {
                     spawn_title_menu,
                     cleanup_day_hud,
                     cleanup_energy_hud,
-                    cleanup_buff_hud,
+                    cleanup_food_buff_hud,
                     cleanup_interaction_prompt,
                 )
                     .chain(),
@@ -96,30 +101,31 @@ impl Plugin for UiPlugin {
                 (
                     setup_day_hud,
                     setup_energy_hud,
-                    setup_buff_hud,
+                    setup_food_buff_hud,
                     setup_interaction_prompt,
                 ),
             )
             .add_systems(
                 OnEnter(GameState::Forest),
-                (setup_day_hud, setup_energy_hud, setup_buff_hud),
+                (setup_day_hud, setup_energy_hud, setup_food_buff_hud),
             )
             .add_systems(
                 OnEnter(GameState::Dungeon),
-                (setup_interaction_prompt, setup_buff_hud),
+                (setup_interaction_prompt, setup_food_buff_hud),
             )
             .add_systems(
                 OnExit(GameState::Overworld),
                 (
                     cleanup_day_hud,
                     cleanup_energy_hud,
-                    cleanup_buff_hud,
+                    cleanup_food_buff_hud,
+                    cleanup_eat_feedback_popup,
                     cleanup_interaction_prompt,
                 ),
             )
             .add_systems(
                 OnExit(GameState::Forest),
-                (cleanup_day_hud, cleanup_energy_hud, cleanup_buff_hud),
+                (cleanup_day_hud, cleanup_energy_hud, cleanup_food_buff_hud),
             )
             .add_systems(
                 Update,
@@ -133,11 +139,14 @@ impl Plugin for UiPlugin {
                     sync_interaction_prompt_ui.run_if(
                         in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
                     ),
-                    sync_buff_hud.run_if(
+                    sync_food_buff_hud.run_if(
                         in_state(GameState::Overworld)
                             .or(in_state(GameState::Forest))
                             .or(in_state(GameState::Dungeon)),
                     ),
+                    (spawn_eat_feedback_popup, animate_eat_feedback_popup)
+                        .chain()
+                        .run_if(in_state(GameState::Overworld)),
                 ),
             )
             .add_systems(
@@ -167,13 +176,14 @@ impl Plugin for UiPlugin {
                     (
                         handle_inventory_close_button,
                         handle_inventory_slot_click,
-                        handle_inventory_item_actions,
+                        handle_inventory_eat_request,
+                        handle_inventory_sort_button,
                         handle_stash_weapon_click,
                         handle_stash_armor_click,
                         handle_loadout_swap_keys,
                         rebuild_inventory_on_loadout_change,
                         sync_inventory_display,
-                        sync_inventory_item_info,
+                        sync_inventory_selected_item_description,
                     )
                         .chain()
                         .run_if(inventory_window_open),
@@ -247,7 +257,7 @@ impl Plugin for UiPlugin {
                     cleanup_health_bars,
                     cleanup_interaction_prompt,
                     cleanup_carve_feedback_ui,
-                    cleanup_buff_hud,
+                    cleanup_food_buff_hud,
                 )
                     .chain()
                     .in_set(DungeonUiTeardown),

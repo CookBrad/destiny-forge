@@ -13,7 +13,6 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 pub enum RecipeOutput {
     Weapon(WeaponKind),
     Armor(ArmorKind),
-    /// Cooked food goes into the inventory instead of the loadout.
     Food(MaterialId),
 }
 
@@ -129,11 +128,11 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
 }
 
 fn has_room_after_costs(inventory: &Inventory, recipe: &Recipe, output: MaterialId) -> bool {
-    let mut preview = inventory.clone();
+    let mut inventory_after_costs = inventory.clone();
     for (material, amount) in &recipe.costs {
-        preview.try_remove(*material, *amount);
+        inventory_after_costs.try_remove(*material, *amount);
     }
-    preview.try_add(output, 1) == 0
+    inventory_after_costs.try_add(output, 1) == 0
 }
 
 pub fn material_name(material: MaterialId) -> &'static str {

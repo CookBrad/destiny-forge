@@ -337,7 +337,7 @@ These systems carry the **cozy feel** and feed progression. They are designed he
 ### Homestead feel checklist
 
 - Readable cozy art; animals and crop tiles sell the fantasy even before full systems
-- Inventory satisfaction (stacking, sorting later)
+- Inventory satisfaction (stacking, sorting)
 - Short feedback loops (water today, harvest in N days — keep N small for early game)
 - Never force pure chore days forever; hunts always available if energy/time allows
 
@@ -357,16 +357,27 @@ These systems carry the **cozy feel** and feed progression. They are designed he
 
 | Slot type | Capacity / rule |
 | --------- | --------------- |
-| Materials | 24 stack slots (MVP; expand if lifestyle floods inventory) |
+| Materials | 32 stack slots in an 8×4 grid (max stack 99); Sort merges stacks and groups by category |
 | Weapon | 1 equipped |
 | Armor | 4 slots (head, chest, arms, legs) |
 | Tools | Equipped tool for homestead interactions (design target) |
-| Food | Consumable buffs before hunts (design target) |
+| Food | Cooked at the forge; eaten from the inventory on the homestead; one active buff |
 
 - Gear is equipped or forged; no mid-dungeon swap
 - Quick swap / forge UI only at hub
 
-### Food buffs (design target)
+### Food buffs
+
+Shipping now:
+
+| Food | Recipe | Effect | Duration |
+| ---- | ------ | ------ | -------- |
+| Roast Turnip | 2 Turnip | +8% attack | Until the hunt ends or sleep |
+| Potato Stew | 2 Potato + 1 Turnip | +2 defense, +10% carve speed | Until the hunt ends or sleep |
+
+Eat on the homestead only. Eating again replaces the active buff; buffs never stack. Eating pops an "Ate …!" banner with the bonus, then the Fed chip stays up while the buff lasts.
+
+Design targets:
 
 | Example | Effect | Duration |
 | ------- | ------ | -------- |
@@ -511,8 +522,8 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 - [ ] Soft day cycle + sleep
 - [ ] Tool energy pool for homestead tools
 - [ ] Functional crop plots (plant/water/grow/harvest)
-- [ ] Food cooking + pre-hunt buffs
-- [ ] Inventory UX for crops/fish/ore stacks
+- [x] Food cooking + pre-hunt buffs
+- [x] Inventory UX for crops/food/ore stacks (fish stacks arrive with fishing)
 
 **Done when:** a full day can be chores → food → hunt → forge → sleep without debug cheats.
 
@@ -649,6 +660,10 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 | 2026-09 | `assets/ATTRIBUTION.txt` covers legacy art until that file is redrawn | Signed hunter pixels keep their credit. An in-house replacement drops the old credit for that file |
 | 2026-09-26 | New in-house frames may be added beside the signed hunter cells | Run cycle (8 played frames), attack in-between and recover, jump, fall, death. Idle, run lean, chamber, and thrust pixels stay. Foot point is cell x = 81.5, sole row 158. Supersedes the 2026-08 reopen ban for added frames only. |
 | 2026-09-26 | King Slime canvas is 192×192 | 6 tiles, taller than the ~160 px hunter. Replaces the 128×128 working default. The sheet replaces the live fill. The gameplay body stays two tiles. |
+| 2026-10-10 | Inventory is 32 slots in an 8×4 grid (was 24) | Crops, food and ore share the bag. 8 columns × 4 rows fit at 720p. Profile v7; v6 saves keep their 24 slots and gain 8 empty ones |
+| 2026-10-10 | Two starter food buffs: Roast Turnip +8% attack; Potato Stew +2 defense and +10% carve speed | Small on purpose: prep, not a replacement for skill. One active buff; eating again replaces it |
+| 2026-10-10 | Eat on the homestead only | Food is prep before a hunt, not a mid-hunt heal |
+| 2026-10-10 | A food buff ends when the hunt ends or the player sleeps | One meal covers one hunt; sleep starts a fresh day |
 | 2026-10 | Homestead camera back to 3× (`HOMESTEAD_PIXEL_ZOOM`) | The home area was too small to read at 1×. Camera zoom only; art, transforms, and tiles stay 1× 32 px. Forest and dungeon cameras stay 1× |
 
 ---
@@ -660,7 +675,7 @@ Engineering conventions: [`CODING_STANDARDS.md`](CODING_STANDARDS.md).
 - Seasons: full four-season crops vs simplified growth timers only
 - Mine: single branching cave vs Stardew-like descending floors
 - Whether spear/sword should share any specials after mastery split
-- Inventory size after lifestyle systems come online (24 may be tight)
+- ~~Inventory size after lifestyle systems come online (24 may be tight)~~ Resolved 2026-10-10: 32 slots in an 8×4 grid (see [Key Decisions](#key-decisions))
 - Difficulty: static enemy stats vs light scaling on repeat clears
 
 These six redraw calls are still open. The figure on each line is the working default until one is picked:

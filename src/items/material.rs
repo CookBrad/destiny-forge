@@ -18,12 +18,10 @@ pub enum MaterialId {
     Potato,
     Hoe,
     WateringCan,
-    // Cooked food (#21)
     RoastTurnip,
     PotatoStew,
 }
 
-/// Declaration order is the inventory sort order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ItemCategory {
     Tool,

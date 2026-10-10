@@ -12,8 +12,6 @@ use super::settings::ProfileSettings;
 pub const PROFILE_COUNT: u8 = 3;
 /// v6 = crop_plots (Homestead #72). Gear stash (#58) lives on Loadout with
 /// #[serde(default)] and does not bump this.
-/// v7 = 32 inventory slots (#22) and Loadout.food_buff (#21). Older saves keep
-/// their 24 slots padded with empties; see `Inventory` slot deserialization.
 pub const PROFILE_VERSION: u32 = 7;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 

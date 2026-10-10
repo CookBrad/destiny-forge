@@ -6,7 +6,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use super::material::MaterialId;
 
-/// Raised from 24 in profile v7. Saved slot lists of any length still load.
 pub const INVENTORY_SLOT_COUNT: usize = 32;
 pub const MAX_STACK: u32 = 99;
 
@@ -27,21 +26,19 @@ impl Default for MaterialStack {
 
 #[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Inventory {
-    #[serde(deserialize_with = "deserialize_slots")]
+    #[serde(deserialize_with = "deserialize_slots_padding_shorter_saves")]
     pub slots: [MaterialStack; INVENTORY_SLOT_COUNT],
 }
 
-/// Pads shorter (pre-v7, 24-slot) saves with empty slots. Stacks beyond the
-/// slot count are merged back in rather than dropped.
-fn deserialize_slots<'de, D>(
+fn deserialize_slots_padding_shorter_saves<'de, D>(
     deserializer: D,
 ) -> Result<[MaterialStack; INVENTORY_SLOT_COUNT], D::Error>
 where
     D: Deserializer<'de>,
 {
-    struct SlotsVisitor;
+    struct AnyLengthSlotsVisitor;
 
-    impl<'de> Visitor<'de> for SlotsVisitor {
+    impl<'de> Visitor<'de> for AnyLengthSlotsVisitor {
         type Value = [MaterialStack; INVENTORY_SLOT_COUNT];
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -53,24 +50,24 @@ where
             A: SeqAccess<'de>,
         {
             let mut inventory = Inventory::default();
-            let mut overflow = Vec::new();
-            let mut index = 0;
+            let mut overflow_stacks = Vec::new();
+            let mut slot_index = 0;
             while let Some(stack) = seq.next_element::<MaterialStack>()? {
-                if index < INVENTORY_SLOT_COUNT {
-                    inventory.slots[index] = stack;
+                if slot_index < INVENTORY_SLOT_COUNT {
+                    inventory.slots[slot_index] = stack;
                 } else if let Some(material) = stack.material {
-                    overflow.push((material, stack.count));
+                    overflow_stacks.push((material, stack.count));
                 }
-                index += 1;
+                slot_index += 1;
             }
-            for (material, count) in overflow {
+            for (material, count) in overflow_stacks {
                 inventory.try_add(material, count);
             }
             Ok(inventory.slots)
         }
     }
 
-    deserializer.deserialize_tuple(INVENTORY_SLOT_COUNT, SlotsVisitor)
+    deserializer.deserialize_tuple(INVENTORY_SLOT_COUNT, AnyLengthSlotsVisitor)
 }
 
 impl Default for Inventory {
@@ -168,9 +165,8 @@ impl Inventory {
         false
     }
 
-    /// Merges partial stacks and groups by category, then item.
-    pub fn sort(&mut self) {
-        let mut totals: Vec<(MaterialId, u32)> = Vec::new();
+    pub fn merge_stacks_and_sort_by_category(&mut self) {
+        let mut material_totals: Vec<(MaterialId, u32)> = Vec::new();
         for slot in &self.slots {
             let Some(material) = slot.material else {
                 continue;
@@ -178,15 +174,15 @@ impl Inventory {
             if slot.count == 0 {
                 continue;
             }
-            match totals.iter_mut().find(|(id, _)| *id == material) {
+            match material_totals.iter_mut().find(|(id, _)| *id == material) {
                 Some((_, total)) => *total += slot.count,
-                None => totals.push((material, slot.count)),
+                None => material_totals.push((material, slot.count)),
             }
         }
-        totals.sort_by_key(|(material, _)| (material.category(), *material));
+        material_totals.sort_by_key(|(material, _)| (material.category(), *material));
 
         self.slots = [MaterialStack::default(); INVENTORY_SLOT_COUNT];
-        for (material, total) in totals {
+        for (material, total) in material_totals {
             self.try_add(material, total);
         }
     }
@@ -245,12 +241,12 @@ mod tests {
             assert_eq!(inventory.try_add(material, 4), 0);
             assert_eq!(inventory.count(material), 7);
         }
-        let used = inventory
+        let occupied_slots = inventory
             .slots
             .iter()
             .filter(|slot| slot.material.is_some())
             .count();
-        assert_eq!(used, 4);
+        assert_eq!(occupied_slots, 4);
     }
 
     #[test]
@@ -276,9 +272,9 @@ mod tests {
             material: Some(MaterialId::Turnip),
             count: 2,
         };
-        let before = inventory.total_items();
+        let items_before_sort = inventory.total_items();
 
-        inventory.sort();
+        inventory.merge_stacks_and_sort_by_category();
 
         let order: Vec<_> = inventory.slots.iter().map(|slot| slot.material).collect();
         assert_eq!(
@@ -292,14 +288,14 @@ mod tests {
             ]
         );
         assert_eq!(inventory.slots[3].count, 10);
-        assert_eq!(inventory.total_items(), before);
+        assert_eq!(inventory.total_items(), items_before_sort);
     }
 
     #[test]
     fn sort_keeps_overfull_totals_split_at_max_stack() {
         let mut inventory = Inventory::default();
         inventory.try_add(MaterialId::Fang, MAX_STACK + 5);
-        inventory.sort();
+        inventory.merge_stacks_and_sort_by_category();
         assert_eq!(inventory.slots[0].count, MAX_STACK);
         assert_eq!(inventory.slots[1].count, 5);
     }

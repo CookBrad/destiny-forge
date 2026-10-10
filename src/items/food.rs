@@ -1,32 +1,37 @@
 use super::material::MaterialId;
 
-/// Pre-hunt prep bonus from eating one food. Small on purpose.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FoodBuff {
-    pub attack_mult: f32,
+    pub attack_multiplier: f32,
     pub defense_bonus: f32,
-    pub carve_mult: f32,
+    pub carve_speed_multiplier: f32,
 }
 
 impl FoodBuff {
     pub const NONE: Self = Self {
-        attack_mult: 1.0,
+        attack_multiplier: 1.0,
         defense_bonus: 0.0,
-        carve_mult: 1.0,
+        carve_speed_multiplier: 1.0,
     };
 
-    pub fn summary(self) -> String {
-        let mut parts = Vec::new();
-        if self.attack_mult != 1.0 {
-            parts.push(format!("+{:.0}% attack", (self.attack_mult - 1.0) * 100.0));
+    pub fn bonus_summary(self) -> String {
+        let mut bonus_phrases = Vec::new();
+        if self.attack_multiplier != 1.0 {
+            bonus_phrases.push(format!(
+                "+{:.0}% attack",
+                (self.attack_multiplier - 1.0) * 100.0
+            ));
         }
         if self.defense_bonus != 0.0 {
-            parts.push(format!("+{:.0} defense", self.defense_bonus));
+            bonus_phrases.push(format!("+{:.0} defense", self.defense_bonus));
         }
-        if self.carve_mult != 1.0 {
-            parts.push(format!("+{:.0}% carve", (self.carve_mult - 1.0) * 100.0));
+        if self.carve_speed_multiplier != 1.0 {
+            bonus_phrases.push(format!(
+                "+{:.0}% carve",
+                (self.carve_speed_multiplier - 1.0) * 100.0
+            ));
         }
-        parts.join(", ")
+        bonus_phrases.join(", ")
     }
 }
 
@@ -34,12 +39,12 @@ impl MaterialId {
     pub fn food_buff(self) -> Option<FoodBuff> {
         match self {
             Self::RoastTurnip => Some(FoodBuff {
-                attack_mult: 1.08,
+                attack_multiplier: 1.08,
                 ..FoodBuff::NONE
             }),
             Self::PotatoStew => Some(FoodBuff {
                 defense_bonus: 2.0,
-                carve_mult: 1.1,
+                carve_speed_multiplier: 1.1,
                 ..FoodBuff::NONE
             }),
             _ => None,
@@ -50,7 +55,7 @@ impl MaterialId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::items::ItemCategory;
+    use crate::items::material::ItemCategory;
 
     #[test]
     fn only_food_items_have_buffs() {
@@ -65,8 +70,8 @@ mod tests {
     #[test]
     fn buff_summaries_list_each_bonus() {
         let roast = MaterialId::RoastTurnip.food_buff().unwrap();
-        assert_eq!(roast.summary(), "+8% attack");
+        assert_eq!(roast.bonus_summary(), "+8% attack");
         let stew = MaterialId::PotatoStew.food_buff().unwrap();
-        assert_eq!(stew.summary(), "+2 defense, +10% carve");
+        assert_eq!(stew.bonus_summary(), "+2 defense, +10% carve");
     }
 }

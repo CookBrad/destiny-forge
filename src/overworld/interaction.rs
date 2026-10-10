@@ -107,9 +107,7 @@ pub fn try_sleep_at_bed(
 
     let day = perform_sleep(&mut day_clock, &mut tool_energy);
     advance_all_plots_on_sleep(&mut plots);
-    if loadout.food_buff.is_some() {
-        loadout.food_buff = None;
-    }
+    loadout.clear_food_buff();
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
