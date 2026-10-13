@@ -11,6 +11,7 @@ pub const ANIMAL_SHEET_ROWS: u32 = 12;
 /// Homestead dwarf sheet is 16×28. Height places the feet on the surface.
 pub const PLAYER_SPRITE_HEIGHT: f32 = 28.0;
 pub const PLAYER_ANIM_FRAMES: usize = 4;
+pub const PLAYER_EAT_FRAMES: usize = 4;
 
 pub const FORGE_FURNACE_HEIGHT: f32 = 80.0;
 pub const FORGE_WORKBENCH_HEIGHT: f32 = 160.0;
@@ -20,6 +21,7 @@ pub const FORGE_ANVIL_HEIGHT: f32 = 80.0;
 pub struct HomesteadPlayerFrames {
     pub idle: [Handle<Image>; PLAYER_ANIM_FRAMES],
     pub walk: [Handle<Image>; PLAYER_ANIM_FRAMES],
+    pub eat: [Handle<Image>; PLAYER_EAT_FRAMES],
 }
 
 impl HomesteadPlayerFrames {
@@ -35,6 +37,11 @@ impl HomesteadPlayerFrames {
                     "{PLAYER_NON_COMBAT_ROOT}/dwarf_m_run_anim_f{frame}.png"
                 ))
             }),
+            eat: std::array::from_fn(|frame| {
+                asset_server.load(format!(
+                    "{PLAYER_NON_COMBAT_ROOT}/dwarf_m_eat_anim_f{frame}.png"
+                ))
+            }),
         }
     }
 
@@ -45,6 +52,10 @@ impl HomesteadPlayerFrames {
         } else {
             self.idle[index].clone()
         }
+    }
+
+    pub fn eat_frame_handle(&self, frame: usize) -> Handle<Image> {
+        self.eat[frame % PLAYER_EAT_FRAMES].clone()
     }
 }
 

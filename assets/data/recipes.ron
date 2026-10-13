@@ -63,6 +63,23 @@
         requires_weapon: None,
     ),
     (
+        name: "Roast Turnip",
+        costs: [
+            (Turnip, 2),
+        ],
+        output: Food(RoastTurnip),
+        requires_weapon: None,
+    ),
+    (
+        name: "Potato Stew",
+        costs: [
+            (Potato, 2),
+            (Turnip, 1),
+        ],
+        output: Food(PotatoStew),
+        requires_weapon: None,
+    ),
+    (
         name: "Iron Pickaxe",
         costs: [
             (IronOre, 5),
@@ -70,7 +87,6 @@
         output: Item(PickaxeTier2),
         requires_weapon: None,
     ),
-    // Copper path: the starter pickaxe cannot mine iron, so T2 must be reachable from copper.
     (
         name: "Iron Pickaxe (copper-bound)",
         costs: [

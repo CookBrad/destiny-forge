@@ -171,6 +171,7 @@ pub fn save_root_display() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::profile::PROFILE_VERSION;
     use crate::items::MaterialId;
     use crate::player::Loadout;
 
@@ -242,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn valid_v6_profile_round_trips() {
+    fn valid_v6_profile_loads_and_migrates_to_current_version() {
         let root = temporary_save_root("v6");
         let primary = profile_path_in(&root, 0);
         let mut profile = PlayerProfile::default();
@@ -251,7 +252,7 @@ mod tests {
 
         save_profile_at(&primary, &profile).unwrap();
         let loaded = load_profile_at(&primary).unwrap();
-        assert_eq!(loaded.version, 6);
+        assert_eq!(loaded.version, PROFILE_VERSION);
         assert_eq!(loaded.inventory.count(MaterialId::SlimeGel), 3);
         assert_eq!(loaded.loadout, Loadout::default());
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());

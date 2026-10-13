@@ -1,0 +1,108 @@
+(
+    version: 6,
+    name: "Old Save",
+    inventory: (
+        slots: ((
+            material: Some(Hoe),
+            count: 1,
+        ), (
+            material: Some(WateringCan),
+            count: 1,
+        ), (
+            material: Some(TurnipSeed),
+            count: 8,
+        ), (
+            material: Some(PotatoSeed),
+            count: 4,
+        ), (
+            material: Some(Turnip),
+            count: 5,
+        ), (
+            material: Some(Potato),
+            count: 3,
+        ), (
+            material: Some(SlimeGel),
+            count: 99,
+        ), (
+            material: Some(SlimeGel),
+            count: 21,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: None,
+            count: 0,
+        ), (
+            material: Some(IronScrap),
+            count: 2,
+        )),
+    ),
+    loadout: (
+        weapon: RustySword,
+        armor: (
+            head: None,
+            chest: None,
+            arms: None,
+            legs: None,
+        ),
+        stash: (
+            weapons: [],
+            armor: [],
+        ),
+    ),
+    progress: (
+        boss_defeated_floor_1: false,
+    ),
+    calendar_day: 4,
+    day_phase: Morning,
+    tool_energy: 100.0,
+    crop_plots: [],
+    settings: (
+        audio: (
+            music_enabled: true,
+            music_volume: 1.0,
+            sfx_enabled: true,
+            sfx_volume: 1.0,
+        ),
+        skill_bindings: (Some(Attack), Some(Block), Some(Charge), Some(Spin), None, None, None, None, None),
+    ),
+)

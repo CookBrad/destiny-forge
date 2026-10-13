@@ -1,5 +1,6 @@
 mod animals;
 pub mod camera;
+pub mod eating;
 pub(crate) mod interaction;
 pub mod layout;
 pub mod movement;
