@@ -10,6 +10,11 @@ pub enum PromptKind {
     OpenForge,
     ClimbLadder,
     EnterDungeon,
+    EnterMine,
+    LeaveMine,
+    MineCopper,
+    MineIron,
+    NeedIronPickaxe,
 }
 
 impl PromptKind {
@@ -20,6 +25,11 @@ impl PromptKind {
             Self::OpenForge => "E — Open forge",
             Self::ClimbLadder => "E — Climb ladder",
             Self::EnterDungeon => "E — Enter dungeon (costs time)",
+            Self::EnterMine => "E — Enter mine",
+            Self::LeaveMine => "E — Leave mine",
+            Self::MineCopper => "Space — Mine copper",
+            Self::MineIron => "Space — Mine iron",
+            Self::NeedIronPickaxe => "Iron needs an Iron Pickaxe (forge)",
         }
     }
 
@@ -30,6 +40,9 @@ impl PromptKind {
             Self::OpenForge => 30,
             Self::ClimbLadder => 20,
             Self::EnterDungeon => 10,
+            Self::EnterMine => 10,
+            Self::MineCopper | Self::MineIron | Self::NeedIronPickaxe => 25,
+            Self::LeaveMine => 15,
         }
     }
 }

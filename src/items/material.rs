@@ -18,6 +18,10 @@ pub enum MaterialId {
     Potato,
     Hoe,
     WateringCan,
+    CopperOre,
+    IronOre,
+    PickaxeTier1,
+    PickaxeTier2,
 }
 
 impl MaterialId {
@@ -37,6 +41,10 @@ impl MaterialId {
             Self::Potato => "Potato",
             Self::Hoe => "Hoe",
             Self::WateringCan => "Watering Can",
+            Self::CopperOre => "Copper Ore",
+            Self::IronOre => "Iron Ore",
+            Self::PickaxeTier1 => "Copper Pickaxe",
+            Self::PickaxeTier2 => "Iron Pickaxe",
         }
     }
 }

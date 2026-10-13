@@ -6,6 +6,7 @@ pub enum GameState {
     Title,
     Overworld,
     Forest,
+    Mine,
     Dungeon,
 }
 

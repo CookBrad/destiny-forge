@@ -5,6 +5,7 @@ use crate::core::{
 };
 use crate::farming::{advance_all_plots_on_sleep, capture_plots, CropPlot};
 use crate::forging::RecipeBook;
+use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
@@ -62,6 +63,9 @@ pub fn overworld_interaction(
                 // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
+            HomesteadZone::MineEntrance if near && keyboard.just_pressed(KeyCode::KeyE) => {
+                next_state.set(GameState::Mine);
+            }
             _ => {}
         }
     }
@@ -110,9 +114,10 @@ pub fn try_sleep_at_bed(
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
     profile.crop_plots = capture_plots(plots.iter());
+    respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored; crops advanced.");
+    info!("Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned.");
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
@@ -154,6 +159,7 @@ fn overworld_prompt_candidates(
             match zone.zone {
                 HomesteadZone::Forge => candidates.push(PromptKind::OpenForge),
                 HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
+                HomesteadZone::MineEntrance => candidates.push(PromptKind::EnterMine),
                 _ => {}
             }
         }
