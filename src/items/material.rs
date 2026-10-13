@@ -20,6 +20,10 @@ pub enum MaterialId {
     WateringCan,
     RoastTurnip,
     PotatoStew,
+    CopperOre,
+    IronOre,
+    PickaxeTier1,
+    PickaxeTier2,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -64,16 +68,22 @@ impl MaterialId {
             Self::WateringCan => "Watering Can",
             Self::RoastTurnip => "Roast Turnip",
             Self::PotatoStew => "Potato Stew",
+            Self::CopperOre => "Copper Ore",
+            Self::IronOre => "Iron Ore",
+            Self::PickaxeTier1 => "Copper Pickaxe",
+            Self::PickaxeTier2 => "Iron Pickaxe",
         }
     }
 
     pub fn category(self) -> ItemCategory {
         match self {
-            Self::Hoe | Self::WateringCan => ItemCategory::Tool,
+            Self::Hoe | Self::WateringCan | Self::PickaxeTier1 | Self::PickaxeTier2 => {
+                ItemCategory::Tool
+            }
             Self::TurnipSeed | Self::PotatoSeed => ItemCategory::Seed,
             Self::Turnip | Self::Potato => ItemCategory::Crop,
             Self::RoastTurnip | Self::PotatoStew => ItemCategory::Food,
-            Self::IronScrap => ItemCategory::Ore,
+            Self::IronScrap | Self::CopperOre | Self::IronOre => ItemCategory::Ore,
             Self::SlimeGel
             | Self::SlimeCore
             | Self::LeatherWing
@@ -102,6 +112,10 @@ impl MaterialId {
             Self::WateringCan => "Waters crops so they grow overnight.",
             Self::RoastTurnip => "Eat before a hunt. Lasts one hunt or until sleep.",
             Self::PotatoStew => "Eat before a hunt. Lasts one hunt or until sleep.",
+            Self::CopperOre => "Copper ore from the homestead mine. Forge material.",
+            Self::IronOre => "Iron ore from the homestead mine. Forge material.",
+            Self::PickaxeTier1 => "Mines copper ore nodes.",
+            Self::PickaxeTier2 => "Mines copper and iron ore nodes.",
         }
     }
 }

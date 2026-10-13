@@ -1,7 +1,7 @@
 mod animals;
 pub mod camera;
 pub mod eating;
-mod interaction;
+pub(crate) mod interaction;
 pub mod layout;
 pub mod movement;
 mod plugin;

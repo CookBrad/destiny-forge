@@ -114,6 +114,19 @@ impl Plugin for UiPlugin {
                 (setup_interaction_prompt, setup_food_buff_hud),
             )
             .add_systems(
+                OnEnter(GameState::Mine),
+                (setup_day_hud, setup_energy_hud, setup_interaction_prompt),
+            )
+            .add_systems(
+                OnExit(GameState::Mine),
+                (
+                    cleanup_day_hud,
+                    cleanup_energy_hud,
+                    cleanup_interaction_prompt,
+                    cleanup_inventory_window,
+                ),
+            )
+            .add_systems(
                 OnExit(GameState::Overworld),
                 (
                     cleanup_day_hud,
@@ -131,13 +144,19 @@ impl Plugin for UiPlugin {
                 Update,
                 (
                     sync_day_hud.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Mine)),
                     ),
                     sync_energy_hud.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Forest)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Mine)),
                     ),
                     sync_interaction_prompt_ui.run_if(
-                        in_state(GameState::Overworld).or(in_state(GameState::Dungeon)),
+                        in_state(GameState::Overworld)
+                            .or(in_state(GameState::Dungeon))
+                            .or(in_state(GameState::Mine)),
                     ),
                     sync_food_buff_hud.run_if(
                         in_state(GameState::Overworld)
@@ -191,6 +210,7 @@ impl Plugin for UiPlugin {
                     .run_if(
                         in_state(GameState::Overworld)
                             .or(in_state(GameState::Forest))
+                            .or(in_state(GameState::Mine))
                             .or(in_state(DungeonPlayState::Running))
                             .or(in_state(DungeonPlayState::Paused)),
                     ),

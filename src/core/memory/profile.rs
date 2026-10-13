@@ -53,6 +53,8 @@ pub struct PlayerProfile {
     #[serde(default)]
     pub crop_plots: Vec<SavedCropPlot>,
     #[serde(default)]
+    pub depleted_ore_node_ids: Vec<u16>,
+    #[serde(default)]
     pub settings: ProfileSettings,
 }
 
@@ -61,13 +63,14 @@ impl Default for PlayerProfile {
         Self {
             version: PROFILE_VERSION,
             name: String::new(),
-            inventory: Inventory::with_starter_seeds(),
+            inventory: Inventory::with_starter_kit(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
             calendar_day: 1,
             day_phase: DayPhase::Morning,
             tool_energy: default_tool_energy(),
             crop_plots: Vec::new(),
+            depleted_ore_node_ids: Vec::new(),
             settings: ProfileSettings::default(),
         }
     }
@@ -120,13 +123,17 @@ pub fn sanitize_profile_name(name: String) -> String {
         .to_string()
 }
 
-pub fn rename_profile_on_disk(index: u8, name: String) -> PlayerProfile {
-    let mut profile = super::storage::load_profile(index);
+pub fn rename_profile_on_disk(index: u8, name: String) -> Option<PlayerProfile> {
+    let Ok(mut profile) =
+        super::storage::profile_or_missing_default(super::storage::load_profile(index))
+    else {
+        return None;
+    };
     profile.set_name(&name);
     if let Err(error) = super::storage::save_profile(index, &profile) {
         warn!("Failed to save profile name: {error}");
     }
-    profile
+    Some(profile)
 }
 
 #[cfg(test)]

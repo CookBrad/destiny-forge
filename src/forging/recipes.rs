@@ -14,6 +14,7 @@ pub enum RecipeOutput {
     Weapon(WeaponKind),
     Armor(ArmorKind),
     Food(MaterialId),
+    Item(MaterialId),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,6 +91,12 @@ pub fn can_craft_recipe(inventory: &Inventory, loadout: &Loadout, recipe: &Recip
         }
     }
 
+    if let RecipeOutput::Item(material) = recipe.output {
+        if !inventory.has_room_for(material) {
+            return false;
+        }
+    }
+
     if let Some(required_weapon) = recipe.requires_weapon {
         if loadout.weapon != required_weapon {
             return false;
@@ -121,6 +128,9 @@ pub fn try_craft_recipe(inventory: &mut Inventory, loadout: &mut Loadout, recipe
         RecipeOutput::Armor(armor) => loadout.equip_forged_armor(armor),
         RecipeOutput::Food(food) => {
             inventory.try_add(food, 1);
+        }
+        RecipeOutput::Item(material) => {
+            inventory.try_add(material, 1);
         }
     }
 
@@ -213,12 +223,77 @@ mod tests {
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         inventory.try_add(MaterialId::SlimeGel, 5);
-        inventory.try_add(MaterialId::IronScrap, 3);
+        inventory.try_add(MaterialId::IronOre, 3);
 
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &iron));
         assert_eq!(loadout.weapon, WeaponKind::IronSword);
         assert_eq!(inventory.count(MaterialId::SlimeGel), 0);
+        assert_eq!(inventory.count(MaterialId::IronOre), 0);
         assert_eq!(loadout.stash.weapons, vec![WeaponKind::RustySword]);
+    }
+
+    #[test]
+    fn no_metal_recipe_uses_iron_scrap() {
+        for recipe in &book().recipes {
+            assert!(
+                recipe
+                    .costs
+                    .iter()
+                    .all(|(material, _)| *material != MaterialId::IronScrap),
+                "{} still costs Iron Scrap",
+                recipe.name
+            );
+        }
+    }
+
+    #[test]
+    fn iron_sword_needs_ore_not_scrap() {
+        let iron = recipe_named(&book(), "Iron Sword");
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::SlimeGel, 5);
+        inventory.try_add(MaterialId::IronScrap, 10);
+
+        assert!(!try_craft_recipe(&mut inventory, &mut loadout, &iron));
+        assert_eq!(loadout.weapon, WeaponKind::RustySword);
+    }
+
+    #[test]
+    fn iron_pickaxe_forges_from_five_iron_ore() {
+        let iron_pickaxe = recipe_named(&book(), "Iron Pickaxe");
+        assert_eq!(iron_pickaxe.costs, vec![(MaterialId::IronOre, 5)]);
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::IronOre, 5);
+
+        assert!(try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &iron_pickaxe
+        ));
+        assert_eq!(inventory.count(MaterialId::PickaxeTier2), 1);
+        assert_eq!(inventory.count(MaterialId::IronOre), 0);
+        assert_eq!(loadout.weapon, WeaponKind::RustySword);
+    }
+
+    #[test]
+    fn iron_pickaxe_alternate_takes_three_copper_ore() {
+        let copper_bound_iron_pickaxe = recipe_named(&book(), "Iron Pickaxe (copper-bound)");
+        assert_eq!(
+            copper_bound_iron_pickaxe.costs,
+            vec![(MaterialId::CopperOre, 3)]
+        );
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        inventory.try_add(MaterialId::CopperOre, 3);
+
+        assert!(try_craft_recipe(
+            &mut inventory,
+            &mut loadout,
+            &copper_bound_iron_pickaxe
+        ));
+        assert_eq!(inventory.count(MaterialId::PickaxeTier2), 1);
+        assert_eq!(inventory.count(MaterialId::CopperOre), 0);
     }
 
     #[test]

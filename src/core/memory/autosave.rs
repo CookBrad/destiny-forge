@@ -7,6 +7,7 @@ use crate::player::{Loadout, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy};
 
+use super::autosave_block::ProfileAutosaveBlock;
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::save_profile;
 use super::sync::snapshot_profile;
@@ -50,8 +51,9 @@ pub fn debounced_autosave(
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
     mut profile: ResMut<PlayerProfile>,
+    autosave_block: Res<ProfileAutosaveBlock>,
 ) {
-    if !profile_dirty.0 {
+    if !profile_dirty.0 || autosave_block.is_blocked(active.index()) {
         return;
     }
 
@@ -87,8 +89,9 @@ pub fn flush_saves_on_exit(
     tool_energy: Res<ToolEnergy>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
+    autosave_block: Res<ProfileAutosaveBlock>,
 ) {
-    if !profile_dirty.0 {
+    if !profile_dirty.0 || autosave_block.is_blocked(active.index()) {
         return;
     }
 

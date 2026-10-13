@@ -815,6 +815,10 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
         MaterialId::WateringCan => (Color::srgb(0.28, 0.48, 0.72), "Water"),
         MaterialId::RoastTurnip => (Color::srgb(0.82, 0.46, 0.22), "Roast"),
         MaterialId::PotatoStew => (Color::srgb(0.7, 0.5, 0.26), "Stew"),
+        MaterialId::CopperOre => (Color::srgb(0.78, 0.46, 0.26), "Cu"),
+        MaterialId::IronOre => (Color::srgb(0.56, 0.42, 0.38), "Fe"),
+        MaterialId::PickaxeTier1 => (Color::srgb(0.7, 0.5, 0.3), "Pk1"),
+        MaterialId::PickaxeTier2 => (Color::srgb(0.6, 0.62, 0.68), "Pk2"),
     }
 }
 
