@@ -7,9 +7,10 @@ use crate::player::{Loadout, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy, TOOL_ENERGY_MAX};
 
+use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::profile::{ActiveProfile, PlayerProfile, PROFILE_COUNT};
 use super::settings::GameSettings;
-use super::storage::{load_profile, save_profile, save_settings, save_root_display};
+use super::storage::{save_profile, save_root_display, save_settings};
 use super::ProfileDirty;
 
 pub fn hydrate_runtime_from_memory(
@@ -113,10 +114,11 @@ pub fn activate_profile(
     profile: &mut PlayerProfile,
     global: &mut GameSettings,
     dirty: &mut ProfileDirty,
-) {
+    autosave_block: &mut ProfileAutosaveBlock,
+) -> bool {
     let index = index.min(PROFILE_COUNT - 1);
     if active.0 == index {
-        return;
+        return !autosave_block.is_blocked(index);
     }
 
     snapshot_profile(
@@ -135,7 +137,10 @@ pub fn activate_profile(
         dirty.0 = false;
     }
 
-    *profile = load_profile(index);
+    let Ok(loaded) = load_profile_for_slot(index, autosave_block) else {
+        return false;
+    };
+    *profile = loaded;
     active.0 = index;
     global.last_active_profile = index;
     if let Err(error) = save_settings(global) {
@@ -143,6 +148,7 @@ pub fn activate_profile(
     }
 
     dirty.0 = false;
+    true
 }
 
 pub fn apply_profile_to_runtime(

@@ -120,11 +120,15 @@ pub fn sanitize_profile_name(name: String) -> String {
         .to_string()
 }
 
-pub fn rename_profile_on_disk(index: u8, name: String) -> PlayerProfile {
-    let mut profile = super::storage::load_profile(index);
+pub fn rename_profile_on_disk(index: u8, name: String) -> Option<PlayerProfile> {
+    let Ok(mut profile) =
+        super::storage::profile_or_missing_default(super::storage::load_profile(index))
+    else {
+        return None;
+    };
     profile.set_name(&name);
     if let Err(error) = super::storage::save_profile(index, &profile) {
         warn!("Failed to save profile name: {error}");
     }
-    profile
+    Some(profile)
 }
