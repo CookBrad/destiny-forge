@@ -3,11 +3,14 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    activate_profile, apply_profile_to_runtime, load_profile, ActiveProfile, DayClock, GameSettings,
-    PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
+    activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile, DayClock,
+    GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ProfileNeedsAttention,
+    ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
+
+pub const SAVE_NEEDS_ATTENTION: &str = "Your save needs attention";
 
 #[derive(Clone, Debug)]
 pub struct ProfileCardSummary {
@@ -15,6 +18,7 @@ pub struct ProfileCardSummary {
     pub weapon: String,
     pub materials: u32,
     pub boss_cleared: bool,
+    pub needs_attention: bool,
 }
 
 #[derive(Resource)]
@@ -24,53 +28,50 @@ pub struct ProfilePicker {
 
 impl Default for ProfilePicker {
     fn default() -> Self {
-        Self::refresh()
+        Self {
+            cards: std::array::from_fn(|slot| {
+                summary_from_profile(slot as u8, &PlayerProfile::default())
+            }),
+        }
     }
 }
 
 impl ProfilePicker {
-    pub fn refresh() -> Self {
-        let mut cards = Vec::with_capacity(PROFILE_COUNT as usize);
-        for index in 0..PROFILE_COUNT {
-            let profile = load_profile(index);
-            cards.push(ProfileCardSummary {
-                name: profile.display_name(index),
-                weapon: profile.summary_weapon().to_string(),
-                materials: profile.summary_material_count(),
-                boss_cleared: profile.summary_boss_cleared(),
-            });
+    pub fn refresh(autosave_block: &mut ProfileAutosaveBlock) -> Self {
+        Self {
+            cards: std::array::from_fn(|slot| summary_for_slot(slot as u8, autosave_block)),
         }
-
-        let mut card_array = [
-            ProfileCardSummary {
-                name: PlayerProfile::default_name(0),
-                weapon: "Rusty Sword".to_string(),
-                materials: 0,
-                boss_cleared: false,
-            },
-            ProfileCardSummary {
-                name: PlayerProfile::default_name(1),
-                weapon: "Rusty Sword".to_string(),
-                materials: 0,
-                boss_cleared: false,
-            },
-            ProfileCardSummary {
-                name: PlayerProfile::default_name(2),
-                weapon: "Rusty Sword".to_string(),
-                materials: 0,
-                boss_cleared: false,
-            },
-        ];
-        for (slot, summary) in card_array.iter_mut().zip(cards.into_iter()) {
-            *slot = summary;
-        }
-
-        Self { cards: card_array }
     }
 }
 
-pub fn refresh_profile_picker(mut picker: ResMut<ProfilePicker>) {
-    *picker = ProfilePicker::refresh();
+fn summary_for_slot(index: u8, autosave_block: &mut ProfileAutosaveBlock) -> ProfileCardSummary {
+    match load_profile_for_slot(index, autosave_block) {
+        Ok(profile) => summary_from_profile(index, &profile),
+        Err(ProfileNeedsAttention) => ProfileCardSummary {
+            name: PlayerProfile::default_name(index),
+            weapon: String::new(),
+            materials: 0,
+            boss_cleared: false,
+            needs_attention: true,
+        },
+    }
+}
+
+fn summary_from_profile(index: u8, profile: &PlayerProfile) -> ProfileCardSummary {
+    ProfileCardSummary {
+        name: profile.display_name(index),
+        weapon: profile.summary_weapon().to_string(),
+        materials: profile.summary_material_count(),
+        boss_cleared: profile.summary_boss_cleared(),
+        needs_attention: false,
+    }
+}
+
+pub fn refresh_profile_picker(
+    mut picker: ResMut<ProfilePicker>,
+    mut autosave_block: ResMut<ProfileAutosaveBlock>,
+) {
+    *picker = ProfilePicker::refresh(&mut autosave_block);
 }
 
 pub fn begin_profile_run(
@@ -86,8 +87,12 @@ pub fn begin_profile_run(
     profile: &mut PlayerProfile,
     global: &mut GameSettings,
     profile_dirty: &mut ProfileDirty,
-) {
-    activate_profile(
+    autosave_block: &mut ProfileAutosaveBlock,
+) -> bool {
+    if autosave_block.is_blocked(index) {
+        return false;
+    }
+    let switched = activate_profile(
         index,
         inventory,
         loadout,
@@ -100,7 +105,11 @@ pub fn begin_profile_run(
         profile,
         global,
         profile_dirty,
+        autosave_block,
     );
+    if !switched {
+        return false;
+    }
     apply_profile_to_runtime(
         profile,
         inventory,
@@ -111,4 +120,5 @@ pub fn begin_profile_run(
         audio,
         bindings,
     );
+    true
 }

@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings, GameState,
-    PlayerProfile, ProfileDirty, ToolEnergy, PROFILE_COUNT,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings,
+    GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -148,7 +148,14 @@ fn spawn_profile_card(
 }
 
 fn card_details(summary: &super::profile_picker::ProfileCardSummary) -> String {
-    let boss = if summary.boss_cleared { " · ✓ boss" } else { "" };
+    if summary.needs_attention {
+        return super::profile_picker::SAVE_NEEDS_ATTENTION.to_string();
+    }
+    let boss = if summary.boss_cleared {
+        " · ✓ boss"
+    } else {
+        ""
+    };
     format!("{} · {} mats{boss}", summary.weapon, summary.materials)
 }
 
@@ -170,6 +177,7 @@ pub fn handle_title_profile_card_clicks(
     mut bindings: ResMut<SkillBindings>,
     mut global: ResMut<GameSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
+    mut autosave_block: ResMut<ProfileAutosaveBlock>,
 ) {
     if rename.active.is_some() {
         return;
@@ -180,7 +188,7 @@ pub fn handle_title_profile_card_clicks(
             continue;
         }
 
-        begin_profile_run(
+        let started = begin_profile_run(
             card.index,
             &mut inventory,
             &mut loadout,
@@ -193,8 +201,11 @@ pub fn handle_title_profile_card_clicks(
             &mut profile,
             &mut global,
             &mut profile_dirty,
+            &mut autosave_block,
         );
-        next_state.set(GameState::Overworld);
+        if started {
+            next_state.set(GameState::Overworld);
+        }
     }
 }
 
@@ -225,6 +236,7 @@ pub fn handle_profile_rename_input(
     mut picker: ResMut<ProfilePicker>,
     active: Res<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
+    mut autosave_block: ResMut<ProfileAutosaveBlock>,
 ) {
     let Some(session) = rename.active.as_mut() else {
         return;
@@ -238,11 +250,12 @@ pub fn handle_profile_rename_input(
     if keyboard.just_pressed(KeyCode::Enter) {
         let index = session.index;
         let buffer = session.buffer.clone();
-        let saved = rename_profile_on_disk(index, buffer);
-        *picker = ProfilePicker::refresh();
-        if active.index() == index {
-            profile.name = saved.name;
+        if let Some(saved) = rename_profile_on_disk(index, buffer) {
+            if active.index() == index {
+                profile.name = saved.name;
+            }
         }
+        *picker = ProfilePicker::refresh(&mut autosave_block);
         rename.active = None;
         return;
     }
@@ -277,6 +290,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut bindings: ResMut<SkillBindings>,
     mut global: ResMut<GameSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
+    mut autosave_block: ResMut<ProfileAutosaveBlock>,
 ) {
     if rename.active.is_some() {
         return;
@@ -296,7 +310,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         return;
     };
 
-    begin_profile_run(
+    let started = begin_profile_run(
         index,
         &mut inventory,
         &mut loadout,
@@ -309,8 +323,11 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut profile,
         &mut global,
         &mut profile_dirty,
+        &mut autosave_block,
     );
-    next_state.set(GameState::Overworld);
+    if started {
+        next_state.set(GameState::Overworld);
+    }
 }
 
 pub fn sync_title_profile_cards(
@@ -329,17 +346,24 @@ pub fn sync_title_profile_cards(
         (&TitleProfileCardName, &mut Text, &mut TextColor),
         Without<TitleProfileCardDetails>,
     >,
-    mut details: Query<
-        (&TitleProfileCardDetails, &mut Text),
-        Without<TitleProfileCardName>,
-    >,
+    mut details: Query<(&TitleProfileCardDetails, &mut Text), Without<TitleProfileCardName>>,
     mut rename_buttons: Query<
-        (&TitleProfileRenameButton, &Interaction, &mut BackgroundColor),
+        (
+            &TitleProfileRenameButton,
+            &Interaction,
+            &mut BackgroundColor,
+        ),
         Without<TitleProfileCard>,
     >,
 ) {
     for (card, interaction, mut bg, mut border) in &mut cards {
-        apply_card_highlight(card.index, rename.active.as_ref(), interaction, &mut bg, &mut border);
+        apply_card_highlight(
+            card.index,
+            rename.active.as_ref(),
+            interaction,
+            &mut bg,
+            &mut border,
+        );
     }
 
     for (name_label, mut text, mut color) in &mut names {
