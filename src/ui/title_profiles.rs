@@ -1,12 +1,15 @@
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings,
-    GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ToolEnergy, PROFILE_COUNT,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, CalendarRules, DayClock,
+    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
+    PROFILE_COUNT,
 };
+use crate::input::{Action, ActionState};
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
@@ -14,6 +17,12 @@ use super::profile_picker::{begin_profile_run, ProfilePicker};
 
 const CARD_WIDTH: f32 = 420.0;
 const CARD_HEIGHT: f32 = 72.0;
+
+#[derive(SystemParam)]
+pub(super) struct SeasonWithRules<'w> {
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+}
 
 #[derive(Component)]
 pub struct TitleProfileContainer;
@@ -171,6 +180,7 @@ pub fn handle_title_profile_card_clicks(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut calendar: SeasonWithRules,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -195,6 +205,8 @@ pub fn handle_title_profile_card_clicks(
             &mut progress,
             &mut day_clock,
             &mut tool_energy,
+            &mut calendar.season,
+            &calendar.rules,
             &mut audio,
             &mut bindings,
             &mut active,
@@ -231,7 +243,7 @@ pub fn handle_title_profile_rename_clicks(
 }
 
 pub fn handle_profile_rename_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     mut rename: ResMut<ProfileRenameState>,
     mut picker: ResMut<ProfilePicker>,
     active: Res<ActiveProfile>,
@@ -242,12 +254,12 @@ pub fn handle_profile_rename_input(
         return;
     };
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         rename.active = None;
         return;
     }
 
-    if keyboard.just_pressed(KeyCode::Enter) {
+    if actions.just_pressed(Action::Confirm) {
         let index = session.index;
         let buffer = session.buffer.clone();
         if let Some(saved) = rename_profile_on_disk(index, buffer) {
@@ -260,15 +272,12 @@ pub fn handle_profile_rename_input(
         return;
     }
 
-    if keyboard.just_pressed(KeyCode::Backspace) {
+    if actions.just_pressed(Action::EraseCharacter) {
         session.buffer.pop();
         return;
     }
 
-    for key in keyboard.get_just_pressed() {
-        let Some(ch) = key_to_char(*key) else {
-            continue;
-        };
+    for ch in actions.typed_characters().chars() {
         let mut next = session.buffer.clone();
         next.push(ch);
         session.buffer = sanitize_profile_name(next);
@@ -276,7 +285,7 @@ pub fn handle_profile_rename_input(
 }
 
 pub fn handle_title_profile_keyboard_shortcuts(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
     mut inventory: ResMut<Inventory>,
@@ -284,6 +293,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut calendar: SeasonWithRules,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -296,17 +306,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         return;
     }
 
-    let index = if keyboard.just_pressed(KeyCode::Digit1) {
-        Some(0)
-    } else if keyboard.just_pressed(KeyCode::Digit2) {
-        Some(1)
-    } else if keyboard.just_pressed(KeyCode::Digit3) {
-        Some(2)
-    } else {
-        None
-    };
-
-    let Some(index) = index else {
+    let Some(index) = profile_shortcut(&actions) else {
         return;
     };
 
@@ -317,6 +317,8 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut progress,
         &mut day_clock,
         &mut tool_energy,
+        &mut calendar.season,
+        &calendar.rules,
         &mut audio,
         &mut bindings,
         &mut active,
@@ -435,47 +437,90 @@ fn apply_rename_highlight(
     }
 }
 
-fn key_to_char(key: KeyCode) -> Option<char> {
-    match key {
-        KeyCode::KeyA => Some('a'),
-        KeyCode::KeyB => Some('b'),
-        KeyCode::KeyC => Some('c'),
-        KeyCode::KeyD => Some('d'),
-        KeyCode::KeyE => Some('e'),
-        KeyCode::KeyF => Some('f'),
-        KeyCode::KeyG => Some('g'),
-        KeyCode::KeyH => Some('h'),
-        KeyCode::KeyI => Some('i'),
-        KeyCode::KeyJ => Some('j'),
-        KeyCode::KeyK => Some('k'),
-        KeyCode::KeyL => Some('l'),
-        KeyCode::KeyM => Some('m'),
-        KeyCode::KeyN => Some('n'),
-        KeyCode::KeyO => Some('o'),
-        KeyCode::KeyP => Some('p'),
-        KeyCode::KeyQ => Some('q'),
-        KeyCode::KeyR => Some('r'),
-        KeyCode::KeyS => Some('s'),
-        KeyCode::KeyT => Some('t'),
-        KeyCode::KeyU => Some('u'),
-        KeyCode::KeyV => Some('v'),
-        KeyCode::KeyW => Some('w'),
-        KeyCode::KeyX => Some('x'),
-        KeyCode::KeyY => Some('y'),
-        KeyCode::KeyZ => Some('z'),
-        KeyCode::Space => Some(' '),
-        KeyCode::Minus => Some('-'),
-        KeyCode::Period => Some('.'),
-        KeyCode::Digit0 => Some('0'),
-        KeyCode::Digit1 => Some('1'),
-        KeyCode::Digit2 => Some('2'),
-        KeyCode::Digit3 => Some('3'),
-        KeyCode::Digit4 => Some('4'),
-        KeyCode::Digit5 => Some('5'),
-        KeyCode::Digit6 => Some('6'),
-        KeyCode::Digit7 => Some('7'),
-        KeyCode::Digit8 => Some('8'),
-        KeyCode::Digit9 => Some('9'),
-        _ => None,
+fn profile_shortcut(actions: &ActionState) -> Option<u8> {
+    actions
+        .just_pressed_actions()
+        .iter()
+        .copied()
+        .find_map(|action| match action {
+            Action::SelectProfile(index) => Some(index),
+            _ => None,
+        })
+}
+
+#[cfg(test)]
+mod rename_input_tests {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+
+    use crate::core::{ActiveProfile, PlayerProfile, ProfileAutosaveBlock};
+    use crate::input::action_state_after_pressing;
+
+    use super::{
+        handle_profile_rename_input, profile_shortcut, ProfilePicker, ProfileRenameSession,
+        ProfileRenameState,
+    };
+
+    #[test]
+    fn digit_order_still_picks_the_first_profile_shortcut() {
+        assert_eq!(
+            profile_shortcut(&action_state_after_pressing(&[KeyCode::Digit1], &[])),
+            Some(0)
+        );
+        assert_eq!(
+            profile_shortcut(&action_state_after_pressing(
+                &[KeyCode::Digit3, KeyCode::Digit1],
+                &[]
+            )),
+            Some(0)
+        );
+        assert_eq!(
+            profile_shortcut(&action_state_after_pressing(&[KeyCode::KeyE], &[])),
+            None
+        );
+    }
+
+    fn rename_buffer_after(keys: &[KeyCode], starting: &str) -> Option<String> {
+        let mut app = App::new();
+        app.insert_resource(action_state_after_pressing(keys, &[]))
+            .insert_resource(ProfileRenameState {
+                active: Some(ProfileRenameSession {
+                    index: 0,
+                    buffer: starting.to_string(),
+                }),
+            })
+            .init_resource::<ProfilePicker>()
+            .init_resource::<ActiveProfile>()
+            .init_resource::<PlayerProfile>()
+            .init_resource::<ProfileAutosaveBlock>();
+        app.world_mut()
+            .run_system_once(handle_profile_rename_input)
+            .unwrap();
+        app.world()
+            .resource::<ProfileRenameState>()
+            .active
+            .as_ref()
+            .map(|session| session.buffer.clone())
+    }
+
+    #[test]
+    fn rename_still_types_spaces_and_letters_and_cancels_on_escape() {
+        assert_eq!(
+            rename_buffer_after(&[KeyCode::KeyA], "R"),
+            Some("Ra".to_string())
+        );
+        assert_eq!(
+            rename_buffer_after(&[KeyCode::Space], ""),
+            Some(String::new())
+        );
+        assert_eq!(
+            rename_buffer_after(&[KeyCode::Minus], "R"),
+            Some("R-".to_string())
+        );
+        assert_eq!(
+            rename_buffer_after(&[KeyCode::Backspace], "Ra"),
+            Some("R".to_string())
+        );
+        assert_eq!(rename_buffer_after(&[KeyCode::Escape], "Ra"), None);
     }
 }

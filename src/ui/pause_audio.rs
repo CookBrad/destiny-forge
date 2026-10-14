@@ -4,6 +4,7 @@ use bevy::ui::RelativeCursorPosition;
 
 use crate::audio::AudioSettings;
 use crate::core::ProfileDirty;
+use crate::input::{Action, ActionState};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AudioControl {
@@ -39,8 +40,20 @@ pub fn spawn_pause_audio_controls(parent: &mut ChildBuilder<'_>, settings: &Audi
             ..default()
         })
         .with_children(|panel| {
-            spawn_audio_row(panel, "Music", AudioControl::Music, settings.music_enabled, settings.music_volume);
-            spawn_audio_row(panel, "Sound Effects", AudioControl::Sfx, settings.sfx_enabled, settings.sfx_volume);
+            spawn_audio_row(
+                panel,
+                "Music",
+                AudioControl::Music,
+                settings.music_enabled,
+                settings.music_volume,
+            );
+            spawn_audio_row(
+                panel,
+                "Sound Effects",
+                AudioControl::Sfx,
+                settings.sfx_enabled,
+                settings.sfx_volume,
+            );
         });
 }
 
@@ -127,7 +140,10 @@ fn spawn_audio_row(
                     });
 
                 controls.spawn((
-                    Text::new(format!("{}%", (volume.clamp(0.0, 1.0) * 100.0).round() as i32)),
+                    Text::new(format!(
+                        "{}%",
+                        (volume.clamp(0.0, 1.0) * 100.0).round() as i32
+                    )),
                     TextFont {
                         font_size: 16.0,
                         ..default()
@@ -148,17 +164,11 @@ fn toggle_label(enabled: bool) -> &'static str {
 }
 
 pub fn handle_pause_audio_input(
-    mouse: Res<ButtonInput<MouseButton>>,
+    actions: Res<ActionState>,
     mut settings: ResMut<AudioSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
-    mut toggles: Query<
-        (&Interaction, &AudioToggleButton),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut sliders: Query<
-        (&Interaction, &RelativeCursorPosition, &AudioSliderTrack),
-        With<Button>,
-    >,
+    mut toggles: Query<(&Interaction, &AudioToggleButton), (Changed<Interaction>, With<Button>)>,
+    mut sliders: Query<(&Interaction, &RelativeCursorPosition, &AudioSliderTrack), With<Button>>,
 ) {
     for (interaction, toggle) in &mut toggles {
         if *interaction != Interaction::Pressed {
@@ -172,7 +182,7 @@ pub fn handle_pause_audio_input(
         profile_dirty.mark();
     }
 
-    let dragging = mouse.pressed(MouseButton::Left);
+    let dragging = actions.pressed(Action::PrimaryButton);
     for (interaction, cursor, track) in &mut sliders {
         let active = matches!(*interaction, Interaction::Pressed)
             || (dragging && matches!(*interaction, Interaction::Hovered | Interaction::Pressed));

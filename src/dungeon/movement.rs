@@ -2,13 +2,13 @@ use bevy::prelude::*;
 
 use crate::combat::{
     special_blocks_movement, special_move_speed, Health, PlayerAttack, PlayerBlock,
-    PlayerFallDeath,
-    PlayerKnockback, PlayerSpecialMove,
+    PlayerFallDeath, PlayerKnockback, PlayerSpecialMove,
 };
 use crate::graphics::{
     viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_CEILING_Y,
     DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
 };
+use crate::input::{Action, ActionState};
 
 use super::sprites::player_half_extents;
 
@@ -34,7 +34,7 @@ const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
 
 pub fn dungeon_movement(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     time: Res<Time>,
     window: Query<&Window>,
     mut commands: Commands,
@@ -107,10 +107,10 @@ pub fn dungeon_movement(
     } else {
         let mut move_input = 0.0;
         if !under_knockback && !attack.is_active() && !block.is_active() {
-            if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+            if actions.pressed(Action::MoveLeft) {
                 move_input -= 1.0;
             }
-            if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+            if actions.pressed(Action::MoveRight) {
                 move_input += 1.0;
             }
         }
@@ -130,7 +130,7 @@ pub fn dungeon_movement(
                 )
         });
 
-    if !under_knockback && !jump_blocked && keyboard.just_pressed(KeyCode::Space) {
+    if !under_knockback && !jump_blocked && actions.just_pressed(Action::Jump) {
         if velocity.grounded {
             velocity.y = DUNGEON_JUMP_SPEED;
             velocity.grounded = false;
@@ -205,6 +205,11 @@ fn overlaps_x(center_x: f32, half_width: f32, collider: &PlatformCollider) -> bo
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    use crate::combat::{Health, PlayerAttack, PlayerBlock};
+    use crate::graphics::{DungeonScrollBounds, DUNGEON_JUMP_SPEED};
+    use crate::input::action_state_after_pressing;
 
     #[test]
     fn rising_head_bonks_on_the_ceiling_beam() {
@@ -212,5 +217,45 @@ mod tests {
         assert!(hits_ceiling(DUNGEON_CEILING_Y - half, half, 10.0));
         assert!(!hits_ceiling(DUNGEON_CEILING_Y - half - 1.0, half, 10.0));
         assert!(!hits_ceiling(DUNGEON_CEILING_Y, half, -10.0));
+    }
+
+    fn vertical_velocity_after(keys: &[KeyCode]) -> f32 {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(action_state_after_pressing(keys, &[]))
+            .insert_resource(DungeonScrollBounds { width: 4_000.0 });
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::from_xyz(200.0, 200.0, 0.0),
+            PlayerVelocity {
+                x: 0.0,
+                y: 0.0,
+                grounded: true,
+            },
+            PlayerAirJumps { remaining: 1 },
+            Health::new(100.0),
+            finished_attack(),
+            PlayerBlock::default(),
+        ));
+        app.world_mut().run_system_once(dungeon_movement).unwrap();
+        app.world_mut()
+            .query_filtered::<&PlayerVelocity, With<DungeonPlayer>>()
+            .single(app.world())
+            .y
+    }
+
+    fn finished_attack() -> PlayerAttack {
+        let mut attack = PlayerAttack::inactive();
+        attack.timer.tick(std::time::Duration::from_secs(1));
+        attack
+    }
+
+    #[test]
+    fn space_still_jumps_and_enter_does_not() {
+        assert_eq!(
+            vertical_velocity_after(&[KeyCode::Space]),
+            DUNGEON_JUMP_SPEED
+        );
+        assert_eq!(vertical_velocity_after(&[KeyCode::Enter]), 0.0);
     }
 }

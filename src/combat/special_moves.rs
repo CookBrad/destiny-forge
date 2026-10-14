@@ -229,7 +229,7 @@ pub fn start_player_special_moves(
     mut cooldowns: ResMut<SpecialCooldownState>,
     bindings: Res<SkillBindings>,
     loadout: Res<Loadout>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<crate::input::ActionState>,
     hit_stop: Res<HitStop>,
     mut player: Query<
         (
@@ -261,9 +261,9 @@ pub fn start_player_special_moves(
         return;
     }
 
-    let skill = if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Charge) {
+    let skill = if SkillBindings::skill_just_pressed(&actions, &bindings, SkillKind::Charge) {
         Some(SkillKind::Charge)
-    } else if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Spin) {
+    } else if SkillBindings::skill_just_pressed(&actions, &bindings, SkillKind::Spin) {
         Some(SkillKind::Spin)
     } else {
         None

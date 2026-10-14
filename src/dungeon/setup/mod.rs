@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use bevy::prelude::*;
 
 use crate::graphics::DungeonScrollBounds;
+use crate::input::{Action, ActionState};
 use crate::player::{Loadout, WorldProgress};
 
 use super::enemy::DungeonProgress;
@@ -140,7 +141,7 @@ pub fn cleanup_dungeon(
 }
 
 pub fn retry_dungeon(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     layout: Option<Res<DungeonLayout>>,
     loadout: Res<Loadout>,
     world_progress: Res<WorldProgress>,
@@ -151,7 +152,7 @@ pub fn retry_dungeon(
     parents: Query<&Parent>,
     mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
+    if retry_requested(&actions) {
         let seed = layout.as_deref().map(|layout| layout.seed);
         despawn_dungeon(&mut commands, &entities, &parents);
         setup_dungeon_with_seed(
@@ -163,5 +164,34 @@ pub fn retry_dungeon(
             &world_progress,
         );
         next_play.set(crate::core::DungeonPlayState::Running);
+    }
+}
+
+fn retry_requested(actions: &ActionState) -> bool {
+    actions.just_pressed(Action::Confirm) || actions.just_pressed(Action::Jump)
+}
+
+#[cfg(test)]
+mod retry_input_tests {
+    use bevy::prelude::*;
+
+    use crate::input::action_state_after_pressing;
+
+    use super::retry_requested;
+
+    #[test]
+    fn enter_or_space_still_requests_a_retry() {
+        assert!(retry_requested(&action_state_after_pressing(
+            &[KeyCode::Enter],
+            &[]
+        )));
+        assert!(retry_requested(&action_state_after_pressing(
+            &[KeyCode::Space],
+            &[]
+        )));
+        assert!(!retry_requested(&action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[]
+        )));
     }
 }

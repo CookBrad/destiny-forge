@@ -4,6 +4,8 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use super::season::{rollover_between, CalendarDate, CalendarRules, Season, SeasonRollover};
+
 /// Real seconds spent in each phase before advancing (evening holds until sleep).
 pub const PHASE_DURATION_SECS: f32 = 90.0;
 
@@ -182,11 +184,27 @@ impl ToolEnergy {
     }
 }
 
+pub struct SleepOutcome {
+    pub calendar_day: u32,
+    pub season_rollover: Option<SeasonRollover>,
+}
+
 /// Sleep at a bed: advance day, reset phase, restore tool energy.
-pub fn perform_sleep(clock: &mut DayClock, energy: &mut ToolEnergy) -> u32 {
-    let day = clock.sleep();
+pub fn perform_sleep(
+    clock: &mut DayClock,
+    energy: &mut ToolEnergy,
+    season: &mut Season,
+    rules: &CalendarRules,
+) -> SleepOutcome {
+    let before = CalendarDate::from_calendar_day(clock.calendar_day, rules);
+    let calendar_day = clock.sleep();
+    let after = CalendarDate::from_calendar_day(calendar_day, rules);
+    *season = after.season;
     energy.restore_full();
-    day
+    SleepOutcome {
+        calendar_day,
+        season_rollover: rollover_between(before, after),
+    }
 }
 
 /// Tick day clock while exploring the homestead / forest.
@@ -210,10 +228,7 @@ pub fn tick_day_clock(
 }
 
 /// Keep clear color aligned with day phase on the homestead.
-pub fn sync_overworld_ambient(
-    clock: Res<DayClock>,
-    mut clear: ResMut<ClearColor>,
-) {
+pub fn sync_overworld_ambient(clock: Res<DayClock>, mut clear: ResMut<ClearColor>) {
     if clock.is_changed() {
         clear.0 = clock.phase.ambient_clear_color();
     }
@@ -250,8 +265,12 @@ mod tests {
             max: 100.0,
         };
 
-        let day = perform_sleep(&mut clock, &mut energy);
-        assert_eq!(day, 4);
+        let mut season = Season::Spring;
+        let rules = CalendarRules::with_season_length(28);
+        let outcome = perform_sleep(&mut clock, &mut energy, &mut season, &rules);
+        assert_eq!(outcome.calendar_day, 4);
+        assert_eq!(outcome.season_rollover, None);
+        assert_eq!(season, Season::Spring);
         assert_eq!(clock.phase, DayPhase::Morning);
         assert_eq!(clock.phase_elapsed_secs, 0.0);
         assert_eq!(energy.current, energy.max);

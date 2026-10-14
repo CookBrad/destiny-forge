@@ -2,6 +2,7 @@ use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
 use crate::core::{DungeonPlayState, GameState};
+use crate::input::{Action, ActionState};
 use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
 use crate::player::Loadout;
 
@@ -535,17 +536,16 @@ fn spawn_coin_display(parent: &mut ChildBuilder<'_>, coin_color: Color, amount: 
             ..default()
         })
         .with_children(|group| {
-            group
-                .spawn((
-                    Node {
-                        width: Val::Px(14.0),
-                        height: Val::Px(14.0),
-                        border: UiRect::all(Val::Px(1.0)),
-                        ..default()
-                    },
-                    BackgroundColor(coin_color),
-                    BorderColor(Color::srgb(0.18, 0.12, 0.08)),
-                ));
+            group.spawn((
+                Node {
+                    width: Val::Px(14.0),
+                    height: Val::Px(14.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                BackgroundColor(coin_color),
+                BorderColor(Color::srgb(0.18, 0.12, 0.08)),
+            ));
             group.spawn((
                 Text::new(amount),
                 TextFont {
@@ -571,7 +571,7 @@ pub fn cleanup_inventory_window(
 }
 
 pub fn toggle_inventory_window(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     forge: Res<crate::ui::forge_window::ForgeWindowOpen>,
     mut open: ResMut<InventoryWindowOpen>,
     mut commands: Commands,
@@ -583,8 +583,8 @@ pub fn toggle_inventory_window(
     dungeon: Option<Res<State<DungeonPlayState>>>,
     mut time: ResMut<Time<Virtual>>,
 ) {
-    let close = open.0 && keyboard.just_pressed(KeyCode::Escape);
-    let toggle = keyboard.just_pressed(KeyCode::KeyI);
+    let close = open.0 && actions.just_pressed(Action::Cancel);
+    let toggle = actions.just_pressed(Action::ToggleInventory);
 
     if !close && !toggle {
         return;
@@ -670,10 +670,7 @@ pub fn handle_inventory_close_button(
 }
 
 pub fn handle_inventory_slot_click(
-    mut interactions: Query<
-        (&Interaction, &InventorySlot),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interactions: Query<(&Interaction, &InventorySlot), (Changed<Interaction>, With<Button>)>,
     mut selected: ResMut<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &mut BorderColor)>,
 ) {
@@ -706,7 +703,7 @@ pub fn handle_inventory_sort_button(
 }
 
 pub fn handle_inventory_eat_request(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     eat_buttons: Query<&Interaction, (Changed<Interaction>, With<InventoryEatButton>)>,
     game: Res<State<GameState>>,
     selected: Res<InventorySelectedSlot>,
@@ -714,7 +711,8 @@ pub fn handle_inventory_eat_request(
     mut loadout: ResMut<Loadout>,
     mut food_eaten: EventWriter<FoodEaten>,
 ) {
-    let eat_requested = keyboard.just_pressed(KeyCode::KeyE) || eat_buttons.iter().any(is_pressed);
+    let eat_requested =
+        actions.just_pressed(Action::Interact) || eat_buttons.iter().any(is_pressed);
     if !eat_requested || LoadoutSwapAccess::from_game_state(game.get()) != LoadoutSwapAccess::Hub {
         return;
     }
@@ -918,16 +916,17 @@ mod tests {
 
     fn app_with_two_stews_and_e_pressed(game: GameState) -> App {
         let mut app = App::new();
-        let mut keyboard = ButtonInput::<KeyCode>::default();
-        keyboard.press(KeyCode::KeyE);
         let mut inventory = Inventory::default();
         inventory.try_add(MaterialId::PotatoStew, 2);
-        app.insert_resource(keyboard)
-            .insert_resource(State::new(game))
-            .insert_resource(inventory)
-            .init_resource::<Loadout>()
-            .init_resource::<InventorySelectedSlot>()
-            .add_event::<FoodEaten>();
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
+        .insert_resource(State::new(game))
+        .insert_resource(inventory)
+        .init_resource::<Loadout>()
+        .init_resource::<InventorySelectedSlot>()
+        .add_event::<FoodEaten>();
         app
     }
 
