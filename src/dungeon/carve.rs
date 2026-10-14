@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use rand::thread_rng;
 
+use crate::input::{Action, ActionState};
 use crate::combat::EnemyCorpse;
 use crate::combat::PlayerHitFlash;
 use crate::core::ProfileDirty;
@@ -54,7 +55,7 @@ impl LootLog {
 
 pub fn carve_corpses(
     time: Res<Time>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     loadout: Res<Loadout>,
     loot_book: Res<CarveLootBook>,
     mut inventory: ResMut<Inventory>,
@@ -83,7 +84,7 @@ pub fn carve_corpses(
         return;
     }
 
-    let holding = keyboard.pressed(KeyCode::KeyE);
+    let holding = actions.pressed(Action::Interact);
     let nearest = corpses
         .iter()
         .filter(|(_, transform, _, _)| {

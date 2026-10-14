@@ -1,16 +1,15 @@
 use bevy::prelude::*;
 
-use crate::core::{
-    perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
-};
+use crate::core::{perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy};
 use crate::farming::{advance_all_plots_on_sleep, capture_plots, CropPlot};
 use crate::forging::RecipeBook;
+use crate::graphics::INTERACT_DISTANCE;
+use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
-use crate::graphics::INTERACT_DISTANCE;
 
 use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
@@ -19,7 +18,7 @@ const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
 const BED_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 1.5;
 
 pub fn overworld_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     mut commands: Commands,
     game_inventory: Res<crate::items::Inventory>,
@@ -47,7 +46,7 @@ pub fn overworld_interaction(
     if let Some(zone) = layout.zone_at(position) {
         let near = distance_to_zone(position, &zone.bounds) <= ZONE_INTERACT_RANGE;
         match zone.zone {
-            HomesteadZone::Forge if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::Forge if near && actions.just_pressed(Action::Interact) => {
                 open_forge_window(
                     &mut forge,
                     &mut forge_recipe,
@@ -59,32 +58,30 @@ pub fn overworld_interaction(
                     &mut time,
                 );
             }
-            HomesteadZone::DungeonGate if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::DungeonGate if near && actions.just_pressed(Action::Interact) => {
                 // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
-            HomesteadZone::MineEntrance if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::MineEntrance if near && actions.just_pressed(Action::Interact) => {
                 next_state.set(GameState::Mine);
             }
             _ => {}
         }
     }
 
-    if cooldown.0.finished()
-        && homestead_forest_transition().contains(position)
-        && velocity.y > 1.0
+    if cooldown.0.finished() && homestead_forest_transition().contains(position) && velocity.y > 1.0
     {
         next_state.set(GameState::Forest);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         next_state.set(GameState::Title);
     }
 }
 
 /// Hold E near the house bed to end the day.
 pub fn try_sleep_at_bed(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
     player: Query<&Transform, With<OverworldPlayer>>,
@@ -97,7 +94,7 @@ pub fn try_sleep_at_bed(
     mut plots: Query<&mut CropPlot>,
     mut loadout: ResMut<Loadout>,
 ) {
-    if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
+    if inventory.0 || forge.0 || !actions.just_pressed(Action::Interact) {
         return;
     }
 
@@ -119,7 +116,9 @@ pub fn try_sleep_at_bed(
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned.");
+    info!(
+        "Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned."
+    );
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
@@ -189,19 +188,20 @@ mod tests {
     #[test]
     fn sleeping_ends_the_food_buff() {
         let mut app = App::new();
-        let mut keyboard = ButtonInput::<KeyCode>::default();
-        keyboard.press(KeyCode::KeyE);
         let mut loadout = Loadout::default();
         loadout.food_buff = Some(MaterialId::RoastTurnip);
-        app.insert_resource(keyboard)
-            .insert_resource(loadout)
-            .init_resource::<InventoryWindowOpen>()
-            .init_resource::<ForgeWindowOpen>()
-            .init_resource::<DayClock>()
-            .init_resource::<ToolEnergy>()
-            .init_resource::<PlayerProfile>()
-            .init_resource::<ProfileDirty>()
-            .init_resource::<ClearColor>();
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
+        .insert_resource(loadout)
+        .init_resource::<InventoryWindowOpen>()
+        .init_resource::<ForgeWindowOpen>()
+        .init_resource::<DayClock>()
+        .init_resource::<ToolEnergy>()
+        .init_resource::<PlayerProfile>()
+        .init_resource::<ProfileDirty>()
+        .init_resource::<ClearColor>();
         app.world_mut()
             .spawn((OverworldPlayer, Transform::default()));
         app.world_mut().spawn((Bed, Transform::default()));

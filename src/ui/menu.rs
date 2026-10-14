@@ -7,6 +7,7 @@ use super::title_profiles::spawn_title_profile_cards;
 use crate::audio::AudioSettings;
 use crate::core::{save_root_display, DungeonPlayState, GameState};
 use crate::graphics::reset_camera_zoom;
+use crate::input::{Action, ActionState};
 
 #[derive(Component)]
 pub struct TitleMenu;
@@ -161,26 +162,26 @@ pub fn cleanup_pause_menu(mut commands: Commands, menus: Query<Entity, With<Paus
 }
 
 pub fn open_pause_menu(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) && !inventory.0 {
+    if actions.just_pressed(Action::Cancel) && !inventory.0 {
         next_play.set(DungeonPlayState::Paused);
     }
 }
 
 pub fn pause_menu_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
     mut next_game: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Escape) && !inventory.0 {
+    if actions.just_pressed(Action::Cancel) && !inventory.0 {
         next_play.set(DungeonPlayState::Running);
     }
 
-    if keyboard.just_pressed(KeyCode::KeyQ) {
+    if actions.just_pressed(Action::ReturnToHomestead) {
         next_game.set(GameState::Overworld);
     }
 }
@@ -258,11 +259,8 @@ pub fn cleanup_death_menu(mut commands: Commands, menus: Query<Entity, With<Deat
     }
 }
 
-pub fn death_menu_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_game: ResMut<NextState<GameState>>,
-) {
-    if keyboard.just_pressed(KeyCode::KeyQ) {
+pub fn death_menu_input(actions: Res<ActionState>, mut next_game: ResMut<NextState<GameState>>) {
+    if actions.just_pressed(Action::ReturnToHomestead) {
         next_game.set(GameState::Overworld);
     }
 }

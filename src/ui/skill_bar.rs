@@ -7,6 +7,7 @@ use crate::combat::{
     SKILL_SLOT_COUNT,
 };
 use crate::core::ProfileDirty;
+use crate::input::{Action, ActionState};
 use crate::player::Loadout;
 
 #[derive(Component)]
@@ -392,13 +393,13 @@ fn apply_slot_highlight(
 }
 
 pub fn handle_skill_bar_drag(
-    mouse: Res<ButtonInput<MouseButton>>,
+    actions: Res<ActionState>,
     mut bindings: ResMut<SkillBindings>,
     mut drag: ResMut<SkillBarDrag>,
     mut profile_dirty: ResMut<ProfileDirty>,
     slots: Query<(&SkillSlot, &Interaction), With<SkillSlot>>,
 ) {
-    if mouse.just_pressed(MouseButton::Left) {
+    if actions.just_pressed(Action::PrimaryButton) {
         for (slot, interaction) in &slots {
             if *interaction != Interaction::Pressed {
                 continue;
@@ -414,7 +415,7 @@ pub fn handle_skill_bar_drag(
         }
     }
 
-    if mouse.just_released(MouseButton::Left) {
+    if actions.just_released(Action::PrimaryButton) {
         if let Some(from) = drag.from_slot {
             let mut target = None;
             for (slot, interaction) in &slots {

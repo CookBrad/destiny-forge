@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::input::{Action, ActionState};
 use crate::combat::EnemyCorpse;
 use crate::core::ProfileDirty;
 use crate::core::GameState;
@@ -12,7 +13,7 @@ use super::movement::DungeonPlayer;
 use super::setup::DungeonExit;
 
 pub fn ladder_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     player: Query<&Transform, With<DungeonPlayer>>,
     exits: Query<&Transform, With<DungeonExit>>,
     mut commands: Commands,
@@ -23,7 +24,7 @@ pub fn ladder_interaction(
         return;
     };
 
-    if !near_exit(player_transform, &exits) || !keyboard.just_pressed(KeyCode::KeyE) {
+    if !near_exit(player_transform, &exits) || !actions.just_pressed(Action::Interact) {
         return;
     }
 

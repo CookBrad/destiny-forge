@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 use crate::core::{PlayerProfile, ProfileDirty, ToolEnergy};
+use crate::input::{Action, ActionState};
 use crate::graphics::TILE;
 use crate::items::{Inventory, MaterialId};
 use crate::overworld::movement::{OverworldPlayer, OverworldVelocity};
@@ -58,8 +59,7 @@ fn grant_if_missing(inventory: &mut Inventory, material: MaterialId, amount: u32
 }
 
 pub fn use_homestead_tool(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    actions: Res<ActionState>,
     inventory_open: Res<InventoryWindowOpen>,
     forge_open: Res<ForgeWindowOpen>,
     equipped: Res<EquippedTool>,
@@ -73,9 +73,7 @@ pub fn use_homestead_tool(
     if inventory_open.0 || forge_open.0 {
         return;
     }
-    let use_pressed =
-        keyboard.just_pressed(KeyCode::Space) || mouse.just_pressed(MouseButton::Left);
-    if !use_pressed {
+    if !actions.just_pressed(Action::UseTool) {
         return;
     }
 

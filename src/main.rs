@@ -7,6 +7,7 @@ mod farming;
 mod forest;
 mod forging;
 mod graphics;
+mod input;
 mod items;
 mod mining;
 mod overworld;
@@ -19,6 +20,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .insert_resource(ClearColor(Color::srgb(0.08, 0.07, 0.1)))
+        .add_plugins(input::InputPlugin)
         .add_plugins(core::CorePlugin)
         .add_plugins(audio::GameAudioPlugin)
         .add_plugins(graphics::GraphicsPlugin)
