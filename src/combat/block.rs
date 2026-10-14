@@ -12,7 +12,7 @@ use super::special_moves::PlayerSpecialMove;
 pub fn update_player_block(
     time: Res<Time>,
     bindings: Res<SkillBindings>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<crate::input::ActionState>,
     hit_stop: Res<HitStop>,
     mut sfx: EventWriter<CombatSfx>,
     mut player: Query<
@@ -33,12 +33,12 @@ pub fn update_player_block(
         return;
     }
 
-    if SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Block) {
+    if SkillBindings::skill_just_pressed(&actions, &bindings, SkillKind::Block) {
         sfx.send(CombatSfx::Block);
         block.begin_parry_window();
     }
 
-    block.active = SkillBindings::skill_pressed(&keyboard, &bindings, SkillKind::Block);
+    block.active = SkillBindings::skill_pressed(&actions, &bindings, SkillKind::Block);
     if block.active {
         block.tick_parry(time.delta());
     }

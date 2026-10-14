@@ -109,7 +109,7 @@ const SWORD_ARC_SPEED: f32 = 2.2;
 pub fn start_player_attack(
     mut sfx: EventWriter<CombatSfx>,
     bindings: Res<SkillBindings>,
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<crate::input::ActionState>,
     hit_stop: Res<HitStop>,
     mut player: Query<
         (
@@ -129,7 +129,7 @@ pub fn start_player_attack(
         return;
     };
 
-    if !SkillBindings::skill_just_pressed(&keyboard, &bindings, SkillKind::Attack) {
+    if !SkillBindings::skill_just_pressed(&actions, &bindings, SkillKind::Attack) {
         return;
     }
 

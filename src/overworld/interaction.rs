@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::input::{Action, ActionState};
 use crate::core::{
     perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
 };
@@ -19,7 +20,7 @@ const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
 const BED_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 1.5;
 
 pub fn overworld_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     mut commands: Commands,
     game_inventory: Res<crate::items::Inventory>,
@@ -47,7 +48,7 @@ pub fn overworld_interaction(
     if let Some(zone) = layout.zone_at(position) {
         let near = distance_to_zone(position, &zone.bounds) <= ZONE_INTERACT_RANGE;
         match zone.zone {
-            HomesteadZone::Forge if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::Forge if near && actions.just_pressed(Action::Interact) => {
                 open_forge_window(
                     &mut forge,
                     &mut forge_recipe,
@@ -59,11 +60,11 @@ pub fn overworld_interaction(
                     &mut time,
                 );
             }
-            HomesteadZone::DungeonGate if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::DungeonGate if near && actions.just_pressed(Action::Interact) => {
                 // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
-            HomesteadZone::MineEntrance if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::MineEntrance if near && actions.just_pressed(Action::Interact) => {
                 next_state.set(GameState::Mine);
             }
             _ => {}
@@ -77,14 +78,14 @@ pub fn overworld_interaction(
         next_state.set(GameState::Forest);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         next_state.set(GameState::Title);
     }
 }
 
 /// Hold E near the house bed to end the day.
 pub fn try_sleep_at_bed(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
     player: Query<&Transform, With<OverworldPlayer>>,
@@ -97,7 +98,7 @@ pub fn try_sleep_at_bed(
     mut plots: Query<&mut CropPlot>,
     mut loadout: ResMut<Loadout>,
 ) {
-    if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
+    if inventory.0 || forge.0 || !actions.just_pressed(Action::Interact) {
         return;
     }
 
@@ -189,11 +190,12 @@ mod tests {
     #[test]
     fn sleeping_ends_the_food_buff() {
         let mut app = App::new();
-        let mut keyboard = ButtonInput::<KeyCode>::default();
-        keyboard.press(KeyCode::KeyE);
         let mut loadout = Loadout::default();
         loadout.food_buff = Some(MaterialId::RoastTurnip);
-        app.insert_resource(keyboard)
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
             .insert_resource(loadout)
             .init_resource::<InventoryWindowOpen>()
             .init_resource::<ForgeWindowOpen>()

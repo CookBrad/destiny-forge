@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::graphics::{PLAYER_WALK_SPEED, TILE};
+use crate::input::{Action, ActionState};
 
 use super::eating::HomesteadEatCycle;
 use super::sprites::{OverworldArt, PLAYER_ANIM_FRAMES};
@@ -42,7 +43,7 @@ pub struct OverworldVelocity {
 const PLAYER_RADIUS: f32 = TILE * 0.42;
 
 pub fn exploration_movement(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     time: Res<Time>,
     map: Res<ExplorationMap>,
     mut player: Query<
@@ -55,16 +56,16 @@ pub fn exploration_movement(
     };
 
     let mut input = Vec2::ZERO;
-    if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {
+    if actions.pressed(Action::MoveUp) {
         input.y += 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyS) || keyboard.pressed(KeyCode::ArrowDown) {
+    if actions.pressed(Action::MoveDown) {
         input.y -= 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+    if actions.pressed(Action::MoveLeft) {
         input.x -= 1.0;
     }
-    if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+    if actions.pressed(Action::MoveRight) {
         input.x += 1.0;
     }
 

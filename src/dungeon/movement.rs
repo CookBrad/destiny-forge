@@ -5,6 +5,7 @@ use crate::combat::{
     PlayerFallDeath,
     PlayerKnockback, PlayerSpecialMove,
 };
+use crate::input::{Action, ActionState};
 use crate::graphics::{
     viewport_bottom_y, DungeonScrollBounds, DUNGEON_AIR_JUMP_MULT, DUNGEON_CEILING_Y,
     DUNGEON_GRAVITY, DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED,
@@ -34,7 +35,7 @@ const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
 
 pub fn dungeon_movement(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     time: Res<Time>,
     window: Query<&Window>,
     mut commands: Commands,
@@ -107,10 +108,10 @@ pub fn dungeon_movement(
     } else {
         let mut move_input = 0.0;
         if !under_knockback && !attack.is_active() && !block.is_active() {
-            if keyboard.pressed(KeyCode::KeyA) || keyboard.pressed(KeyCode::ArrowLeft) {
+            if actions.pressed(Action::MoveLeft) {
                 move_input -= 1.0;
             }
-            if keyboard.pressed(KeyCode::KeyD) || keyboard.pressed(KeyCode::ArrowRight) {
+            if actions.pressed(Action::MoveRight) {
                 move_input += 1.0;
             }
         }
@@ -130,7 +131,7 @@ pub fn dungeon_movement(
                 )
         });
 
-    if !under_knockback && !jump_blocked && keyboard.just_pressed(KeyCode::Space) {
+    if !under_knockback && !jump_blocked && actions.just_pressed(Action::Jump) {
         if velocity.grounded {
             velocity.y = DUNGEON_JUMP_SPEED;
             velocity.grounded = false;

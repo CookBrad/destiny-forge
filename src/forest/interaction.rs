@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::GameState;
+use crate::input::{Action, ActionState};
 use crate::ui::inventory_window::InventoryWindowOpen;
 use crate::overworld::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
 use crate::overworld::setup::OverworldEntry;
@@ -8,7 +9,7 @@ use crate::overworld::setup::OverworldEntry;
 use super::layout::forest_homestead_transition;
 
 pub fn forest_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
@@ -33,7 +34,7 @@ pub fn forest_interaction(
         next_state.set(GameState::Overworld);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         next_state.set(GameState::Title);
     }
 }
