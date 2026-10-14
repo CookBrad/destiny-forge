@@ -1,46 +1,43 @@
 #!/usr/bin/env python3
-
-
 from __future__ import annotations
 
 from pathlib import Path
 
 from PIL import Image
 
-from art_common import CLEAR, Canvas, Palette
+from art_common import CLEAR, Canvas, clipping_canvas, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / "assets" / "dungeon" / "environment"
 VFX = ROOT / "assets" / "dungeon" / "vfx"
 
-_tones = Palette()
-INK = _tones.add("ink", (16, 14, 20, 255))
-MORTAR = _tones.add("mortar", (54, 42, 36, 255))
-MORTAR_DK = _tones.add("mortar_dk", (32, 26, 28, 255))
-BROWN = _tones.add("brown", (118, 82, 54, 255))
-BROWN_LT = _tones.add("brown_lt", (156, 114, 74, 255))
-BROWN_DK = _tones.add("brown_dk", (74, 50, 34, 255))
-BROWN_DEEP = _tones.add("brown_deep", (52, 36, 28, 255))
-GRAY = _tones.add("gray", (68, 66, 76, 255))
-GRAY_LT = _tones.add("gray_lt", (104, 102, 114, 255))
-GRAY_DK = _tones.add("gray_dk", (40, 38, 48, 255))
-IRON = _tones.add("iron", (48, 46, 56, 255))
-IRON_DK = _tones.add("iron_dk", (30, 28, 38, 255))
-BRASS = _tones.add("brass", (214, 164, 70, 255))
-BRASS_LT = _tones.add("brass_lt", (246, 214, 128, 255))
-BRASS_DK = _tones.add("brass_dk", (132, 90, 36, 255))
-PURPLE = _tones.add("purple", (186, 70, 255, 255))
-PURPLE_LT = _tones.add("purple_lt", (230, 170, 255, 255))
-PURPLE_DK = _tones.add("purple_dk", (96, 28, 150, 255))
-BLUE = _tones.add("blue", (70, 220, 255, 255))
-BLUE_LT = _tones.add("blue_lt", (186, 246, 255, 255))
-BLUE_DK = _tones.add("blue_dk", (22, 86, 170, 255))
-VOID = _tones.add("void", (8, 6, 14, 255))
-VOID_MID = _tones.add("void_mid", (14, 12, 26, 255))
-RED = _tones.add("red", (214, 48, 24, 255))
-RED_DK = _tones.add("red_dk", (112, 18, 14, 255))
-ORANGE = _tones.add("orange", (255, 132, 36, 255))
-YELLOW = _tones.add("yellow", (255, 214, 96, 255))
+INK = require_opaque_color((16, 14, 20, 255))
+MORTAR = require_opaque_color((54, 42, 36, 255))
+MORTAR_DK = require_opaque_color((32, 26, 28, 255))
+BROWN = require_opaque_color((118, 82, 54, 255))
+BROWN_LT = require_opaque_color((156, 114, 74, 255))
+BROWN_DK = require_opaque_color((74, 50, 34, 255))
+BROWN_DEEP = require_opaque_color((52, 36, 28, 255))
+GRAY = require_opaque_color((68, 66, 76, 255))
+GRAY_LT = require_opaque_color((104, 102, 114, 255))
+GRAY_DK = require_opaque_color((40, 38, 48, 255))
+IRON = require_opaque_color((48, 46, 56, 255))
+IRON_DK = require_opaque_color((30, 28, 38, 255))
+BRASS = require_opaque_color((214, 164, 70, 255))
+BRASS_LT = require_opaque_color((246, 214, 128, 255))
+BRASS_DK = require_opaque_color((132, 90, 36, 255))
+PURPLE = require_opaque_color((186, 70, 255, 255))
+PURPLE_LT = require_opaque_color((230, 170, 255, 255))
+PURPLE_DK = require_opaque_color((96, 28, 150, 255))
+BLUE = require_opaque_color((70, 220, 255, 255))
+BLUE_LT = require_opaque_color((186, 246, 255, 255))
+BLUE_DK = require_opaque_color((22, 86, 170, 255))
+VOID = require_opaque_color((8, 6, 14, 255))
+VOID_MID = require_opaque_color((14, 12, 26, 255))
+RED = require_opaque_color((214, 48, 24, 255))
+RED_DK = require_opaque_color((112, 18, 14, 255))
+ORANGE = require_opaque_color((255, 132, 36, 255))
+YELLOW = require_opaque_color((255, 214, 96, 255))
 
 
 def clamp_channel(value: int) -> int:
@@ -58,7 +55,6 @@ def shade(color: tuple[int, int, int, int], delta: int) -> tuple[int, int, int, 
 
 
 def speck(x: int, y: int) -> int:
-
     pick = (x * 13 + y * 29 + x * y) % 11
     if pick == 0:
         return -18
@@ -118,8 +114,6 @@ def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> N
             canvas.put(x, y, glow if step % 3 == 0 else color)
 
 
-
-
 WALL_BRICK_W = 32
 WALL_BRICK_H = 16
 WALL_PATTERN = 256
@@ -127,7 +121,7 @@ WALL_PATTERN = 256
 
 def draw_wall() -> Canvas:
 
-    canvas = Canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DK)
+    canvas = clipping_canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DK)
     stones = (shade(GRAY, -10), shade(GRAY_DK, 4), shade(GRAY, -18), shade(GRAY_DK, -4))
     for course in range(WALL_PATTERN // WALL_BRICK_H):
         y0 = course * WALL_BRICK_H
@@ -176,7 +170,7 @@ GROUND_PATTERN_W = 128
 
 def draw_floor() -> Canvas:
 
-    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DK)
+    canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DK)
     for slab in range(GROUND_PATTERN_W // SLAB_W):
         x0 = slab * SLAB_W
         base = BROWN if slab % 2 == 0 else shade(BROWN_DK, 12)
@@ -201,7 +195,7 @@ def draw_floor() -> Canvas:
 
 def draw_ground_fill() -> Canvas:
 
-    canvas = Canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, INK)
+    canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, INK)
     for course in range(GROUND_PATTERN_W // 32):
         offset = 32 if course % 2 else 0
         for block in range(GROUND_PATTERN_W // SLAB_W + 1):
@@ -216,7 +210,7 @@ def draw_ground_fill() -> Canvas:
 
 def draw_ceiling_beam() -> Canvas:
 
-    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, IRON)
+    canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, IRON)
     bevel_block(canvas, 0, 0, GROUND_PATTERN_W, TILE_PX - 4, IRON)
     for x in range(GROUND_PATTERN_W):
         canvas.put(x, 3, GRAY)
@@ -239,7 +233,7 @@ def draw_ceiling_beam() -> Canvas:
 
 def draw_platform() -> Canvas:
 
-    canvas = Canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
+    canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
     for bay in range(GROUND_PATTERN_W // SLAB_W):
         x0 = bay * SLAB_W
         canvas.fill_rect(x0, 0, x0 + SLAB_W, TILE_PX, IRON_DK)
@@ -273,7 +267,7 @@ def draw_platform() -> Canvas:
 
 def draw_pit() -> Canvas:
 
-    canvas = Canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, VOID)
+    canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, VOID)
     for y in range(GROUND_PATTERN_W):
         for x in range(GROUND_PATTERN_W):
             streak = 8 if (x // 4) % 9 == 2 else 0
@@ -298,7 +292,7 @@ LADDER_H = 256
 
 def draw_ladder() -> Canvas:
 
-    canvas = Canvas(LADDER_W, LADDER_H, CLEAR)
+    canvas = clipping_canvas(LADDER_W, LADDER_H, CLEAR)
     rails = (10, 48)
     for y in range(LADDER_H):
         for rail in rails:
@@ -346,7 +340,7 @@ STAKE_H = 112
 
 def draw_stake() -> Canvas:
 
-    canvas = Canvas(STAKE_W, STAKE_H, CLEAR)
+    canvas = clipping_canvas(STAKE_W, STAKE_H, CLEAR)
 
     for y in range(0, 12):
         for x in range(5, 19):
@@ -376,7 +370,7 @@ LIP_H = 96
 
 def draw_lip() -> Canvas:
 
-    canvas = Canvas(LIP_W, LIP_H, CLEAR)
+    canvas = clipping_canvas(LIP_W, LIP_H, CLEAR)
     for y in range(LIP_H):
         reach = 10 + (hash2(0, y // 6, 5) % 12) - y // 12
         reach = max(4, min(LIP_W, reach))
@@ -402,7 +396,7 @@ PILLAR_H = 512
 
 def draw_pillar() -> Canvas:
 
-    canvas = Canvas(PILLAR_W, PILLAR_H, CLEAR)
+    canvas = clipping_canvas(PILLAR_W, PILLAR_H, CLEAR)
     shaft_x0, shaft_x1 = 8, 56
     for y in range(PILLAR_H):
         for x in range(shaft_x0, shaft_x1):
@@ -446,7 +440,7 @@ TORCH_H = 64
 
 def draw_torch() -> Canvas:
 
-    canvas = Canvas(TORCH_W, TORCH_H, CLEAR)
+    canvas = clipping_canvas(TORCH_W, TORCH_H, CLEAR)
     flame = (
         (16, 4, 3, PURPLE_LT),
         (16, 12, 7, PURPLE),
@@ -483,7 +477,7 @@ CHAIN_H = 160
 
 def draw_chain() -> Canvas:
 
-    canvas = Canvas(CHAIN_W, CHAIN_H, CLEAR)
+    canvas = clipping_canvas(CHAIN_W, CHAIN_H, CLEAR)
     link_h = 12
     for index, y0 in enumerate(range(0, CHAIN_H - 24, link_h - 2)):
         if index % 2 == 0:
@@ -516,7 +510,7 @@ def draw_chain() -> Canvas:
 
 
 def draw_ground_slam() -> Canvas:
-    canvas = Canvas(96, 24, CLEAR)
+    canvas = clipping_canvas(96, 24, CLEAR)
     for x in range(96):
         distance = abs(x - 47.5) / 47.5
         arch = int(round((1.0 - distance * distance) * 18))

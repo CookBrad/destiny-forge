@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-
-
 from __future__ import annotations
 
 import io
@@ -8,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from art_common import Canvas, Palette, add_cast_rim, add_outline, hunter_palette, load_pinned_colors, reject_resample_names
+from art_common import Canvas, Palette, add_cast_rim, add_outline, clipping_canvas, hunter_palette, load_pinned_colors, reject_resample_names
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
@@ -311,7 +309,7 @@ def crown_spike(
 
 
 def draw_slime(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 64)
+    canvas = clipping_canvas(64, 64)
     blit_ellipse(canvas, 33, 42, 23, 20, palette.gel_under, 10)
     blit_ellipse(canvas, 32, 36, 21, 18, palette.gel_body, 10)
     blit_ellipse(canvas, 32, 16, 7, 10, palette.gel_body, 5)
@@ -337,7 +335,7 @@ def draw_slime(palette: Palette) -> Canvas:
 
 
 def draw_blob(palette: Palette) -> Canvas:
-    canvas = Canvas(32, 32)
+    canvas = clipping_canvas(32, 32)
     blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
     blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
     canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
@@ -351,7 +349,7 @@ def draw_blob(palette: Palette) -> Canvas:
 
 
 def draw_bolt(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
     tail: list[tuple[int, int]] = []
     for y in range(15, 46):
@@ -375,7 +373,7 @@ def draw_bolt(palette: Palette) -> Canvas:
 
 
 def draw_arrow(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
     canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
     canvas.put(8, 2, palette.brass_hi)
@@ -411,7 +409,7 @@ def draw_arrow(palette: Palette) -> Canvas:
 
 
 def draw_bat(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 48)
+    canvas = clipping_canvas(96, 48)
     blit_poly(
         canvas,
         [(46, 24), (22, 7), (6, 13), (16, 22), (40, 26)],
@@ -473,7 +471,7 @@ def draw_bat(palette: Palette) -> Canvas:
 
 
 def draw_goblin(palette: Palette) -> Canvas:
-    canvas = Canvas(80, 112)
+    canvas = clipping_canvas(80, 112)
     blit_poly(canvas, [(44, 26), (24, 10), (30, 22), (48, 32)], (32, 18), palette.leather_ramp, 6)
     canvas.fill(polygon_pixels([(42, 24), (28, 14), (44, 28)]), palette.purple_dk)
     canvas.put(30, 16, palette.purple)
@@ -535,7 +533,7 @@ def draw_goblin(palette: Palette) -> Canvas:
 
 
 def draw_skeleton(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 144)
+    canvas = clipping_canvas(64, 144)
     bow = chain([(20, 28), (10, 50), (8, 74), (12, 98), (22, 116)], 3)
     canvas.blit(volume(bow, 10, 70, palette.brass_ramp, 12))
     canvas.fill(capsule_pixels(18, 36, 18, 108, 1), palette.leather_deep)
@@ -592,7 +590,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
 
 
 def draw_zombie(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 128)
+    canvas = clipping_canvas(96, 128)
     blit_capsule(canvas, 40, 54, 18, 98, 6, palette.dead_ramp, 10)
     coat = blit_poly(
         canvas,
@@ -654,7 +652,7 @@ def draw_zombie(palette: Palette) -> Canvas:
 
 
 def draw_king(palette: Palette) -> Canvas:
-    canvas = Canvas(192, 192)
+    canvas = clipping_canvas(192, 192)
     blit_ellipse(canvas, 98, 164, 80, 26, palette.gel_under, 14)
     blit_ellipse(canvas, 96, 114, 66, 58, palette.gel_under, 20)
     blit_ellipse(canvas, 92, 104, 58, 50, palette.gel_body, 18)

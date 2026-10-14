@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
-
-
 from __future__ import annotations
 
 from pathlib import Path
 
 from PIL import Image
 
-from art_common import Palette, composite_images, contact_sheet
+from art_common import composite_images, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "assets" / "player" / "non-combat"
 BASE = SPRITES / "dwarf_m_idle_anim_f0.png"
 
-_tones = Palette()
-OUTLINE = _tones.add("outline", (34, 34, 34, 255))
-SKIN = _tones.add("skin", (216, 165, 125, 255))
-SKIN_SHADE = _tones.add("skin_shade", (195, 141, 112, 255))
-MEAT = _tones.add("meat", (156, 84, 40, 255))
-MEAT_LIGHT = _tones.add("meat_light", (204, 128, 64, 255))
-BONE = _tones.add("bone", (238, 228, 204, 255))
+OUTLINE = require_opaque_color((34, 34, 34, 255))
+SKIN = require_opaque_color((216, 165, 125, 255))
+SKIN_SHADE = require_opaque_color((195, 141, 112, 255))
+MEAT = require_opaque_color((156, 84, 40, 255))
+MEAT_LIGHT = require_opaque_color((204, 128, 64, 255))
+BONE = require_opaque_color((238, 228, 204, 255))
 
 PALETTE = {
     "a": OUTLINE,
@@ -119,7 +116,6 @@ def chew(base: Image.Image) -> Image.Image:
 def main() -> None:
     base = Image.open(BASE).convert("RGBA")
     frames = [pose(base) for pose in (reach, lift, bite, chew)]
-    contact_sheet(frames, len(frames), gutter=0, margin=0)
     for index, frame in enumerate(frames):
         frame.save(SPRITES / f"dwarf_m_eat_anim_f{index}.png", optimize=True)
 

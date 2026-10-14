@@ -13,10 +13,6 @@ NEIGHBORS_8 = tuple((dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or 
 NEIGHBORS_4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
-def iround(value: float) -> int:
-    return int(math.floor(value + 0.5))
-
-
 def reject_resample_names(source: Path) -> None:
     text = source.read_text(encoding="utf-8")
     banned = (
@@ -52,21 +48,23 @@ def load_pinned_colors(folder: Path, digests: dict[str, str]) -> set[Color]:
     return allowed
 
 
+def require_opaque_color(color: Color, allowed: set[Color] | None = None) -> Color:
+    if color[3] not in (0, 255):
+        raise SystemExit("partial alpha")
+    if allowed is not None and color not in allowed:
+        raise SystemExit(f"color {color} is not in the signed hunter")
+    return color
+
+
 class Palette:
-    def add(self, name: str, color: Color, allowed: set[Color] | None = None) -> Color:
-        if color[3] not in (0, 255):
-            raise SystemExit("partial alpha")
-        if allowed is not None and color not in allowed:
-            raise SystemExit(f"color {color} is not in the signed hunter")
-        setattr(self, name, color)
-        return color
+    pass
 
 
 def hunter_palette(allowed: set[Color]) -> Palette:
     palette = Palette()
 
     def take(red: int, green: int, blue: int) -> Color:
-        return palette.add(f"_{red}_{green}_{blue}", (red, green, blue, 255), allowed)
+        return require_opaque_color((red, green, blue, 255), allowed)
 
     palette.ink = take(0, 0, 0)
     palette.ink_warm = take(32, 23, 21)
@@ -76,11 +74,11 @@ def hunter_palette(allowed: set[Color]) -> Palette:
     palette.leather_soot = take(54, 30, 20)
     palette.leather_dk = take(55, 31, 21)
     palette.leather_md = take(63, 35, 23)
-    palette.leather_mid2 = take(67, 38, 25)
+    palette.leather_above_mid = take(67, 38, 25)
     palette.leather = take(74, 41, 26)
     palette.leather_fold = take(76, 43, 28)
     palette.leather_lt = take(97, 55, 35)
-    palette.leather_lt2 = take(98, 56, 35)
+    palette.leather_above_light = take(98, 56, 35)
     palette.leather_hi = take(107, 64, 33)
     palette.skin_dk = take(149, 92, 47)
     palette.skin_md = take(187, 119, 69)
@@ -170,11 +168,11 @@ def hunter_palette(allowed: set[Color]) -> Palette:
         palette.leather_soot,
         palette.leather_dk,
         palette.leather_md,
-        palette.leather_mid2,
+        palette.leather_above_mid,
         palette.leather,
         palette.leather_fold,
         palette.leather_lt,
-        palette.leather_lt2,
+        palette.leather_above_light,
         palette.leather_hi,
     )
     palette.brass_ramp = (
@@ -237,13 +235,6 @@ def hunter_palette(allowed: set[Color]) -> Palette:
     return palette
 
 
-def colors_used(*groups: dict[Point, Color]) -> set[Color]:
-    colors: set[Color] = set()
-    for group in groups:
-        colors.update(group.values())
-    return colors
-
-
 class Pin:
     def __init__(self, x: float, y: float) -> None:
         self.x = x
@@ -272,23 +263,22 @@ class Canvas:
         height: int,
         fill: Color = CLEAR,
         *,
-        strict: bool = False,
         pin: Pin | None = None,
     ) -> None:
         self.width = width
         self.height = height
         self.pixels = [fill] * (width * height)
-        self.strict = strict
         self.pin = Pin(0.0, 0.0) if pin is None else pin
 
-    def put(self, x: int, y: int, color: Color) -> None:
+    def store_opaque(self, x: int, y: int, color: Color) -> None:
         if color[3] not in (0, 255):
             raise SystemExit("partial alpha")
-        if not (0 <= x < self.width and 0 <= y < self.height):
-            if self.strict:
-                raise ValueError(f"pixel outside the icon: {(x, y)}")
-            return
         self.pixels[y * self.width + x] = color
+
+    def put(self, x: int, y: int, color: Color) -> None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return
+        self.store_opaque(x, y, color)
 
     def read(self, x: int, y: int) -> Color | None:
         if not (0 <= x < self.width and 0 <= y < self.height):
@@ -323,6 +313,21 @@ class Canvas:
         image = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
         image.putdata(self.pixels)
         return image
+
+
+class RejectingCanvas(Canvas):
+    def put(self, x: int, y: int, color: Color) -> None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            raise ValueError(f"pixel outside the icon: {(x, y)}")
+        self.store_opaque(x, y, color)
+
+
+def clipping_canvas(width: int, height: int, fill: Color = CLEAR, *, pin: Pin | None = None) -> Canvas:
+    return Canvas(width, height, fill, pin=pin)
+
+
+def rejecting_canvas(width: int, height: int, fill: Color = CLEAR, *, pin: Pin | None = None) -> Canvas:
+    return RejectingCanvas(width, height, fill, pin=pin)
 
 
 def add_outline(canvas: Canvas, color: Color) -> None:
@@ -414,8 +419,8 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
 
 
 def place_on_pin(target: Canvas, source: Canvas, pin: Pin) -> None:
-    dx = iround(pin.x - source.pin.x)
-    dy = iround(pin.y - source.pin.y)
+    dx = int(math.floor(pin.x - source.pin.x + 0.5))
+    dy = int(math.floor(pin.y - source.pin.y + 0.5))
     for index, color in enumerate(source.pixels):
         if color[3] == 0:
             continue
@@ -424,181 +429,13 @@ def place_on_pin(target: Canvas, source: Canvas, pin: Pin) -> None:
         target.put(x, y, color)
 
 
-class Sprite:
-    def __init__(self, pixels: dict[Point, Color] | None = None, pin: Pin | None = None) -> None:
-        self.pixels = {} if pixels is None else dict(pixels)
-        self.pin = Pin(0.0, 0.0) if pin is None else Pin(pin.x, pin.y)
-
-    def copy(self) -> Sprite:
-        return Sprite(self.pixels, self.pin)
-
-    def paste(self, other: Sprite, dx: int = 0, dy: int = 0) -> Sprite:
-        paste_pixels(self.pixels, other.pixels, dx, dy)
-        return self
-
-    def shift(self, dx: int, dy: int) -> Sprite:
-        moved = Sprite(translate_pixels(self.pixels, dx, dy), self.pin)
-        moved.pin = Pin(self.pin.x + dx, self.pin.y + dy)
-        return moved
-
-    def crop(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-        kept = {}
-        for (x, y), color in self.pixels.items():
-            if x0 <= x < x1 and y0 <= y < y1:
-                kept[(x - x0, y - y0)] = color
-        return Sprite(kept)
-
-    def erase_rect(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-        self.pixels = {
-            (x, y): color
-            for (x, y), color in self.pixels.items()
-            if not (x0 <= x < x1 and y0 <= y < y1)
-        }
-        return self
-
-    def erase_if(self, predicate) -> Sprite:
-        self.pixels = {
-            (x, y): color
-            for (x, y), color in self.pixels.items()
-            if not predicate(x, y, color)
-        }
-        return self
-
-    def bounds(self) -> tuple[int, int, int, int]:
-        xs = [x for x, _ in self.pixels]
-        ys = [y for _, y in self.pixels]
-        if not xs:
-            raise SystemExit("empty sprite")
-        return min(xs), min(ys), max(xs), max(ys)
-
-    def contained(self, dx: int = 0, dy: int = 0, *, width: int, height: int) -> None:
-        for x, y in self.pixels:
-            xx, yy = x + dx, y + dy
-            if not (0 <= xx < width and 0 <= yy < height):
-                raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
-
-
-def sprite_from_image(image: Image.Image) -> Sprite:
-    pixels = image.load()
-    width, height = image.size
-    kept = {}
-    for y in range(height):
-        for x in range(width):
-            red, green, blue, alpha = pixels[x, y]
-            if alpha == 0:
-                continue
-            if alpha != 255:
-                raise SystemExit(f"partial alpha at {x},{y}")
-            kept[(x, y)] = (red, green, blue, 255)
-    return Sprite(kept)
-
-
-def long_runs(xs: list[int]) -> list[tuple[int, int]]:
-    if not xs:
-        return []
-    ordered = sorted(set(xs))
-    runs: list[tuple[int, int]] = []
-    start = previous = ordered[0]
-    for x in ordered[1:]:
-        if x == previous + 1:
-            previous = x
-            continue
-        runs.append((start, previous))
-        start = previous = x
-    runs.append((start, previous))
-    return [(a, b) for a, b in runs if b - a + 1 >= 8]
-
-
-def stance_contact(sprite: Sprite) -> tuple[int, float]:
-    by_row: dict[int, list[int]] = {}
-    for x, y in sprite.pixels:
-        by_row.setdefault(y, []).append(x)
-    for y in sorted(by_row, reverse=True):
-        runs = long_runs(by_row[y])
-        if not runs:
-            continue
-        runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
-        if len(runs) >= 2:
-            first = (runs[0][0] + runs[0][1]) / 2
-            second = (runs[1][0] + runs[1][1]) / 2
-            return y, (first + second) / 2
-        left, right = runs[0]
-        return y, (left + right) / 2
-    raise SystemExit("no stance contact")
-
-
-def bottom_band(sprite: Sprite) -> tuple[float, int]:
-    max_y = max(y for _, y in sprite.pixels)
-    xs = [x for x, y in sprite.pixels if y == max_y]
-    if len(xs) < 2:
-        xs = [x for x, y in sprite.pixels if y >= max_y - 1]
-    return (min(xs) + max(xs)) / 2, max_y
-
-
-def widen_sole(sprite: Sprite, toward_right: bool) -> None:
-    row, _center = stance_contact(sprite)
-    xs = sorted(x for x, y in sprite.pixels if y == row)
-    runs = long_runs(xs)
-    runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
-    left, right = runs[0]
-    if toward_right:
-        sprite.pixels[(right + 1, row)] = sprite.pixels[(right, row)]
-    else:
-        sprite.pixels[(left - 1, row)] = sprite.pixels[(left, row)]
-
-
-def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
-    row, center = stance_contact(sprite)
-    anchor = Pin(center, float(row))
-    target = Pin(target_x, float(target_row))
-    dy = int(target.y) - int(anchor.y)
-    moved = sprite.shift(0, dy)
-    for _ in range(4):
-        _row, center = stance_contact(moved)
-        anchor = Pin(center, float(_row))
-        delta = target.x - anchor.x
-        if abs(delta - round(delta)) < 1e-6:
-            dx = iround(delta)
-            moved = moved.shift(dx, 0)
-            moved.pin = Pin(target.x, float(target_row))
-            return moved, dx, dy
-        widen_sole(moved, toward_right=delta > 0)
-    raise SystemExit(f"contact {center} cannot reach {target_x}")
-
-
-def plant_contact(
-    sprite: Sprite,
-    target_x: float,
-    target_row: int,
-    cell_width: int,
-    cell_height: int,
-) -> Sprite:
-    current = sprite.copy()
-    for _ in range(5):
-        moved, _dx, _dy = shift_contact_to(current, target_x, target_row)
-        overflow = [
-            point
-            for point in moved.pixels
-            if not (0 <= point[0] < cell_width and 0 <= point[1] < cell_height)
-        ]
-        if not overflow:
-            return moved
-        for point in overflow:
-            del moved.pixels[point]
-        row, center = stance_contact(moved)
-        if row == target_row and abs(center - target_x) < 1e-6:
-            return moved
-        current = moved
-    raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
-
-
-def _frame_pixels(frame: Sprite | dict[Point, Color]) -> dict[Point, Color]:
+def _frame_pixels(frame: dict[Point, Color]) -> dict[Point, Color]:
     if isinstance(frame, dict):
         return frame
     return frame.pixels
 
 
-def pack_strip(frames: list[Sprite | dict[Point, Color]], cell_width: int, cell_height: int) -> Image.Image:
+def pack_strip(frames: list, cell_width: int, cell_height: int) -> Image.Image:
     image = Image.new("RGBA", (cell_width * len(frames), cell_height), CLEAR)
     pixels = image.load()
     width, height = image.size
@@ -610,6 +447,44 @@ def pack_strip(frames: list[Sprite | dict[Point, Color]], cell_width: int, cell_
                 raise SystemExit(f"blit clipped {xx},{yy}")
             pixels[xx, yy] = color
     return image
+
+
+def contact_sheet_size(
+    frame_count: int,
+    columns: int,
+    cell_width: int,
+    cell_height: int,
+    gutter: int,
+    margin: int,
+) -> tuple[int, int]:
+    rows = (frame_count + columns - 1) // columns
+    width = margin * 2 + columns * cell_width + (columns - 1) * gutter
+    height = margin * 2 + rows * cell_height + (rows - 1) * gutter
+    return width, height
+
+
+def contact_cell_origin(
+    index: int,
+    columns: int,
+    cell_width: int,
+    cell_height: int,
+    gutter: int,
+    margin: int,
+) -> Point:
+    column = index % columns
+    row = index // columns
+    return (
+        margin + column * (cell_width + gutter),
+        margin + row * (cell_height + gutter),
+    )
+
+
+def place_contact_frame(sheet: Image.Image, frame: Image.Image, origin: Point) -> None:
+    rgba = frame.convert("RGBA")
+    for _red, _green, _blue, alpha in rgba.getdata():
+        if alpha not in (0, 255):
+            raise SystemExit("partial alpha")
+    sheet.alpha_composite(rgba, origin)
 
 
 def contact_sheet(
@@ -626,19 +501,12 @@ def contact_sheet(
         raise SystemExit("contact sheet needs a frame")
     cell_width = max(frame.width for frame in frames)
     cell_height = max(frame.height for frame in frames)
-    rows = (len(frames) + columns - 1) // columns
-    width = margin * 2 + columns * cell_width + (columns - 1) * gutter
-    height = margin * 2 + rows * cell_height + (rows - 1) * gutter
+    width, height = contact_sheet_size(len(frames), columns, cell_width, cell_height, gutter, margin)
     sheet = Image.new("RGBA", (width, height), background)
     for index, frame in enumerate(frames):
-        column = index % columns
-        row = index // columns
-        x = margin + column * (cell_width + gutter)
-        y = margin + row * (cell_height + gutter)
-        placed = Canvas(frame.width, frame.height, pin=Pin(0.0, 0.0))
-        placed.pixels = list(frame.convert("RGBA").getdata())
-        target = Canvas(sheet.width, sheet.height, background, pin=Pin(float(x), float(y)))
-        target.pixels = list(sheet.getdata())
-        place_on_pin(target, placed, target.pin)
-        sheet = target.image()
+        place_contact_frame(
+            sheet,
+            frame,
+            contact_cell_origin(index, columns, cell_width, cell_height, gutter, margin),
+        )
     return sheet

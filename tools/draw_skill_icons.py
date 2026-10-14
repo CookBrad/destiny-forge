@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-
-
 from __future__ import annotations
 
 import sys
@@ -8,38 +6,37 @@ from pathlib import Path
 
 from PIL import Image, PngImagePlugin
 
-from art_common import Canvas, Palette, add_outline as paint_outline, contact_sheet, light_contour
+from art_common import Canvas, add_outline as paint_outline, light_contour, rejecting_canvas, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "assets" / "ui" / "skills"
 SIZE = 32
 
-_tones = Palette()
-OUTLINE = _tones.add("outline", (16, 10, 14, 255))
-RIM_LIT = _tones.add("rim_lit", (196, 176, 140, 255))
+OUTLINE = require_opaque_color((16, 10, 14, 255))
+RIM_LIT = require_opaque_color((196, 176, 140, 255))
 
-STEEL_LT = _tones.add("steel_lt", (232, 240, 248, 255))
-STEEL = _tones.add("steel", (168, 180, 194, 255))
-STEEL_DK = _tones.add("steel_dk", (74, 86, 98, 255))
+STEEL_LT = require_opaque_color((232, 240, 248, 255))
+STEEL = require_opaque_color((168, 180, 194, 255))
+STEEL_DK = require_opaque_color((74, 86, 98, 255))
 
-CYAN = _tones.add("cyan", (57, 214, 255, 255))
-CYAN_DK = _tones.add("cyan_dk", (18, 104, 128, 255))
+CYAN = require_opaque_color((57, 214, 255, 255))
+CYAN_DK = require_opaque_color((18, 104, 128, 255))
 
-PURPLE = _tones.add("purple", (214, 75, 255, 255))
-PURPLE_DK = _tones.add("purple_dk", (122, 34, 176, 255))
+PURPLE = require_opaque_color((214, 75, 255, 255))
+PURPLE_DK = require_opaque_color((122, 34, 176, 255))
 
-BRASS_LT = _tones.add("brass_lt", (244, 214, 140, 255))
-BRASS = _tones.add("brass", (198, 158, 84, 255))
-BRASS_DK = _tones.add("brass_dk", (122, 88, 40, 255))
+BRASS_LT = require_opaque_color((244, 214, 140, 255))
+BRASS = require_opaque_color((198, 158, 84, 255))
+BRASS_DK = require_opaque_color((122, 88, 40, 255))
 
-LEATHER_LT = _tones.add("leather_lt", (196, 138, 82, 255))
-LEATHER = _tones.add("leather", (122, 78, 48, 255))
-LEATHER_DK = _tones.add("leather_dk", (74, 44, 24, 255))
-SOLE = _tones.add("sole", (36, 28, 26, 255))
+LEATHER_LT = require_opaque_color((196, 138, 82, 255))
+LEATHER = require_opaque_color((122, 78, 48, 255))
+LEATHER_DK = require_opaque_color((74, 44, 24, 255))
+SOLE = require_opaque_color((36, 28, 26, 255))
 
-IRON_LT = _tones.add("iron_lt", (158, 152, 144, 255))
-IRON = _tones.add("iron", (96, 92, 88, 255))
-IRON_DK = _tones.add("iron_dk", (52, 48, 46, 255))
+IRON_LT = require_opaque_color((158, 152, 144, 255))
+IRON = require_opaque_color((96, 92, 88, 255))
+IRON_DK = require_opaque_color((52, 48, 46, 255))
 
 ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
 
@@ -48,7 +45,7 @@ BRASS_TONES = {BRASS_LT, BRASS, BRASS_DK}
 
 
 def new_canvas() -> Canvas:
-    return Canvas(SIZE, SIZE, strict=True)
+    return rejecting_canvas(SIZE, SIZE)
 
 
 def put(
@@ -119,8 +116,6 @@ def recolor_rim(
 
 
 def paint_sword(canvas: Canvas) -> None:
-
-
     put(canvas, 15, 3, STEEL_LT)
     put(canvas, 16, 3, STEEL)
     put(canvas, 14, 4, STEEL_LT)
@@ -503,7 +498,6 @@ def main() -> None:
     payloads = [list(image.getdata()) for image in icons.values()]
     if len({tuple(payload) for payload in payloads}) != len(icons):
         raise SystemExit("skill icons are not unique")
-    contact_sheet(list(icons.values()), len(icons), gutter=0, margin=0)
 
     for name, image in icons.items():
         verify(image, name)

@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-
-
 from __future__ import annotations
 
 import math
@@ -8,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from art_common import Palette, composite_layers, contact_sheet, outline_layer
+from art_common import composite_layers, outline_layer, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "assets" / "player" / "non-combat"
@@ -23,11 +21,10 @@ HANDLE_LENGTH = 13.0
 PICK_HALF_SPAN = 5.0
 PICK_SWEEP_BACK = 1.6
 
-_tones = Palette()
-OUTLINE = _tones.add("outline", (34, 34, 34, 255))
-SKIN = _tones.add("skin", (216, 165, 125, 255))
-WOOD = _tones.add("wood", (119, 92, 85, 255))
-STEEL = _tones.add("steel", (123, 137, 148, 255))
+OUTLINE = require_opaque_color((34, 34, 34, 255))
+SKIN = require_opaque_color((216, 165, 125, 255))
+WOOD = require_opaque_color((119, 92, 85, 255))
+STEEL = require_opaque_color((123, 137, 148, 255))
 
 POSES = [
     {"lean_x": -1, "drop_y": 0, "grip": (20.5, 27.5), "angle": -55.0, "in_front": False},
@@ -109,7 +106,6 @@ def draw_frame(pose):
 
 def main():
     frames = [draw_frame(pose) for pose in POSES]
-    contact_sheet(frames, len(frames), gutter=0, margin=0)
     for index, frame in enumerate(frames):
         frame.save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
 
