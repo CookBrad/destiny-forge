@@ -11,7 +11,10 @@ impl Plugin for InputPlugin {
             .init_resource::<ActionState>()
             .init_resource::<ButtonInput<KeyCode>>()
             .init_resource::<ButtonInput<MouseButton>>()
-            .add_systems(PreUpdate, sync_action_state);
+            .add_systems(
+                PreUpdate,
+                sync_action_state.after(bevy::input::InputSystem),
+            );
     }
 }
 

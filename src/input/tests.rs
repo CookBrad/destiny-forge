@@ -1,5 +1,8 @@
 use std::collections::BTreeSet;
 
+use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
+use bevy::input::mouse::MouseButtonInput;
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 
 use super::binding::Binding;
@@ -246,6 +249,40 @@ fn non_character_keys_do_not_type() {
             "{key:?}"
         );
     }
+}
+
+#[test]
+fn device_events_reach_action_state_in_the_same_frame() {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, InputPlugin));
+    app.update();
+    app.world_mut()
+        .resource_mut::<Events<KeyboardInput>>()
+        .send(KeyboardInput {
+            key_code: KeyCode::KeyE,
+            logical_key: Key::Unidentified(NativeKey::Unidentified),
+            state: ButtonState::Pressed,
+            repeat: false,
+            window: Entity::PLACEHOLDER,
+        });
+    app.world_mut()
+        .resource_mut::<Events<MouseButtonInput>>()
+        .send(MouseButtonInput {
+            button: MouseButton::Left,
+            state: ButtonState::Pressed,
+            window: Entity::PLACEHOLDER,
+        });
+    app.update();
+
+    let keyboard = app.world().resource::<ButtonInput<KeyCode>>();
+    let mouse = app.world().resource::<ButtonInput<MouseButton>>();
+    assert!(keyboard.just_pressed(KeyCode::KeyE));
+    assert!(mouse.just_pressed(MouseButton::Left));
+    let actions = app.world().resource::<ActionState>();
+    assert!(actions.just_pressed(Action::Interact));
+    assert!(actions.just_pressed(Action::PrimaryButton));
+    assert!(actions.just_pressed(Action::UseTool));
+    assert_eq!(actions.typed_characters(), "e");
 }
 
 #[test]
