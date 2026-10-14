@@ -6,7 +6,7 @@ use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy, TOOL_ENERGY_MAX};
-use super::super::season::{CalendarDate, Season};
+use super::super::season::{CalendarDate, CalendarRules, Season};
 
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::profile::{ActiveProfile, PlayerProfile, PROFILE_COUNT};
@@ -25,6 +25,7 @@ pub fn hydrate_runtime_from_memory(
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
     mut season: ResMut<Season>,
+    rules: Res<CalendarRules>,
 ) {
     apply_profile_to_runtime(
         &profile,
@@ -36,6 +37,7 @@ pub fn hydrate_runtime_from_memory(
         &mut audio,
         &mut bindings,
         &mut season,
+        &rules,
     );
 
     info!(
@@ -164,13 +166,14 @@ pub fn apply_profile_to_runtime(
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
     season: &mut Season,
+    rules: &CalendarRules,
 ) {
     *inventory = profile.inventory.clone();
     *loadout = profile.loadout.clone();
     *progress = profile.progress.clone();
     *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
     *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
-    *season = CalendarDate::from_calendar_day(day_clock.calendar_day).season;
+    *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
 }
@@ -204,6 +207,7 @@ mod tests {
             &mut audio,
             &mut bindings,
             &mut season,
+            &CalendarRules::load(),
         );
 
         assert_eq!(day_clock.calendar_day, 200);

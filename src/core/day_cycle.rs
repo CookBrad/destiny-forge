@@ -4,7 +4,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::season::{rollover_between, CalendarDate, Season, SeasonRollover};
+use super::season::{rollover_between, CalendarDate, CalendarRules, Season, SeasonRollover};
 
 /// Real seconds spent in each phase before advancing (evening holds until sleep).
 pub const PHASE_DURATION_SECS: f32 = 90.0;
@@ -194,10 +194,11 @@ pub fn perform_sleep(
     clock: &mut DayClock,
     energy: &mut ToolEnergy,
     season: &mut Season,
+    rules: &CalendarRules,
 ) -> SleepOutcome {
-    let before = CalendarDate::from_calendar_day(clock.calendar_day);
+    let before = CalendarDate::from_calendar_day(clock.calendar_day, rules);
     let calendar_day = clock.sleep();
-    let after = CalendarDate::from_calendar_day(calendar_day);
+    let after = CalendarDate::from_calendar_day(calendar_day, rules);
     *season = after.season;
     energy.restore_full();
     SleepOutcome {
@@ -265,7 +266,8 @@ mod tests {
         };
 
         let mut season = Season::Spring;
-        let outcome = perform_sleep(&mut clock, &mut energy, &mut season);
+        let rules = CalendarRules::with_season_length(28);
+        let outcome = perform_sleep(&mut clock, &mut energy, &mut season, &rules);
         assert_eq!(outcome.calendar_day, 4);
         assert_eq!(outcome.season_rollover, None);
         assert_eq!(season, Season::Spring);
