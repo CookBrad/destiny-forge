@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
-"""In-house homestead dwarf pickaxe swing frames.
-
-Pixel-authored at 1x on top of the 0x72 dwarf_m idle frame 0. Every colour
-comes from the dwarf palette. The 16x28 dwarf sits centred on a 48x60 canvas
-so the Bevy sprite centre stays on the dwarf and the pickaxe has room to arc.
-Re-running writes the same bytes.
-
-Source: assets/player/non-combat/dwarf_m_idle_anim_f0.png
-Outputs: assets/player/non-combat/dwarf_m_pickaxe_swing_f0..3.png
-"""
-
 from __future__ import annotations
 
 import math
 from pathlib import Path
 
 from PIL import Image
+
+from art_common import composite_layers, outline_layer, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "assets" / "player" / "non-combat"
@@ -30,10 +21,10 @@ HANDLE_LENGTH = 13.0
 PICK_HALF_SPAN = 5.0
 PICK_SWEEP_BACK = 1.6
 
-OUTLINE = (34, 34, 34, 255)
-SKIN = (216, 165, 125, 255)
-WOOD = (119, 92, 85, 255)
-STEEL = (123, 137, 148, 255)
+OUTLINE = require_opaque_color((34, 34, 34, 255))
+SKIN = require_opaque_color((216, 165, 125, 255))
+WOOD = require_opaque_color((119, 92, 85, 255))
+STEEL = require_opaque_color((123, 137, 148, 255))
 
 POSES = [
     {"lean_x": -1, "drop_y": 0, "grip": (20.5, 27.5), "angle": -55.0, "in_front": False},
@@ -60,13 +51,7 @@ def stroke(layer, segments, core_radius, colour):
 
 
 def outline_around(layer):
-    outlined = dict(layer)
-    for (x, y) in layer:
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            neighbour = (x + dx, y + dy)
-            if neighbour not in layer and 0 <= neighbour[0] < CANVAS_W and 0 <= neighbour[1] < CANVAS_H:
-                outlined[neighbour] = OUTLINE
-    return outlined
+    return outline_layer(layer, OUTLINE, CANVAS_W, CANVAS_H)
 
 
 def pickaxe_pixels(grip, angle_degrees):
@@ -113,19 +98,16 @@ def dwarf_pixels(pose):
 
 
 def draw_frame(pose):
-    image = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     pickaxe = pickaxe_pixels(pose["grip"], pose["angle"])
     layers = [dwarf_pixels(pose), pickaxe] if pose["in_front"] else [pickaxe, dwarf_pixels(pose)]
     layers.append(fist_pixels(pose["grip"]))
-    for layer in layers:
-        for position, colour in layer.items():
-            image.putpixel(position, colour)
-    return image
+    return composite_layers(CANVAS_W, CANVAS_H, layers)
 
 
 def main():
-    for index, pose in enumerate(POSES):
-        draw_frame(pose).save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
+    frames = [draw_frame(pose) for pose in POSES]
+    for index, frame in enumerate(frames):
+        frame.save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
 
 
 if __name__ == "__main__":

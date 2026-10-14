@@ -1,265 +1,30 @@
 #!/usr/bin/env python3
-"""In-house dungeon actors at the art-direction canvases.
-
-Pixel-authored at 1×. Every opaque RGBA is copied from a signed hunter
-cell. Re-running writes the same bytes. One cell per file.
-
-Slime green is not in the signed sheets. Gel uses the sword cyan and the
-few sage pixels that are. King Slime is a crowned body, not a big slime.
-"""
-
 from __future__ import annotations
 
-import hashlib
 import io
 from pathlib import Path
 
 from PIL import Image
+
+from art_common import Canvas, Palette, add_cast_rim, add_outline, clipping_canvas, hunter_palette, load_pinned_colors, reject_resample_names
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
 ENEMIES = ROOT / "assets" / "dungeon" / "enemies"
 PROJECTILES = ROOT / "assets" / "dungeon" / "projectiles"
 
-# Same pins as tools/draw_hunter_frames.py. The script stops if those
-# bytes move, so a new actor cannot be painted from the wrong palette.
 SIGNED_SHA256 = {
     "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
     "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
     "knight_attack_side.png": "ca089a0e93524161f020d9ef91f736e330d36f3530749b8296e918b088620b04",
 }
 
-NEIGHBORS = tuple((dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
 BAYER4 = (
     (0, 8, 2, 10),
     (12, 4, 14, 6),
     (3, 11, 1, 9),
     (15, 7, 13, 5),
 )
-
-
-def reject_resample_names() -> None:
-    """Stop if this file names a resample call. Tokens are split so the
-    check can see them without the source containing the joined word."""
-    text = Path(__file__).read_text(encoding="utf-8")
-    banned = (
-        "res" + "ize",
-        "thumb" + "nail",
-        "trans" + "form",
-        "aff" + "ine",
-        "quant" + "ize",
-    )
-    for word in banned:
-        if word in text:
-            raise SystemExit(f"draw script must not mention {word}")
-
-
-def load_allowed_colors() -> set[tuple[int, int, int, int]]:
-    allowed: set[tuple[int, int, int, int]] = set()
-    for name, digest in SIGNED_SHA256.items():
-        path = SIGNED / name
-        actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        if actual != digest:
-            raise SystemExit(f"{name} hash {actual} != pinned source")
-        image = Image.open(path).convert("RGBA")
-        for red, green, blue, alpha in image.getdata():
-            if alpha == 0:
-                continue
-            if alpha != 255:
-                raise SystemExit(f"partial alpha in {name}")
-            allowed.add((red, green, blue, 255))
-    return allowed
-
-
-class Palette:
-    def __init__(self, allowed: set[tuple[int, int, int, int]]) -> None:
-        def take(red: int, green: int, blue: int) -> tuple[int, int, int, int]:
-            color = (red, green, blue, 255)
-            if color not in allowed:
-                raise SystemExit(f"color {color} is not in the signed hunter")
-            return color
-
-        self.ink = take(0, 0, 0)
-        self.ink_warm = take(32, 23, 21)
-        self.leather_shadow = take(36, 21, 13)
-        self.leather_rim = take(42, 23, 15)
-        self.leather_deep = take(43, 23, 15)
-        self.leather_soot = take(54, 30, 20)
-        self.leather_dk = take(55, 31, 21)
-        self.leather_md = take(63, 35, 23)
-        self.leather_mid2 = take(67, 38, 25)
-        self.leather = take(74, 41, 26)
-        self.leather_fold = take(76, 43, 28)
-        self.leather_lt = take(97, 55, 35)
-        self.leather_lt2 = take(98, 56, 35)
-        self.leather_hi = take(107, 64, 33)
-        self.skin_dk = take(149, 92, 47)
-        self.skin_md = take(187, 119, 69)
-        self.skin = take(222, 152, 98)
-        self.skin_warm = take(217, 150, 99)
-        self.skin_lt = take(252, 187, 127)
-        self.brass_shadow = take(161, 103, 26)
-        self.brass_md = take(167, 108, 29)
-        self.brass_dk = take(203, 141, 45)
-        self.brass = take(226, 166, 64)
-        self.brass_lt = take(244, 172, 13)
-        self.brass_hi = take(251, 214, 119)
-        self.gel_shadow = take(3, 40, 43)
-        self.gel_deep = take(0, 64, 69)
-        self.gel_well = take(0, 76, 81)
-        self.gel_pool = take(0, 97, 106)
-        self.gel_tide = take(2, 118, 129)
-        self.gel_sea = take(4, 126, 133)
-        self.gel_foam = take(40, 137, 138)
-        self.gel_mid = take(42, 140, 147)
-        self.gel_kelp = take(39, 150, 147)
-        self.gel_lagoon = take(42, 161, 166)
-        self.gel_dk = take(45, 170, 152)
-        self.gel = take(3, 190, 174)
-        self.gel_core = take(0, 210, 211)
-        self.gel_lt = take(0, 213, 215)
-        self.gel_bright = take(0, 229, 227)
-        self.gel_hi = take(0, 251, 250)
-        self.gel_hot = take(166, 253, 254)
-        self.sage_shadow = take(7, 35, 33)
-        self.sage_mid = take(28, 103, 99)
-        self.sage_dk = take(67, 94, 77)
-        self.sage = take(80, 127, 100)
-        self.sage_lt = take(84, 122, 95)
-        self.purple_dk = take(108, 21, 120)
-        self.purple = take(184, 118, 200)
-        self.purple_lt = take(244, 136, 254)
-        self.steel_deep = take(13, 13, 13)
-        self.steel_void = take(16, 16, 16)
-        self.steel_shadow = take(22, 22, 26)
-        self.steel_dk = take(38, 38, 43)
-        self.steel = take(48, 48, 53)
-        self.steel_cloth = take(37, 36, 37)
-        self.steel_mid = take(135, 133, 137)
-        self.steel_lt = take(168, 168, 169)
-        self.bone_shadow = take(126, 126, 116)
-        self.bone_dust = take(148, 154, 143)
-        self.bone_dk = take(150, 149, 144)
-        self.bone_md = take(174, 172, 175)
-        self.bone_mid = take(179, 178, 182)
-        self.bone = take(245, 244, 243)
-        self.bone_lt = take(255, 255, 255)
-        self.dead_dk = take(52, 36, 31)
-        self.dead = take(54, 37, 32)
-        self.white = take(255, 255, 255)
-        self.gel_ramp = (
-            self.gel_shadow,
-            self.gel_deep,
-            self.gel_well,
-            self.gel_pool,
-            self.gel_tide,
-            self.gel_sea,
-            self.gel_foam,
-            self.gel_mid,
-            self.gel_kelp,
-            self.gel_lagoon,
-            self.gel_dk,
-            self.gel,
-            self.gel_core,
-            self.gel_lt,
-            self.gel_bright,
-            self.gel_hi,
-        )
-        self.gel_under = self.gel_ramp[:8]
-        self.gel_body = self.gel_ramp[4:13]
-        self.gel_shine = self.gel_ramp[10:]
-        self.sage_ramp = (self.sage_shadow, self.sage_dk, self.sage_mid, self.sage, self.sage_lt)
-        self.leather_ramp = (
-            self.leather_shadow,
-            self.leather_deep,
-            self.leather_soot,
-            self.leather_dk,
-            self.leather_md,
-            self.leather_mid2,
-            self.leather,
-            self.leather_fold,
-            self.leather_lt,
-            self.leather_lt2,
-            self.leather_hi,
-        )
-        self.brass_ramp = (
-            self.brass_shadow,
-            self.brass_md,
-            self.brass_dk,
-            self.brass,
-            self.brass_lt,
-            self.brass_hi,
-        )
-        self.bone_ramp = (
-            self.bone_shadow,
-            self.bone_dk,
-            self.bone_dust,
-            self.bone_md,
-            self.bone_mid,
-            self.bone,
-            self.bone_lt,
-        )
-        self.bone_form = (
-            self.bone_shadow,
-            self.bone_dk,
-            self.bone_dust,
-            self.bone_md,
-            self.bone_mid,
-        )
-        self.steel_ramp = (
-            self.steel_deep,
-            self.steel_void,
-            self.steel_shadow,
-            self.steel_cloth,
-            self.steel_dk,
-            self.steel,
-        )
-        self.wing_ramp = self.steel_ramp
-        # Pallid gray, not the coat brown. Signed sheets have no corpse green.
-        self.dead_ramp = (
-            self.dead_dk,
-            self.dead,
-            self.steel_mid,
-            self.bone_dust,
-            self.steel_lt,
-            self.bone_md,
-        )
-        self.skin_ramp = (self.skin_dk, self.skin_md, self.skin_warm, self.skin, self.skin_lt)
-        self.cloth_ramp = (
-            self.steel_deep,
-            self.steel_void,
-            self.steel_shadow,
-            self.steel_cloth,
-            self.steel_dk,
-            self.steel,
-            self.steel_mid,
-        )
-
-
-class Canvas:
-    def __init__(self, width: int, height: int) -> None:
-        self.width = width
-        self.height = height
-        self.pixels = [(0, 0, 0, 0)] * (width * height)
-
-    def put(self, x: int, y: int, color: tuple[int, int, int, int]) -> None:
-        if color[3] not in (0, 255):
-            raise SystemExit("partial alpha")
-        if 0 <= x < self.width and 0 <= y < self.height:
-            self.pixels[y * self.width + x] = color
-
-    def fill(self, points: list[tuple[int, int]], color: tuple[int, int, int, int]) -> None:
-        for x, y in points:
-            self.put(x, y, color)
-
-    def blit(self, shaded_pixels: dict[tuple[int, int], tuple[int, int, int, int]]) -> None:
-        for (x, y), color in shaded_pixels.items():
-            self.put(x, y, color)
-
-    def opaque_at(self, x: int, y: int) -> bool:
-        if not (0 <= x < self.width and 0 <= y < self.height):
-            return False
-        return self.pixels[y * self.width + x][3] == 255
 
 
 def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
@@ -376,7 +141,6 @@ def volume(
     ramp: tuple[tuple[int, int, int, int], ...],
     split: int,
 ) -> dict[tuple[int, int], tuple[int, int, int, int]]:
-    """Lamp up and left of center. Neighboring ramp stops cluster together."""
     if not points:
         return {}
     stops = len(ramp)
@@ -413,45 +177,6 @@ def volume(
             base -= 1
         painted[(x, y)] = ramp[last - base]
     return painted
-
-
-def add_outline(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
-    """1 px contour just outside the body so the silhouette stays readable."""
-    width = canvas.width
-    height = canvas.height
-    extra: list[tuple[int, int]] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for dx, dy in NEIGHBORS:
-                nx = x + dx
-                ny = y + dy
-                if 0 <= nx < width and 0 <= ny < height and canvas.pixels[ny * width + nx][3] == 0:
-                    extra.append((nx, ny))
-    for x, y in extra:
-        canvas.put(x, y, color)
-
-
-def add_cast_rim(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
-    """Shadow-side inner contour (right and down). Leaves the lit edge to volume."""
-    width = canvas.width
-    height = canvas.height
-    rim: list[tuple[int, int]] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for dx, dy in ((1, 0), (0, 1), (1, 1)):
-                nx = x + dx
-                ny = y + dy
-                if not (0 <= nx < width and 0 <= ny < height) or canvas.pixels[ny * width + nx][3] == 0:
-                    rim.append((x, y))
-                    break
-    for x, y in rim:
-        canvas.put(x, y, color)
 
 
 def spark(
@@ -558,7 +283,6 @@ def crown_spike(
     half_base: int,
     palette: Palette,
 ) -> None:
-    """Waisted gold spear with a shadow face and a lit face."""
     mid_y = (tip_y + base_y) // 2
     waist = max(3, half_base - 4)
     outline = [
@@ -583,7 +307,7 @@ def crown_spike(
 
 
 def draw_slime(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 64)
+    canvas = clipping_canvas(64, 64)
     blit_ellipse(canvas, 33, 42, 23, 20, palette.gel_under, 10)
     blit_ellipse(canvas, 32, 36, 21, 18, palette.gel_body, 10)
     blit_ellipse(canvas, 32, 16, 7, 10, palette.gel_body, 5)
@@ -609,7 +333,7 @@ def draw_slime(palette: Palette) -> Canvas:
 
 
 def draw_blob(palette: Palette) -> Canvas:
-    canvas = Canvas(32, 32)
+    canvas = clipping_canvas(32, 32)
     blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
     blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
     canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
@@ -623,7 +347,7 @@ def draw_blob(palette: Palette) -> Canvas:
 
 
 def draw_bolt(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
     tail: list[tuple[int, int]] = []
     for y in range(15, 46):
@@ -647,7 +371,7 @@ def draw_bolt(palette: Palette) -> Canvas:
 
 
 def draw_arrow(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
     canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
     canvas.put(8, 2, palette.brass_hi)
@@ -683,7 +407,7 @@ def draw_arrow(palette: Palette) -> Canvas:
 
 
 def draw_bat(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 48)
+    canvas = clipping_canvas(96, 48)
     blit_poly(
         canvas,
         [(46, 24), (22, 7), (6, 13), (16, 22), (40, 26)],
@@ -745,7 +469,7 @@ def draw_bat(palette: Palette) -> Canvas:
 
 
 def draw_goblin(palette: Palette) -> Canvas:
-    canvas = Canvas(80, 112)
+    canvas = clipping_canvas(80, 112)
     blit_poly(canvas, [(44, 26), (24, 10), (30, 22), (48, 32)], (32, 18), palette.leather_ramp, 6)
     canvas.fill(polygon_pixels([(42, 24), (28, 14), (44, 28)]), palette.purple_dk)
     canvas.put(30, 16, palette.purple)
@@ -807,7 +531,7 @@ def draw_goblin(palette: Palette) -> Canvas:
 
 
 def draw_skeleton(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 144)
+    canvas = clipping_canvas(64, 144)
     bow = chain([(20, 28), (10, 50), (8, 74), (12, 98), (22, 116)], 3)
     canvas.blit(volume(bow, 10, 70, palette.brass_ramp, 12))
     canvas.fill(capsule_pixels(18, 36, 18, 108, 1), palette.leather_deep)
@@ -864,7 +588,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
 
 
 def draw_zombie(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 128)
+    canvas = clipping_canvas(96, 128)
     blit_capsule(canvas, 40, 54, 18, 98, 6, palette.dead_ramp, 10)
     coat = blit_poly(
         canvas,
@@ -926,7 +650,7 @@ def draw_zombie(palette: Palette) -> Canvas:
 
 
 def draw_king(palette: Palette) -> Canvas:
-    canvas = Canvas(192, 192)
+    canvas = clipping_canvas(192, 192)
     blit_ellipse(canvas, 98, 164, 80, 26, palette.gel_under, 14)
     blit_ellipse(canvas, 96, 114, 66, 58, palette.gel_under, 20)
     blit_ellipse(canvas, 92, 104, 58, 50, palette.gel_body, 18)
@@ -1107,9 +831,9 @@ def output_paths() -> dict[str, Path]:
 
 
 def main() -> None:
-    reject_resample_names()
-    allowed = load_allowed_colors()
-    palette = Palette(allowed)
+    reject_resample_names(Path(__file__))
+    allowed = load_pinned_colors(SIGNED, SIGNED_SHA256)
+    palette = hunter_palette(allowed)
     sheets = draw_all(palette)
     check_all(sheets, allowed)
     for name, path in output_paths().items():
