@@ -6,6 +6,7 @@ use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy, TOOL_ENERGY_MAX};
+use super::super::season::{CalendarDate, Season};
 
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::profile::{ActiveProfile, PlayerProfile, PROFILE_COUNT};
@@ -23,6 +24,7 @@ pub fn hydrate_runtime_from_memory(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut season: ResMut<Season>,
 ) {
     apply_profile_to_runtime(
         &profile,
@@ -33,6 +35,7 @@ pub fn hydrate_runtime_from_memory(
         &mut tool_energy,
         &mut audio,
         &mut bindings,
+        &mut season,
     );
 
     info!(
@@ -160,12 +163,48 @@ pub fn apply_profile_to_runtime(
     tool_energy: &mut ToolEnergy,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
+    season: &mut Season,
 ) {
     *inventory = profile.inventory.clone();
     *loadout = profile.loadout.clone();
     *progress = profile.progress.clone();
     *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
     *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *season = CalendarDate::from_calendar_day(day_clock.calendar_day).season;
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn applying_a_profile_snaps_season_to_the_saved_day() {
+        let mut profile = PlayerProfile::default();
+        profile.calendar_day = 200;
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        let mut progress = WorldProgress::default();
+        let mut day_clock = DayClock::default();
+        let mut tool_energy = ToolEnergy::default();
+        let mut audio = AudioSettings::default();
+        let mut bindings = SkillBindings::default();
+        let mut season = Season::Spring;
+
+        apply_profile_to_runtime(
+            &profile,
+            &mut inventory,
+            &mut loadout,
+            &mut progress,
+            &mut day_clock,
+            &mut tool_energy,
+            &mut audio,
+            &mut bindings,
+            &mut season,
+        );
+
+        assert_eq!(day_clock.calendar_day, 200);
+        assert_eq!(season, Season::Winter);
+    }
 }

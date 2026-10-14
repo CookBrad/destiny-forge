@@ -5,7 +5,8 @@ use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
     rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings,
-    GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ToolEnergy, PROFILE_COUNT,
+    GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
+    PROFILE_COUNT,
 };
 use crate::input::{Action, ActionState};
 use crate::items::Inventory;
@@ -172,6 +173,7 @@ pub fn handle_title_profile_card_clicks(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut season: ResMut<Season>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -196,6 +198,7 @@ pub fn handle_title_profile_card_clicks(
             &mut progress,
             &mut day_clock,
             &mut tool_energy,
+            &mut season,
             &mut audio,
             &mut bindings,
             &mut active,
@@ -282,6 +285,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut season: ResMut<Season>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -305,6 +309,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut progress,
         &mut day_clock,
         &mut tool_energy,
+        &mut season,
         &mut audio,
         &mut bindings,
         &mut active,

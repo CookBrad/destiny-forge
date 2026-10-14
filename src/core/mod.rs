@@ -3,6 +3,7 @@ pub mod day_cycle;
 mod hunt_day_cost;
 mod memory;
 mod plugin;
+mod season;
 mod state;
 mod teardown;
 
@@ -14,5 +15,6 @@ pub use memory::{
     SavedPlotStage, PROFILE_COUNT,
 };
 pub use plugin::CorePlugin;
+pub use season::{CalendarDate, Season, SeasonRollover, Weekday, DAYS_PER_SEASON, DAYS_PER_YEAR};
 pub use state::{DungeonPlayState, GameState};
 pub use teardown::DungeonUiTeardown;
