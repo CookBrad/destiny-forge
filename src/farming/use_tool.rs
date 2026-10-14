@@ -135,7 +135,7 @@ pub fn persist_plots(
     profile: &mut PlayerProfile,
     dirty: &mut ProfileDirty,
 ) {
-    profile.crop_plots = capture_plots(plots.iter());
+    profile.homestead.crop_plots = capture_plots(plots.iter());
     dirty.mark();
 }
 
@@ -144,7 +144,7 @@ pub fn capture_crop_plots_on_exit(
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    profile.crop_plots = capture_plots(plots.iter());
+    profile.homestead.crop_plots = capture_plots(plots.iter());
     dirty.mark();
 }
 

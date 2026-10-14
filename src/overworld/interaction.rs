@@ -119,10 +119,10 @@ pub fn try_sleep_at_bed(
     let day = outcome.calendar_day;
     advance_all_plots_on_sleep(&mut plots);
     loadout.clear_food_buff();
-    profile.calendar_day = day_clock.calendar_day;
-    profile.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
-    profile.crop_plots = capture_plots(plots.iter());
+    profile.header.calendar.calendar_day = day_clock.calendar_day;
+    profile.header.calendar.day_phase = day_clock.phase;
+    profile.homestead.tool_energy = tool_energy.current;
+    profile.homestead.crop_plots = capture_plots(plots.iter());
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();

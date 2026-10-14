@@ -47,6 +47,7 @@ impl CalendarRules {
         .unwrap_or(Self { days_per_season: 1 })
     }
 
+    #[cfg(test)]
     pub fn with_season_length(days_per_season: u32) -> Self {
         Self { days_per_season }.sanitized()
     }
