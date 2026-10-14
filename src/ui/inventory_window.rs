@@ -82,10 +82,10 @@ pub struct InventoryEatButton;
 pub struct InventorySortButton;
 
 #[derive(Component)]
-struct InventoryGoldAmount;
+pub(crate) struct InventoryGoldAmount;
 
 #[derive(Component)]
-struct InventorySparksAmount;
+pub(crate) struct InventorySparksAmount;
 
 pub fn spawn_inventory_window(
     commands: &mut Commands,
