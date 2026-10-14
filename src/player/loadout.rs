@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::combat::{EquippedWeapon, WeaponKind};
+use crate::gear::{gear_catalog, GearSet, GearSlot};
 use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -58,31 +59,30 @@ impl Default for Loadout {
 }
 
 impl ArmorKind {
-    pub fn slot(self) -> ArmorSlot {
+    pub(crate) fn gear_id(self) -> &'static str {
         match self {
-            Self::SlimeHelm => ArmorSlot::Head,
-            Self::SlimeMail => ArmorSlot::Chest,
-            Self::SlimeGauntlets => ArmorSlot::Arms,
-            Self::SlimeGreaves => ArmorSlot::Legs,
+            Self::SlimeHelm => "slime_helm",
+            Self::SlimeMail => "slime_mail",
+            Self::SlimeGauntlets => "slime_gauntlets",
+            Self::SlimeGreaves => "slime_greaves",
+        }
+    }
+
+    pub fn slot(self) -> ArmorSlot {
+        match gear_catalog().slot(self.gear_id()) {
+            Some(GearSlot::Chest) => ArmorSlot::Chest,
+            Some(GearSlot::Arms) => ArmorSlot::Arms,
+            Some(GearSlot::Legs) => ArmorSlot::Legs,
+            Some(GearSlot::Head) | Some(GearSlot::Weapon) | None => ArmorSlot::Head,
         }
     }
 
     pub fn defense(self) -> f32 {
-        match self {
-            Self::SlimeHelm => 2.0,
-            Self::SlimeMail => 4.0,
-            Self::SlimeGauntlets => 1.0,
-            Self::SlimeGreaves => 2.0,
-        }
+        gear_catalog().defense(self.gear_id())
     }
 
     pub fn label(self) -> &'static str {
-        match self {
-            Self::SlimeHelm => "Slime Helm",
-            Self::SlimeMail => "Slime Mail",
-            Self::SlimeGauntlets => "Slime Gauntlets",
-            Self::SlimeGreaves => "Slime Greaves",
-        }
+        gear_catalog().name(self.gear_id())
     }
 }
 
@@ -223,10 +223,16 @@ impl Loadout {
     }
 
     pub fn slime_set_pieces(&self) -> u32 {
-        [self.armor.head, self.armor.chest, self.armor.arms, self.armor.legs]
-            .into_iter()
-            .filter(|piece| piece.is_some())
-            .count() as u32
+        [
+            self.armor.head,
+            self.armor.chest,
+            self.armor.arms,
+            self.armor.legs,
+        ]
+        .into_iter()
+        .flatten()
+        .filter(|kind| gear_catalog().set(kind.gear_id()) == Some(GearSet::Slime))
+        .count() as u32
     }
 
     pub fn carve_speed_multiplier(&self) -> f32 {
@@ -271,12 +277,7 @@ pub fn expire_food_buff_after_hunt(mut loadout: ResMut<Loadout>) {
 }
 
 pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
-    match kind {
-        WeaponKind::RustySword => "Rusty Sword",
-        WeaponKind::RustySpear => "Rusty Spear",
-        WeaponKind::IronSword => "Iron Sword",
-        WeaponKind::SlimeBlade => "Slime Blade",
-    }
+    gear_catalog().name(kind.gear_id())
 }
 
 #[cfg(test)]
