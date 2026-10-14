@@ -1,28 +1,16 @@
-use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
-use crate::audio::AudioSettings;
-use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, CalendarRules, DayClock,
-    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
-    PROFILE_COUNT,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, GameState, PlayerProfile,
+    ProfileAutosaveBlock, PROFILE_COUNT,
 };
 use crate::input::{Action, ActionState};
-use crate::items::Inventory;
-use crate::player::{Loadout, Wallet, WorldProgress};
 
-use super::profile_picker::{begin_profile_run, ProfilePicker};
+use super::profile_picker::{begin_profile_run, ProfilePicker, ProfileRun};
 
 const CARD_WIDTH: f32 = 420.0;
 const CARD_HEIGHT: f32 = 72.0;
-
-#[derive(SystemParam)]
-pub(super) struct SeasonWithRules<'w> {
-    season: ResMut<'w, Season>,
-    rules: Res<'w, CalendarRules>,
-}
 
 #[derive(Component)]
 pub struct TitleProfileContainer;
@@ -175,20 +163,7 @@ pub fn handle_title_profile_card_clicks(
         (&Interaction, &TitleProfileCard),
         (Changed<Interaction>, With<Button>),
     >,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut calendar: SeasonWithRules,
-    mut wallet: ResMut<Wallet>,
-    mut active: ResMut<ActiveProfile>,
-    mut profile: ResMut<PlayerProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut global: ResMut<GameSettings>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut autosave_block: ResMut<ProfileAutosaveBlock>,
+    mut run: ProfileRun,
 ) {
     if rename.active.is_some() {
         return;
@@ -199,25 +174,7 @@ pub fn handle_title_profile_card_clicks(
             continue;
         }
 
-        let started = begin_profile_run(
-            card.index,
-            &mut inventory,
-            &mut loadout,
-            &mut progress,
-            &mut day_clock,
-            &mut tool_energy,
-            &mut calendar.season,
-            &calendar.rules,
-            &mut audio,
-            &mut bindings,
-            &mut wallet,
-            &mut active,
-            &mut profile,
-            &mut global,
-            &mut profile_dirty,
-            &mut autosave_block,
-        );
-        if started {
+        if begin_profile_run(card.index, &mut run) {
             next_state.set(GameState::Overworld);
         }
     }
@@ -290,20 +247,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     actions: Res<ActionState>,
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut calendar: SeasonWithRules,
-    mut wallet: ResMut<Wallet>,
-    mut active: ResMut<ActiveProfile>,
-    mut profile: ResMut<PlayerProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut global: ResMut<GameSettings>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut autosave_block: ResMut<ProfileAutosaveBlock>,
+    mut run: ProfileRun,
 ) {
     if rename.active.is_some() {
         return;
@@ -313,25 +257,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         return;
     };
 
-    let started = begin_profile_run(
-        index,
-        &mut inventory,
-        &mut loadout,
-        &mut progress,
-        &mut day_clock,
-        &mut tool_energy,
-        &mut calendar.season,
-        &calendar.rules,
-        &mut audio,
-        &mut bindings,
-        &mut wallet,
-        &mut active,
-        &mut profile,
-        &mut global,
-        &mut profile_dirty,
-        &mut autosave_block,
-    );
-    if started {
+    if begin_profile_run(index, &mut run) {
         next_state.set(GameState::Overworld);
     }
 }

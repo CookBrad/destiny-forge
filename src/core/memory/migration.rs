@@ -34,6 +34,10 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 8,
         apply: migrate_profile_to_v8,
     },
+    ProfileMigration {
+        to_version: 9,
+        apply: migrate_profile_to_v9,
+    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -147,6 +151,17 @@ fn force_slot_quality_normal(slot: &mut RonValue) {
     fields.push(("quality".to_string(), normal));
 }
 
+fn migrate_profile_to_v9(profile: &mut RonValue) {
+    insert_field_if_missing(profile, "wallet", empty_wallet());
+}
+
+fn empty_wallet() -> RonValue {
+    RonValue::Map(vec![
+        ("gold".to_string(), RonValue::Integer(0)),
+        ("sparks".to_string(), RonValue::Integer(0)),
+    ])
+}
+
 fn widen_inventory_to_v7(profile: &mut RonValue) {
     let Some(inventory) = field_mut(profile, "inventory") else {
         return;
@@ -218,6 +233,7 @@ mod tests {
     const V5_PROFILE: &str = include_str!("fixtures/profile_v5.ron");
     const V6_PROFILE: &str = include_str!("fixtures/profile_v6_24_slots.ron");
     const V7_PROFILE: &str = include_str!("fixtures/profile_v7.ron");
+    const V8_PROFILE: &str = include_str!("fixtures/profile_v8.ron");
 
     #[test]
     fn version_2_save_migrates_to_the_current_profile() {
@@ -479,6 +495,44 @@ mod tests {
     }
 
     #[test]
+    fn version_8_save_loads_with_an_empty_wallet() {
+        let profile = profile_from_ron(V8_PROFILE).unwrap();
+        assert_eq!(profile.version, PROFILE_VERSION);
+        assert_eq!(profile.name, "Hearth");
+        assert_eq!(profile.wallet.gold, 0);
+        assert_eq!(profile.wallet.sparks, 0);
+        assert_eq!(
+            profile
+                .inventory
+                .count_quality(MaterialId::CopperOre, ItemQuality::Silver),
+            12
+        );
+        assert_eq!(
+            profile
+                .inventory
+                .count_quality(MaterialId::IronOre, ItemQuality::Gold),
+            7
+        );
+        assert_eq!(profile.inventory.count(MaterialId::PickaxeTier2), 1);
+        assert_eq!(profile.depleted_ore_node_ids, vec![3, 9]);
+    }
+
+    #[test]
+    fn version_8_save_keeps_a_wallet_it_already_has() {
+        let text = V8_PROFILE.replacen("settings:", "wallet:(gold:250,sparks:4),settings:", 1);
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.version, PROFILE_VERSION);
+        assert_eq!(profile.wallet.gold, 250);
+        assert_eq!(profile.wallet.sparks, 4);
+        assert_eq!(
+            profile
+                .inventory
+                .count_quality(MaterialId::CopperOre, ItemQuality::Silver),
+            12
+        );
+    }
+
+    #[test]
     fn save_older_than_the_first_schema_does_not_load() {
         let text = V2_PROFILE.replace("version:2", "version:1");
         let error = profile_from_ron(&text).unwrap_err();
@@ -496,6 +550,7 @@ mod tests {
         assert_eq!(loaded.tool_energy, expected.tool_energy);
         assert_eq!(loaded.crop_plots, expected.crop_plots);
         assert_eq!(loaded.depleted_ore_node_ids, expected.depleted_ore_node_ids);
+        assert_eq!(loaded.wallet, expected.wallet);
         assert_eq!(loaded.settings, expected.settings);
     }
 }
