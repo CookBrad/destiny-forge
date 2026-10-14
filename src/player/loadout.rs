@@ -6,10 +6,14 @@ use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArmorKind {
-    SlimeHelm,
-    SlimeMail,
-    SlimeGauntlets,
-    SlimeGreaves,
+    #[serde(rename = "SlimeHelm")]
+    Helm,
+    #[serde(rename = "SlimeMail")]
+    Mail,
+    #[serde(rename = "SlimeGauntlets")]
+    Gauntlets,
+    #[serde(rename = "SlimeGreaves")]
+    Greaves,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -60,28 +64,28 @@ impl Default for Loadout {
 impl ArmorKind {
     pub fn slot(self) -> ArmorSlot {
         match self {
-            Self::SlimeHelm => ArmorSlot::Head,
-            Self::SlimeMail => ArmorSlot::Chest,
-            Self::SlimeGauntlets => ArmorSlot::Arms,
-            Self::SlimeGreaves => ArmorSlot::Legs,
+            Self::Helm => ArmorSlot::Head,
+            Self::Mail => ArmorSlot::Chest,
+            Self::Gauntlets => ArmorSlot::Arms,
+            Self::Greaves => ArmorSlot::Legs,
         }
     }
 
     pub fn defense(self) -> f32 {
         match self {
-            Self::SlimeHelm => 2.0,
-            Self::SlimeMail => 4.0,
-            Self::SlimeGauntlets => 1.0,
-            Self::SlimeGreaves => 2.0,
+            Self::Helm => 2.0,
+            Self::Mail => 4.0,
+            Self::Gauntlets => 1.0,
+            Self::Greaves => 2.0,
         }
     }
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::SlimeHelm => "Slime Helm",
-            Self::SlimeMail => "Slime Mail",
-            Self::SlimeGauntlets => "Slime Gauntlets",
-            Self::SlimeGreaves => "Slime Greaves",
+            Self::Helm => "Slime Helm",
+            Self::Mail => "Slime Mail",
+            Self::Gauntlets => "Slime Gauntlets",
+            Self::Greaves => "Slime Greaves",
         }
     }
 }
@@ -286,18 +290,18 @@ mod tests {
 
     fn full_slime() -> Loadout {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorKind::SlimeHelm);
-        loadout.armor.chest = Some(ArmorKind::SlimeMail);
-        loadout.armor.arms = Some(ArmorKind::SlimeGauntlets);
-        loadout.armor.legs = Some(ArmorKind::SlimeGreaves);
+        loadout.armor.head = Some(ArmorKind::Helm);
+        loadout.armor.chest = Some(ArmorKind::Mail);
+        loadout.armor.arms = Some(ArmorKind::Gauntlets);
+        loadout.armor.legs = Some(ArmorKind::Greaves);
         loadout
     }
 
     #[test]
     fn two_piece_gives_carve_and_special_cd() {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorKind::SlimeHelm);
-        loadout.armor.chest = Some(ArmorKind::SlimeMail);
+        loadout.armor.head = Some(ArmorKind::Helm);
+        loadout.armor.chest = Some(ArmorKind::Mail);
         assert_eq!(loadout.slime_set_pieces(), 2);
         assert!((loadout.carve_speed_multiplier() - 1.1).abs() < f32::EPSILON);
         assert!((loadout.special_cooldown_multiplier() - 0.9).abs() < f32::EPSILON);
@@ -323,8 +327,10 @@ mod tests {
 
     #[test]
     fn upgrade_does_not_stash_consumed_weapon() {
-        let mut loadout = Loadout::default();
-        loadout.weapon = WeaponKind::IronSword;
+        let mut loadout = Loadout {
+            weapon: WeaponKind::IronSword,
+            ..Loadout::default()
+        };
         loadout.upgrade_weapon(WeaponKind::SlimeBlade);
         assert_eq!(loadout.weapon, WeaponKind::SlimeBlade);
         assert!(!loadout.stash.weapons.contains(&WeaponKind::IronSword));
@@ -397,8 +403,10 @@ mod tests {
     #[test]
     fn food_buff_ends_when_leaving_the_dungeon() {
         let mut app = App::new();
-        let mut loadout = Loadout::default();
-        loadout.food_buff = Some(MaterialId::PotatoStew);
+        let loadout = Loadout {
+            food_buff: Some(MaterialId::PotatoStew),
+            ..Loadout::default()
+        };
         app.insert_resource(loadout);
 
         app.world_mut()
@@ -418,8 +426,8 @@ mod tests {
     #[test]
     fn forged_armor_stashes_previous_piece_in_slot() {
         let mut loadout = Loadout::default();
-        loadout.equip_forged_armor(ArmorKind::SlimeHelm);
-        assert_eq!(loadout.armor.head, Some(ArmorKind::SlimeHelm));
+        loadout.equip_forged_armor(ArmorKind::Helm);
+        assert_eq!(loadout.armor.head, Some(ArmorKind::Helm));
         assert!(loadout.stash.armor.is_empty());
     }
 }

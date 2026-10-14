@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::ui::widget::{ImageNode, NodeImageMode};
 use bevy::window::PrimaryWindow;
@@ -188,38 +189,78 @@ fn cooldown_fill(
     (cooldowns.remaining(special) / full_cooldown).clamp(0.0, 1.0)
 }
 
+pub(crate) type SkillBarSlots<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static SkillSlot,
+        &'static Interaction,
+        &'static mut BackgroundColor,
+        &'static mut BorderColor,
+    ),
+    With<SkillSlot>,
+>;
+
+pub(crate) type SkillBarIcons<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static SkillSlotImage,
+        &'static mut ImageNode,
+        &'static mut Visibility,
+    ),
+    (With<SkillSlotImage>, Without<SkillSlotNameLabel>),
+>;
+
+pub(crate) type SkillBarNames<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static SkillSlotNameLabel,
+        &'static mut Text,
+        &'static mut Visibility,
+    ),
+    (With<SkillSlotNameLabel>, Without<SkillSlotImage>),
+>;
+
+pub(crate) type SkillBarOverlays<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static SkillSlotCooldownOverlay,
+        &'static mut Node,
+        &'static mut Visibility,
+    ),
+    (
+        With<SkillSlotCooldownOverlay>,
+        Without<SkillSlotImage>,
+        Without<SkillSlotNameLabel>,
+    ),
+>;
+
+#[derive(SystemParam)]
+pub(crate) struct SkillBarSources<'w> {
+    bindings: Res<'w, SkillBindings>,
+    cooldowns: Res<'w, SpecialCooldownState>,
+    loadout: Res<'w, Loadout>,
+    drag: Res<'w, SkillBarDrag>,
+    icon_assets: Res<'w, SkillIconAssets>,
+}
+
 pub fn sync_skill_bar(
-    bindings: Res<SkillBindings>,
-    cooldowns: Res<SpecialCooldownState>,
-    loadout: Res<Loadout>,
-    drag: Res<SkillBarDrag>,
-    icon_assets: Res<SkillIconAssets>,
-    mut slots: Query<
-        (
-            &SkillSlot,
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
-        With<SkillSlot>,
-    >,
-    mut icons: Query<
-        (&SkillSlotImage, &mut ImageNode, &mut Visibility),
-        (With<SkillSlotImage>, Without<SkillSlotNameLabel>),
-    >,
-    mut names: Query<
-        (&SkillSlotNameLabel, &mut Text, &mut Visibility),
-        (With<SkillSlotNameLabel>, Without<SkillSlotImage>),
-    >,
-    mut overlays: Query<
-        (&SkillSlotCooldownOverlay, &mut Node, &mut Visibility),
-        (
-            With<SkillSlotCooldownOverlay>,
-            Without<SkillSlotImage>,
-            Without<SkillSlotNameLabel>,
-        ),
-    >,
+    sources: SkillBarSources,
+    mut slots: SkillBarSlots,
+    mut icons: SkillBarIcons,
+    mut names: SkillBarNames,
+    mut overlays: SkillBarOverlays,
 ) {
+    let SkillBarSources {
+        bindings,
+        cooldowns,
+        loadout,
+        drag,
+        icon_assets,
+    } = sources;
     for (slot, interaction, mut bg, mut border) in &mut slots {
         apply_slot_highlight(slot, interaction, drag.from_slot, &mut bg, &mut border);
     }
@@ -491,8 +532,8 @@ mod tests {
             weapon: WeaponKind::RustySpear,
             ..Loadout::default()
         };
-        spear.armor.head = Some(ArmorKind::SlimeHelm);
-        spear.armor.chest = Some(ArmorKind::SlimeMail);
+        spear.armor.head = Some(ArmorKind::Helm);
+        spear.armor.chest = Some(ArmorKind::Mail);
         let full = SpecialMoveKind::Thrust.base_cooldown() * spear.special_cooldown_multiplier();
         assert!((full - 3.5 * 0.9).abs() < 1e-5);
 

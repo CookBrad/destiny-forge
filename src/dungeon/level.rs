@@ -68,7 +68,7 @@ pub struct DungeonLayout {
     pub floor: GeneratedFloor,
 }
 
-pub fn find_ground_segment_at<'a>(x: f32, segments: &'a [PlatformSpec]) -> Option<&'a PlatformSpec> {
+pub fn find_ground_segment_at(x: f32, segments: &[PlatformSpec]) -> Option<&PlatformSpec> {
     segments.iter().find(|segment| {
         segment.top_y == DUNGEON_FLOOR_Y
             && x >= segment.left

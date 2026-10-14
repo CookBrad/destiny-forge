@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -38,21 +39,58 @@ pub fn queue_autosave(profile_dirty: Res<ProfileDirty>, mut timer: ResMut<Autosa
     }
 }
 
+#[derive(SystemParam)]
+pub(crate) struct ProfileSaveState<'w> {
+    active: Res<'w, ActiveProfile>,
+    audio: Res<'w, AudioSettings>,
+    bindings: Res<'w, SkillBindings>,
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    progress: Res<'w, WorldProgress>,
+    day_clock: Res<'w, DayClock>,
+    tool_energy: Res<'w, ToolEnergy>,
+    profile: ResMut<'w, PlayerProfile>,
+    autosave_block: Res<'w, ProfileAutosaveBlock>,
+}
+
+fn profile_snapshot<'a>(
+    inventory: &'a Inventory,
+    loadout: &'a Loadout,
+    progress: &'a WorldProgress,
+    day_clock: &'a DayClock,
+    tool_energy: &'a ToolEnergy,
+    audio: &'a AudioSettings,
+    bindings: &'a SkillBindings,
+) -> super::sync::ProfileSnapshot<'a> {
+    super::sync::ProfileSnapshot {
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+        audio,
+        bindings,
+    }
+}
+
 pub fn debounced_autosave(
     time: Res<Time>,
     mut timer: ResMut<AutosaveTimer>,
     mut profile_dirty: ResMut<ProfileDirty>,
-    active: Res<ActiveProfile>,
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
-    mut profile: ResMut<PlayerProfile>,
-    autosave_block: Res<ProfileAutosaveBlock>,
+    state: ProfileSaveState,
 ) {
+    let ProfileSaveState {
+        active,
+        audio,
+        bindings,
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+        mut profile,
+        autosave_block,
+    } = state;
     if !profile_dirty.0 || autosave_block.is_blocked(active.index()) {
         return;
     }
@@ -63,13 +101,15 @@ pub fn debounced_autosave(
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
+        profile_snapshot(
+            &inventory,
+            &loadout,
+            &progress,
+            &day_clock,
+            &tool_energy,
+            &audio,
+            &bindings,
+        ),
         &mut profile,
     );
     match save_profile(active.index(), &profile) {
@@ -78,31 +118,33 @@ pub fn debounced_autosave(
     }
 }
 
-pub fn flush_saves_on_exit(
-    active: Res<ActiveProfile>,
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
-    mut profile: ResMut<PlayerProfile>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    autosave_block: Res<ProfileAutosaveBlock>,
-) {
+pub fn flush_saves_on_exit(mut profile_dirty: ResMut<ProfileDirty>, state: ProfileSaveState) {
+    let ProfileSaveState {
+        active,
+        audio,
+        bindings,
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+        mut profile,
+        autosave_block,
+    } = state;
     if !profile_dirty.0 || autosave_block.is_blocked(active.index()) {
         return;
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
+        profile_snapshot(
+            &inventory,
+            &loadout,
+            &progress,
+            &day_clock,
+            &tool_energy,
+            &audio,
+            &bindings,
+        ),
         &mut profile,
     );
     if let Err(error) = save_profile(active.index(), &profile) {

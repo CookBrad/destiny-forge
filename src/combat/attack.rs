@@ -207,24 +207,28 @@ fn advance_or_end_combo(sfx: &mut EventWriter<CombatSfx>, attack: &mut PlayerAtt
     }
 }
 
+pub(crate) type WeaponHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
+>;
+
 pub fn resolve_weapon_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
-    >,
+    mut enemies: WeaponHitEnemies,
 ) {
     let Ok((player_transform, mut attack)) = player.get_single_mut() else {
         return;
@@ -369,10 +373,10 @@ mod tests {
         let mut full = Loadout::default();
         use crate::player::{ArmorKind, ArmorSlots};
         full.armor = ArmorSlots {
-            head: Some(ArmorKind::SlimeHelm),
-            chest: Some(ArmorKind::SlimeMail),
-            arms: Some(ArmorKind::SlimeGauntlets),
-            legs: Some(ArmorKind::SlimeGreaves),
+            head: Some(ArmorKind::Helm),
+            chest: Some(ArmorKind::Mail),
+            arms: Some(ArmorKind::Gauntlets),
+            legs: Some(ArmorKind::Greaves),
         };
         assert!(attack.step_power(&full) > attack.step_power(&base));
     }

@@ -25,27 +25,31 @@ const GOBLIN_JUMP_HSPEED: f32 = 132.0;
 const GOBLIN_GRAVITY: f32 = -700.0;
 const GOBLIN_PIT_CLEARANCE_Y: f32 = TILE * 1.1;
 
+pub(crate) type EnemyMoveQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Transform,
+        &'static mut Patrol,
+        Option<&'static mut EnemyKnockback>,
+        Option<&'static mut EnemyAggro>,
+        Option<&'static EnemyKind>,
+        Option<&'static mut GoblinJump>,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static BossAttackController>,
+        Option<&'static mut BossCharging>,
+        &'static EnemyHitbox,
+    ),
+    (Without<EnemyCorpse>, Without<DungeonPlayer>),
+>;
+
 pub fn move_enemies(
     time: Res<Time>,
     layout: Res<DungeonLayout>,
     mut commands: Commands,
     player: Query<&Transform, With<DungeonPlayer>>,
-    mut enemies: Query<
-        (
-            Entity,
-            &mut Transform,
-            &mut Patrol,
-            Option<&mut EnemyKnockback>,
-            Option<&mut EnemyAggro>,
-            Option<&EnemyKind>,
-            Option<&mut GoblinJump>,
-            Option<&KingSlimeBoss>,
-            Option<&BossAttackController>,
-            Option<&mut BossCharging>,
-            &EnemyHitbox,
-        ),
-        (Without<EnemyCorpse>, Without<DungeonPlayer>),
-    >,
+    mut enemies: EnemyMoveQuery,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -113,16 +117,16 @@ pub fn move_enemies(
             || transform.translation.y > standing_y + 0.5;
 
         if is_goblin && !under_knockback && !charging && !goblin_airborne {
-            try_start_goblin_jump(
+            try_start_goblin_jump(GoblinJumpStart {
                 is_aggro,
-                &to_player,
-                &mut patrol,
-                &mut transform,
-                goblin_jump.as_deref_mut(),
+                to_player: &to_player,
+                patrol: &mut patrol,
+                transform: &mut transform,
+                goblin_jump: goblin_jump.as_deref_mut(),
                 segments,
                 pitfalls,
-                &mut velocity,
-            );
+                velocity: &mut velocity,
+            });
         }
 
         let dx = velocity.x * dt;
@@ -136,16 +140,16 @@ pub fn move_enemies(
                 dt,
             );
         } else if !airborne && boss.is_none() {
-            integrate_ground_enemy(
-                &mut transform,
+            integrate_ground_enemy(GroundEnemyStep {
+                transform: &mut transform,
                 segments,
                 dx,
-                velocity.y,
+                velocity_y: velocity.y,
                 dt,
                 is_aggro,
                 charging,
-                &mut patrol,
-            );
+                patrol: &mut patrol,
+            });
         } else {
             transform.translation.x += dx;
             transform.translation.y += velocity.y * dt;
@@ -314,16 +318,28 @@ fn idle_or_chase_velocity(
     Vec2::new(patrol.direction * patrol.speed, 0.0)
 }
 
-fn try_start_goblin_jump(
+struct GoblinJumpStart<'a> {
     is_aggro: bool,
-    to_player: &Vec2,
-    patrol: &mut Patrol,
-    transform: &mut Transform,
-    mut goblin_jump: Option<&mut GoblinJump>,
-    segments: &[super::level::PlatformSpec],
-    pitfalls: &[super::level::PitfallSpec],
-    velocity: &mut Vec2,
-) {
+    to_player: &'a Vec2,
+    patrol: &'a mut Patrol,
+    transform: &'a mut Transform,
+    goblin_jump: Option<&'a mut GoblinJump>,
+    segments: &'a [super::level::PlatformSpec],
+    pitfalls: &'a [super::level::PitfallSpec],
+    velocity: &'a mut Vec2,
+}
+
+fn try_start_goblin_jump(start: GoblinJumpStart) {
+    let GoblinJumpStart {
+        is_aggro,
+        to_player,
+        patrol,
+        transform,
+        mut goblin_jump,
+        segments,
+        pitfalls,
+        velocity,
+    } = start;
     let jump_direction = if is_aggro {
         to_player.x.signum()
     } else {
@@ -397,16 +413,28 @@ fn integrate_goblin_airborne(
     transform.translation.x += dx;
 }
 
-fn integrate_ground_enemy(
-    transform: &mut Transform,
-    segments: &[super::level::PlatformSpec],
+struct GroundEnemyStep<'a> {
+    transform: &'a mut Transform,
+    segments: &'a [super::level::PlatformSpec],
     dx: f32,
     velocity_y: f32,
     dt: f32,
     is_aggro: bool,
     charging: bool,
-    patrol: &mut Patrol,
-) {
+    patrol: &'a mut Patrol,
+}
+
+fn integrate_ground_enemy(step: GroundEnemyStep) {
+    let GroundEnemyStep {
+        transform,
+        segments,
+        dx,
+        velocity_y,
+        dt,
+        is_aggro,
+        charging,
+        patrol,
+    } = step;
     let (new_x, hit_edge) = constrain_ground_walk(transform.translation.x, dx, segments);
     transform.translation.x = new_x;
     if hit_edge && !is_aggro && !charging {

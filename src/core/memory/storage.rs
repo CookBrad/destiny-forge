@@ -246,8 +246,10 @@ mod tests {
     fn valid_v6_profile_loads_and_migrates_to_current_version() {
         let root = temporary_save_root("v6");
         let primary = profile_path_in(&root, 0);
-        let mut profile = PlayerProfile::default();
-        profile.version = 6;
+        let mut profile = PlayerProfile {
+            version: 6,
+            ..PlayerProfile::default()
+        };
         profile.inventory.try_add(MaterialId::SlimeGel, 3);
 
         save_profile_at(&primary, &profile).unwrap();

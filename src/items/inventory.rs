@@ -9,19 +9,10 @@ use super::material::MaterialId;
 pub const INVENTORY_SLOT_COUNT: usize = 32;
 pub const MAX_STACK: u32 = 99;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterialStack {
     pub material: Option<MaterialId>,
     pub count: u32,
-}
-
-impl Default for MaterialStack {
-    fn default() -> Self {
-        Self {
-            material: None,
-            count: 0,
-        }
-    }
 }
 
 #[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

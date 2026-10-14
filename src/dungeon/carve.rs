@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use rand::thread_rng;
@@ -53,27 +54,47 @@ impl LootLog {
     }
 }
 
+pub(crate) type CarveCorpseQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        Option<&'static EnemyKind>,
+        Option<&'static KingSlimeBoss>,
+    ),
+    With<EnemyCorpse>,
+>;
+
+#[derive(SystemParam)]
+pub(crate) struct CarveCorpseParams<'w, 's> {
+    time: Res<'w, Time>,
+    actions: Res<'w, ActionState>,
+    loadout: Res<'w, Loadout>,
+    loot_book: Res<'w, CarveLootBook>,
+    inventory: ResMut<'w, Inventory>,
+    profile_dirty: ResMut<'w, ProfileDirty>,
+    carve_state: ResMut<'w, CarveState>,
+    loot_log: ResMut<'w, LootLog>,
+    commands: Commands<'w, 's>,
+}
+
 pub fn carve_corpses(
-    time: Res<Time>,
-    actions: Res<ActionState>,
-    loadout: Res<Loadout>,
-    loot_book: Res<CarveLootBook>,
-    mut inventory: ResMut<Inventory>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut carve_state: ResMut<CarveState>,
-    mut loot_log: ResMut<LootLog>,
-    mut commands: Commands,
+    params: CarveCorpseParams,
     player: Query<(&Transform, Option<&PlayerHitFlash>), With<DungeonPlayer>>,
-    corpses: Query<
-        (
-            Entity,
-            &Transform,
-            Option<&EnemyKind>,
-            Option<&KingSlimeBoss>,
-        ),
-        With<EnemyCorpse>,
-    >,
+    corpses: CarveCorpseQuery,
 ) {
+    let CarveCorpseParams {
+        time,
+        actions,
+        loadout,
+        loot_book,
+        mut inventory,
+        mut profile_dirty,
+        mut carve_state,
+        mut loot_log,
+        mut commands,
+    } = params;
     let Ok((player_transform, hit_flash)) = player.get_single() else {
         carve_state.target = None;
         return;

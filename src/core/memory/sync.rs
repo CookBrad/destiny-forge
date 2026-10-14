@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -14,29 +15,87 @@ use super::settings::GameSettings;
 use super::storage::{save_profile, save_root_display, save_settings};
 use super::ProfileDirty;
 
+#[derive(Clone, Copy)]
+pub struct ProfileSnapshot<'a> {
+    pub inventory: &'a Inventory,
+    pub loadout: &'a Loadout,
+    pub progress: &'a WorldProgress,
+    pub day_clock: &'a DayClock,
+    pub tool_energy: &'a ToolEnergy,
+    pub audio: &'a AudioSettings,
+    pub bindings: &'a SkillBindings,
+}
+
+pub struct RuntimeProfile<'a> {
+    pub inventory: &'a mut Inventory,
+    pub loadout: &'a mut Loadout,
+    pub progress: &'a mut WorldProgress,
+    pub day_clock: &'a mut DayClock,
+    pub tool_energy: &'a mut ToolEnergy,
+    pub season: &'a mut Season,
+    pub audio: &'a mut AudioSettings,
+    pub bindings: &'a mut SkillBindings,
+}
+
+pub struct ProfileSwitch<'a> {
+    pub active: &'a mut ActiveProfile,
+    pub profile: &'a mut PlayerProfile,
+    pub global: &'a mut GameSettings,
+    pub dirty: &'a mut ProfileDirty,
+    pub autosave_block: &'a mut ProfileAutosaveBlock,
+}
+
+#[derive(SystemParam)]
+pub(crate) struct HydratedRuntime<'w> {
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    season: ResMut<'w, Season>,
+}
+
+#[derive(SystemParam)]
+pub(crate) struct CapturedRuntime<'w> {
+    audio: Res<'w, AudioSettings>,
+    bindings: Res<'w, SkillBindings>,
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    progress: Res<'w, WorldProgress>,
+    day_clock: Res<'w, DayClock>,
+    tool_energy: Res<'w, ToolEnergy>,
+}
+
 pub fn hydrate_runtime_from_memory(
     profile: Res<PlayerProfile>,
     active: Res<ActiveProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
+    runtime: HydratedRuntime,
     rules: Res<CalendarRules>,
 ) {
+    let HydratedRuntime {
+        mut audio,
+        mut bindings,
+        mut inventory,
+        mut loadout,
+        mut progress,
+        mut day_clock,
+        mut tool_energy,
+        mut season,
+    } = runtime;
     apply_profile_to_runtime(
         &profile,
-        &mut inventory,
-        &mut loadout,
-        &mut progress,
-        &mut day_clock,
-        &mut tool_energy,
-        &mut audio,
-        &mut bindings,
-        &mut season,
+        &mut RuntimeProfile {
+            inventory: &mut inventory,
+            loadout: &mut loadout,
+            progress: &mut progress,
+            day_clock: &mut day_clock,
+            tool_energy: &mut tool_energy,
+            season: &mut season,
+            audio: &mut audio,
+            bindings: &mut bindings,
+        },
         &rules,
     );
 
@@ -52,16 +111,19 @@ pub fn hydrate_runtime_from_memory(
 }
 
 pub fn capture_profile_from_runtime(
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
+    runtime: CapturedRuntime,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
+    let CapturedRuntime {
+        audio,
+        bindings,
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+    } = runtime;
     // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
     if !audio.is_changed()
         && !bindings.is_changed()
@@ -74,108 +136,77 @@ pub fn capture_profile_from_runtime(
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
+        ProfileSnapshot {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+        },
         &mut profile,
     );
     dirty.mark();
 }
 
-pub fn snapshot_profile(
-    inventory: &Inventory,
-    loadout: &Loadout,
-    progress: &WorldProgress,
-    day_clock: &DayClock,
-    tool_energy: &ToolEnergy,
-    audio: &AudioSettings,
-    bindings: &SkillBindings,
-    profile: &mut PlayerProfile,
-) {
-    profile.inventory = inventory.clone();
-    profile.loadout = loadout.clone();
-    profile.progress = progress.clone();
-    profile.calendar_day = day_clock.calendar_day;
-    profile.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
-    profile.settings.capture_audio(audio);
-    profile.settings.capture_skill_bindings(bindings);
+pub fn snapshot_profile(source: ProfileSnapshot<'_>, profile: &mut PlayerProfile) {
+    profile.inventory = source.inventory.clone();
+    profile.loadout = source.loadout.clone();
+    profile.progress = source.progress.clone();
+    profile.calendar_day = source.day_clock.calendar_day;
+    profile.day_phase = source.day_clock.phase;
+    profile.tool_energy = source.tool_energy.current;
+    profile.settings.capture_audio(source.audio);
+    profile
+        .settings
+        .capture_skill_bindings(source.bindings);
 }
 
 pub fn activate_profile(
     index: u8,
-    inventory: &Inventory,
-    loadout: &Loadout,
-    progress: &WorldProgress,
-    day_clock: &DayClock,
-    tool_energy: &ToolEnergy,
-    audio: &AudioSettings,
-    bindings: &SkillBindings,
-    active: &mut ActiveProfile,
-    profile: &mut PlayerProfile,
-    global: &mut GameSettings,
-    dirty: &mut ProfileDirty,
-    autosave_block: &mut ProfileAutosaveBlock,
+    source: &ProfileSnapshot<'_>,
+    switch: &mut ProfileSwitch<'_>,
 ) -> bool {
     let index = index.min(PROFILE_COUNT - 1);
-    if active.0 == index {
-        return !autosave_block.is_blocked(index);
+    if switch.active.0 == index {
+        return !switch.autosave_block.is_blocked(index);
     }
 
-    snapshot_profile(
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-        profile,
-    );
-    if let Err(error) = save_profile(active.index(), profile) {
+    snapshot_profile(*source, switch.profile);
+    if let Err(error) = save_profile(switch.active.index(), switch.profile) {
         warn!("Failed to save profile before switch: {error}");
     } else {
-        dirty.0 = false;
+        switch.dirty.0 = false;
     }
 
-    let Ok(loaded) = load_profile_for_slot(index, autosave_block) else {
+    let Ok(loaded) = load_profile_for_slot(index, switch.autosave_block) else {
         return false;
     };
-    *profile = loaded;
-    active.0 = index;
-    global.last_active_profile = index;
-    if let Err(error) = save_settings(global) {
+    *switch.profile = loaded;
+    switch.active.0 = index;
+    switch.global.last_active_profile = index;
+    if let Err(error) = save_settings(switch.global) {
         warn!("Failed to save global preferences: {error}");
     }
 
-    dirty.0 = false;
+    switch.dirty.0 = false;
     true
 }
 
 pub fn apply_profile_to_runtime(
     profile: &PlayerProfile,
-    inventory: &mut Inventory,
-    loadout: &mut Loadout,
-    progress: &mut WorldProgress,
-    day_clock: &mut DayClock,
-    tool_energy: &mut ToolEnergy,
-    audio: &mut AudioSettings,
-    bindings: &mut SkillBindings,
-    season: &mut Season,
+    runtime: &mut RuntimeProfile<'_>,
     rules: &CalendarRules,
 ) {
-    *inventory = profile.inventory.clone();
-    *loadout = profile.loadout.clone();
-    *progress = profile.progress.clone();
-    *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
-    *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
-    profile.settings.apply_audio(audio);
-    profile.settings.apply_skill_bindings(bindings);
+    *runtime.inventory = profile.inventory.clone();
+    *runtime.loadout = profile.loadout.clone();
+    *runtime.progress = profile.progress.clone();
+    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *runtime.season = CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, rules).season;
+    profile.settings.apply_audio(runtime.audio);
+    profile.settings.apply_skill_bindings(runtime.bindings);
 }
 
 #[cfg(test)]
@@ -199,14 +230,16 @@ mod tests {
 
         apply_profile_to_runtime(
             &profile,
-            &mut inventory,
-            &mut loadout,
-            &mut progress,
-            &mut day_clock,
-            &mut tool_energy,
-            &mut audio,
-            &mut bindings,
-            &mut season,
+            &mut RuntimeProfile {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                season: &mut season,
+                audio: &mut audio,
+                bindings: &mut bindings,
+            },
             &CalendarRules::load(),
         );
 
