@@ -1,8 +1,10 @@
 mod autosave;
 mod autosave_block;
 mod crop_save;
+mod migration;
 mod plugin;
 mod profile;
+mod ron_value;
 mod settings;
 mod storage;
 mod sync;
