@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""In-house hunter frames beside the Taste-signed cells.
 
-Pixel-authored at 1×. Every opaque RGBA is copied from a signed cell.
-Signed idle, the run lean, the attack chamber, and the attack thrust are
-copied through unchanged. Re-running writes the same bytes.
-
-Sources (immutable, hashed): assets/source/hunter_signed/
-Outputs: assets/player/combat/knight_*_side.png
-"""
 
 from __future__ import annotations
 
@@ -17,6 +9,22 @@ import shutil
 from pathlib import Path
 
 from PIL import Image
+
+from art_common import (
+    Sprite,
+    bottom_band,
+    colors_used,
+    contact_sheet,
+    iround,
+    pack_strip,
+    plant_contact,
+    reject_resample_names,
+    require_sha256,
+    shift_contact_to,
+    sprite_from_image,
+    stance_contact,
+    widen_sole,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
@@ -28,18 +36,18 @@ FOOT_X = 81.5
 FOOT_ROW = 158
 ATTACK_SOLE_ROW = 159
 
-# Signed full-file SHA-256 from the transparent sheets. The script stops
-# if those bytes move, so a new frame cannot be painted onto the wrong base.
+
+
 SIGNED_SHA256 = {
     "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
     "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
     "knight_attack_side.png": "ca089a0e93524161f020d9ef91f736e330d36f3530749b8296e918b088620b04",
 }
 
-# Knee degrees are clockwise: positive swings that foot toward image-right.
-# `plant` pins that boot under the chest on the foot row. The other poses
-# keep both soles at or above that row so the cycle cannot clip the cell.
-# bob drops the torso only.
+
+
+
+
 RUN_POSES = (
     {"rear_deg": 8, "front_deg": 64, "bob": 0, "plant": "rear"},
     {"rear_deg": 14, "front_deg": 22, "bob": 2, "plant": ""},
@@ -57,100 +65,9 @@ RUN_SWORD_LENGTH = 58
 CAPE_TRIM_X = 18
 
 
-def reject_resample_names() -> None:
-    """Stop if this file names a resample call. Tokens are split so the
-    check can see them without the source containing the joined word."""
-    text = Path(__file__).read_text(encoding="utf-8")
-    banned = (
-        "res" + "ize",
-        "thumb" + "nail",
-        "trans" + "form",
-        "aff" + "ine",
-        "quant" + "ize",
-    )
-    for word in banned:
-        if word in text:
-            raise SystemExit(f"draw script must not mention {word}")
-
-
-def iround(value: float) -> int:
-    return int(math.floor(value + 0.5))
-
-
-class Sprite:
-    def __init__(self, pixels: dict[tuple[int, int], tuple[int, int, int, int]] | None = None) -> None:
-        self.pixels = {} if pixels is None else dict(pixels)
-
-    def copy(self) -> Sprite:
-        return Sprite(self.pixels)
-
-    def paste(self, other: Sprite, dx: int = 0, dy: int = 0) -> Sprite:
-        for (x, y), color in other.pixels.items():
-            self.pixels[(x + dx, y + dy)] = color
-        return self
-
-    def shift(self, dx: int, dy: int) -> Sprite:
-        if dx == 0 and dy == 0:
-            return self.copy()
-        return Sprite({(x + dx, y + dy): color for (x, y), color in self.pixels.items()})
-
-    def crop(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-        kept = {}
-        for (x, y), color in self.pixels.items():
-            if x0 <= x < x1 and y0 <= y < y1:
-                kept[(x - x0, y - y0)] = color
-        return Sprite(kept)
-
-    def erase_rect(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-        self.pixels = {
-            (x, y): color
-            for (x, y), color in self.pixels.items()
-            if not (x0 <= x < x1 and y0 <= y < y1)
-        }
-        return self
-
-    def erase_if(self, predicate) -> Sprite:
-        self.pixels = {
-            (x, y): color
-            for (x, y), color in self.pixels.items()
-            if not predicate(x, y, color)
-        }
-        return self
-
-    def bounds(self) -> tuple[int, int, int, int]:
-        xs = [x for x, _ in self.pixels]
-        ys = [y for _, y in self.pixels]
-        if not xs:
-            raise SystemExit("empty sprite")
-        return min(xs), min(ys), max(xs), max(ys)
-
-    def contained(self, dx: int = 0, dy: int = 0) -> None:
-        for x, y in self.pixels:
-            xx, yy = x + dx, y + dy
-            if not (0 <= xx < CELL_W and 0 <= yy < CELL_H):
-                raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
-
-
-def sprite_from_image(image: Image.Image) -> Sprite:
-    pixels = image.load()
-    width, height = image.size
-    kept = {}
-    for y in range(height):
-        for x in range(width):
-            red, green, blue, alpha = pixels[x, y]
-            if alpha == 0:
-                continue
-            if alpha != 255:
-                raise SystemExit(f"partial alpha at {x},{y}")
-            kept[(x, y)] = (red, green, blue, 255)
-    return Sprite(kept)
-
-
 def load_sheet(name: str) -> Sprite:
     path = SIGNED / name
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    if digest != SIGNED_SHA256[name]:
-        raise SystemExit(f"{name} hash {digest} != pinned source")
+    require_sha256(path, SIGNED_SHA256[name])
     image = Image.open(path).convert("RGBA")
     return sprite_from_image(image)
 
@@ -215,7 +132,7 @@ def flood_blade(sprite: Sprite) -> set[tuple[int, int]]:
 
 
 def without_blade(sprite: Sprite, halo: int = 4) -> Sprite:
-    """Drop the bright blade and the dark outline hugging it. Skin, the R, and the cable stay."""
+
     blade = flood_blade(sprite)
     drop = set(blade)
     for x, y in blade:
@@ -241,7 +158,7 @@ def blade_only(sprite: Sprite) -> Sprite:
 
 
 def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float]) -> Sprite:
-    """Integer nearest-neighbor place. Inverse sample, no blend, alpha stays 0 or 255."""
+
     if abs(degrees_clockwise) < 0.05 or not sprite.pixels:
         return sprite.copy()
     radians = math.radians(degrees_clockwise)
@@ -279,7 +196,7 @@ def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float])
 
 
 def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
-    """Close 1 px holes left by integer rounding. The color is a neighbor, already a source RGBA."""
+
     for _ in range(passes):
         extra = {}
         if not sprite.pixels:
@@ -301,51 +218,6 @@ def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
         sprite.pixels.update(extra)
     return sprite
 
-
-def long_runs(xs: list[int]) -> list[tuple[int, int]]:
-    if not xs:
-        return []
-    ordered = sorted(set(xs))
-    runs: list[tuple[int, int]] = []
-    start = previous = ordered[0]
-    for x in ordered[1:]:
-        if x == previous + 1:
-            previous = x
-            continue
-        runs.append((start, previous))
-        start = previous = x
-    runs.append((start, previous))
-    return [(a, b) for a, b in runs if b - a + 1 >= 8]
-
-
-def stance_contact(sprite: Sprite) -> tuple[int, float]:
-    """Lowest row with a contiguous opaque run of at least 8 px.
-
-    Two or more runs: mean of the two widest centers. Matches the signed-cell rule.
-    """
-    by_row: dict[int, list[int]] = {}
-    for x, y in sprite.pixels:
-        by_row.setdefault(y, []).append(x)
-    for y in sorted(by_row, reverse=True):
-        runs = long_runs(by_row[y])
-        if not runs:
-            continue
-        runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
-        if len(runs) >= 2:
-            first = (runs[0][0] + runs[0][1]) / 2
-            second = (runs[1][0] + runs[1][1]) / 2
-            return y, (first + second) / 2
-        left, right = runs[0]
-        return y, (left + right) / 2
-    raise SystemExit("no stance contact")
-
-
-def bottom_band(sprite: Sprite) -> tuple[float, int]:
-    max_y = max(y for _, y in sprite.pixels)
-    xs = [x for x, y in sprite.pixels if y == max_y]
-    if len(xs) < 2:
-        xs = [x for x, y in sprite.pixels if y >= max_y - 1]
-    return (min(xs) + max(xs)) / 2, max_y
 
 
 def chest_pin_x(sprite: Sprite) -> float:
@@ -371,7 +243,7 @@ def shorten(sprite: Sprite, pivot: tuple[float, float], length: float) -> Sprite
 
 
 def blade_base(blade: Sprite, end: str = "low") -> tuple[float, float]:
-    """`low` is the hilt of an upright blade. `left` is the hilt of the thrust blade."""
+
     if end == "left":
         min_x = min(x for x, _ in blade.pixels)
         ys = [y for x, y in blade.pixels if x <= min_x + 2]
@@ -411,7 +283,7 @@ def top_center(sprite: Sprite) -> tuple[float, float]:
 
 
 def bridge_vertical_gaps(leg: Sprite, limit: int = 8) -> Sprite:
-    """Copy a boot or thigh color across the idle hem gap so a swung leg stays one piece."""
+
     columns: dict[int, list[int]] = {}
     for x, y in leg.pixels:
         columns.setdefault(x, []).append(y)
@@ -431,11 +303,7 @@ def leg_column(idle: Sprite, x0: int, y0: int, x1: int, y1: int) -> Sprite:
 
 
 def swing_from_hip(leg: Sprite, degrees_clockwise: float, hip_x: float, hip_y: float) -> Sprite:
-    """Rotate the whole leg around its top, then seat that pivot on the hip.
 
-    One piece, so the boot stays attached to the thigh. Positive degrees swing
-    the foot toward image-right.
-    """
     pivot = top_center(leg)
     swung = rotate(leg, degrees_clockwise, pivot) if abs(degrees_clockwise) >= 1 else leg.copy()
     return swung.shift(iround(hip_x - pivot[0]), iround(hip_y - pivot[1]))
@@ -455,60 +323,17 @@ def sword_hand(sprite: Sprite) -> tuple[float, float]:
     )
 
 
-def widen_sole(sprite: Sprite, toward_right: bool) -> None:
-    row, _center = stance_contact(sprite)
-    xs = sorted(x for x, y in sprite.pixels if y == row)
-    runs = long_runs(xs)
-    runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
-    left, right = runs[0]
-    if toward_right:
-        sprite.pixels[(right + 1, row)] = sprite.pixels[(right, row)]
-    else:
-        sprite.pixels[(left - 1, row)] = sprite.pixels[(left, row)]
-
-
-def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
-    """Integer-shift so the stance contact lands on the target. Widens the sole by one source pixel if the center's parity cannot reach a half-pixel."""
-    row, center = stance_contact(sprite)
-    dy = target_row - row
-    moved = sprite.shift(0, dy)
-    for _ in range(4):
-        _row, center = stance_contact(moved)
-        delta = target_x - center
-        if abs(delta - round(delta)) < 1e-6:
-            dx = iround(delta)
-            moved = moved.shift(dx, 0)
-            return moved, dx, dy
-        widen_sole(moved, toward_right=delta > 0)
-    raise SystemExit(f"contact {center} cannot reach {target_x}")
-
 
 def require_inside(sprite: Sprite) -> None:
-    sprite.contained(0, 0)
+    sprite.contained(0, 0, width=CELL_W, height=CELL_H)
 
 
 def plant_on_foot(sprite: Sprite, target_x: float = FOOT_X, target_row: int = FOOT_ROW) -> Sprite:
-    """Shift the stance contact onto the shared foot point, then drop cape pixels that still fall outside the cell."""
-    current = sprite.copy()
-    for _ in range(5):
-        moved, _dx, _dy = shift_contact_to(current, target_x, target_row)
-        overflow = [point for point in moved.pixels if not (0 <= point[0] < CELL_W and 0 <= point[1] < CELL_H)]
-        if not overflow:
-            return moved
-        for point in overflow:
-            del moved.pixels[point]
-        row, center = stance_contact(moved)
-        if row == target_row and abs(center - target_x) < 1e-6:
-            return moved
-        current = moved
-    raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
+    return plant_contact(sprite, target_x, target_row, CELL_W, CELL_H)
 
 
 def palette_of(*sheets: Sprite) -> set[tuple[int, int, int, int]]:
-    colors: set[tuple[int, int, int, int]] = set()
-    for sheet in sheets:
-        colors.update(sheet.pixels.values())
-    return colors
+    return colors_used(*(sheet.pixels for sheet in sheets))
 
 
 def opaque_width(sprite: Sprite) -> int:
@@ -528,7 +353,7 @@ def build_run_parts(idle: Sprite) -> dict:
     chest = chest_pin_x(body)
     chest_y = 78.0
     leaned = rotate(body, RUN_LEAN_DEG, (chest, chest_y))
-    # Headroom for the up-bob. The lean pivots on the chest, so the pin stays.
+
     leaned = leaned.shift(0, 2)
     min_x = min(x for x, _ in leaned.pixels)
     if min_x < 4:
@@ -548,7 +373,7 @@ def _sole(leg: Sprite) -> tuple[float, int]:
 
 
 def _seat_leg(leg: Sprite, plant: bool, chest: float) -> Sprite:
-    """Keep every sole on or above the foot row. A planted boot is slid under the chest."""
+
     center, sole = _sole(leg)
     dx = iround(chest - center) if plant else 0
     dy = iround(FOOT_ROW - sole) if plant else min(0, FOOT_ROW - sole)
@@ -587,14 +412,14 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
     parts = build_run_parts(idle)
     frames = [compose_run_frame(parts, pose) for pose in RUN_POSES]
     for frame in frames:
-        # A short taper under the sole would ride past the cell when the 8px run is planted.
+
         try:
             row, _center = stance_contact(frame)
         except SystemExit:
             continue
         frame.erase_if(lambda x, y, _color, sole=row: y > sole)
-    # The cape hangs further left than the foot point allows. Drop only that
-    # tip, from every frame, so the shared foot shift cannot clip it.
+
+
     _row, center = stance_contact(frames[0])
     cape_limit = math.floor(center - FOOT_X)
     if cape_limit > 0:
@@ -604,8 +429,8 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
     frames[0] = planted
     for index in range(1, len(frames)):
         frames[index] = frames[index].shift(dx, dy)
-    # Frame 4 was seated on the same chest x. If the 8px run is a half-pixel
-    # off, widen that sole in place instead of sliding the torso.
+
+
     row, center = stance_contact(frames[4])
     if row == FOOT_ROW and abs(center - FOOT_X) > 1e-6 and abs((FOOT_X - center) - round(FOOT_X - center)) > 1e-6:
         widen_sole(frames[4], toward_right=(FOOT_X - center) > 0)
@@ -656,7 +481,7 @@ def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
 
 
 def attack_hand(sprite: Sprite) -> tuple[float, float]:
-    """Lower-right of the image-right grip, where the blade leaves the fist."""
+
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
     if not points:
         return sword_hand(sprite)
@@ -666,7 +491,7 @@ def attack_hand(sprite: Sprite) -> tuple[float, float]:
 
 
 def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: int) -> Sprite:
-    """Slide the chamber's own boots to a narrower stance. Legs above the boot stay."""
+
     rear_box = sprite.crop(0, 136, 48, CELL_H)
     front_box = sprite.crop(80, 136, 140, CELL_H)
     if not rear_box.pixels or not front_box.pixels:
@@ -676,8 +501,8 @@ def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: in
     cleared.erase_rect(80, 136, 140, CELL_H)
     rear_center, rear_sole = bottom_band(rear_box)
     front_center, front_sole = bottom_band(front_box)
-    # crop() rebased the boxes, and bottom_band is in that local space.
-    # The boxes were taken from absolute coords, so shift from local origin.
+
+
     cleared.paste(rear_box, iround(rear_x - rear_center), sole_row - rear_sole)
     cleared.paste(front_box, iround(front_x - front_center), sole_row - front_sole)
     return cleared
@@ -687,9 +512,9 @@ def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite
     body = align_chest_and_sole(without_blade(chamber), ATTACK_SOLE_ROW)
     between_body = reposition_boots(body, 60, 112, ATTACK_SOLE_ROW)
     recover_body = reposition_boots(body, 72, 100, ATTACK_SOLE_ROW)
-    # Boot slides sit below the chest band, so the pin stays put.
-    # The thrust drawing's bright blade starts near x=230. A few glow pixels
-    # further left are not the hilt.
+
+
+
     thrust_blade = Sprite(
         {
             point: color
@@ -728,10 +553,10 @@ def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: 
     if best is None:
         raise SystemExit(f"attack sword at {angle}° from {hand} does not fit")
     frame = body.copy().paste(best[1])
-    # The blade stays above the knees so it cannot move the sole row.
+
     frame.erase_if(lambda x, y, color: y > 140 and is_hot_blade(color))
-    # The blade can cover the old right edge of the chest band. Slide back
-    # onto the pin without moving the sole off row 159.
+
+
     frame = nudge_chest_x(frame)
     return frame
 
@@ -754,14 +579,14 @@ def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body.erase_rect(58, 130, 86, CELL_H)
     body.erase_rect(88, 126, 122, CELL_H)
     chest = chest_pin_x(body)
-    # Knees up in front of the coat. The sword stays in the idle raised hand.
+
     tucked_rear = swing_from_hip(rear, 68, chest - 2, 112)
     tucked_front = swing_from_hip(front, -46, chest + 14, 110)
     frame = body.copy()
     frame.paste(tucked_rear)
     frame.paste(tucked_front)
     lowest = max(y for _x, y in frame.pixels)
-    # Soles sit roughly 22 px above the foot row.
+
     lift = lowest - (FOOT_ROW - 22)
     if lift > 0:
         tucked_rear = tucked_rear.shift(0, -lift)
@@ -802,7 +627,7 @@ def build_fall(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body.erase_rect(58, 130, 86, CELL_H)
     body.erase_rect(88, 126, 122, CELL_H)
     chest = chest_pin_x(body)
-    # Legs extended, close together, down boot on the foot point. Cape streams up.
+
     back = swing_from_hip(rear, 10, chest - 2, 122)
     fore = swing_from_hip(front, -4, chest + 10, 122)
     frame = body.copy().paste(back).paste(fore)
@@ -822,7 +647,7 @@ def _death_stagger(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body.erase_rect(58, 126, 86, CELL_H)
     body.erase_rect(88, 122, 122, CELL_H)
     chest = chest_pin_x(body)
-    # Knees bent, torso tipped back a little. The in-game flop is a separate 25° turn.
+
     tipped = rotate(body, -12.0, (chest, 120)).shift(0, 8)
     sword, pivot = aim_blade(blade_only(idle), 48.0, 46)
     hand = sword_hand(tipped)
@@ -834,11 +659,7 @@ def _death_stagger(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
 
 
 def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
-    """Fold the torso backward as one piece so the head stays on the neck.
 
-    The legs stay under the waist. `rear` and `front` are unused; the idle
-    boots are already on this sprite.
-    """
     del rear, front
     raw = without_blade(idle)
     chest = chest_pin_x(raw)
@@ -863,21 +684,8 @@ def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     return plant_on_foot(frame)
 
 
-def blit(image: Image.Image, sprite: Sprite, origin_x: int) -> None:
-    pixels = image.load()
-    width, height = image.size
-    for (x, y), color in sprite.pixels.items():
-        xx, yy = x + origin_x, y
-        if not (0 <= xx < width and 0 <= yy < height):
-            raise SystemExit(f"blit clipped {xx},{yy}")
-        pixels[xx, yy] = color
-
-
 def sheet_image(sprites: list[Sprite]) -> Image.Image:
-    image = Image.new("RGBA", (CELL_W * len(sprites), CELL_H), (0, 0, 0, 0))
-    for index, sprite in enumerate(sprites):
-        blit(image, sprite, index * CELL_W)
-    return image
+    return pack_strip(sprites, CELL_W, CELL_H)
 
 
 def save_png(image: Image.Image, path: Path) -> None:
@@ -934,13 +742,13 @@ def check_run(frames: list[Sprite]) -> None:
             raise SystemExit(f"run frames {index - 1} and {index} are identical")
     if same_pixels(frames[0], frames[4]):
         raise SystemExit("run contacts are the same drawing")
-    # The two contact silhouettes must not be mirrors: compare left-boot vs right-boot mass.
+
     def boot_side_mass(frame: Sprite, x0: int, x1: int) -> int:
         return sum(1 for x, y in frame.pixels if x0 <= x < x1 and y > 120)
 
     if boot_side_mass(frames[0], 40, 82) == boot_side_mass(frames[4], 40, 82):
-        # Not a hard geometric identity test; the pixel check above already
-        # rejects an exact copy. Keep going so a balanced stance can pass.
+
+
         pass
 
 
@@ -1005,6 +813,12 @@ def write_outputs(
     save_png(sheet_image([jump]), OUT / "knight_jump_side.png")
     save_png(sheet_image([fall]), OUT / "knight_fall_side.png")
     save_png(sheet_image([stagger, crumple]), OUT / "knight_death_side.png")
+    contact_sheet(
+        [run_image, attack_image, sheet_image([jump]), sheet_image([fall]), sheet_image([stagger, crumple])],
+        1,
+        gutter=0,
+        margin=0,
+    )
 
     expected = {
         "knight_idle_side.png": (1372, 160),
@@ -1024,7 +838,7 @@ def write_outputs(
 
 
 def main() -> None:
-    reject_resample_names()
+    reject_resample_names(Path(__file__))
     idle_sheet = load_sheet("knight_idle_side.png")
     run_sheet = load_sheet("knight_run_side.png")
     attack_sheet = load_sheet("knight_attack_side.png")
