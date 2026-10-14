@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::super::day_cycle::DayPhase;
 
@@ -10,7 +10,7 @@ use super::crop_save::SavedCropPlot;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 8;
+pub const PROFILE_VERSION: u32 = 9;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 fn default_tool_energy() -> f32 {
@@ -38,6 +38,7 @@ pub struct PlayerProfile {
     pub tool_energy: f32,
     pub crop_plots: Vec<SavedCropPlot>,
     pub depleted_ore_node_ids: Vec<u16>,
+    pub wallet: Wallet,
     #[serde(default)]
     pub settings: ProfileSettings,
 }
@@ -55,6 +56,7 @@ impl Default for PlayerProfile {
             tool_energy: default_tool_energy(),
             crop_plots: Vec::new(),
             depleted_ore_node_ids: Vec::new(),
+            wallet: Wallet::default(),
             settings: ProfileSettings::default(),
         }
     }
