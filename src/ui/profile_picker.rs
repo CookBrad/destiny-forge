@@ -82,6 +82,7 @@ pub fn begin_profile_run(
     day_clock: &mut DayClock,
     tool_energy: &mut ToolEnergy,
     season: &mut Season,
+    rules: &CalendarRules,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
     active: &mut ActiveProfile,
@@ -121,7 +122,7 @@ pub fn begin_profile_run(
         audio,
         bindings,
         season,
-        &CalendarRules::load(),
+        rules,
     );
     true
 }

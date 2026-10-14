@@ -179,7 +179,7 @@ mod tests {
 
     use crate::core::day_cycle::{perform_sleep, DayClock, DayPhase, ToolEnergy};
 
-    fn shipped_length() -> CalendarRules {
+    fn shipped_rules() -> CalendarRules {
         CalendarRules::with_season_length(28)
     }
 
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn opening_morning_is_year_one_spring_gearday() {
-        let date = date_on(1, &shipped_length());
+        let date = date_on(1, &shipped_rules());
         assert_eq!(date.year, 1);
         assert_eq!(date.season, Season::Spring);
         assert_eq!(date.day_of_season, 1);
@@ -205,13 +205,13 @@ mod tests {
 
     #[test]
     fn zero_calendar_day_matches_the_first_morning() {
-        let rules = shipped_length();
+        let rules = shipped_rules();
         assert_eq!(date_on(0, &rules), date_on(1, &rules));
     }
 
     #[test]
     fn seasons_years_and_weekdays_follow_calendar_day() {
-        let rules = shipped_length();
+        let rules = shipped_rules();
         let samples = [
             (28, 1, Season::Spring, 28, Weekday::Restday),
             (29, 1, Season::Summer, 1, Weekday::Gearday),
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn weekday_names_run_gearday_through_restday() {
-        let rules = shipped_length();
+        let rules = shipped_rules();
         let names = [
             Weekday::Gearday,
             Weekday::Steamday,
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn sleep_inside_a_season_keeps_spring() {
-        let rules = shipped_length();
+        let rules = shipped_rules();
         let mut clock = DayClock::default();
         let mut energy = ToolEnergy::default();
         let mut season = Season::Spring;
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn sleep_on_each_season_boundary_reports_the_next_season() {
-        let rules = shipped_length();
+        let rules = shipped_rules();
         let boundaries = [
             (28, Season::Spring, Season::Summer, 1),
             (56, Season::Summer, Season::Fall, 1),
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn a_distant_calendar_day_is_year_two_winter_forgeday() {
-        let date = date_on(200, &shipped_length());
+        let date = date_on(200, &shipped_rules());
         assert_eq!(date.season, Season::Winter);
         assert_eq!(date.year, 2);
         assert_eq!(date.day_of_season, 4);

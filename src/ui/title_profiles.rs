@@ -1,11 +1,12 @@
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, DayClock, GameSettings,
-    GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, CalendarRules, DayClock,
+    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
     PROFILE_COUNT,
 };
 use crate::input::{Action, ActionState};
@@ -16,6 +17,12 @@ use super::profile_picker::{begin_profile_run, ProfilePicker};
 
 const CARD_WIDTH: f32 = 420.0;
 const CARD_HEIGHT: f32 = 72.0;
+
+#[derive(SystemParam)]
+pub(super) struct SeasonWithRules<'w> {
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+}
 
 #[derive(Component)]
 pub struct TitleProfileContainer;
@@ -173,7 +180,7 @@ pub fn handle_title_profile_card_clicks(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
+    mut calendar: SeasonWithRules,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -198,7 +205,8 @@ pub fn handle_title_profile_card_clicks(
             &mut progress,
             &mut day_clock,
             &mut tool_energy,
-            &mut season,
+            &mut calendar.season,
+            &calendar.rules,
             &mut audio,
             &mut bindings,
             &mut active,
@@ -285,7 +293,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut progress: ResMut<WorldProgress>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
+    mut calendar: SeasonWithRules,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -309,7 +317,8 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &mut progress,
         &mut day_clock,
         &mut tool_energy,
-        &mut season,
+        &mut calendar.season,
+        &calendar.rules,
         &mut audio,
         &mut bindings,
         &mut active,
