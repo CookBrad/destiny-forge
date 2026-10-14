@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 
 use bevy::prelude::*;
 
-use super::{action_state_after_pressing, Action, ActionState, Binding, InputMap, InputPlugin};
+use super::binding::Binding;
+use super::{action_state_after_pressing, Action, ActionState, InputMap, InputPlugin};
 
 #[test]
 fn default_bindings_match_the_controls_gameplay_already_used() {
@@ -72,10 +73,7 @@ fn tool_keys_keep_digit_row_priority_over_the_numpad() {
             )
         })
         .collect();
-    assert_eq!(
-        tools,
-        vec![Action::EquipWateringCan, Action::EquipHoe]
-    );
+    assert_eq!(tools, vec![Action::EquipWateringCan, Action::EquipHoe]);
 }
 
 #[test]
@@ -242,7 +240,9 @@ fn non_character_keys_do_not_type() {
         KeyCode::BracketRight,
     ] {
         assert!(
-            action_state_after_pressing(&[key], &[]).typed_characters().is_empty(),
+            action_state_after_pressing(&[key], &[])
+                .typed_characters()
+                .is_empty(),
             "{key:?}"
         );
     }

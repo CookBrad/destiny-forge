@@ -46,7 +46,10 @@ mod tests {
     #[test]
     fn digit_and_numpad_still_equip_the_same_tools() {
         assert_eq!(equipped_after(&[KeyCode::Digit1]), HomesteadTool::Hoe);
-        assert_eq!(equipped_after(&[KeyCode::Numpad2]), HomesteadTool::WateringCan);
+        assert_eq!(
+            equipped_after(&[KeyCode::Numpad2]),
+            HomesteadTool::WateringCan
+        );
         assert_eq!(equipped_after(&[KeyCode::Digit3]), HomesteadTool::Seeds);
         assert_eq!(equipped_after(&[KeyCode::Numpad4]), HomesteadTool::Hand);
     }

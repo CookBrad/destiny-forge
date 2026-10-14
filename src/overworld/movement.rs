@@ -24,10 +24,7 @@ impl Default for MapTransitionCooldown {
     }
 }
 
-pub fn tick_map_transition_cooldown(
-    time: Res<Time>,
-    mut cooldown: ResMut<MapTransitionCooldown>,
-) {
+pub fn tick_map_transition_cooldown(time: Res<Time>, mut cooldown: ResMut<MapTransitionCooldown>) {
     cooldown.0.tick(time.delta());
 }
 
@@ -80,9 +77,7 @@ pub fn exploration_movement(
     let delta = Vec2::new(velocity.x * dt, velocity.y * dt);
     let mut next = transform.translation.truncate() + delta;
     next = resolve_collisions(next, delta, &map.solids);
-    next.x = next
-        .x
-        .clamp(PLAYER_RADIUS, map.world_width - PLAYER_RADIUS);
+    next.x = next.x.clamp(PLAYER_RADIUS, map.world_width - PLAYER_RADIUS);
     next.y = next
         .y
         .clamp(PLAYER_RADIUS, map.world_height - PLAYER_RADIUS);
@@ -145,5 +140,59 @@ fn player_bounds(center: Vec2) -> Rect {
     Rect {
         min: center - Vec2::splat(PLAYER_RADIUS),
         max: center + Vec2::splat(PLAYER_RADIUS),
+    }
+}
+
+#[cfg(test)]
+mod movement_input_tests {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::*;
+
+    use crate::graphics::PLAYER_WALK_SPEED;
+    use crate::input::action_state_after_pressing;
+
+    use super::{exploration_movement, ExplorationMap, OverworldPlayer, OverworldVelocity};
+
+    fn velocity_after(keys: &[KeyCode]) -> Vec2 {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(action_state_after_pressing(keys, &[]))
+            .insert_resource(ExplorationMap {
+                solids: Vec::new(),
+                world_width: 2_000.0,
+                world_height: 2_000.0,
+                pixel_zoom: 1.0,
+            });
+        app.world_mut().spawn((
+            OverworldPlayer,
+            Transform::from_xyz(400.0, 400.0, 0.0),
+            OverworldVelocity::default(),
+            Sprite::default(),
+        ));
+        app.world_mut()
+            .run_system_once(exploration_movement)
+            .unwrap();
+        let velocity = app
+            .world_mut()
+            .query_filtered::<&OverworldVelocity, With<OverworldPlayer>>()
+            .single(app.world());
+        Vec2::new(velocity.x, velocity.y)
+    }
+
+    #[test]
+    fn wasd_and_arrows_still_set_the_same_walk_velocity() {
+        let west = velocity_after(&[KeyCode::KeyA]);
+        let east = velocity_after(&[KeyCode::ArrowRight]);
+        let north = velocity_after(&[KeyCode::KeyW]);
+        let south = velocity_after(&[KeyCode::ArrowDown]);
+        assert_eq!(west.x, -PLAYER_WALK_SPEED);
+        assert_eq!(east.x, PLAYER_WALK_SPEED);
+        assert_eq!(north.y, PLAYER_WALK_SPEED);
+        assert_eq!(south.y, -PLAYER_WALK_SPEED);
+        assert_eq!(velocity_after(&[KeyCode::KeyE]), Vec2::ZERO);
+        assert_eq!(
+            velocity_after(&[KeyCode::KeyW, KeyCode::ArrowUp]),
+            velocity_after(&[KeyCode::KeyW])
+        );
     }
 }

@@ -142,7 +142,7 @@ impl SkillBindings {
 mod tests {
     use bevy::prelude::*;
 
-    use super::SkillKind;
+    use super::{SkillBindings, SkillKind};
 
     const SKILL_KINDS: [SkillKind; 4] = [
         SkillKind::Attack,

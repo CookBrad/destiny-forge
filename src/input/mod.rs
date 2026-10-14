@@ -9,10 +9,11 @@ mod text;
 use bevy::prelude::*;
 
 pub use action::Action;
-pub use binding::Binding;
-pub use map::InputMap;
 pub use plugin::InputPlugin;
 pub use state::ActionState;
+
+#[cfg(test)]
+pub use map::InputMap;
 
 #[cfg(test)]
 pub fn action_state_after_pressing(keys: &[KeyCode], buttons: &[MouseButton]) -> ActionState {

@@ -1,17 +1,15 @@
 use bevy::prelude::*;
 
-use crate::input::{Action, ActionState};
-use crate::core::{
-    perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
-};
+use crate::core::{perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy};
 use crate::farming::{advance_all_plots_on_sleep, capture_plots, CropPlot};
 use crate::forging::RecipeBook;
+use crate::graphics::INTERACT_DISTANCE;
+use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
-use crate::graphics::INTERACT_DISTANCE;
 
 use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
@@ -71,9 +69,7 @@ pub fn overworld_interaction(
         }
     }
 
-    if cooldown.0.finished()
-        && homestead_forest_transition().contains(position)
-        && velocity.y > 1.0
+    if cooldown.0.finished() && homestead_forest_transition().contains(position) && velocity.y > 1.0
     {
         next_state.set(GameState::Forest);
     }
@@ -120,7 +116,9 @@ pub fn try_sleep_at_bed(
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned.");
+    info!(
+        "Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned."
+    );
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
@@ -196,14 +194,14 @@ mod tests {
             &[KeyCode::KeyE],
             &[],
         ))
-            .insert_resource(loadout)
-            .init_resource::<InventoryWindowOpen>()
-            .init_resource::<ForgeWindowOpen>()
-            .init_resource::<DayClock>()
-            .init_resource::<ToolEnergy>()
-            .init_resource::<PlayerProfile>()
-            .init_resource::<ProfileDirty>()
-            .init_resource::<ClearColor>();
+        .insert_resource(loadout)
+        .init_resource::<InventoryWindowOpen>()
+        .init_resource::<ForgeWindowOpen>()
+        .init_resource::<DayClock>()
+        .init_resource::<ToolEnergy>()
+        .init_resource::<PlayerProfile>()
+        .init_resource::<ProfileDirty>()
+        .init_resource::<ClearColor>();
         app.world_mut()
             .spawn((OverworldPlayer, Transform::default()));
         app.world_mut().spawn((Bed, Transform::default()));
