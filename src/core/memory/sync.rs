@@ -181,8 +181,10 @@ mod tests {
 
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
-        let mut profile = PlayerProfile::default();
-        profile.calendar_day = 200;
+        let profile = PlayerProfile {
+            calendar_day: 200,
+            ..PlayerProfile::default()
+        };
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         let mut progress = WorldProgress::default();

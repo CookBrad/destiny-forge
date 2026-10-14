@@ -197,7 +197,6 @@ mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
-    use crate::core::Weekday;
     use crate::items::MaterialId;
 
     #[test]
@@ -271,7 +270,10 @@ mod tests {
         assert_eq!(rollover.started, Season::Spring);
         assert_eq!(rollover.year, 2);
         assert_eq!(rollover.day_of_season, 1);
-        assert_eq!(rollover.weekday, Weekday::Monday);
+        assert_eq!(
+            rollover.weekday,
+            CalendarDate::from_calendar_day(113).weekday
+        );
         assert_eq!(rollover.calendar_day, 113);
         assert_eq!(*app.world().resource::<Season>(), Season::Spring);
     }
