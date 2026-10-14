@@ -30,6 +30,10 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 7,
         apply: migrate_profile_to_v7,
     },
+    ProfileMigration {
+        to_version: 8,
+        apply: migrate_profile_to_v8,
+    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -115,6 +119,34 @@ fn migrate_profile_to_v7(profile: &mut RonValue) {
     insert_field_if_missing(profile, "depleted_ore_node_ids", RonValue::List(Vec::new()));
 }
 
+fn migrate_profile_to_v8(profile: &mut RonValue) {
+    let Some(inventory) = field_mut(profile, "inventory") else {
+        return;
+    };
+    let Some(slots) = field_mut(inventory, "slots") else {
+        return;
+    };
+    let items = match slots {
+        RonValue::Tuple(items) | RonValue::List(items) => items,
+        _ => return,
+    };
+    for slot in items {
+        force_slot_quality_normal(slot);
+    }
+}
+
+fn force_slot_quality_normal(slot: &mut RonValue) {
+    let RonValue::Map(fields) = slot else {
+        return;
+    };
+    let normal = RonValue::Unit("Normal".to_string());
+    if let Some((_, quality)) = fields.iter_mut().find(|(name, _)| name == "quality") {
+        *quality = normal;
+        return;
+    }
+    fields.push(("quality".to_string(), normal));
+}
+
 fn widen_inventory_to_v7(profile: &mut RonValue) {
     let Some(inventory) = field_mut(profile, "inventory") else {
         return;
@@ -178,7 +210,7 @@ mod tests {
     use super::super::crop_save::{SavedCropKind, SavedPlotStage};
     use super::*;
     use crate::combat::WeaponKind;
-    use crate::items::{MaterialId, INVENTORY_SLOT_COUNT};
+    use crate::items::{ItemQuality, MaterialId, INVENTORY_SLOT_COUNT};
 
     const V2_PROFILE: &str = include_str!("fixtures/profile_v2.ron");
     const V3_PROFILE: &str = include_str!("fixtures/profile_v3.ron");
@@ -276,6 +308,11 @@ mod tests {
             .all(|slot| slot.material.is_none()));
         assert_eq!(profile.loadout.food_buff, None);
         assert!(profile.depleted_ore_node_ids.is_empty());
+        assert!(profile
+            .inventory
+            .slots
+            .iter()
+            .all(|slot| slot.quality == ItemQuality::Normal));
     }
 
     #[test]
@@ -358,6 +395,87 @@ mod tests {
         let compact_text = ron::to_string(&profile).unwrap();
         assert_profiles_match(&profile_from_ron(&pretty_text).unwrap(), &profile);
         assert_profiles_match(&profile_from_ron(&compact_text).unwrap(), &profile);
+    }
+
+    #[test]
+    fn version_7_save_loads_every_stack_as_normal() {
+        let mut profile = PlayerProfile {
+            version: 7,
+            ..PlayerProfile::default()
+        };
+        assert_eq!(
+            profile
+                .inventory
+                .try_add_quality(MaterialId::Turnip, ItemQuality::Silver, 4),
+            0
+        );
+        assert_eq!(
+            profile
+                .inventory
+                .try_add_quality(MaterialId::Potato, ItemQuality::Destiny, 1),
+            0
+        );
+
+        let loaded = profile_from_ron(&ron::to_string(&profile).unwrap()).unwrap();
+
+        assert_eq!(loaded.version, PROFILE_VERSION);
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Turnip, ItemQuality::Normal),
+            4
+        );
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Potato, ItemQuality::Normal),
+            1
+        );
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Turnip, ItemQuality::Silver),
+            0
+        );
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Potato, ItemQuality::Destiny),
+            0
+        );
+        assert!(loaded
+            .inventory
+            .slots
+            .iter()
+            .all(|slot| slot.quality == ItemQuality::Normal));
+    }
+
+    #[test]
+    fn current_profile_keeps_split_quality_stacks() {
+        let mut profile = PlayerProfile::default();
+        assert_eq!(
+            profile
+                .inventory
+                .try_add_quality(MaterialId::Potato, ItemQuality::Gold, 2),
+            0
+        );
+        assert_eq!(profile.inventory.try_add(MaterialId::Potato, 5), 0);
+
+        let loaded = profile_from_ron(&ron::to_string(&profile).unwrap()).unwrap();
+
+        assert_eq!(loaded.version, PROFILE_VERSION);
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Potato, ItemQuality::Gold),
+            2
+        );
+        assert_eq!(
+            loaded
+                .inventory
+                .count_quality(MaterialId::Potato, ItemQuality::Normal),
+            5
+        );
     }
 
     #[test]
