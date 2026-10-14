@@ -141,7 +141,6 @@ def volume(
     ramp: tuple[tuple[int, int, int, int], ...],
     split: int,
 ) -> dict[tuple[int, int], tuple[int, int, int, int]]:
-
     if not points:
         return {}
     stops = len(ramp)
@@ -284,7 +283,6 @@ def crown_spike(
     half_base: int,
     palette: Palette,
 ) -> None:
-
     mid_y = (tip_y + base_y) // 2
     waist = max(3, half_base - 4)
     outline = [

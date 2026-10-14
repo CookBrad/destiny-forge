@@ -68,14 +68,10 @@ def rivet(canvas: Canvas, x: int, y: int) -> None:
     canvas.put(x + 1, y, BRASS)
     canvas.put(x, y + 1, BRASS)
     canvas.put(x + 1, y + 1, BRASS_LT)
-
-
-
 TILE_PX = 32
 
 
 def hash2(x: int, y: int, salt: int = 0) -> int:
-
     value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
     value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
     return (value ^ (value >> 16)) & 0xFF
@@ -90,7 +86,6 @@ def bevel_block(
     base: tuple[int, int, int, int],
     wrap: bool = False,
 ) -> None:
-
     for y in range(y0, y1):
         for x in range(x0, x1):
             color = shade(base, speck(x, y))
@@ -105,7 +100,6 @@ def bevel_block(
 
 
 def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> None:
-
     for (ax, ay), (bx, by) in zip(points, points[1:]):
         steps = max(abs(bx - ax), abs(by - ay), 1)
         for step in range(steps + 1):
@@ -120,7 +114,6 @@ WALL_PATTERN = 256
 
 
 def draw_wall() -> Canvas:
-
     canvas = clipping_canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DK)
     stones = (shade(GRAY, -10), shade(GRAY_DK, 4), shade(GRAY, -18), shade(GRAY_DK, -4))
     for course in range(WALL_PATTERN // WALL_BRICK_H):
@@ -169,7 +162,6 @@ GROUND_PATTERN_W = 128
 
 
 def draw_floor() -> Canvas:
-
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DK)
     for slab in range(GROUND_PATTERN_W // SLAB_W):
         x0 = slab * SLAB_W
@@ -194,7 +186,6 @@ def draw_floor() -> Canvas:
 
 
 def draw_ground_fill() -> Canvas:
-
     canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, INK)
     for course in range(GROUND_PATTERN_W // 32):
         offset = 32 if course % 2 else 0
@@ -209,7 +200,6 @@ def draw_ground_fill() -> Canvas:
 
 
 def draw_ceiling_beam() -> Canvas:
-
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, IRON)
     bevel_block(canvas, 0, 0, GROUND_PATTERN_W, TILE_PX - 4, IRON)
     for x in range(GROUND_PATTERN_W):
@@ -232,7 +222,6 @@ def draw_ceiling_beam() -> Canvas:
 
 
 def draw_platform() -> Canvas:
-
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
     for bay in range(GROUND_PATTERN_W // SLAB_W):
         x0 = bay * SLAB_W
@@ -266,7 +255,6 @@ def draw_platform() -> Canvas:
 
 
 def draw_pit() -> Canvas:
-
     canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, VOID)
     for y in range(GROUND_PATTERN_W):
         for x in range(GROUND_PATTERN_W):
@@ -291,7 +279,6 @@ LADDER_H = 256
 
 
 def draw_ladder() -> Canvas:
-
     canvas = clipping_canvas(LADDER_W, LADDER_H, CLEAR)
     rails = (10, 48)
     for y in range(LADDER_H):
@@ -339,7 +326,6 @@ STAKE_H = 112
 
 
 def draw_stake() -> Canvas:
-
     canvas = clipping_canvas(STAKE_W, STAKE_H, CLEAR)
 
     for y in range(0, 12):
@@ -369,7 +355,6 @@ LIP_H = 96
 
 
 def draw_lip() -> Canvas:
-
     canvas = clipping_canvas(LIP_W, LIP_H, CLEAR)
     for y in range(LIP_H):
         reach = 10 + (hash2(0, y // 6, 5) % 12) - y // 12
@@ -395,7 +380,6 @@ PILLAR_H = 512
 
 
 def draw_pillar() -> Canvas:
-
     canvas = clipping_canvas(PILLAR_W, PILLAR_H, CLEAR)
     shaft_x0, shaft_x1 = 8, 56
     for y in range(PILLAR_H):
@@ -439,7 +423,6 @@ TORCH_H = 64
 
 
 def draw_torch() -> Canvas:
-
     canvas = clipping_canvas(TORCH_W, TORCH_H, CLEAR)
     flame = (
         (16, 4, 3, PURPLE_LT),
@@ -476,7 +459,6 @@ CHAIN_H = 160
 
 
 def draw_chain() -> Canvas:
-
     canvas = clipping_canvas(CHAIN_W, CHAIN_H, CLEAR)
     link_h = 12
     for index, y0 in enumerate(range(0, CHAIN_H - 24, link_h - 2)):

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image, PngImagePlugin
 
-from art_common import Canvas, add_outline as paint_outline, light_contour, rejecting_canvas, require_opaque_color
+from art_common import Canvas, add_outline, light_contour, rejecting_canvas, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "assets" / "ui" / "skills"
@@ -81,8 +81,8 @@ def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
     return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
 
 
-def add_outline(canvas: Canvas) -> None:
-    paint_outline(canvas, OUTLINE)
+def outline_icon(canvas: Canvas) -> None:
+    add_outline(canvas, OUTLINE)
 
 
 def shade_outline(canvas: Canvas) -> None:
@@ -95,7 +95,6 @@ def recolor_rim(
     mid: tuple[int, int, int, int],
     shadow: tuple[int, int, int, int],
 ) -> None:
-
     edge = [
         (x, y)
         for y in range(SIZE)
@@ -153,7 +152,6 @@ def paint_sword(canvas: Canvas) -> None:
 
 
 def shield_spans() -> list[tuple[int, int, int]]:
-
     spans = [
         (6, 10, 21),
         (7, 8, 23),
@@ -177,7 +175,6 @@ def shield_spans() -> list[tuple[int, int, int]]:
 
 
 def paint_shield(canvas: Canvas) -> None:
-
     for y, x0, x1 in shield_spans():
         for x in range(x0, x1 + 1):
             shade = x + y
@@ -238,7 +235,6 @@ def stamp_boss(canvas: Canvas) -> None:
 
 
 def paint_boot(canvas: Canvas) -> None:
-
     spans = [
         (6, 17, 24, LEATHER_LT),
         (7, 16, 25, LEATHER),
@@ -325,7 +321,6 @@ def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
 
 
 def paint_wand(canvas: Canvas) -> None:
-
     diamond = {
         6: range(16, 18),
         7: range(15, 19),
@@ -355,7 +350,6 @@ def paint_wand(canvas: Canvas) -> None:
 
 
 def paint_wand_orbit(canvas: Canvas) -> None:
-
     for x, y in circle_pixels(16, 10, 8):
         if y >= 13 or canvas[y][x] is not None:
             continue
@@ -370,7 +364,7 @@ def paint_wand_orbit(canvas: Canvas) -> None:
 
 
 def finish_body(canvas: Canvas) -> None:
-    add_outline(canvas)
+    outline_icon(canvas)
     shade_outline(canvas)
 
 
@@ -452,7 +446,6 @@ def save_png(image: Image.Image, path: Path) -> None:
 
 
 def ascii_preview(image: Image.Image) -> str:
-
     legend = {
         OUTLINE: "·",
         RIM_LIT: "+",

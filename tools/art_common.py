@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import math
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
@@ -56,189 +56,343 @@ def require_opaque_color(color: Color, allowed: set[Color] | None = None) -> Col
     return color
 
 
+@dataclass(frozen=True)
 class Palette:
-    pass
+    ink: Color
+    ink_warm: Color
+    leather_shadow: Color
+    leather_deep: Color
+    leather_soot: Color
+    leather_dk: Color
+    leather_md: Color
+    leather_above_mid: Color
+    leather: Color
+    leather_fold: Color
+    leather_lt: Color
+    leather_above_light: Color
+    leather_hi: Color
+    skin_dk: Color
+    skin_md: Color
+    skin: Color
+    skin_warm: Color
+    skin_lt: Color
+    brass_shadow: Color
+    brass_md: Color
+    brass_dk: Color
+    brass: Color
+    brass_lt: Color
+    brass_hi: Color
+    gel_shadow: Color
+    gel_deep: Color
+    gel_well: Color
+    gel_pool: Color
+    gel_tide: Color
+    gel_sea: Color
+    gel_foam: Color
+    gel_mid: Color
+    gel_kelp: Color
+    gel_lagoon: Color
+    gel_dk: Color
+    gel: Color
+    gel_core: Color
+    gel_lt: Color
+    gel_bright: Color
+    gel_hi: Color
+    gel_hot: Color
+    sage_shadow: Color
+    sage_mid: Color
+    sage_dk: Color
+    sage: Color
+    sage_lt: Color
+    purple_dk: Color
+    purple: Color
+    purple_lt: Color
+    steel_deep: Color
+    steel_void: Color
+    steel_shadow: Color
+    steel_dk: Color
+    steel: Color
+    steel_cloth: Color
+    steel_mid: Color
+    steel_lt: Color
+    bone_shadow: Color
+    bone_dust: Color
+    bone_dk: Color
+    bone_md: Color
+    bone_mid: Color
+    bone: Color
+    bone_lt: Color
+    dead_dk: Color
+    dead: Color
+    white: Color
+    gel_ramp: tuple[Color, ...]
+    gel_under: tuple[Color, ...]
+    gel_body: tuple[Color, ...]
+    gel_shine: tuple[Color, ...]
+    sage_ramp: tuple[Color, ...]
+    leather_ramp: tuple[Color, ...]
+    brass_ramp: tuple[Color, ...]
+    bone_ramp: tuple[Color, ...]
+    bone_form: tuple[Color, ...]
+    steel_ramp: tuple[Color, ...]
+    wing_ramp: tuple[Color, ...]
+    dead_ramp: tuple[Color, ...]
+    skin_ramp: tuple[Color, ...]
+    cloth_ramp: tuple[Color, ...]
 
 
 def hunter_palette(allowed: set[Color]) -> Palette:
-    palette = Palette()
-
     def take(red: int, green: int, blue: int) -> Color:
         return require_opaque_color((red, green, blue, 255), allowed)
 
-    palette.ink = take(0, 0, 0)
-    palette.ink_warm = take(32, 23, 21)
-    palette.leather_shadow = take(36, 21, 13)
-    palette.leather_rim = take(42, 23, 15)
-    palette.leather_deep = take(43, 23, 15)
-    palette.leather_soot = take(54, 30, 20)
-    palette.leather_dk = take(55, 31, 21)
-    palette.leather_md = take(63, 35, 23)
-    palette.leather_above_mid = take(67, 38, 25)
-    palette.leather = take(74, 41, 26)
-    palette.leather_fold = take(76, 43, 28)
-    palette.leather_lt = take(97, 55, 35)
-    palette.leather_above_light = take(98, 56, 35)
-    palette.leather_hi = take(107, 64, 33)
-    palette.skin_dk = take(149, 92, 47)
-    palette.skin_md = take(187, 119, 69)
-    palette.skin = take(222, 152, 98)
-    palette.skin_warm = take(217, 150, 99)
-    palette.skin_lt = take(252, 187, 127)
-    palette.brass_shadow = take(161, 103, 26)
-    palette.brass_md = take(167, 108, 29)
-    palette.brass_dk = take(203, 141, 45)
-    palette.brass = take(226, 166, 64)
-    palette.brass_lt = take(244, 172, 13)
-    palette.brass_hi = take(251, 214, 119)
-    palette.gel_shadow = take(3, 40, 43)
-    palette.gel_deep = take(0, 64, 69)
-    palette.gel_well = take(0, 76, 81)
-    palette.gel_pool = take(0, 97, 106)
-    palette.gel_tide = take(2, 118, 129)
-    palette.gel_sea = take(4, 126, 133)
-    palette.gel_foam = take(40, 137, 138)
-    palette.gel_mid = take(42, 140, 147)
-    palette.gel_kelp = take(39, 150, 147)
-    palette.gel_lagoon = take(42, 161, 166)
-    palette.gel_dk = take(45, 170, 152)
-    palette.gel = take(3, 190, 174)
-    palette.gel_core = take(0, 210, 211)
-    palette.gel_lt = take(0, 213, 215)
-    palette.gel_bright = take(0, 229, 227)
-    palette.gel_hi = take(0, 251, 250)
-    palette.gel_hot = take(166, 253, 254)
-    palette.sage_shadow = take(7, 35, 33)
-    palette.sage_mid = take(28, 103, 99)
-    palette.sage_dk = take(67, 94, 77)
-    palette.sage = take(80, 127, 100)
-    palette.sage_lt = take(84, 122, 95)
-    palette.purple_dk = take(108, 21, 120)
-    palette.purple = take(184, 118, 200)
-    palette.purple_lt = take(244, 136, 254)
-    palette.steel_deep = take(13, 13, 13)
-    palette.steel_void = take(16, 16, 16)
-    palette.steel_shadow = take(22, 22, 26)
-    palette.steel_dk = take(38, 38, 43)
-    palette.steel = take(48, 48, 53)
-    palette.steel_cloth = take(37, 36, 37)
-    palette.steel_mid = take(135, 133, 137)
-    palette.steel_lt = take(168, 168, 169)
-    palette.bone_shadow = take(126, 126, 116)
-    palette.bone_dust = take(148, 154, 143)
-    palette.bone_dk = take(150, 149, 144)
-    palette.bone_md = take(174, 172, 175)
-    palette.bone_mid = take(179, 178, 182)
-    palette.bone = take(245, 244, 243)
-    palette.bone_lt = take(255, 255, 255)
-    palette.dead_dk = take(52, 36, 31)
-    palette.dead = take(54, 37, 32)
-    palette.white = take(255, 255, 255)
-    palette.gel_ramp = (
-        palette.gel_shadow,
-        palette.gel_deep,
-        palette.gel_well,
-        palette.gel_pool,
-        palette.gel_tide,
-        palette.gel_sea,
-        palette.gel_foam,
-        palette.gel_mid,
-        palette.gel_kelp,
-        palette.gel_lagoon,
-        palette.gel_dk,
-        palette.gel,
-        palette.gel_core,
-        palette.gel_lt,
-        palette.gel_bright,
-        palette.gel_hi,
+    ink = take(0, 0, 0)
+    ink_warm = take(32, 23, 21)
+    leather_shadow = take(36, 21, 13)
+    leather_deep = take(43, 23, 15)
+    leather_soot = take(54, 30, 20)
+    leather_dk = take(55, 31, 21)
+    leather_md = take(63, 35, 23)
+    leather_above_mid = take(67, 38, 25)
+    leather = take(74, 41, 26)
+    leather_fold = take(76, 43, 28)
+    leather_lt = take(97, 55, 35)
+    leather_above_light = take(98, 56, 35)
+    leather_hi = take(107, 64, 33)
+    skin_dk = take(149, 92, 47)
+    skin_md = take(187, 119, 69)
+    skin = take(222, 152, 98)
+    skin_warm = take(217, 150, 99)
+    skin_lt = take(252, 187, 127)
+    brass_shadow = take(161, 103, 26)
+    brass_md = take(167, 108, 29)
+    brass_dk = take(203, 141, 45)
+    brass = take(226, 166, 64)
+    brass_lt = take(244, 172, 13)
+    brass_hi = take(251, 214, 119)
+    gel_shadow = take(3, 40, 43)
+    gel_deep = take(0, 64, 69)
+    gel_well = take(0, 76, 81)
+    gel_pool = take(0, 97, 106)
+    gel_tide = take(2, 118, 129)
+    gel_sea = take(4, 126, 133)
+    gel_foam = take(40, 137, 138)
+    gel_mid = take(42, 140, 147)
+    gel_kelp = take(39, 150, 147)
+    gel_lagoon = take(42, 161, 166)
+    gel_dk = take(45, 170, 152)
+    gel = take(3, 190, 174)
+    gel_core = take(0, 210, 211)
+    gel_lt = take(0, 213, 215)
+    gel_bright = take(0, 229, 227)
+    gel_hi = take(0, 251, 250)
+    gel_hot = take(166, 253, 254)
+    sage_shadow = take(7, 35, 33)
+    sage_mid = take(28, 103, 99)
+    sage_dk = take(67, 94, 77)
+    sage = take(80, 127, 100)
+    sage_lt = take(84, 122, 95)
+    purple_dk = take(108, 21, 120)
+    purple = take(184, 118, 200)
+    purple_lt = take(244, 136, 254)
+    steel_deep = take(13, 13, 13)
+    steel_void = take(16, 16, 16)
+    steel_shadow = take(22, 22, 26)
+    steel_dk = take(38, 38, 43)
+    steel = take(48, 48, 53)
+    steel_cloth = take(37, 36, 37)
+    steel_mid = take(135, 133, 137)
+    steel_lt = take(168, 168, 169)
+    bone_shadow = take(126, 126, 116)
+    bone_dust = take(148, 154, 143)
+    bone_dk = take(150, 149, 144)
+    bone_md = take(174, 172, 175)
+    bone_mid = take(179, 178, 182)
+    bone = take(245, 244, 243)
+    bone_lt = take(255, 255, 255)
+    dead_dk = take(52, 36, 31)
+    dead = take(54, 37, 32)
+    white = take(255, 255, 255)
+    gel_ramp = (
+        gel_shadow,
+        gel_deep,
+        gel_well,
+        gel_pool,
+        gel_tide,
+        gel_sea,
+        gel_foam,
+        gel_mid,
+        gel_kelp,
+        gel_lagoon,
+        gel_dk,
+        gel,
+        gel_core,
+        gel_lt,
+        gel_bright,
+        gel_hi,
     )
-    palette.gel_under = palette.gel_ramp[:8]
-    palette.gel_body = palette.gel_ramp[4:13]
-    palette.gel_shine = palette.gel_ramp[10:]
-    palette.sage_ramp = (
-        palette.sage_shadow,
-        palette.sage_dk,
-        palette.sage_mid,
-        palette.sage,
-        palette.sage_lt,
+    gel_under = gel_ramp[:8]
+    gel_body = gel_ramp[4:13]
+    gel_shine = gel_ramp[10:]
+    sage_ramp = (
+        sage_shadow,
+        sage_dk,
+        sage_mid,
+        sage,
+        sage_lt,
     )
-    palette.leather_ramp = (
-        palette.leather_shadow,
-        palette.leather_deep,
-        palette.leather_soot,
-        palette.leather_dk,
-        palette.leather_md,
-        palette.leather_above_mid,
-        palette.leather,
-        palette.leather_fold,
-        palette.leather_lt,
-        palette.leather_above_light,
-        palette.leather_hi,
+    leather_ramp = (
+        leather_shadow,
+        leather_deep,
+        leather_soot,
+        leather_dk,
+        leather_md,
+        leather_above_mid,
+        leather,
+        leather_fold,
+        leather_lt,
+        leather_above_light,
+        leather_hi,
     )
-    palette.brass_ramp = (
-        palette.brass_shadow,
-        palette.brass_md,
-        palette.brass_dk,
-        palette.brass,
-        palette.brass_lt,
-        palette.brass_hi,
+    brass_ramp = (
+        brass_shadow,
+        brass_md,
+        brass_dk,
+        brass,
+        brass_lt,
+        brass_hi,
     )
-    palette.bone_ramp = (
-        palette.bone_shadow,
-        palette.bone_dk,
-        palette.bone_dust,
-        palette.bone_md,
-        palette.bone_mid,
-        palette.bone,
-        palette.bone_lt,
+    bone_ramp = (
+        bone_shadow,
+        bone_dk,
+        bone_dust,
+        bone_md,
+        bone_mid,
+        bone,
+        bone_lt,
     )
-    palette.bone_form = (
-        palette.bone_shadow,
-        palette.bone_dk,
-        palette.bone_dust,
-        palette.bone_md,
-        palette.bone_mid,
+    bone_form = (
+        bone_shadow,
+        bone_dk,
+        bone_dust,
+        bone_md,
+        bone_mid,
     )
-    palette.steel_ramp = (
-        palette.steel_deep,
-        palette.steel_void,
-        palette.steel_shadow,
-        palette.steel_cloth,
-        palette.steel_dk,
-        palette.steel,
+    steel_ramp = (
+        steel_deep,
+        steel_void,
+        steel_shadow,
+        steel_cloth,
+        steel_dk,
+        steel,
     )
-    palette.wing_ramp = palette.steel_ramp
-    palette.dead_ramp = (
-        palette.dead_dk,
-        palette.dead,
-        palette.steel_mid,
-        palette.bone_dust,
-        palette.steel_lt,
-        palette.bone_md,
+    wing_ramp = steel_ramp
+    dead_ramp = (
+        dead_dk,
+        dead,
+        steel_mid,
+        bone_dust,
+        steel_lt,
+        bone_md,
     )
-    palette.skin_ramp = (
-        palette.skin_dk,
-        palette.skin_md,
-        palette.skin_warm,
-        palette.skin,
-        palette.skin_lt,
+    skin_ramp = (
+        skin_dk,
+        skin_md,
+        skin_warm,
+        skin,
+        skin_lt,
     )
-    palette.cloth_ramp = (
-        palette.steel_deep,
-        palette.steel_void,
-        palette.steel_shadow,
-        palette.steel_cloth,
-        palette.steel_dk,
-        palette.steel,
-        palette.steel_mid,
+    cloth_ramp = (
+        steel_deep,
+        steel_void,
+        steel_shadow,
+        steel_cloth,
+        steel_dk,
+        steel,
+        steel_mid,
     )
-    return palette
-
-
-class Pin:
-    def __init__(self, x: float, y: float) -> None:
-        self.x = x
-        self.y = y
+    return Palette(
+        ink=ink,
+        ink_warm=ink_warm,
+        leather_shadow=leather_shadow,
+        leather_deep=leather_deep,
+        leather_soot=leather_soot,
+        leather_dk=leather_dk,
+        leather_md=leather_md,
+        leather_above_mid=leather_above_mid,
+        leather=leather,
+        leather_fold=leather_fold,
+        leather_lt=leather_lt,
+        leather_above_light=leather_above_light,
+        leather_hi=leather_hi,
+        skin_dk=skin_dk,
+        skin_md=skin_md,
+        skin=skin,
+        skin_warm=skin_warm,
+        skin_lt=skin_lt,
+        brass_shadow=brass_shadow,
+        brass_md=brass_md,
+        brass_dk=brass_dk,
+        brass=brass,
+        brass_lt=brass_lt,
+        brass_hi=brass_hi,
+        gel_shadow=gel_shadow,
+        gel_deep=gel_deep,
+        gel_well=gel_well,
+        gel_pool=gel_pool,
+        gel_tide=gel_tide,
+        gel_sea=gel_sea,
+        gel_foam=gel_foam,
+        gel_mid=gel_mid,
+        gel_kelp=gel_kelp,
+        gel_lagoon=gel_lagoon,
+        gel_dk=gel_dk,
+        gel=gel,
+        gel_core=gel_core,
+        gel_lt=gel_lt,
+        gel_bright=gel_bright,
+        gel_hi=gel_hi,
+        gel_hot=gel_hot,
+        sage_shadow=sage_shadow,
+        sage_mid=sage_mid,
+        sage_dk=sage_dk,
+        sage=sage,
+        sage_lt=sage_lt,
+        purple_dk=purple_dk,
+        purple=purple,
+        purple_lt=purple_lt,
+        steel_deep=steel_deep,
+        steel_void=steel_void,
+        steel_shadow=steel_shadow,
+        steel_dk=steel_dk,
+        steel=steel,
+        steel_cloth=steel_cloth,
+        steel_mid=steel_mid,
+        steel_lt=steel_lt,
+        bone_shadow=bone_shadow,
+        bone_dust=bone_dust,
+        bone_dk=bone_dk,
+        bone_md=bone_md,
+        bone_mid=bone_mid,
+        bone=bone,
+        bone_lt=bone_lt,
+        dead_dk=dead_dk,
+        dead=dead,
+        white=white,
+        gel_ramp=gel_ramp,
+        gel_under=gel_under,
+        gel_body=gel_body,
+        gel_shine=gel_shine,
+        sage_ramp=sage_ramp,
+        leather_ramp=leather_ramp,
+        brass_ramp=brass_ramp,
+        bone_ramp=bone_ramp,
+        bone_form=bone_form,
+        steel_ramp=steel_ramp,
+        wing_ramp=wing_ramp,
+        dead_ramp=dead_ramp,
+        skin_ramp=skin_ramp,
+        cloth_ramp=cloth_ramp,
+    )
 
 
 class _Row:
@@ -262,13 +416,10 @@ class Canvas:
         width: int,
         height: int,
         fill: Color = CLEAR,
-        *,
-        pin: Pin | None = None,
     ) -> None:
         self.width = width
         self.height = height
         self.pixels = [fill] * (width * height)
-        self.pin = Pin(0.0, 0.0) if pin is None else pin
 
     def store_opaque(self, x: int, y: int, color: Color) -> None:
         if color[3] not in (0, 255):
@@ -322,12 +473,12 @@ class RejectingCanvas(Canvas):
         self.store_opaque(x, y, color)
 
 
-def clipping_canvas(width: int, height: int, fill: Color = CLEAR, *, pin: Pin | None = None) -> Canvas:
-    return Canvas(width, height, fill, pin=pin)
+def clipping_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
+    return Canvas(width, height, fill)
 
 
-def rejecting_canvas(width: int, height: int, fill: Color = CLEAR, *, pin: Pin | None = None) -> Canvas:
-    return RejectingCanvas(width, height, fill, pin=pin)
+def rejecting_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
+    return RejectingCanvas(width, height, fill)
 
 
 def add_outline(canvas: Canvas, color: Color) -> None:
@@ -418,17 +569,6 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
     return image
 
 
-def place_on_pin(target: Canvas, source: Canvas, pin: Pin) -> None:
-    dx = int(math.floor(pin.x - source.pin.x + 0.5))
-    dy = int(math.floor(pin.y - source.pin.y + 0.5))
-    for index, color in enumerate(source.pixels):
-        if color[3] == 0:
-            continue
-        x = index % source.width + dx
-        y = index // source.width + dy
-        target.put(x, y, color)
-
-
 def _frame_pixels(frame: dict[Point, Color]) -> dict[Point, Color]:
     if isinstance(frame, dict):
         return frame
@@ -447,66 +587,3 @@ def pack_strip(frames: list, cell_width: int, cell_height: int) -> Image.Image:
                 raise SystemExit(f"blit clipped {xx},{yy}")
             pixels[xx, yy] = color
     return image
-
-
-def contact_sheet_size(
-    frame_count: int,
-    columns: int,
-    cell_width: int,
-    cell_height: int,
-    gutter: int,
-    margin: int,
-) -> tuple[int, int]:
-    rows = (frame_count + columns - 1) // columns
-    width = margin * 2 + columns * cell_width + (columns - 1) * gutter
-    height = margin * 2 + rows * cell_height + (rows - 1) * gutter
-    return width, height
-
-
-def contact_cell_origin(
-    index: int,
-    columns: int,
-    cell_width: int,
-    cell_height: int,
-    gutter: int,
-    margin: int,
-) -> Point:
-    column = index % columns
-    row = index // columns
-    return (
-        margin + column * (cell_width + gutter),
-        margin + row * (cell_height + gutter),
-    )
-
-
-def place_contact_frame(sheet: Image.Image, frame: Image.Image, origin: Point) -> None:
-    rgba = frame.convert("RGBA")
-    for _red, _green, _blue, alpha in rgba.getdata():
-        if alpha not in (0, 255):
-            raise SystemExit("partial alpha")
-    sheet.alpha_composite(rgba, origin)
-
-
-def contact_sheet(
-    frames: list[Image.Image],
-    columns: int,
-    *,
-    gutter: int = 2,
-    margin: int = 4,
-    background: Color = CLEAR,
-) -> Image.Image:
-    if columns < 1:
-        raise SystemExit("contact sheet needs a column")
-    if not frames:
-        raise SystemExit("contact sheet needs a frame")
-    cell_width = max(frame.width for frame in frames)
-    cell_height = max(frame.height for frame in frames)
-    width, height = contact_sheet_size(len(frames), columns, cell_width, cell_height, gutter, margin)
-    sheet = Image.new("RGBA", (width, height), background)
-    for index, frame in enumerate(frames):
-        place_contact_frame(
-            sheet,
-            frame,
-            contact_cell_origin(index, columns, cell_width, cell_height, gutter, margin),
-        )
-    return sheet
