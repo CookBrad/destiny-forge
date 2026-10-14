@@ -663,6 +663,7 @@ pub fn toggle_inventory_window(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn rebuild_inventory_on_loadout_change(
     loadout: Res<Loadout>,
     inventory: Res<Inventory>,
