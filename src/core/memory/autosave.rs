@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy};
 
@@ -50,6 +50,7 @@ pub fn debounced_autosave(
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
+    wallet: Res<Wallet>,
     mut profile: ResMut<PlayerProfile>,
     autosave_block: Res<ProfileAutosaveBlock>,
 ) {
@@ -70,6 +71,7 @@ pub fn debounced_autosave(
         &tool_energy,
         &audio,
         &bindings,
+        &wallet,
         &mut profile,
     );
     match save_profile(active.index(), &profile) {
@@ -87,6 +89,7 @@ pub fn flush_saves_on_exit(
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
+    wallet: Res<Wallet>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
     autosave_block: Res<ProfileAutosaveBlock>,
@@ -103,6 +106,7 @@ pub fn flush_saves_on_exit(
         &tool_energy,
         &audio,
         &bindings,
+        &wallet,
         &mut profile,
     );
     if let Err(error) = save_profile(active.index(), &profile) {

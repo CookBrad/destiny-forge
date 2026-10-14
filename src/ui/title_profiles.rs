@@ -11,7 +11,7 @@ use crate::core::{
 };
 use crate::input::{Action, ActionState};
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::profile_picker::{begin_profile_run, ProfilePicker};
 
@@ -181,6 +181,7 @@ pub fn handle_title_profile_card_clicks(
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
     mut calendar: SeasonWithRules,
+    mut wallet: ResMut<Wallet>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -209,6 +210,7 @@ pub fn handle_title_profile_card_clicks(
             &calendar.rules,
             &mut audio,
             &mut bindings,
+            &mut wallet,
             &mut active,
             &mut profile,
             &mut global,
@@ -294,6 +296,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
     mut calendar: SeasonWithRules,
+    mut wallet: ResMut<Wallet>,
     mut active: ResMut<ActiveProfile>,
     mut profile: ResMut<PlayerProfile>,
     mut audio: ResMut<AudioSettings>,
@@ -321,6 +324,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         &calendar.rules,
         &mut audio,
         &mut bindings,
+        &mut wallet,
         &mut active,
         &mut profile,
         &mut global,

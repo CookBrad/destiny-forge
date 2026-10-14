@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::super::day_cycle::{DayClock, ToolEnergy, TOOL_ENERGY_MAX};
 use super::super::season::{CalendarDate, CalendarRules, Season};
@@ -26,6 +26,7 @@ pub fn hydrate_runtime_from_memory(
     mut tool_energy: ResMut<ToolEnergy>,
     mut season: ResMut<Season>,
     rules: Res<CalendarRules>,
+    mut wallet: ResMut<Wallet>,
 ) {
     apply_profile_to_runtime(
         &profile,
@@ -38,6 +39,7 @@ pub fn hydrate_runtime_from_memory(
         &mut bindings,
         &mut season,
         &rules,
+        &mut wallet,
     );
 
     info!(
@@ -59,6 +61,7 @@ pub fn capture_profile_from_runtime(
     progress: Res<WorldProgress>,
     day_clock: Res<DayClock>,
     tool_energy: Res<ToolEnergy>,
+    wallet: Res<Wallet>,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
@@ -69,6 +72,7 @@ pub fn capture_profile_from_runtime(
         && !loadout.is_changed()
         && !progress.is_changed()
         && !tool_energy.is_changed()
+        && !wallet.is_changed()
     {
         return;
     }
@@ -81,6 +85,7 @@ pub fn capture_profile_from_runtime(
         &tool_energy,
         &audio,
         &bindings,
+        &wallet,
         &mut profile,
     );
     dirty.mark();
@@ -94,6 +99,7 @@ pub fn snapshot_profile(
     tool_energy: &ToolEnergy,
     audio: &AudioSettings,
     bindings: &SkillBindings,
+    wallet: &Wallet,
     profile: &mut PlayerProfile,
 ) {
     profile.inventory = inventory.clone();
@@ -102,6 +108,7 @@ pub fn snapshot_profile(
     profile.calendar_day = day_clock.calendar_day;
     profile.day_phase = day_clock.phase;
     profile.tool_energy = tool_energy.current;
+    profile.wallet = *wallet;
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -115,6 +122,7 @@ pub fn activate_profile(
     tool_energy: &ToolEnergy,
     audio: &AudioSettings,
     bindings: &SkillBindings,
+    wallet: &Wallet,
     active: &mut ActiveProfile,
     profile: &mut PlayerProfile,
     global: &mut GameSettings,
@@ -134,6 +142,7 @@ pub fn activate_profile(
         tool_energy,
         audio,
         bindings,
+        wallet,
         profile,
     );
     if let Err(error) = save_profile(active.index(), profile) {
@@ -167,6 +176,7 @@ pub fn apply_profile_to_runtime(
     bindings: &mut SkillBindings,
     season: &mut Season,
     rules: &CalendarRules,
+    wallet: &mut Wallet,
 ) {
     *inventory = profile.inventory.clone();
     *loadout = profile.loadout.clone();
@@ -174,6 +184,7 @@ pub fn apply_profile_to_runtime(
     *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
     *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
     *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
+    *wallet = profile.wallet;
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
 }
@@ -196,6 +207,7 @@ mod tests {
         let mut audio = AudioSettings::default();
         let mut bindings = SkillBindings::default();
         let mut season = Season::Spring;
+        let mut wallet = Wallet::default();
 
         apply_profile_to_runtime(
             &profile,
@@ -208,9 +220,47 @@ mod tests {
             &mut bindings,
             &mut season,
             &CalendarRules::load(),
+            &mut wallet,
         );
 
         assert_eq!(day_clock.calendar_day, 200);
         assert_eq!(season, Season::Winter);
+    }
+
+    #[test]
+    fn snapshot_and_apply_keep_the_wallet() {
+        let mut profile = PlayerProfile::default();
+        let wallet = Wallet {
+            gold: 40,
+            sparks: 2,
+        };
+        snapshot_profile(
+            &Inventory::default(),
+            &Loadout::default(),
+            &WorldProgress::default(),
+            &DayClock::default(),
+            &ToolEnergy::default(),
+            &AudioSettings::default(),
+            &SkillBindings::default(),
+            &wallet,
+            &mut profile,
+        );
+        assert_eq!(profile.wallet, wallet);
+
+        let mut restored = Wallet::default();
+        apply_profile_to_runtime(
+            &profile,
+            &mut Inventory::default(),
+            &mut Loadout::default(),
+            &mut WorldProgress::default(),
+            &mut DayClock::default(),
+            &mut ToolEnergy::default(),
+            &mut AudioSettings::default(),
+            &mut SkillBindings::default(),
+            &mut Season::Spring,
+            &CalendarRules::load(),
+            &mut restored,
+        );
+        assert_eq!(restored, wallet);
     }
 }

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::super::day_cycle::DayPhase;
 
@@ -39,6 +39,8 @@ pub struct PlayerProfile {
     pub crop_plots: Vec<SavedCropPlot>,
     pub depleted_ore_node_ids: Vec<u16>,
     #[serde(default)]
+    pub wallet: Wallet,
+    #[serde(default)]
     pub settings: ProfileSettings,
 }
 
@@ -55,6 +57,7 @@ impl Default for PlayerProfile {
             tool_energy: default_tool_energy(),
             crop_plots: Vec::new(),
             depleted_ore_node_ids: Vec::new(),
+            wallet: Wallet::default(),
             settings: ProfileSettings::default(),
         }
     }

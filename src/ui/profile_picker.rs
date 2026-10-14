@@ -8,7 +8,7 @@ use crate::core::{
     ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 pub const SAVE_NEEDS_ATTENTION: &str = "Your save needs attention";
 
@@ -85,6 +85,7 @@ pub fn begin_profile_run(
     rules: &CalendarRules,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
+    wallet: &mut Wallet,
     active: &mut ActiveProfile,
     profile: &mut PlayerProfile,
     global: &mut GameSettings,
@@ -103,6 +104,7 @@ pub fn begin_profile_run(
         tool_energy,
         audio,
         bindings,
+        wallet,
         active,
         profile,
         global,
@@ -123,6 +125,7 @@ pub fn begin_profile_run(
         bindings,
         season,
         rules,
+        wallet,
     );
     true
 }
