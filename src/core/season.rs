@@ -11,13 +11,13 @@ const EMBEDDED_CALENDAR_RULES: &str = include_str!("../../assets/data/calendar_r
 const SEASONS_IN_YEAR: [Season; 4] = [Season::Spring, Season::Summer, Season::Fall, Season::Winter];
 
 const WEEKDAYS: [Weekday; 7] = [
-    Weekday::Gearday,
-    Weekday::Steamday,
-    Weekday::Sparkday,
-    Weekday::Forgeday,
-    Weekday::Brassday,
-    Weekday::Harvestday,
-    Weekday::Restday,
+    Weekday::Monday,
+    Weekday::Tuesday,
+    Weekday::Wednesday,
+    Weekday::Thursday,
+    Weekday::Friday,
+    Weekday::Saturday,
+    Weekday::Sunday,
 ];
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -89,25 +89,25 @@ impl Season {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Weekday {
-    Gearday,
-    Steamday,
-    Sparkday,
-    Forgeday,
-    Brassday,
-    Harvestday,
-    Restday,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+    Sunday,
 }
 
 impl Weekday {
     pub fn display_name(self) -> &'static str {
         match self {
-            Self::Gearday => "Gearday",
-            Self::Steamday => "Steamday",
-            Self::Sparkday => "Sparkday",
-            Self::Forgeday => "Forgeday",
-            Self::Brassday => "Brassday",
-            Self::Harvestday => "Harvestday",
-            Self::Restday => "Restday",
+            Self::Monday => "Monday",
+            Self::Tuesday => "Tuesday",
+            Self::Wednesday => "Wednesday",
+            Self::Thursday => "Thursday",
+            Self::Friday => "Friday",
+            Self::Saturday => "Saturday",
+            Self::Sunday => "Sunday",
         }
     }
 
@@ -193,14 +193,14 @@ mod tests {
     }
 
     #[test]
-    fn opening_morning_is_year_one_spring_gearday() {
+    fn opening_morning_is_year_one_spring_monday() {
         let date = date_on(1, &shipped_rules());
         assert_eq!(date.year, 1);
         assert_eq!(date.season, Season::Spring);
         assert_eq!(date.day_of_season, 1);
-        assert_eq!(date.weekday, Weekday::Gearday);
+        assert_eq!(date.weekday, Weekday::Monday);
         assert_eq!(date.season.display_name(), "Spring");
-        assert_eq!(date.weekday.display_name(), "Gearday");
+        assert_eq!(date.weekday.display_name(), "Monday");
     }
 
     #[test]
@@ -213,16 +213,16 @@ mod tests {
     fn seasons_years_and_weekdays_follow_calendar_day() {
         let rules = shipped_rules();
         let samples = [
-            (28, 1, Season::Spring, 28, Weekday::Restday),
-            (29, 1, Season::Summer, 1, Weekday::Gearday),
-            (56, 1, Season::Summer, 28, Weekday::Restday),
-            (57, 1, Season::Fall, 1, Weekday::Gearday),
-            (84, 1, Season::Fall, 28, Weekday::Restday),
-            (85, 1, Season::Winter, 1, Weekday::Gearday),
-            (112, 1, Season::Winter, 28, Weekday::Restday),
-            (113, 2, Season::Spring, 1, Weekday::Gearday),
-            (224, 2, Season::Winter, 28, Weekday::Restday),
-            (225, 3, Season::Spring, 1, Weekday::Gearday),
+            (28, 1, Season::Spring, 28, Weekday::Sunday),
+            (29, 1, Season::Summer, 1, Weekday::Monday),
+            (56, 1, Season::Summer, 28, Weekday::Sunday),
+            (57, 1, Season::Fall, 1, Weekday::Monday),
+            (84, 1, Season::Fall, 28, Weekday::Sunday),
+            (85, 1, Season::Winter, 1, Weekday::Monday),
+            (112, 1, Season::Winter, 28, Weekday::Sunday),
+            (113, 2, Season::Spring, 1, Weekday::Monday),
+            (224, 2, Season::Winter, 28, Weekday::Sunday),
+            (225, 3, Season::Spring, 1, Weekday::Monday),
         ];
 
         for (calendar_day, year, season, day_of_season, weekday) in samples {
@@ -238,16 +238,16 @@ mod tests {
     }
 
     #[test]
-    fn weekday_names_run_gearday_through_restday() {
+    fn weekday_names_run_monday_through_sunday() {
         let rules = shipped_rules();
         let names = [
-            Weekday::Gearday,
-            Weekday::Steamday,
-            Weekday::Sparkday,
-            Weekday::Forgeday,
-            Weekday::Brassday,
-            Weekday::Harvestday,
-            Weekday::Restday,
+            Weekday::Monday,
+            Weekday::Tuesday,
+            Weekday::Wednesday,
+            Weekday::Thursday,
+            Weekday::Friday,
+            Weekday::Saturday,
+            Weekday::Sunday,
         ];
         for day in 1..=21 {
             assert_eq!(
@@ -263,13 +263,13 @@ mod tests {
         let last = date_on(10, &rules);
         assert_eq!(last.season, Season::Spring);
         assert_eq!(last.day_of_season, 10);
-        assert_eq!(last.weekday, Weekday::Sparkday);
+        assert_eq!(last.weekday, Weekday::Wednesday);
 
         let next = date_on(11, &rules);
         assert_eq!(next.season, Season::Summer);
         assert_eq!(next.day_of_season, 1);
         assert_eq!(next.year, 1);
-        assert_eq!(next.weekday, Weekday::Forgeday);
+        assert_eq!(next.weekday, Weekday::Thursday);
 
         let year_two = date_on(41, &rules);
         assert_eq!(year_two.year, 2);
@@ -299,7 +299,7 @@ mod tests {
         assert_eq!(outcome.calendar_day, 2);
         assert_eq!(season, Season::Spring);
         assert_eq!(outcome.season_rollover, None);
-        assert_eq!(date_on(2, &rules).weekday, Weekday::Steamday);
+        assert_eq!(date_on(2, &rules).weekday, Weekday::Tuesday);
     }
 
     #[test]
@@ -327,7 +327,7 @@ mod tests {
                     started,
                     year,
                     day_of_season: 1,
-                    weekday: Weekday::Gearday,
+                    weekday: Weekday::Monday,
                     calendar_day: last_day + 1,
                 }),
                 "rollover leaving day {last_day}"
@@ -353,18 +353,18 @@ mod tests {
                 started: Season::Summer,
                 year: 1,
                 day_of_season: 1,
-                weekday: Weekday::Forgeday,
+                weekday: Weekday::Thursday,
                 calendar_day: 11,
             })
         );
     }
 
     #[test]
-    fn a_distant_calendar_day_is_year_two_winter_forgeday() {
+    fn a_distant_calendar_day_is_year_two_winter_thursday() {
         let date = date_on(200, &shipped_rules());
         assert_eq!(date.season, Season::Winter);
         assert_eq!(date.year, 2);
         assert_eq!(date.day_of_season, 4);
-        assert_eq!(date.weekday, Weekday::Forgeday);
+        assert_eq!(date.weekday, Weekday::Thursday);
     }
 }
