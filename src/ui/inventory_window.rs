@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
@@ -663,31 +664,32 @@ pub fn toggle_inventory_window(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn rebuild_inventory_on_loadout_change(
-    loadout: Res<Loadout>,
-    inventory: Res<Inventory>,
-    wallet: Res<Wallet>,
-    open: Res<InventoryWindowOpen>,
-    selected: Res<InventorySelectedSlot>,
-    game: Res<State<GameState>>,
-    mut commands: Commands,
-    windows: Query<Entity, With<InventoryWindow>>,
-) {
-    if !open.0 || !loadout.is_changed() || windows.is_empty() {
+#[derive(SystemParam)]
+pub(crate) struct InventoryRebuildInputs<'w, 's> {
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    wallet: Res<'w, Wallet>,
+    open: Res<'w, InventoryWindowOpen>,
+    selected: Res<'w, InventorySelectedSlot>,
+    game: Res<'w, State<GameState>>,
+    windows: Query<'w, 's, Entity, With<InventoryWindow>>,
+}
+
+pub fn rebuild_inventory_on_loadout_change(mut commands: Commands, inputs: InventoryRebuildInputs) {
+    if !inputs.open.0 || !inputs.loadout.is_changed() || inputs.windows.is_empty() {
         return;
     }
 
-    for entity in &windows {
+    for entity in &inputs.windows {
         commands.entity(entity).try_despawn_recursive();
     }
     spawn_inventory_window(
         &mut commands,
-        &inventory,
-        &loadout,
-        LoadoutSwapAccess::from_game_state(game.get()),
-        selected.0,
-        &wallet,
+        &inputs.inventory,
+        &inputs.loadout,
+        LoadoutSwapAccess::from_game_state(inputs.game.get()),
+        inputs.selected.0,
+        &inputs.wallet,
     );
 }
 
