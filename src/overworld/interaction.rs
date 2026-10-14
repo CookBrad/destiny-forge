@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::core::{perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy};
+use crate::core::{
+    perform_sleep, CalendarDate, CalendarRules, DayClock, GameState, PlayerProfile, ProfileDirty,
+    Season, SeasonRollover, ToolEnergy,
+};
 use crate::farming::{advance_all_plots_on_sleep, capture_plots, CropPlot};
 use crate::forging::RecipeBook;
 use crate::graphics::INTERACT_DISTANCE;
@@ -88,6 +91,9 @@ pub fn try_sleep_at_bed(
     beds: Query<&Transform, With<Bed>>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut season: ResMut<Season>,
+    rules: Res<CalendarRules>,
+    mut season_rollovers: EventWriter<SeasonRollover>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
     mut clear: ResMut<ClearColor>,
@@ -106,7 +112,11 @@ pub fn try_sleep_at_bed(
         return;
     }
 
-    let day = perform_sleep(&mut day_clock, &mut tool_energy);
+    let outcome = perform_sleep(&mut day_clock, &mut tool_energy, &mut season, &rules);
+    if let Some(rollover) = outcome.season_rollover {
+        season_rollovers.send(rollover);
+    }
+    let day = outcome.calendar_day;
     advance_all_plots_on_sleep(&mut plots);
     loadout.clear_food_buff();
     profile.calendar_day = day_clock.calendar_day;
@@ -116,8 +126,13 @@ pub fn try_sleep_at_bed(
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
+    let date = CalendarDate::from_calendar_day(day, &rules);
     info!(
-        "Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned."
+        "Slept — calendar day {day}, {} {} year {} ({}). Tool energy restored; crops advanced; mine ore respawned.",
+        date.season.display_name(),
+        date.day_of_season,
+        date.year,
+        date.weekday.display_name(),
     );
 }
 
@@ -199,6 +214,9 @@ mod tests {
         .init_resource::<ForgeWindowOpen>()
         .init_resource::<DayClock>()
         .init_resource::<ToolEnergy>()
+        .init_resource::<Season>()
+        .init_resource::<CalendarRules>()
+        .add_event::<SeasonRollover>()
         .init_resource::<PlayerProfile>()
         .init_resource::<ProfileDirty>()
         .init_resource::<ClearColor>();
@@ -210,5 +228,59 @@ mod tests {
 
         assert_eq!(app.world().resource::<Loadout>().food_buff, None);
         assert_eq!(app.world().resource::<DayClock>().calendar_day, 2);
+        assert_eq!(*app.world().resource::<Season>(), Season::Spring);
+        assert!(app
+            .world_mut()
+            .resource_mut::<Events<SeasonRollover>>()
+            .drain()
+            .next()
+            .is_none());
+    }
+
+    #[test]
+    fn sleeping_out_of_winter_emits_a_season_rollover() {
+        let mut app = App::new();
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
+        .insert_resource(Loadout::default())
+        .init_resource::<InventoryWindowOpen>()
+        .init_resource::<ForgeWindowOpen>()
+        .init_resource::<DayClock>()
+        .init_resource::<ToolEnergy>()
+        .init_resource::<Season>()
+        .init_resource::<CalendarRules>()
+        .add_event::<SeasonRollover>()
+        .init_resource::<PlayerProfile>()
+        .init_resource::<ProfileDirty>()
+        .init_resource::<ClearColor>();
+        let rules = *app.world().resource::<CalendarRules>();
+        let last_day = rules.season_length() * 4;
+        app.world_mut().resource_mut::<DayClock>().calendar_day = last_day;
+        *app.world_mut().resource_mut::<Season>() =
+            CalendarDate::from_calendar_day(last_day, &rules).season;
+        app.world_mut()
+            .spawn((OverworldPlayer, Transform::default()));
+        app.world_mut().spawn((Bed, Transform::default()));
+
+        app.world_mut().run_system_once(try_sleep_at_bed).unwrap();
+
+        let rollover = app
+            .world_mut()
+            .resource_mut::<Events<SeasonRollover>>()
+            .drain()
+            .next()
+            .expect("season rollover");
+        assert_eq!(rollover.ended, Season::Winter);
+        assert_eq!(rollover.started, Season::Spring);
+        assert_eq!(rollover.year, 2);
+        assert_eq!(rollover.day_of_season, 1);
+        assert_eq!(
+            rollover.weekday,
+            CalendarDate::from_calendar_day(last_day + 1, &rules).weekday
+        );
+        assert_eq!(rollover.calendar_day, last_day + 1);
+        assert_eq!(*app.world().resource::<Season>(), Season::Spring);
     }
 }

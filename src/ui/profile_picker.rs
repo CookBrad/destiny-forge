@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
-    activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile, DayClock,
-    GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ProfileNeedsAttention,
-    ToolEnergy, PROFILE_COUNT,
+    activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
+    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty,
+    ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -81,6 +81,8 @@ pub fn begin_profile_run(
     progress: &mut WorldProgress,
     day_clock: &mut DayClock,
     tool_energy: &mut ToolEnergy,
+    season: &mut Season,
+    rules: &CalendarRules,
     audio: &mut AudioSettings,
     bindings: &mut SkillBindings,
     active: &mut ActiveProfile,
@@ -119,6 +121,8 @@ pub fn begin_profile_run(
         tool_energy,
         audio,
         bindings,
+        season,
+        rules,
     );
     true
 }
