@@ -124,13 +124,13 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 10.7. Any pull request that adds or changes behavior adds or updates the tests for that behavior in the same pull request. A behavior change with no test change blocks the pull request.
 
-10.8. Tests assert what a player or caller can observe, not private implementation details. Test names read as sentences that describe the behavior, for example `hunter_cannot_afford_recipe_without_enough_sparks`.
+10.8. Tests call the code the way the game calls it and assert exact results that a player or caller can observe, not internal details. A test that only checks that nothing panicked does not count as a test of behavior. Test names read as sentences that describe the behavior, for example `hunter_cannot_afford_recipe_without_enough_sparks`.
 
 10.9. Bevy glue stays thin, so the logic can be tested without an `App`.
 
 10.10. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
 
-10.11. Every player action has a test showing that an invalid or bad input does not crash the game (see rule 8.3).
+10.11. Every player action has a test showing that a bad or invalid input fails safely without crashing the game (see rule 8.3).
 
 ---
 
