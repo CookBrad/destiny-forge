@@ -268,7 +268,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Term | Code form | Meaning |
 | --- | --- | --- |
 | Monster | `Monster` | A runtime monster entity. |
-| Monster definition | `MonsterDef` | The data row for a monster species. |
+| Monster definition | `MonsterDefinition` | The data row for a monster species. |
 | Monster class | `MonsterClass` | Small, Large or Elder. |
 | Monster brain | `MonsterBrain` | The monster behavior state machine. |
 | Move set | `MoveSet` | The list of moves a monster can use. |
@@ -353,9 +353,9 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Gold | `gold` | The spendable currency. |
 | Destiny Spark | `DestinySpark` | The rare currency spent on Destiny Binding and endgame unlocks. |
 | Reputation | `Reputation` | Village standing points that gate upgrades and acts. |
-| Reputation rank | `RepRank` | Newcomer, Neighbor, Trusted, Pillar, Hero or Legend. |
+| Reputation rank | `ReputationRank` | Newcomer, Neighbor, Trusted, Pillar, Hero or Legend. |
 | Player level | `PlayerLevel` | Level from 1 to 20 earned from total skill XP. |
-| Skill XP | `SkillXp` | Experience per life skill. |
+| Skill experience | `SkillExperience` | Experience per life skill. |
 | Price table | `PriceTable` | Base sell prices and shop buy multipliers. |
 | Material id | `MaterialId` | The id of an inventory material. |
 | Shop | `Shop` | A vendor with stock, schedule and restock. |
@@ -372,14 +372,14 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Inventory slot | `InventorySlot` | One slot holding a material, quality and count. |
 | Input map | `InputMap` | Action-based bindings for keyboard, mouse and gamepad. |
 | Action | `Action` | One rebindable input action. |
-| UI theme | `UiTheme` | Shared frames, fonts and colors. |
+| Interface theme | `InterfaceTheme` | Shared frames, fonts and colors. |
 | Item icon | `ItemIcon` | The icon with quality star and count. |
 | Tooltip | `Tooltip` | Item details shown on hover. |
 | Material source list | `MaterialSourceList` | Where a material can be obtained. |
-| Stat delta | `StatDelta` | Green or red stat change arrows. |
+| Stat change | `StatChange` | Green or red stat change arrows. |
 | Toast | `Toast` | A queued short notification. |
-| Confirm dialog | `ConfirmDialog` | A yes or no prompt. |
-| HUD | `Hud` | The on-screen status display. |
+| Confirmation dialog | `ConfirmationDialog` | A yes or no prompt. |
+| Heads-up display | `HeadsUpDisplay` | The on-screen status display. |
 | Monster Field Guide | `FieldGuide` | Pages of monster knowledge revealed by play. |
 | Gear Stash | `GearStash` | Storage for gear pieces. |
 | Gear compare | `GearCompare` | Side-by-side current and candidate gear. |
@@ -393,10 +393,10 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Audio bus | `AudioBus` | A volume group such as music or effects. |
 | Music director | `MusicDirector` | Chooses tracks, layers, crossfades and stingers. |
 | Ambience bed | `AmbienceBed` | Layered background sound per zone, phase and weather. |
-| Sound effect registry | `SfxRegistry` | Map of cue ids to files and playback rules. |
+| Sound effect registry | `SoundEffectRegistry` | Map of cue ids to files and playback rules. |
 | Cue | `cue` | A named sound with its variants. |
-| Animation sound binding | `AnimationSfxBinding` | Plays a cue on a given sprite set frame. |
-| Spatial sound | `SpatialSfx` | Pan and fade by distance from the player. |
+| Animation sound effect binding | `AnimationSoundEffectBinding` | Plays a cue on a given sprite set frame. |
+| Spatial sound effect | `SpatialSoundEffect` | Pan and fade by distance from the player. |
 | Captions | `Captions` | On-screen text for sounds. |
 
 ## Art
@@ -413,7 +413,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Portrait | `portrait` | A villager face image with expressions. |
 | Season skin | `season_skin` | A tileset variant baked for one season. |
 | Palette | `palette` | The shared master colors. |
-| Visual effect | `vfx` | A drawn effect such as a hit spark or puff. |
+| Visual effect | `visual_effect` | A drawn effect such as a hit spark or puff. |
 
 ## Saves
 
@@ -448,7 +448,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | `dmg` | `damage` |
 | `atk` | `attack` |
 | `para` | `paralysis` |
-| `xp`, as a type name | `SkillXp` or `PlayerLevel` |
+| `xp`, XP | `SkillExperience` or `PlayerLevel` |
 | GDD | the design doc |
 | `Seeds`, as the sowing tool | `SeedBag` |
 | `WorldProgress` | `StoryFlags` or `world_flags` |
@@ -459,3 +459,10 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Stamina, for tool use | `tool_energy` |
 | Energy, for combat | `Stamina` |
 | `frame`, Frame, on its own | `animation_frame` for one image in a sprite set, `frame_material` for the forging material role |
+| `def` | `definition` |
+| `sfx` | `sound_effect`, `SoundEffect` |
+| `vfx` | `visual_effect`, `VisualEffect` |
+| `ui`, UI | `interface`, `Interface` |
+| `hud`, HUD | `heads_up_display`, `HeadsUpDisplay` |
+| `delta` | `change` |
+| `confirm`, as a name | `confirmation` |
