@@ -110,27 +110,31 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 ## 10. Tests
 
-10.1. Every new or changed function has unit tests covering its normal case, its edge cases, and its failure cases.
+10.1. Every new or changed function has unit tests for the normal case, the edge cases, and the failure case.
 
-10.2. Every Bevy system has a test that builds a headless `App` (`MinimalPlugins` plus only the plugins and resources the system needs), runs `app.update()`, and checks the exact components, resources, or events the system produced.
+10.2. Every system has a test that builds a small Bevy `App` with only the plugins it needs, runs `update()`, and checks the exact components, resources, or events that come out.
 
-10.3. Every plugin has a test that builds an `App` with that plugin and confirms that its systems and resources register and that one update runs without a panic.
+10.3. Every bug fix comes with a regression test that fails without the fix.
 
 10.4. Every `.ron` data file in the repository has a test that loads and parses it.
 
-10.5. Every save migration step has a test that loads a save from the previous version (see rule 12.2).
+10.5. Every player action has a test showing that a bad input fails safely and does not crash the game (see rule 8.3).
 
-10.6. Every bug fix adds a regression test that fails before the fix and passes after it.
+10.6. Tests call code the way the game does and check exact results, not internal details. A test that only checks that nothing panicked does not count. Test names read as sentences, for example `hunter_cannot_afford_recipe_without_enough_sparks`.
 
-10.7. Any pull request that adds or changes behavior adds or updates the tests for that behavior in the same pull request. A behavior change with no test change blocks the pull request.
+10.7. A pull request that changes behavior without a test that would catch the change is blocked.
 
-10.8. Tests call the code the way the game calls it and assert exact results that a player or caller can observe, not internal details. A test that only checks that nothing panicked does not count as a test of behavior. Test names read as sentences that describe the behavior, for example `hunter_cannot_afford_recipe_without_enough_sparks`.
+10.8. Every save migration step has a test that loads a save from the previous version (see rule 12.2).
 
-10.9. Bevy glue stays thin, so the logic can be tested without an `App`.
+10.9. Every plugin has a smoke test: an `App` with that plugin registers its systems and resources, and one update runs without a panic.
 
-10.10. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
+10.10. Every id that a `.ron` file or the code uses to refer to an entry in another data file has a test proving that it resolves to a real entry.
 
-10.11. Every player action has a test showing that a bad or invalid input fails safely without crashing the game (see rule 8.3).
+10.11. Tests are deterministic. They use fixed random seeds and fixed time steps, never the wall clock, and pass the same way on every run.
+
+10.12. Bevy glue stays thin, so the logic can be tested without an `App`.
+
+10.13. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
 
 ---
 
