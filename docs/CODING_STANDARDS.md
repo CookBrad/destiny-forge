@@ -127,3 +127,19 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 11.4. A missing or incomplete test plan blocks the pull request.
 
 11.5. Leave every file you touch cleaner than you found it, within the scope of the ticket.
+
+11.6. Each pull request changes one file. The only exceptions are the uses of a renamed name in other files and the `.ron` data files that the rename touches. The pull request body lists each of those extra files.
+
+11.7. A rename that touches `.ron` data files in the repository updates those files in the same pull request, and the game must still load in a real `cargo run`.
+
+11.8. Every pull request gets a real `cargo run` before review, including docs-only pull requests.
+
+---
+
+## 12. Saves
+
+12.1. Any change to what is stored in a save, including a rename, gets its own step in the save migration chain.
+
+12.2. Each migration step comes with a test that loads an old save and checks the migrated result.
+
+12.3. `#[serde(rename)]` and `#[serde(default)]` are never used in place of a migration step. Any `serde(rename)` in a diff blocks the pull request.
