@@ -110,9 +110,9 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 ## 10. Tests
 
-10.1. Every pure function has unit tests covering its normal case, its edge cases, and its failure cases.
+10.1. Every new or changed function has unit tests covering its normal case, its edge cases, and its failure cases.
 
-10.2. Every Bevy system has a test that builds a headless `App` (`MinimalPlugins` plus only the plugins and resources the system needs), runs the system, and asserts the resulting world state: components, resources, and events.
+10.2. Every Bevy system has a test that builds a headless `App` (`MinimalPlugins` plus only the plugins and resources the system needs), runs `app.update()`, and checks the exact components, resources, or events the system produced.
 
 10.3. Every plugin has a test that builds an `App` with that plugin and confirms that its systems and resources register and that one update runs without a panic.
 
@@ -124,11 +124,13 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 10.7. Any pull request that adds or changes behavior adds or updates the tests for that behavior in the same pull request. A behavior change with no test change blocks the pull request.
 
-10.8. Tests assert what a player or caller can observe, not private implementation details. Test names read as sentences that describe the behavior, for example `hunter_cannot_craft_without_enough_materials`.
+10.8. Tests assert what a player or caller can observe, not private implementation details. Test names read as sentences that describe the behavior, for example `hunter_cannot_afford_recipe_without_enough_sparks`.
 
 10.9. Bevy glue stays thin, so the logic can be tested without an `App`.
 
 10.10. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
+
+10.11. Every player action has a test showing that an invalid or bad input does not crash the game (see rule 8.3).
 
 ---
 
