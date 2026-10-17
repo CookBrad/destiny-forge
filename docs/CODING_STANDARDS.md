@@ -142,11 +142,11 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 11.1. The pull request test plan names the exact head commit SHA that was tested.
 
-11.2. The test plan states that `cargo test --bin destiny_forge` and a real `cargo run` both passed with zero warnings.
+11.2. The test plan states that `cargo test --bin destiny_forge` passed with zero warnings and that a real `cargo run` passed with zero warnings. A docs-only pull request leaves out the `cargo run` result (see rule 11.8).
 
 11.3. The test plan states that CI is green on that commit.
 
-11.4. A missing or incomplete test plan blocks the pull request.
+11.4. A missing or incomplete test plan blocks the pull request. A docs-only test plan without a `cargo run` result is complete (see rule 11.8).
 
 11.5. Leave every file you touch cleaner than you found it, within the scope of the ticket.
 
@@ -154,7 +154,7 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 11.7. A rename that touches `.ron` data files in the repository updates those files in the same pull request, and the game must still load in a real `cargo run`.
 
-11.8. Every pull request gets a real `cargo run` before review, including docs-only pull requests.
+11.8. Every pull request gets a real `cargo run` before review, except docs-only pull requests, meaning pull requests that touch only `.md` files.
 
 ---
 
