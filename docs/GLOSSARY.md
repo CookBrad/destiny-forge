@@ -64,7 +64,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Term | Code form | Meaning |
 | --- | --- | --- |
 | Hearthspire Crystal Mines | `CrystalMines` | The 40-floor top-down mine entered from the homestead. |
-| Floor | `floor` | One numbered level of the mine. |
+| Mine floor | `MineFloor`, `mine_floor` plus a number | One numbered level of the mine. |
 | Stratum | `Stratum` | A band of ten floors sharing a theme, ores and monsters. |
 | Upper Shafts | `UpperShafts` | Stratum of floors 1 to 10. |
 | Clockwork Galleries | `ClockworkGalleries` | Stratum of floors 11 to 20. |
@@ -454,7 +454,8 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | `WorldProgress` | `StoryFlags` or `world_flags` |
 | `skill_bindings` | `input_bindings` |
 | `WeaponKind`, `ArmorKind` | `GearPiece` with a `GearId` |
-| `B20`, `F20` style floor names | `floor` with a number |
+| `B20`, `F20` style floor names | `mine_floor` with a number |
+| `floor`, Floor, on its own; `F1`; `B1` | `MineFloor`, `mine_floor` plus a number |
 | Stamina, for tool use | `tool_energy` |
 | Energy, for combat | `Stamina` |
 | `frame`, Frame, on its own | `animation_frame` for one image in a sprite set, `frame_material` for the forging material role |
