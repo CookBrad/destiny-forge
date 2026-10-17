@@ -110,9 +110,25 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 ## 10. Tests
 
-10.1. Pure logic (recipes, set bonuses, inventory math) has unit tests.
+10.1. Every pure function has unit tests covering its normal case, its edge cases, and its failure cases.
 
-10.2. Systems that glue Bevy together stay thin, so the logic stays testable without a full app.
+10.2. Every Bevy system has a test that builds a headless `App` (`MinimalPlugins` plus only the plugins and resources the system needs), runs the system, and asserts the resulting world state: components, resources, and events.
+
+10.3. Every plugin has a test that builds an `App` with that plugin and confirms that its systems and resources register and that one update runs without a panic.
+
+10.4. Every `.ron` data file in the repository has a test that loads and parses it.
+
+10.5. Every save migration step has a test that loads a save from the previous version (see rule 12.2).
+
+10.6. Every bug fix adds a regression test that fails before the fix and passes after it.
+
+10.7. Any pull request that adds or changes behavior adds or updates the tests for that behavior in the same pull request. A behavior change with no test change blocks the pull request.
+
+10.8. Tests assert what a player or caller can observe, not private implementation details. Test names read as sentences that describe the behavior, for example `hunter_cannot_craft_without_enough_materials`.
+
+10.9. Bevy glue stays thin, so the logic can be tested without an `App`.
+
+10.10. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
 
 ---
 
