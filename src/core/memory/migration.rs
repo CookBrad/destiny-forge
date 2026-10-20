@@ -812,6 +812,28 @@ mod tests {
     }
 
     #[test]
+    fn a_version_10_save_loads_its_depleted_ore_nodes() {
+        let profile = profile_from_ron(&version_10_save()).unwrap();
+        assert_eq!(profile.version, PROFILE_VERSION);
+        assert_eq!(profile.mine.depleted_ore_node_ids, vec![3, 9]);
+    }
+
+    fn version_10_save() -> String {
+        V8_PROFILE
+            .replace("version:8,", "version:10,")
+            .replace(
+                "name:\"Hearth\",\n",
+                "header:(name:\"Hearth\",playtime_seconds:4,calendar:(calendar_day:18,day_phase:Evening),location:Forest,gold:7),\n",
+            )
+            .replace("calendar_day:18,\n", "")
+            .replace("day_phase:Evening,\n", "")
+            .replace(
+                "tool_energy:55.0,\ncrop_plots:[(tile_x:4,tile_y:2,stage:Growing(crop:Turnip,days:1,watered:true))],\n",
+                "homestead:(tool_energy:55.0,crop_plots:[(tile_x:4,tile_y:2,stage:Growing(crop:Turnip,days:1,watered:true))]),\n",
+            )
+    }
+
+    #[test]
     fn version_11_migration_nests_depleted_ore_nodes() {
         let mut value = parse_ron_value("(version:10,depleted_ore_node_ids:[3,9])").unwrap();
         migrate_profile_to_v11(&mut value);
