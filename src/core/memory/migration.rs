@@ -557,12 +557,26 @@ mod tests {
     }
 
     #[test]
-    fn version_8_save_keeps_an_existing_header_and_drops_flat_fields() {
-        let text = V8_PROFILE.replace(
+    fn version_8_save_keeps_an_existing_header() {
+        let profile = profile_from_ron(&version_8_save_with_a_header()).unwrap();
+        assert_eq!(profile.header.name, "Kept");
+        assert_eq!(profile.header.playtime_seconds, 9);
+        assert_eq!(profile.header.location, SaveLocation::Mine);
+        assert_eq!(profile.header.gold, 4);
+        assert_eq!(profile.header.calendar.calendar_day, 2);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+    }
+
+    fn version_8_save_with_a_header() -> String {
+        V8_PROFILE.replace(
             "version:8,",
             "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
-        );
-        let mut value = parse_ron_value(&text).unwrap();
+        )
+    }
+
+    #[test]
+    fn version_8_save_drops_flat_name_calendar_day_and_day_phase() {
+        let mut value = parse_ron_value(&version_8_save_with_a_header()).unwrap();
         apply_profile_migrations(&mut value).unwrap();
         let RonValue::Map(fields) = &value else {
             panic!("profile save is not a struct");
@@ -570,13 +584,6 @@ mod tests {
         assert!(!fields.iter().any(|(name, _)| name == "name"));
         assert!(!fields.iter().any(|(name, _)| name == "calendar_day"));
         assert!(!fields.iter().any(|(name, _)| name == "day_phase"));
-        let profile = profile_from_ron(&text).unwrap();
-        assert_eq!(profile.header.name, "Kept");
-        assert_eq!(profile.header.playtime_seconds, 9);
-        assert_eq!(profile.header.location, SaveLocation::Mine);
-        assert_eq!(profile.header.gold, 4);
-        assert_eq!(profile.header.calendar.calendar_day, 2);
-        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
     }
 
     #[test]
