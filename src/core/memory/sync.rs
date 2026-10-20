@@ -15,6 +15,17 @@ use super::settings::GameSettings;
 use super::storage::{save_profile, save_root_display, save_settings};
 use super::ProfileDirty;
 
+#[derive(Clone, Copy)]
+pub struct ProfileSnapshot<'a> {
+    pub inventory: &'a Inventory,
+    pub loadout: &'a Loadout,
+    pub progress: &'a WorldProgress,
+    pub day_clock: &'a DayClock,
+    pub tool_energy: &'a ToolEnergy,
+    pub audio: &'a AudioSettings,
+    pub bindings: &'a SkillBindings,
+}
+
 #[derive(SystemParam)]
 pub(crate) struct HydratedRuntime<'w> {
     audio: ResMut<'w, AudioSettings>,
@@ -103,36 +114,29 @@ pub fn capture_profile_from_runtime(
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
+        ProfileSnapshot {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+        },
         &mut profile,
     );
     dirty.mark();
 }
 
-pub fn snapshot_profile(
-    inventory: &Inventory,
-    loadout: &Loadout,
-    progress: &WorldProgress,
-    day_clock: &DayClock,
-    tool_energy: &ToolEnergy,
-    audio: &AudioSettings,
-    bindings: &SkillBindings,
-    profile: &mut PlayerProfile,
-) {
-    profile.inventory = inventory.clone();
-    profile.loadout = loadout.clone();
-    profile.progress = progress.clone();
-    profile.calendar_day = day_clock.calendar_day;
-    profile.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
-    profile.settings.capture_audio(audio);
-    profile.settings.capture_skill_bindings(bindings);
+pub fn snapshot_profile(source: ProfileSnapshot<'_>, profile: &mut PlayerProfile) {
+    profile.inventory = source.inventory.clone();
+    profile.loadout = source.loadout.clone();
+    profile.progress = source.progress.clone();
+    profile.calendar_day = source.day_clock.calendar_day;
+    profile.day_phase = source.day_clock.phase;
+    profile.tool_energy = source.tool_energy.current;
+    profile.settings.capture_audio(source.audio);
+    profile.settings.capture_skill_bindings(source.bindings);
 }
 
 pub fn activate_profile(
@@ -156,13 +160,15 @@ pub fn activate_profile(
     }
 
     snapshot_profile(
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
+        ProfileSnapshot {
+            inventory,
+            loadout,
+            progress,
+            day_clock,
+            tool_energy,
+            audio,
+            bindings,
+        },
         profile,
     );
     if let Err(error) = save_profile(active.index(), profile) {
