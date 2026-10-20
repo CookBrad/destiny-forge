@@ -5,8 +5,9 @@ use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
-    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty,
-    ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
+    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileApply, ProfileAutosaveBlock,
+    ProfileCapture, ProfileDirty, ProfileNeedsAttention, ProfileSession, Season, ToolEnergy,
+    PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, Wallet, WorldProgress};
@@ -100,35 +101,143 @@ pub fn begin_profile_run(index: u8, run: &mut ProfileRun) -> bool {
     }
     let switched = activate_profile(
         index,
-        &run.inventory,
-        &run.loadout,
-        &run.progress,
-        &run.day_clock,
-        &run.tool_energy,
-        &run.audio,
-        &run.bindings,
-        &run.wallet,
-        &mut run.active,
-        &mut run.profile,
-        &mut run.global,
-        &mut run.profile_dirty,
-        &mut run.autosave_block,
+        &ProfileCapture {
+            inventory: &run.inventory,
+            loadout: &run.loadout,
+            progress: &run.progress,
+            day_clock: &run.day_clock,
+            tool_energy: &run.tool_energy,
+            audio: &run.audio,
+            bindings: &run.bindings,
+            wallet: &run.wallet,
+        },
+        &mut ProfileSession {
+            active: &mut run.active,
+            profile: &mut run.profile,
+            global: &mut run.global,
+            dirty: &mut run.profile_dirty,
+            autosave_block: &mut run.autosave_block,
+        },
     );
     if !switched {
         return false;
     }
     apply_profile_to_runtime(
         &run.profile,
-        &mut run.inventory,
-        &mut run.loadout,
-        &mut run.progress,
-        &mut run.day_clock,
-        &mut run.tool_energy,
-        &mut run.audio,
-        &mut run.bindings,
-        &mut run.season,
-        &run.rules,
-        &mut run.wallet,
+        &mut ProfileApply {
+            inventory: &mut run.inventory,
+            loadout: &mut run.loadout,
+            progress: &mut run.progress,
+            day_clock: &mut run.day_clock,
+            tool_energy: &mut run.tool_energy,
+            audio: &mut run.audio,
+            bindings: &mut run.bindings,
+            season: &mut run.season,
+            rules: &run.rules,
+            wallet: &mut run.wallet,
+        },
     );
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::player::DestinySpark;
+
+    #[derive(Resource, Default)]
+    struct StartResult(bool);
+
+    #[test]
+    fn starting_the_active_profile_copies_its_wallet_into_the_runtime() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 18,
+                sparks: DestinySpark(5),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = profile_run_app(profile, Wallet::default(), false);
+        app.add_systems(Update, start_active_profile);
+        app.update();
+        assert!(app.world().resource::<StartResult>().0);
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 18);
+        assert_eq!(wallet.sparks.amount(), 5);
+    }
+
+    #[test]
+    fn starting_a_blocked_profile_leaves_the_runtime_wallet_unchanged() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 9,
+                sparks: DestinySpark(1),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = profile_run_app(
+            profile,
+            Wallet {
+                gold: 1,
+                sparks: DestinySpark(0),
+            },
+            true,
+        );
+        app.add_systems(Update, start_active_profile);
+        app.update();
+        assert!(!app.world().resource::<StartResult>().0);
+        assert_eq!(app.world().resource::<Wallet>().gold, 1);
+    }
+
+    #[test]
+    fn an_index_past_the_last_slot_starts_that_slot() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 6,
+                sparks: DestinySpark(0),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = profile_run_app(profile, Wallet::default(), false);
+        app.world_mut().resource_mut::<ActiveProfile>().0 = PROFILE_COUNT - 1;
+        app.add_systems(Update, start_past_the_last_slot);
+        app.update();
+        assert!(app.world().resource::<StartResult>().0);
+        assert_eq!(app.world().resource::<Wallet>().gold, 6);
+        assert_eq!(app.world().resource::<ActiveProfile>().0, PROFILE_COUNT - 1);
+    }
+
+    fn start_active_profile(mut run: ProfileRun, mut result: ResMut<StartResult>) {
+        result.0 = begin_profile_run(0, &mut run);
+    }
+
+    fn start_past_the_last_slot(mut run: ProfileRun, mut result: ResMut<StartResult>) {
+        result.0 = begin_profile_run(99, &mut run);
+    }
+
+    fn profile_run_app(profile: PlayerProfile, wallet: Wallet, blocked: bool) -> App {
+        let mut block = ProfileAutosaveBlock::default();
+        if blocked {
+            block.block(0);
+        }
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Inventory::default())
+            .insert_resource(Loadout::default())
+            .insert_resource(WorldProgress::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::Spring)
+            .insert_resource(CalendarRules::load())
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(wallet)
+            .insert_resource(ActiveProfile(0))
+            .insert_resource(profile)
+            .insert_resource(GameSettings::default())
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(block)
+            .insert_resource(StartResult::default());
+        app
+    }
 }

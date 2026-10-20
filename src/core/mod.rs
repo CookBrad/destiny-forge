@@ -11,8 +11,8 @@ pub use day_cycle::{perform_sleep, sync_overworld_ambient, DayClock, ToolEnergy}
 pub use memory::{
     activate_profile, apply_profile_to_runtime, load_profile_for_slot, rename_profile_on_disk,
     sanitize_profile_name, save_root_display, ActiveProfile, GameSettings, PlayerProfile,
-    ProfileAutosaveBlock, ProfileDirty, ProfileNeedsAttention, SavedCropKind, SavedCropPlot,
-    SavedPlotStage, PROFILE_COUNT,
+    ProfileApply, ProfileAutosaveBlock, ProfileCapture, ProfileDirty, ProfileNeedsAttention,
+    ProfileSession, SavedCropKind, SavedCropPlot, SavedPlotStage, PROFILE_COUNT,
 };
 pub use plugin::CorePlugin;
 pub use season::{CalendarDate, CalendarRules, Season, SeasonRollover};

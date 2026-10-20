@@ -226,6 +226,7 @@ mod tests {
     use super::*;
     use crate::combat::WeaponKind;
     use crate::items::{ItemQuality, MaterialId, INVENTORY_SLOT_COUNT};
+    use crate::player::DestinySpark;
 
     const V2_PROFILE: &str = include_str!("fixtures/profile_v2.ron");
     const V3_PROFILE: &str = include_str!("fixtures/profile_v3.ron");
@@ -500,7 +501,7 @@ mod tests {
         assert_eq!(profile.version, PROFILE_VERSION);
         assert_eq!(profile.name, "Hearth");
         assert_eq!(profile.wallet.gold, 0);
-        assert_eq!(profile.wallet.sparks, 0);
+        assert_eq!(profile.wallet.sparks, DestinySpark(0));
         assert_eq!(
             profile
                 .inventory
@@ -523,13 +524,20 @@ mod tests {
         let profile = profile_from_ron(&text).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
         assert_eq!(profile.wallet.gold, 250);
-        assert_eq!(profile.wallet.sparks, 4);
+        assert_eq!(profile.wallet.sparks, DestinySpark(4));
         assert_eq!(
             profile
                 .inventory
                 .count_quality(MaterialId::CopperOre, ItemQuality::Silver),
             12
         );
+    }
+
+    #[test]
+    fn version_8_save_with_a_broken_wallet_does_not_load() {
+        let text = V8_PROFILE.replacen("settings:", "wallet:(gold:1,sparks:many),settings:", 1);
+        let error = profile_from_ron(&text).unwrap_err();
+        assert!(error.contains("Expected integer"));
     }
 
     #[test]
