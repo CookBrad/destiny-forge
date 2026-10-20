@@ -491,8 +491,8 @@ mod tests {
             weapon: WeaponKind::RustySpear,
             ..Loadout::default()
         };
-        spear.armor.head = Some(ArmorPiece::Helm);
-        spear.armor.chest = Some(ArmorPiece::Mail);
+        spear.armor.helm = Some(ArmorPiece::Helm);
+        spear.armor.mail = Some(ArmorPiece::Mail);
         let full = SpecialMoveKind::Thrust.base_cooldown() * spear.special_cooldown_multiplier();
         assert!((full - 3.5 * 0.9).abs() < 1e-5);
 

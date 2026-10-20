@@ -39,7 +39,7 @@ pub struct StashWeaponButton {
 
 #[derive(Component, Clone, Copy)]
 pub struct StashArmorButton {
-    pub kind: ArmorPiece,
+    pub piece: ArmorPiece,
 }
 
 pub fn spawn_loadout_strip(
@@ -101,8 +101,8 @@ fn spawn_stash_row(parent: &mut ChildBuilder<'_>, loadout: &Loadout, access: Loa
             for weapon in &loadout.stash.weapons {
                 spawn_weapon_button(row, *weapon);
             }
-            for kind in &loadout.stash.armor {
-                spawn_armor_button(row, *kind);
+            for piece in &loadout.stash.armor {
+                spawn_armor_button(row, *piece);
             }
         });
 }
@@ -115,8 +115,8 @@ fn spawn_weapon_button(parent: &mut ChildBuilder<'_>, weapon: WeaponKind) {
     );
 }
 
-fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorPiece) {
-    spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
+fn spawn_armor_button(parent: &mut ChildBuilder<'_>, piece: ArmorPiece) {
+    spawn_stash_button(parent, StashArmorButton { piece }, piece.label());
 }
 
 fn spawn_stash_button(parent: &mut ChildBuilder<'_>, marker: impl Bundle, label: &'static str) {
@@ -179,7 +179,7 @@ pub fn handle_stash_armor_click(
     mut dirty: ResMut<ProfileDirty>,
 ) {
     for (interaction, button) in &interactions {
-        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_armor(button.kind) {
+        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_armor(button.piece) {
             dirty.mark();
         }
     }
