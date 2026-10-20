@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
@@ -30,7 +30,7 @@ impl Plugin for MemoryPlugin {
             .insert_resource(Inventory::default())
             .insert_resource(Loadout::default())
             .insert_resource(WorldProgress::default())
-            // DayClock / ToolEnergy are init'd in CorePlugin (after MemoryPlugin wiring).
+            .insert_resource(Wallet::default())
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
             .add_systems(Startup, hydrate_runtime_from_memory)
