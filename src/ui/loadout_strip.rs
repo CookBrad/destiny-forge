@@ -204,6 +204,39 @@ enum StashCycle {
     Last,
 }
 
+pub fn handle_loadout_swap_keys(
+    actions: Res<ActionState>,
+    game: Res<State<GameState>>,
+    mut loadout: ResMut<Loadout>,
+    mut dirty: ResMut<ProfileDirty>,
+) {
+    if LoadoutSwapAccess::from_game_state(game.get()) != LoadoutSwapAccess::Hub {
+        return;
+    }
+
+    let cycle = if actions.just_pressed(Action::EquipFirstStashedWeapon) {
+        StashCycle::First
+    } else if actions.just_pressed(Action::EquipLastStashedWeapon) {
+        StashCycle::Last
+    } else {
+        return;
+    };
+
+    let Some(weapon) = cycled_stash_weapon(&loadout, cycle) else {
+        return;
+    };
+    if loadout.swap_to_stashed_weapon(weapon) {
+        dirty.mark();
+    }
+}
+
+fn cycled_stash_weapon(loadout: &Loadout, cycle: StashCycle) -> Option<WeaponKind> {
+    match cycle {
+        StashCycle::First => loadout.stash.weapons.first().copied(),
+        StashCycle::Last => loadout.stash.weapons.last().copied(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,38 +433,5 @@ mod tests {
         assert_eq!(loadout.armor.legs, None);
         assert!(loadout.stash.armor.is_empty());
         assert!(!app.world().resource::<ProfileDirty>().0);
-    }
-}
-
-pub fn handle_loadout_swap_keys(
-    actions: Res<ActionState>,
-    game: Res<State<GameState>>,
-    mut loadout: ResMut<Loadout>,
-    mut dirty: ResMut<ProfileDirty>,
-) {
-    if LoadoutSwapAccess::from_game_state(game.get()) != LoadoutSwapAccess::Hub {
-        return;
-    }
-
-    let cycle = if actions.just_pressed(Action::EquipFirstStashedWeapon) {
-        StashCycle::First
-    } else if actions.just_pressed(Action::EquipLastStashedWeapon) {
-        StashCycle::Last
-    } else {
-        return;
-    };
-
-    let Some(weapon) = cycled_stash_weapon(&loadout, cycle) else {
-        return;
-    };
-    if loadout.swap_to_stashed_weapon(weapon) {
-        dirty.mark();
-    }
-}
-
-fn cycled_stash_weapon(loadout: &Loadout, cycle: StashCycle) -> Option<WeaponKind> {
-    match cycle {
-        StashCycle::First => loadout.stash.weapons.first().copied(),
-        StashCycle::Last => loadout.stash.weapons.last().copied(),
     }
 }
