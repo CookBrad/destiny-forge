@@ -4,6 +4,7 @@ mod terrain;
 
 use std::collections::HashSet;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::graphics::DungeonScrollBounds;
@@ -140,18 +141,33 @@ pub fn cleanup_dungeon(
     despawn_dungeon(&mut commands, &entities, &parents);
 }
 
-pub fn retry_dungeon(
-    actions: Res<ActionState>,
-    layout: Option<Res<DungeonLayout>>,
-    loadout: Res<Loadout>,
-    world_progress: Res<WorldProgress>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut images: ResMut<Assets<Image>>,
-    entities: Query<Entity, With<DungeonEntity>>,
-    parents: Query<&Parent>,
-    mut next_play: ResMut<NextState<crate::core::DungeonPlayState>>,
-) {
+#[derive(SystemParam)]
+pub(crate) struct RetryDungeonParams<'w, 's> {
+    actions: Res<'w, ActionState>,
+    layout: Option<Res<'w, DungeonLayout>>,
+    loadout: Res<'w, Loadout>,
+    world_progress: Res<'w, WorldProgress>,
+    commands: Commands<'w, 's>,
+    asset_server: Res<'w, AssetServer>,
+    images: ResMut<'w, Assets<Image>>,
+    entities: Query<'w, 's, Entity, With<DungeonEntity>>,
+    parents: Query<'w, 's, &'static Parent>,
+    next_play: ResMut<'w, NextState<crate::core::DungeonPlayState>>,
+}
+
+pub fn retry_dungeon(params: RetryDungeonParams) {
+    let RetryDungeonParams {
+        actions,
+        layout,
+        loadout,
+        world_progress,
+        mut commands,
+        asset_server,
+        mut images,
+        entities,
+        parents,
+        mut next_play,
+    } = params;
     if retry_requested(&actions) {
         let seed = layout.as_deref().map(|layout| layout.seed);
         despawn_dungeon(&mut commands, &entities, &parents);

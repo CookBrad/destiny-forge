@@ -33,6 +33,23 @@ const MAX_AIR_JUMPS: u8 = 1;
 const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
 
+pub(crate) type DungeonMover<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Transform,
+        &'static mut PlayerVelocity,
+        &'static mut PlayerAirJumps,
+        &'static mut Health,
+        &'static PlayerAttack,
+        &'static PlayerBlock,
+        Option<&'static PlayerSpecialMove>,
+        Option<&'static mut PlayerKnockback>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn dungeon_movement(
     actions: Res<ActionState>,
     time: Res<Time>,
@@ -40,20 +57,7 @@ pub fn dungeon_movement(
     mut commands: Commands,
     bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
-    mut player: Query<
-        (
-            Entity,
-            &mut Transform,
-            &mut PlayerVelocity,
-            &mut PlayerAirJumps,
-            &mut Health,
-            &PlayerAttack,
-            &PlayerBlock,
-            Option<&PlayerSpecialMove>,
-            Option<&mut PlayerKnockback>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    mut player: DungeonMover,
 ) {
     let Ok((
         entity,
