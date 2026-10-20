@@ -234,28 +234,44 @@ fn ready_plant_visual(crop: CropKind) -> LayerVisual {
     }
 }
 
+pub(crate) type ChangedPlotSoils<'w, 's> = Query<
+    'w,
+    's,
+    (&'static CropPlot, &'static Children, &'static mut Sprite),
+    (With<CropSoilSprite>, Changed<CropPlot>),
+>;
+
+pub(crate) type PlotPlantLayers<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Sprite,
+        &'static mut Transform,
+        &'static mut Visibility,
+    ),
+    (
+        With<CropPlantSprite>,
+        Without<CropSoilSprite>,
+        Without<CropWaterSprite>,
+    ),
+>;
+
+pub(crate) type PlotWaterLayers<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Sprite, &'static mut Visibility),
+    (
+        With<CropWaterSprite>,
+        Without<CropSoilSprite>,
+        Without<CropPlantSprite>,
+    ),
+>;
+
 pub fn sync_plot_visuals(
     art: Res<OverworldArt>,
-    mut plots: Query<
-        (&CropPlot, &Children, &mut Sprite),
-        (With<CropSoilSprite>, Changed<CropPlot>),
-    >,
-    mut plants: Query<
-        (&mut Sprite, &mut Transform, &mut Visibility),
-        (
-            With<CropPlantSprite>,
-            Without<CropSoilSprite>,
-            Without<CropWaterSprite>,
-        ),
-    >,
-    mut waters: Query<
-        (&mut Sprite, &mut Visibility),
-        (
-            With<CropWaterSprite>,
-            Without<CropSoilSprite>,
-            Without<CropPlantSprite>,
-        ),
-    >,
+    mut plots: ChangedPlotSoils,
+    mut plants: PlotPlantLayers,
+    mut waters: PlotWaterLayers,
 ) {
     for (plot, children, mut soil_sprite) in &mut plots {
         let soil = soil_visual(plot.stage);
