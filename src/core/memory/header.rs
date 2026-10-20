@@ -7,35 +7,43 @@ use super::autosave::{debounced_autosave, queue_autosave, ProfileDirty};
 use super::profile::{bank_playtime, PlayerProfile};
 use super::sync::capture_profile_from_runtime;
 
+#[derive(Resource, Default)]
+pub(super) struct BankedPlaytimeSeconds(pub u64);
+
 pub(super) fn add_save_header_systems(app: &mut App) {
-    app.add_systems(
-        Update,
-        (
-            accrue_playtime_and_mark_dirty,
-            remember_current_location,
-            capture_profile_from_runtime,
-            queue_autosave,
-            debounced_autosave,
-        )
-            .chain(),
-    );
+    app.init_resource::<BankedPlaytimeSeconds>()
+        .add_systems(
+            Update,
+            (
+                accrue_playtime,
+                mark_profile_dirty_when_a_second_is_banked,
+                remember_current_location,
+                capture_profile_from_runtime,
+                queue_autosave,
+                debounced_autosave,
+            )
+                .chain(),
+        );
 }
 
-pub(super) fn accrue_playtime_and_mark_dirty(
+pub(super) fn accrue_playtime(
     time: Res<Time>,
     state: Res<State<GameState>>,
     mut profile: ResMut<PlayerProfile>,
-    mut dirty: ResMut<ProfileDirty>,
+    mut banked: ResMut<BankedPlaytimeSeconds>,
 ) {
     if state.get() == &GameState::Title {
+        banked.0 = 0;
         return;
     }
-    let banked_seconds = bank_playtime(&mut profile, time.delta_secs());
-    mark_dirty_when_seconds_were_banked(&mut dirty, banked_seconds);
+    banked.0 = bank_playtime(&mut profile, time.delta_secs());
 }
 
-fn mark_dirty_when_seconds_were_banked(dirty: &mut ProfileDirty, banked_seconds: u64) {
-    if banked_seconds > 0 {
+pub(super) fn mark_profile_dirty_when_a_second_is_banked(
+    banked: Res<BankedPlaytimeSeconds>,
+    mut dirty: ResMut<ProfileDirty>,
+) {
+    if banked.0 > 0 {
         dirty.mark();
     }
 }
@@ -45,12 +53,12 @@ pub(super) fn remember_current_location(
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    if store_location(&mut profile.header, state.get()) {
+    if location_changed_after_storing(&mut profile.header, state.get()) {
         dirty.mark();
     }
 }
 
-fn store_location(header: &mut SaveHeader, state: &GameState) -> bool {
+fn location_changed_after_storing(header: &mut SaveHeader, state: &GameState) -> bool {
     let Some(location) = SaveLocation::from_game_state(state) else {
         return false;
     };
@@ -132,7 +140,7 @@ mod tests {
 
     fn store_location_in_copy(header: SaveHeader, state: GameState) -> (bool, SaveLocation) {
         let mut header = header;
-        let changed = store_location(&mut header, &state);
+        let changed = location_changed_after_storing(&mut header, &state);
         (changed, header.location)
     }
 
@@ -288,7 +296,11 @@ mod tests {
             .insert_resource(State::new(state))
             .insert_resource(PlayerProfile::default())
             .insert_resource(ProfileDirty::default())
-            .add_systems(Update, accrue_playtime_and_mark_dirty);
+            .insert_resource(BankedPlaytimeSeconds::default())
+            .add_systems(
+                Update,
+                (accrue_playtime, mark_profile_dirty_when_a_second_is_banked).chain(),
+            );
         app.world_mut()
             .resource_mut::<Time<bevy::time::Virtual>>()
             .set_max_delta(std::time::Duration::from_secs(2));
@@ -347,6 +359,48 @@ mod tests {
                 dirty: false,
             }
         );
+    }
+
+    #[test]
+    fn accrue_playtime_banks_one_second_and_leaves_the_profile_clean() {
+        let mut app = app_accruing_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 1500);
+        app.update();
+        assert_eq!(
+            stored_playtime(&app),
+            StoredPlaytime {
+                seconds: 1,
+                fraction: 0.5,
+                dirty: false,
+            }
+        );
+    }
+
+    fn app_accruing_playtime(state: GameState) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(state))
+            .insert_resource(PlayerProfile::default())
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(BankedPlaytimeSeconds::default())
+            .add_systems(Update, accrue_playtime);
+        app.world_mut()
+            .resource_mut::<Time<bevy::time::Virtual>>()
+            .set_max_delta(std::time::Duration::from_secs(2));
+        set_frame_milliseconds(&mut app, 0);
+        app.update();
+        app
+    }
+
+    #[test]
+    fn a_banked_second_marks_the_profile_dirty() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(BankedPlaytimeSeconds(1))
+            .add_systems(Update, mark_profile_dirty_when_a_second_is_banked);
+        app.update();
+        assert!(app.world().resource::<ProfileDirty>().0);
     }
 
     #[test]
