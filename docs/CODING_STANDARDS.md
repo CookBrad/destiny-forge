@@ -134,7 +134,7 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 10.12. Bevy glue stays thin, so the logic can be tested without an `App`.
 
-10.13. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same one-file pull request as the code they test (see rule 11.6).
+10.13. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same pull request as the code they test (see rule 11.6).
 
 ---
 
@@ -150,7 +150,7 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 11.5. Leave every file you touch cleaner than you found it, within the scope of the ticket.
 
-11.6. Each pull request changes one file. The only exceptions are the uses of a renamed name in other files, the `.ron` data files that the rename touches, and `docs/GLOSSARY.md` when rule 6.3 requires a new game term to be added in the same pull request. The pull request body lists each of those extra files.
+11.6. Each pull request covers one concern: one ticket, or the cleanup of one module. A module is one source file, or one plugin with its mod.rs and the files under it. A pull request changes at most 200 lines. Tests, `.ron` data files, `docs/GLOSSARY.md`, and the call-site edits that a rename forces do not count toward the cap. Larger work is split into a chain of pull requests, and each one passes CI on its own.
 
 11.7. A rename that touches `.ron` data files in the repository updates those files in the same pull request, and the game must still load in a real `cargo run`.
 
