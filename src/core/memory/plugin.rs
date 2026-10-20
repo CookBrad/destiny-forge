@@ -31,7 +31,6 @@ impl Plugin for MemoryPlugin {
             .insert_resource(Loadout::default())
             .insert_resource(WorldProgress::default())
             .insert_resource(Wallet::default())
-            // DayClock / ToolEnergy are init'd in CorePlugin (after MemoryPlugin wiring).
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
             .add_systems(Startup, hydrate_runtime_from_memory)
