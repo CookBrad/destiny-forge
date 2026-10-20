@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
+use super::autosave::{flush_saves_on_exit, ProfileDirty};
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::profile::ActiveProfile;
 use super::storage::load_settings;
@@ -34,15 +34,38 @@ impl Plugin for MemoryPlugin {
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
             .add_systems(Startup, hydrate_runtime_from_memory)
-            .add_systems(
-                Update,
-                (
-                    super::sync::capture_profile_from_runtime,
-                    queue_autosave,
-                    debounced_autosave,
-                )
-                    .chain(),
-            )
             .add_systems(Last, flush_saves_on_exit);
+        super::header::add_save_header_systems(app);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::AudioSettings;
+    use crate::combat::SkillBindings;
+    use crate::core::day_cycle::{DayClock, ToolEnergy};
+    use crate::core::season::{CalendarRules, Season};
+    use crate::core::state::GameState;
+
+    #[test]
+    fn memory_plugin_runs_one_update_with_a_blank_header() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(GameState::Title))
+            .init_resource::<AudioSettings>()
+            .init_resource::<SkillBindings>()
+            .init_resource::<DayClock>()
+            .init_resource::<ToolEnergy>()
+            .init_resource::<Season>()
+            .init_resource::<CalendarRules>()
+            .add_plugins(MemoryPlugin);
+        app.update();
+        let profile = app
+            .world()
+            .resource::<super::super::profile::PlayerProfile>();
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.playtime_fraction, 0.0);
+        assert!(!app.world().resource::<ProfileDirty>().0);
     }
 }

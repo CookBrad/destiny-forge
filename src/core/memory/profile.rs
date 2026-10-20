@@ -43,7 +43,7 @@ pub struct PlayerProfile {
 
 impl Default for PlayerProfile {
     fn default() -> Self {
-        let mut profile = Self {
+        Self {
             version: PROFILE_VERSION,
             header: SaveHeader::default(),
             inventory: Inventory::with_starter_kit(),
@@ -54,9 +54,7 @@ impl Default for PlayerProfile {
             depleted_ore_node_ids: Vec::new(),
             settings: ProfileSettings::default(),
             playtime_fraction: 0.0,
-        };
-        let _banked = bank_playtime(&mut profile, 0.0);
-        profile
+        }
     }
 }
 
