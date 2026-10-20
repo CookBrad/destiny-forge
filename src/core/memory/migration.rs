@@ -558,17 +558,53 @@ mod tests {
 
     #[test]
     fn version_8_save_keeps_an_existing_header() {
-        let text = V8_PROFILE.replace(
-            "version:8,",
-            "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
-        );
-        let profile = profile_from_ron(&text).unwrap();
+        let profile = profile_from_ron(&version_8_save_with_a_header()).unwrap();
         assert_eq!(profile.header.name, "Kept");
         assert_eq!(profile.header.playtime_seconds, 9);
         assert_eq!(profile.header.location, SaveLocation::Mine);
         assert_eq!(profile.header.gold, 4);
         assert_eq!(profile.header.calendar.calendar_day, 2);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+    }
+
+    fn version_8_save_with_a_header() -> String {
+        V8_PROFILE.replace(
+            "version:8,",
+            "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
+        )
+    }
+
+    #[test]
+    fn version_8_save_drops_flat_name_calendar_day_and_day_phase() {
+        let mut value = parse_ron_value(&version_8_save_with_a_header()).unwrap();
+        apply_profile_migrations(&mut value).unwrap();
+        let RonValue::Map(fields) = &value else {
+            panic!("profile save is not a struct");
+        };
+        assert!(!fields.iter().any(|(name, _)| name == "name"));
+        assert!(!fields.iter().any(|(name, _)| name == "calendar_day"));
+        assert!(!fields.iter().any(|(name, _)| name == "day_phase"));
+    }
+
+    #[test]
+    fn a_version_9_save_loads_its_header() {
+        let text = V8_PROFILE
+            .replace("version:8,", "version:9,")
+            .replace(
+                "name:\"Hearth\",\n",
+                "header:(name:\"Hearth\",playtime_seconds:4,calendar:(calendar_day:18,day_phase:Evening),location:Forest,gold:7),\n",
+            )
+            .replace("calendar_day:18,\n", "")
+            .replace("day_phase:Evening,\n", "");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.version, 9);
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.playtime_seconds, 4);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Forest);
+        assert_eq!(profile.header.gold, 7);
+        assert_eq!(profile.tool_energy, 55.0);
     }
 
     #[test]
