@@ -541,6 +541,25 @@ mod tests {
     }
 
     #[test]
+    fn an_unknown_stored_armor_piece_name_is_rejected() {
+        let error = ron::from_str::<ArmorPiece>("Helm").unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "1:5: Unexpected variant named `Helm`in enum `StoredArmorPiece`, expected one of `SlimeHelm`, `SlimeMail`, `SlimeGauntlets`, `SlimeGreaves` instead"
+        );
+    }
+
+    #[test]
+    fn an_unknown_stored_name_in_armor_slots_is_rejected() {
+        let error = ron::from_str::<ArmorSlots>("(head:Some(Helm),chest:None,arms:None,legs:None)")
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "1:16: Unexpected variant named `Helm`in enum `StoredArmorPiece`, expected one of `SlimeHelm`, `SlimeMail`, `SlimeGauntlets`, `SlimeGreaves` instead"
+        );
+    }
+
+    #[test]
     fn forged_armor_stashes_previous_piece_in_slot() {
         let mut loadout = Loadout::default();
         loadout.equip_forged_armor(ArmorPiece::Helm);
