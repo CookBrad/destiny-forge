@@ -104,3 +104,38 @@ pub fn rename_profile_on_disk(index: u8, name: String) -> Option<PlayerProfile> 
     }
     Some(profile)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::day_cycle::DayPhase;
+    use super::super::header::SaveLocation;
+    use super::*;
+
+    #[test]
+    fn a_new_profile_starts_with_a_filled_header() {
+        let profile = PlayerProfile::default();
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+        assert_eq!(profile.display_name(0), "Profile 1");
+    }
+
+    #[test]
+    fn set_name_writes_the_header() {
+        let mut profile = PlayerProfile::default();
+        profile.set_name("  Hearth\n");
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.display_name(0), "Hearth");
+    }
+
+    #[test]
+    fn set_name_drops_a_name_made_only_of_control_characters() {
+        let mut profile = PlayerProfile::default();
+        profile.set_name("\n\t");
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.display_name(2), "Profile 3");
+    }
+}

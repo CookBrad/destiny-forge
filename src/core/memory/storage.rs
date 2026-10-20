@@ -237,6 +237,10 @@ mod tests {
             loaded.inventory.total_items(),
             expected.inventory.total_items()
         );
+        assert_eq!(
+            loaded.header.calendar.calendar_day,
+            expected.header.calendar.calendar_day
+        );
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());
         let _ = fs::remove_dir_all(&root);
     }
