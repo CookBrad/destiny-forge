@@ -425,11 +425,367 @@ fn projectile_rect(center: Vec2) -> HitRect {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn blank_art(image: Handle<Image>) -> DungeonArt {
+        DungeonArt {
+            player_idle: image.clone(),
+            player_run: image.clone(),
+            player_attack: image.clone(),
+            player_jump: image.clone(),
+            player_fall: image.clone(),
+            player_death: image.clone(),
+            floor_ground: image.clone(),
+            floor_platform: image.clone(),
+            floor_ladder: image.clone(),
+            wall: image.clone(),
+            floor_pit: image.clone(),
+            pit_stake: image.clone(),
+            pit_lip: image.clone(),
+            ground_fill: image.clone(),
+            ceiling_beam: image.clone(),
+            pillar: image.clone(),
+            torch: image.clone(),
+            chain: image.clone(),
+            ground_slam: image.clone(),
+            slime: image.clone(),
+            bat: image.clone(),
+            goblin: image.clone(),
+            skeleton: image.clone(),
+            zombie: image.clone(),
+            king_slime: image.clone(),
+            arrow: image.clone(),
+            slime_bolt: image.clone(),
+            slime_blob: image.clone(),
+            fill: image,
+        }
+    }
+
+    fn projectile_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<Assets<Image>>();
+        app.insert_resource(Time::<()>::default());
+        app.add_event::<CombatSfx>();
+        let image = app
+            .world_mut()
+            .resource_mut::<Assets<Image>>()
+            .add(Image::default());
+        app.insert_resource(blank_art(image));
+        app
+    }
+
+    fn projectile_count(app: &mut App) -> usize {
+        let mut shots = app.world_mut().query::<&EnemyProjectile>();
+        shots.iter(app.world()).len()
+    }
 
     #[test]
     fn projectile_hit_stays_seven_by_twenty_one() {
         assert_eq!(ARROW_WIDTH, 7.0);
         assert_eq!(ARROW_HEIGHT, 21.0);
         assert_eq!(PROJECTILE_HIT_HALF, Vec2::new(3.5, 10.5));
+    }
+
+    #[test]
+    fn a_skeleton_in_range_shoots_an_arrow_at_the_hunter() {
+        let mut app = projectile_app();
+        app.world_mut()
+            .spawn((DungeonPlayer, Transform::from_xyz(400.0, 100.0, 0.0)));
+        app.world_mut().spawn((
+            Transform::from_xyz(200.0, 100.0, 0.0),
+            EnemyKind::Skeleton,
+            Health::new(20.0),
+            EnemyShootCooldown(Timer::from_seconds(0.0, TimerMode::Once)),
+        ));
+        app.world_mut()
+            .run_system_once(enemy_shoot_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 1);
+        let shot = app
+            .world_mut()
+            .query::<(&Transform, &EnemyProjectile, &ProjectileVelocity)>()
+            .single(app.world());
+        assert_eq!(shot.0.translation, Vec3::new(217.6, 100.0, PROJECTILE_Z));
+        assert_eq!(shot.1.damage, 8.0);
+        assert_eq!(shot.2.0, Vec2::new(220.0, 0.0));
+    }
+
+    #[test]
+    fn a_skeleton_closer_than_one_tile_does_not_shoot() {
+        let mut app = projectile_app();
+        app.world_mut()
+            .spawn((DungeonPlayer, Transform::from_xyz(210.0, 100.0, 0.0)));
+        app.world_mut().spawn((
+            Transform::from_xyz(200.0, 100.0, 0.0),
+            EnemyKind::Skeleton,
+            Health::new(20.0),
+            EnemyShootCooldown(Timer::from_seconds(0.0, TimerMode::Once)),
+        ));
+        app.world_mut()
+            .run_system_once(enemy_shoot_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 0);
+    }
+
+    #[test]
+    fn enemies_do_not_shoot_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        app.world_mut().spawn((
+            Transform::from_xyz(200.0, 100.0, 0.0),
+            EnemyKind::Skeleton,
+            Health::new(20.0),
+            EnemyShootCooldown(Timer::from_seconds(0.0, TimerMode::Once)),
+        ));
+        app.world_mut()
+            .run_system_once(enemy_shoot_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 0);
+    }
+
+    fn sword_player(elapsed: f32) -> (Transform, PlayerAttack) {
+        let transform = Transform::from_xyz(400.0, 120.0, 1.0);
+        let mut attack = PlayerAttack::inactive();
+        attack.weapon = crate::combat::WeaponKind::RustySword;
+        attack.step_index = 0;
+        let duration = attack.weapon.moveset().steps[0].duration;
+        attack.timer = Timer::from_seconds(duration, TimerMode::Once);
+        attack
+            .timer
+            .tick(std::time::Duration::from_secs_f32(elapsed));
+        (transform, attack)
+    }
+
+    #[test]
+    fn a_swing_that_meets_an_arrow_reverses_it() {
+        let mut app = projectile_app();
+        let (transform, attack) = sword_player((0.07 + 0.16) * 0.5);
+        let swing = player_sword_hit_rect(&transform, &attack).expect("hit window");
+        let center = Vec2::new(
+            (swing.min_x + swing.max_x) * 0.5,
+            (swing.min_y + swing.max_y) * 0.5,
+        );
+        app.world_mut()
+            .spawn((DungeonPlayer, transform, attack));
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(center.x, center.y, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(10.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut()
+            .run_system_once(deflect_projectiles_with_swing)
+            .unwrap();
+        let (velocity, deflected, sprite) = app
+            .world_mut()
+            .query::<(&ProjectileVelocity, &DeflectedProjectile, &Sprite)>()
+            .single(app.world());
+        assert_eq!(velocity.0, Vec2::new(-12.0, 0.0));
+        assert!(deflected.active);
+        assert_eq!(sprite.color, Color::srgb(1.0, 0.95, 0.55));
+    }
+
+    #[test]
+    fn an_arrow_already_deflected_keeps_its_velocity() {
+        let mut app = projectile_app();
+        let (transform, attack) = sword_player((0.07 + 0.16) * 0.5);
+        app.world_mut()
+            .spawn((DungeonPlayer, transform, attack));
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(400.0, 120.0, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(10.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut()
+            .run_system_once(deflect_projectiles_with_swing)
+            .unwrap();
+        let velocity = app
+            .world_mut()
+            .query::<&ProjectileVelocity>()
+            .single(app.world())
+            .0;
+        assert_eq!(velocity, Vec2::new(10.0, 0.0));
+    }
+
+    #[test]
+    fn a_swing_does_not_deflect_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(400.0, 120.0, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(10.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut()
+            .run_system_once(deflect_projectiles_with_swing)
+            .unwrap();
+        let (velocity, deflected) = app
+            .world_mut()
+            .query::<(&ProjectileVelocity, &DeflectedProjectile)>()
+            .single(app.world());
+        assert_eq!(velocity.0, Vec2::new(10.0, 0.0));
+        assert!(!deflected.active);
+    }
+
+    #[test]
+    fn a_deflected_arrow_deals_its_damage_to_the_enemy_it_hits() {
+        let mut app = projectile_app();
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(100.0, 80.0, PROJECTILE_Z),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(100.0, 80.0, 0.0),
+            EnemyHitbox(Vec2::new(16.0, 16.0)),
+            Health::new(20.0),
+            Sprite::default(),
+        ));
+        app.world_mut()
+            .run_system_once(resolve_deflected_projectile_hits)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 0);
+        let health = app.world_mut().query::<&Health>().single(app.world()).current;
+        assert_eq!(health, 12.0);
+    }
+
+    #[test]
+    fn a_deflected_arrow_misses_an_enemy_standing_apart_from_it() {
+        let mut app = projectile_app();
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(100.0, 80.0, PROJECTILE_Z),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(400.0, 80.0, 0.0),
+            EnemyHitbox(Vec2::new(16.0, 16.0)),
+            Health::new(20.0),
+            Sprite::default(),
+        ));
+        app.world_mut()
+            .run_system_once(resolve_deflected_projectile_hits)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app.world_mut().query::<&Health>().single(app.world()).current;
+        assert_eq!(health, 20.0);
+    }
+
+    #[test]
+    fn an_arrow_that_was_not_deflected_does_not_damage_an_enemy() {
+        let mut app = projectile_app();
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(100.0, 80.0, PROJECTILE_Z),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(100.0, 80.0, 0.0),
+            EnemyHitbox(Vec2::new(16.0, 16.0)),
+            Health::new(20.0),
+            Sprite::default(),
+        ));
+        app.world_mut()
+            .run_system_once(resolve_deflected_projectile_hits)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app.world_mut().query::<&Health>().single(app.world()).current;
+        assert_eq!(health, 20.0);
+    }
+
+    fn spawn_hunter(app: &mut App, health: f32) {
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::from_xyz(300.0, 100.0, 0.0),
+            Health::new(health),
+            ContactDamageCooldown::default(),
+            PlayerBlock::default(),
+        ));
+    }
+
+    #[test]
+    fn an_arrow_that_hits_the_hunter_deals_eight_damage() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        spawn_hunter(&mut app, 50.0);
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(300.0, 100.0, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(-30.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut()
+            .run_system_once(resolve_enemy_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 0);
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, 42.0);
+    }
+
+    #[test]
+    fn a_deflected_arrow_does_not_damage_the_hunter() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        spawn_hunter(&mut app, 50.0);
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(300.0, 100.0, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(-30.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut()
+            .run_system_once(resolve_enemy_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, 50.0);
+    }
+
+    #[test]
+    fn enemy_arrows_do_nothing_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        app.world_mut().spawn((
+            EnemyProjectile { damage: 8.0 },
+            Transform::from_xyz(300.0, 100.0, PROJECTILE_Z),
+            ProjectileVelocity(Vec2::new(-30.0, 0.0)),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut()
+            .run_system_once(resolve_enemy_projectiles)
+            .unwrap();
+        assert_eq!(projectile_count(&mut app), 1);
+        let velocity = app
+            .world_mut()
+            .query::<&ProjectileVelocity>()
+            .single(app.world())
+            .0;
+        assert_eq!(velocity, Vec2::new(-30.0, 0.0));
     }
 }
