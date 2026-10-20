@@ -207,24 +207,28 @@ fn advance_or_end_combo(sfx: &mut EventWriter<CombatSfx>, attack: &mut PlayerAtt
     }
 }
 
+pub(crate) type WeaponHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
+>;
+
 pub fn resolve_weapon_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
     mut player: Query<(&Transform, &mut PlayerAttack), With<DungeonPlayer>>,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
-    >,
+    mut enemies: WeaponHitEnemies,
 ) {
     let Ok((player_transform, mut attack)) = player.get_single_mut() else {
         return;
