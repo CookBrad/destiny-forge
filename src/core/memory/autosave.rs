@@ -1,9 +1,16 @@
 use bevy::prelude::*;
 
+use crate::audio::AudioSettings;
+use crate::combat::SkillBindings;
+use crate::items::Inventory;
+use crate::player::{Loadout, Wallet, WorldProgress};
+
+use super::super::day_cycle::{DayClock, ToolEnergy};
+
 use super::autosave_block::ProfileAutosaveBlock;
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::save_profile;
-use super::sync::{snapshot_profile, ProfileCaptureInputs};
+use super::sync::snapshot_profile;
 
 const AUTOSAVE_DELAY_SECS: f32 = 0.75;
 
@@ -36,7 +43,14 @@ pub fn debounced_autosave(
     mut timer: ResMut<AutosaveTimer>,
     mut profile_dirty: ResMut<ProfileDirty>,
     active: Res<ActiveProfile>,
-    sources: ProfileCaptureInputs,
+    audio: Res<AudioSettings>,
+    bindings: Res<SkillBindings>,
+    inventory: Res<Inventory>,
+    loadout: Res<Loadout>,
+    progress: Res<WorldProgress>,
+    day_clock: Res<DayClock>,
+    tool_energy: Res<ToolEnergy>,
+    wallet: Res<Wallet>,
     mut profile: ResMut<PlayerProfile>,
     autosave_block: Res<ProfileAutosaveBlock>,
 ) {
@@ -49,7 +63,19 @@ pub fn debounced_autosave(
         return;
     }
 
-    snapshot_profile(&sources.capture(), &mut profile);
+    snapshot_profile(
+        &super::sync::ProfileCapture {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+            wallet: &wallet,
+        },
+        &mut profile,
+    );
     match save_profile(active.index(), &profile) {
         Ok(()) => profile_dirty.0 = false,
         Err(error) => warn!("Failed to save profile {}: {error}", active.index()),
@@ -58,7 +84,14 @@ pub fn debounced_autosave(
 
 pub fn flush_saves_on_exit(
     active: Res<ActiveProfile>,
-    sources: ProfileCaptureInputs,
+    audio: Res<AudioSettings>,
+    bindings: Res<SkillBindings>,
+    inventory: Res<Inventory>,
+    loadout: Res<Loadout>,
+    progress: Res<WorldProgress>,
+    day_clock: Res<DayClock>,
+    tool_energy: Res<ToolEnergy>,
+    wallet: Res<Wallet>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
     autosave_block: Res<ProfileAutosaveBlock>,
@@ -67,7 +100,19 @@ pub fn flush_saves_on_exit(
         return;
     }
 
-    snapshot_profile(&sources.capture(), &mut profile);
+    snapshot_profile(
+        &super::sync::ProfileCapture {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+            wallet: &wallet,
+        },
+        &mut profile,
+    );
     if let Err(error) = save_profile(active.index(), &profile) {
         warn!("Failed to flush profile on exit: {error}");
     } else {
