@@ -256,6 +256,121 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_keeps_the_wallet() {
+        let mut profile = PlayerProfile::default();
+        let wallet = Wallet {
+            gold: 40,
+            sparks: DestinySpark(2),
+        };
+        let sources = ProfileCaptureSources::with_wallet(wallet);
+        snapshot_profile(&sources.capture(), &mut profile);
+        assert_eq!(profile.wallet, wallet);
+    }
+
+    #[test]
+    fn apply_restores_the_wallet() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 40,
+                sparks: DestinySpark(2),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        let mut progress = WorldProgress::default();
+        let mut day_clock = DayClock::default();
+        let mut tool_energy = ToolEnergy::default();
+        let mut audio = AudioSettings::default();
+        let mut bindings = SkillBindings::default();
+        let mut season = Season::Spring;
+        let rules = CalendarRules::load();
+        let mut restored = Wallet::default();
+        apply_profile_to_runtime(
+            &profile,
+            &mut ProfileApply {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                audio: &mut audio,
+                bindings: &mut bindings,
+                season: &mut season,
+                rules: &rules,
+                wallet: &mut restored,
+            },
+        );
+        assert_eq!(restored, profile.wallet);
+    }
+
+    #[test]
+    fn snapshot_replaces_a_saved_wallet_with_an_empty_one() {
+        let mut profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 5,
+                sparks: DestinySpark(1),
+            },
+            ..PlayerProfile::default()
+        };
+        let sources = ProfileCaptureSources::with_wallet(Wallet::default());
+        snapshot_profile(&sources.capture(), &mut profile);
+        assert_eq!(profile.wallet, Wallet::default());
+    }
+
+    #[test]
+    fn snapshot_keeps_the_largest_wallet_amounts() {
+        let mut profile = PlayerProfile::default();
+        let sources = ProfileCaptureSources::with_wallet(Wallet {
+            gold: u32::MAX,
+            sparks: DestinySpark(u32::MAX),
+        });
+        snapshot_profile(&sources.capture(), &mut profile);
+        assert_eq!(profile.wallet.gold, u32::MAX);
+        assert_eq!(profile.wallet.sparks.amount(), u32::MAX);
+    }
+
+    struct ProfileCaptureSources {
+        inventory: Inventory,
+        loadout: Loadout,
+        progress: WorldProgress,
+        day_clock: DayClock,
+        tool_energy: ToolEnergy,
+        audio: AudioSettings,
+        bindings: SkillBindings,
+        wallet: Wallet,
+    }
+
+    impl ProfileCaptureSources {
+        fn with_wallet(wallet: Wallet) -> Self {
+            Self {
+                inventory: Inventory::default(),
+                loadout: Loadout::default(),
+                progress: WorldProgress::default(),
+                day_clock: DayClock::default(),
+                tool_energy: ToolEnergy::default(),
+                audio: AudioSettings::default(),
+                bindings: SkillBindings::default(),
+                wallet,
+            }
+        }
+
+        fn capture(&self) -> ProfileCapture<'_> {
+            ProfileCapture {
+                inventory: &self.inventory,
+                loadout: &self.loadout,
+                progress: &self.progress,
+                day_clock: &self.day_clock,
+                tool_energy: &self.tool_energy,
+                audio: &self.audio,
+                bindings: &self.bindings,
+                wallet: &self.wallet,
+            }
+        }
+    }
+
+
+    #[test]
     fn capture_reads_the_wallet_from_the_runtime() {
         let seen = see_capture(
             Wallet {
