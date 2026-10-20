@@ -37,6 +37,56 @@ pub fn capture_profile_from_runtime(
     dirty.mark();
 }
 
+pub fn snapshot_profile(sources: &ProfileCapture<'_>, profile: &mut PlayerProfile) {
+    profile.inventory = sources.inventory.clone();
+    profile.loadout = sources.loadout.clone();
+    profile.progress = sources.progress.clone();
+    profile.calendar_day = sources.day_clock.calendar_day;
+    profile.day_phase = sources.day_clock.phase;
+    profile.tool_energy = sources.tool_energy.current;
+    profile.wallet = *sources.wallet;
+    profile.settings.capture_audio(sources.audio);
+    profile.settings.capture_skill_bindings(sources.bindings);
+}
+
+pub fn activate_profile(
+    index: u8,
+    sources: &ProfileCapture<'_>,
+    session: &mut ProfileSession<'_>,
+) -> bool {
+    let index = index.min(PROFILE_COUNT - 1);
+    if session.active.0 == index {
+        return !session.autosave_block.is_blocked(index);
+    }
+
+    snapshot_profile(sources, session.profile);
+    save_profile_before_switch(session);
+    let Ok(loaded) = load_profile_for_slot(index, session.autosave_block) else {
+        return false;
+    };
+    *session.profile = loaded;
+    session.active.0 = index;
+    session.global.last_active_profile = index;
+    if let Err(error) = save_settings(session.global) {
+        warn!("Failed to save global preferences: {error}");
+    }
+    session.dirty.0 = false;
+    true
+}
+
+pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileApply<'_>) {
+    *runtime.inventory = profile.inventory.clone();
+    *runtime.loadout = profile.loadout.clone();
+    *runtime.progress = profile.progress.clone();
+    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *runtime.season =
+        CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, runtime.rules).season;
+    *runtime.wallet = profile.wallet;
+    profile.settings.apply_audio(runtime.audio);
+    profile.settings.apply_skill_bindings(runtime.bindings);
+}
+
 fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
     info!(
         "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
@@ -68,53 +118,6 @@ pub struct ProfileCapture<'a> {
     pub wallet: &'a Wallet,
 }
 
-pub fn snapshot_profile(sources: &ProfileCapture<'_>, profile: &mut PlayerProfile) {
-    profile.inventory = sources.inventory.clone();
-    profile.loadout = sources.loadout.clone();
-    profile.progress = sources.progress.clone();
-    profile.calendar_day = sources.day_clock.calendar_day;
-    profile.day_phase = sources.day_clock.phase;
-    profile.tool_energy = sources.tool_energy.current;
-    profile.wallet = *sources.wallet;
-    profile.settings.capture_audio(sources.audio);
-    profile.settings.capture_skill_bindings(sources.bindings);
-}
-
-pub struct ProfileSession<'a> {
-    pub active: &'a mut ActiveProfile,
-    pub profile: &'a mut PlayerProfile,
-    pub global: &'a mut GameSettings,
-    pub dirty: &'a mut ProfileDirty,
-    pub autosave_block: &'a mut ProfileAutosaveBlock,
-}
-
-pub fn activate_profile(
-    index: u8,
-    sources: &ProfileCapture<'_>,
-    session: &mut ProfileSession<'_>,
-) -> bool {
-    let index = index.min(PROFILE_COUNT - 1);
-    if session.active.0 == index {
-        return !session.autosave_block.is_blocked(index);
-    }
-
-    snapshot_profile(sources, session.profile);
-    save_profile_before_switch(session);
-
-    let Ok(loaded) = load_profile_for_slot(index, session.autosave_block) else {
-        return false;
-    };
-    *session.profile = loaded;
-    session.active.0 = index;
-    session.global.last_active_profile = index;
-    if let Err(error) = save_settings(session.global) {
-        warn!("Failed to save global preferences: {error}");
-    }
-
-    session.dirty.0 = false;
-    true
-}
-
 pub struct ProfileApply<'a> {
     pub inventory: &'a mut Inventory,
     pub loadout: &'a mut Loadout,
@@ -128,51 +131,12 @@ pub struct ProfileApply<'a> {
     pub wallet: &'a mut Wallet,
 }
 
-pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileApply<'_>) {
-    *runtime.inventory = profile.inventory.clone();
-    *runtime.loadout = profile.loadout.clone();
-    *runtime.progress = profile.progress.clone();
-    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
-    *runtime.season =
-        CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, runtime.rules).season;
-    *runtime.wallet = profile.wallet;
-    profile.settings.apply_audio(runtime.audio);
-    profile.settings.apply_skill_bindings(runtime.bindings);
-}
-
-#[derive(SystemParam)]
-pub(super) struct ProfileApplyInputs<'w> {
-    inventory: ResMut<'w, Inventory>,
-    loadout: ResMut<'w, Loadout>,
-    progress: ResMut<'w, WorldProgress>,
-    day_clock: ResMut<'w, DayClock>,
-    tool_energy: ResMut<'w, ToolEnergy>,
-    audio: ResMut<'w, AudioSettings>,
-    bindings: ResMut<'w, SkillBindings>,
-    season: ResMut<'w, Season>,
-    rules: Res<'w, CalendarRules>,
-    wallet: ResMut<'w, Wallet>,
-}
-
-impl ProfileApplyInputs<'_> {
-    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
-        apply_profile_to_runtime(
-            profile,
-            &mut ProfileApply {
-                inventory: &mut self.inventory,
-                loadout: &mut self.loadout,
-                progress: &mut self.progress,
-                day_clock: &mut self.day_clock,
-                tool_energy: &mut self.tool_energy,
-                audio: &mut self.audio,
-                bindings: &mut self.bindings,
-                season: &mut self.season,
-                rules: &self.rules,
-                wallet: &mut self.wallet,
-            },
-        );
-    }
+pub struct ProfileSession<'a> {
+    pub active: &'a mut ActiveProfile,
+    pub profile: &'a mut PlayerProfile,
+    pub global: &'a mut GameSettings,
+    pub dirty: &'a mut ProfileDirty,
+    pub autosave_block: &'a mut ProfileAutosaveBlock,
 }
 
 #[derive(SystemParam)]
@@ -209,6 +173,40 @@ impl ProfileCaptureInputs<'_> {
             || self.progress.is_changed()
             || self.tool_energy.is_changed()
             || self.wallet.is_changed()
+    }
+}
+
+#[derive(SystemParam)]
+pub(super) struct ProfileApplyInputs<'w> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    wallet: ResMut<'w, Wallet>,
+}
+
+impl ProfileApplyInputs<'_> {
+    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
+        apply_profile_to_runtime(
+            profile,
+            &mut ProfileApply {
+                inventory: &mut self.inventory,
+                loadout: &mut self.loadout,
+                progress: &mut self.progress,
+                day_clock: &mut self.day_clock,
+                tool_energy: &mut self.tool_energy,
+                audio: &mut self.audio,
+                bindings: &mut self.bindings,
+                season: &mut self.season,
+                rules: &self.rules,
+                wallet: &mut self.wallet,
+            },
+        );
     }
 }
 
