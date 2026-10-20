@@ -1,15 +1,10 @@
 use bevy::prelude::*;
 
-use crate::audio::AudioSettings;
-use crate::combat::SkillBindings;
 use crate::core::{
-    activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
-    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty,
-    ProfileNeedsAttention, ProfileSnapshot, ProfileSwitch, RuntimeProfile, Season, ToolEnergy,
-    PROFILE_COUNT,
+    activate_profile, apply_profile_to_runtime, load_profile_for_slot, CalendarRules,
+    PlayerProfile, ProfileAutosaveBlock, ProfileNeedsAttention, ProfileSnapshot, ProfileSwitch,
+    RuntimeProfile, PROFILE_COUNT,
 };
-use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
 
 pub const SAVE_NEEDS_ATTENTION: &str = "Your save needs attention";
 
@@ -77,62 +72,28 @@ pub fn refresh_profile_picker(
 
 pub fn begin_profile_run(
     index: u8,
-    inventory: &mut Inventory,
-    loadout: &mut Loadout,
-    progress: &mut WorldProgress,
-    day_clock: &mut DayClock,
-    tool_energy: &mut ToolEnergy,
-    season: &mut Season,
+    runtime: &mut RuntimeProfile<'_>,
     rules: &CalendarRules,
-    audio: &mut AudioSettings,
-    bindings: &mut SkillBindings,
-    active: &mut ActiveProfile,
-    profile: &mut PlayerProfile,
-    global: &mut GameSettings,
-    profile_dirty: &mut ProfileDirty,
-    autosave_block: &mut ProfileAutosaveBlock,
+    switch: &mut ProfileSwitch<'_>,
 ) -> bool {
-    if autosave_block.is_blocked(index) {
+    if switch.autosave_block.is_blocked(index) {
         return false;
     }
     let switched = {
         let source = ProfileSnapshot {
-            inventory,
-            loadout,
-            progress,
-            day_clock,
-            tool_energy,
-            audio,
-            bindings,
+            inventory: &*runtime.inventory,
+            loadout: &*runtime.loadout,
+            progress: &*runtime.progress,
+            day_clock: &*runtime.day_clock,
+            tool_energy: &*runtime.tool_energy,
+            audio: &*runtime.audio,
+            bindings: &*runtime.bindings,
         };
-        activate_profile(
-            index,
-            &source,
-            &mut ProfileSwitch {
-                active,
-                profile,
-                global,
-                dirty: profile_dirty,
-                autosave_block,
-            },
-        )
+        activate_profile(index, &source, switch)
     };
     if !switched {
         return false;
     }
-    apply_profile_to_runtime(
-        profile,
-        &mut RuntimeProfile {
-            inventory,
-            loadout,
-            progress,
-            day_clock,
-            tool_energy,
-            season,
-            audio,
-            bindings,
-        },
-        rules,
-    );
+    apply_profile_to_runtime(switch.profile, runtime, rules);
     true
 }

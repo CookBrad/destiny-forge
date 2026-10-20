@@ -6,7 +6,8 @@ use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
     rename_profile_on_disk, sanitize_profile_name, ActiveProfile, CalendarRules, DayClock,
-    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy, PROFILE_COUNT,
+    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, ProfileSwitch,
+    RuntimeProfile, Season, ToolEnergy, PROFILE_COUNT,
 };
 use crate::input::{Action, ActionState};
 use crate::items::Inventory;
@@ -39,20 +40,24 @@ impl ProfileRunGate<'_> {
     fn begin(&mut self, index: u8) -> bool {
         begin_profile_run(
             index,
-            &mut self.inventory,
-            &mut self.loadout,
-            &mut self.progress,
-            &mut self.day_clock,
-            &mut self.tool_energy,
-            &mut self.season,
+            &mut RuntimeProfile {
+                inventory: &mut self.inventory,
+                loadout: &mut self.loadout,
+                progress: &mut self.progress,
+                day_clock: &mut self.day_clock,
+                tool_energy: &mut self.tool_energy,
+                season: &mut self.season,
+                audio: &mut self.audio,
+                bindings: &mut self.bindings,
+            },
             &self.rules,
-            &mut self.audio,
-            &mut self.bindings,
-            &mut self.active,
-            &mut self.profile,
-            &mut self.global,
-            &mut self.profile_dirty,
-            &mut self.autosave_block,
+            &mut ProfileSwitch {
+                active: &mut self.active,
+                profile: &mut self.profile,
+                global: &mut self.global,
+                dirty: &mut self.profile_dirty,
+                autosave_block: &mut self.autosave_block,
+            },
         )
     }
 }
