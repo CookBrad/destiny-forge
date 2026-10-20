@@ -17,6 +17,7 @@ pub(super) fn add_save_header_systems(app: &mut App) {
             (
                 accrue_playtime,
                 mark_profile_dirty_when_a_second_is_banked,
+                remember_current_location,
                 capture_profile_from_runtime,
                 queue_autosave,
                 debounced_autosave,
@@ -47,6 +48,27 @@ pub(super) fn mark_profile_dirty_when_a_second_is_banked(
     }
 }
 
+pub(super) fn remember_current_location(
+    state: Res<State<GameState>>,
+    mut profile: ResMut<PlayerProfile>,
+    mut dirty: ResMut<ProfileDirty>,
+) {
+    if location_changed_after_storing(&mut profile.header, state.get()) {
+        dirty.mark();
+    }
+}
+
+fn location_changed_after_storing(header: &mut SaveHeader, state: &GameState) -> bool {
+    let Some(location) = SaveLocation::from_game_state(state) else {
+        return false;
+    };
+    if header.location == location {
+        return false;
+    }
+    header.location = location;
+    true
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SaveLocation {
     #[default]
@@ -54,6 +76,18 @@ pub enum SaveLocation {
     Forest,
     Mine,
     Dungeon,
+}
+
+impl SaveLocation {
+    fn from_game_state(state: &GameState) -> Option<Self> {
+        match state {
+            GameState::Title => None,
+            GameState::Overworld => Some(Self::Homestead),
+            GameState::Forest => Some(Self::Forest),
+            GameState::Mine => Some(Self::Mine),
+            GameState::Dungeon => Some(Self::Dungeon),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,6 +129,119 @@ impl Default for SaveHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn store_location_records_the_forest() {
+        let (changed, location) =
+            store_location_in_copy(SaveHeader::default(), GameState::Forest);
+        assert!(changed);
+        assert_eq!(location, SaveLocation::Forest);
+    }
+
+    fn store_location_in_copy(header: SaveHeader, state: GameState) -> (bool, SaveLocation) {
+        let mut header = header;
+        let changed = location_changed_after_storing(&mut header, &state);
+        (changed, header.location)
+    }
+
+    #[test]
+    fn store_location_leaves_an_unchanged_forest_alone() {
+        let header = SaveHeader {
+            location: SaveLocation::Forest,
+            ..SaveHeader::default()
+        };
+        assert_eq!(
+            store_location_in_copy(header, GameState::Forest),
+            (false, SaveLocation::Forest)
+        );
+    }
+
+    #[test]
+    fn store_location_leaves_the_mine_alone_on_the_title_screen() {
+        let header = SaveHeader {
+            location: SaveLocation::Mine,
+            ..SaveHeader::default()
+        };
+        assert_eq!(
+            store_location_in_copy(header, GameState::Title),
+            (false, SaveLocation::Mine)
+        );
+    }
+
+    #[test]
+    fn each_zone_maps_to_its_save_location() {
+        assert_eq!(
+            SaveLocation::from_game_state(&GameState::Overworld),
+            Some(SaveLocation::Homestead)
+        );
+        assert_eq!(
+            SaveLocation::from_game_state(&GameState::Forest),
+            Some(SaveLocation::Forest)
+        );
+        assert_eq!(
+            SaveLocation::from_game_state(&GameState::Mine),
+            Some(SaveLocation::Mine)
+        );
+        assert_eq!(
+            SaveLocation::from_game_state(&GameState::Dungeon),
+            Some(SaveLocation::Dungeon)
+        );
+    }
+
+    #[test]
+    fn the_title_screen_has_no_save_location() {
+        assert_eq!(SaveLocation::from_game_state(&GameState::Title), None);
+    }
+
+    #[test]
+    fn entering_the_forest_records_that_location_and_marks_the_profile_dirty() {
+        let mut app = app_at_location(GameState::Forest);
+        remember_location_once(&mut app);
+        assert_eq!(recorded_location(&app), (SaveLocation::Forest, true));
+    }
+
+    fn app_at_location(state: GameState) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(state))
+            .insert_resource(PlayerProfile::default())
+            .insert_resource(ProfileDirty::default());
+        app
+    }
+
+    fn remember_location_once(app: &mut App) {
+        app.add_systems(Update, remember_current_location);
+        app.update();
+    }
+
+    fn recorded_location(app: &App) -> (SaveLocation, bool) {
+        (
+            app.world().resource::<PlayerProfile>().header.location,
+            app.world().resource::<ProfileDirty>().0,
+        )
+    }
+
+    #[test]
+    fn staying_in_the_forest_does_not_mark_the_profile_dirty() {
+        let mut app = app_at_location(GameState::Forest);
+        app.world_mut()
+            .resource_mut::<PlayerProfile>()
+            .header
+            .location = SaveLocation::Forest;
+        remember_location_once(&mut app);
+        assert_eq!(recorded_location(&app), (SaveLocation::Forest, false));
+    }
+
+    #[test]
+    fn the_title_screen_does_not_replace_a_saved_mine() {
+        let mut app = app_at_location(GameState::Title);
+        app.world_mut()
+            .resource_mut::<PlayerProfile>()
+            .header
+            .location = SaveLocation::Mine;
+        remember_location_once(&mut app);
+        assert_eq!(recorded_location(&app), (SaveLocation::Mine, false));
+    }
 
     #[test]
     fn a_new_save_header_starts_blank() {
