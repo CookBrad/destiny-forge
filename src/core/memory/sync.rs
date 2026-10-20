@@ -18,36 +18,16 @@ use super::ProfileDirty;
 pub fn hydrate_runtime_from_memory(
     profile: Res<PlayerProfile>,
     active: Res<ActiveProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
-    rules: Res<CalendarRules>,
-    mut wallet: ResMut<Wallet>,
+    mut runtime: ProfileApplyInputs,
 ) {
-    apply_profile_to_runtime(
-        &profile,
-        &mut ProfileApply {
-            inventory: &mut inventory,
-            loadout: &mut loadout,
-            progress: &mut progress,
-            day_clock: &mut day_clock,
-            tool_energy: &mut tool_energy,
-            audio: &mut audio,
-            bindings: &mut bindings,
-            season: &mut season,
-            rules: &rules,
-            wallet: &mut wallet,
-        },
-    );
+    runtime.apply_saved_profile(&profile);
+    log_loaded_profile(&profile, active.index(), &runtime.day_clock);
+}
 
+fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
     info!(
         "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
-        active.index() + 1,
+        active_index + 1,
         profile.summary_weapon(),
         profile.summary_material_count(),
         profile.summary_boss_cleared(),
@@ -148,11 +128,7 @@ pub fn activate_profile(
     }
 
     snapshot_profile(sources, session.profile);
-    if let Err(error) = save_profile(session.active.index(), session.profile) {
-        warn!("Failed to save profile before switch: {error}");
-    } else {
-        session.dirty.0 = false;
-    }
+    save_profile_before_switch(session);
 
     let Ok(loaded) = load_profile_for_slot(index, session.autosave_block) else {
         return false;
@@ -166,6 +142,14 @@ pub fn activate_profile(
 
     session.dirty.0 = false;
     true
+}
+
+fn save_profile_before_switch(session: &mut ProfileSession<'_>) {
+    if let Err(error) = save_profile(session.active.index(), session.profile) {
+        warn!("Failed to save profile before switch: {error}");
+    } else {
+        session.dirty.0 = false;
+    }
 }
 
 pub struct ProfileApply<'a> {
@@ -194,6 +178,39 @@ pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileAp
     profile.settings.apply_skill_bindings(runtime.bindings);
 }
 
+#[derive(SystemParam)]
+pub(super) struct ProfileApplyInputs<'w> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    wallet: ResMut<'w, Wallet>,
+}
+
+impl ProfileApplyInputs<'_> {
+    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
+        apply_profile_to_runtime(
+            profile,
+            &mut ProfileApply {
+                inventory: &mut self.inventory,
+                loadout: &mut self.loadout,
+                progress: &mut self.progress,
+                day_clock: &mut self.day_clock,
+                tool_energy: &mut self.tool_energy,
+                audio: &mut self.audio,
+                bindings: &mut self.bindings,
+                season: &mut self.season,
+                rules: &self.rules,
+                wallet: &mut self.wallet,
+            },
+        );
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
