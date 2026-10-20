@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -8,7 +9,7 @@ use crate::core::{
     ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 pub const SAVE_NEEDS_ATTENTION: &str = "Your save needs attention";
 
@@ -74,55 +75,60 @@ pub fn refresh_profile_picker(
     *picker = ProfilePicker::refresh(&mut autosave_block);
 }
 
-pub fn begin_profile_run(
-    index: u8,
-    inventory: &mut Inventory,
-    loadout: &mut Loadout,
-    progress: &mut WorldProgress,
-    day_clock: &mut DayClock,
-    tool_energy: &mut ToolEnergy,
-    season: &mut Season,
-    rules: &CalendarRules,
-    audio: &mut AudioSettings,
-    bindings: &mut SkillBindings,
-    active: &mut ActiveProfile,
-    profile: &mut PlayerProfile,
-    global: &mut GameSettings,
-    profile_dirty: &mut ProfileDirty,
-    autosave_block: &mut ProfileAutosaveBlock,
-) -> bool {
-    if autosave_block.is_blocked(index) {
+#[derive(SystemParam)]
+pub(super) struct ProfileRun<'w> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    wallet: ResMut<'w, Wallet>,
+    active: ResMut<'w, ActiveProfile>,
+    profile: ResMut<'w, PlayerProfile>,
+    global: ResMut<'w, GameSettings>,
+    profile_dirty: ResMut<'w, ProfileDirty>,
+    autosave_block: ResMut<'w, ProfileAutosaveBlock>,
+}
+
+pub fn begin_profile_run(index: u8, run: &mut ProfileRun) -> bool {
+    if run.autosave_block.is_blocked(index) {
         return false;
     }
     let switched = activate_profile(
         index,
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-        active,
-        profile,
-        global,
-        profile_dirty,
-        autosave_block,
+        &run.inventory,
+        &run.loadout,
+        &run.progress,
+        &run.day_clock,
+        &run.tool_energy,
+        &run.audio,
+        &run.bindings,
+        &run.wallet,
+        &mut run.active,
+        &mut run.profile,
+        &mut run.global,
+        &mut run.profile_dirty,
+        &mut run.autosave_block,
     );
     if !switched {
         return false;
     }
     apply_profile_to_runtime(
-        profile,
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-        season,
-        rules,
+        &run.profile,
+        &mut run.inventory,
+        &mut run.loadout,
+        &mut run.progress,
+        &mut run.day_clock,
+        &mut run.tool_energy,
+        &mut run.audio,
+        &mut run.bindings,
+        &mut run.season,
+        &run.rules,
+        &mut run.wallet,
     );
     true
 }
