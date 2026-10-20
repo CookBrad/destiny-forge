@@ -24,6 +24,18 @@ pub fn hydrate_runtime_from_memory(
     log_loaded_profile(&profile, active.index(), &runtime.day_clock);
 }
 
+fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
+    info!(
+        "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
+        active_index + 1,
+        profile.summary_weapon(),
+        profile.summary_material_count(),
+        profile.summary_boss_cleared(),
+        day_clock.hud_label(),
+    );
+    info!("Save directory: {}", save_root_display());
+}
+
 pub fn capture_profile_from_runtime(
     sources: ProfileCaptureInputs,
     mut profile: ResMut<PlayerProfile>,
@@ -71,26 +83,6 @@ impl ProfileCaptureInputs<'_> {
             bindings: &self.bindings,
             wallet: &self.wallet,
         }
-    }
-}
-
-fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
-    info!(
-        "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
-        active_index + 1,
-        profile.summary_weapon(),
-        profile.summary_material_count(),
-        profile.summary_boss_cleared(),
-        day_clock.hud_label(),
-    );
-    info!("Save directory: {}", save_root_display());
-}
-
-fn save_profile_before_switch(session: &mut ProfileSession<'_>) {
-    if let Err(error) = save_profile(session.active.index(), session.profile) {
-        warn!("Failed to save profile before switch: {error}");
-    } else {
-        session.dirty.0 = false;
     }
 }
 
@@ -150,6 +142,14 @@ pub fn activate_profile(
 
     session.dirty.0 = false;
     true
+}
+
+fn save_profile_before_switch(session: &mut ProfileSession<'_>) {
+    if let Err(error) = save_profile(session.active.index(), session.profile) {
+        warn!("Failed to save profile before switch: {error}");
+    } else {
+        session.dirty.0 = false;
+    }
 }
 
 pub struct ProfileApply<'a> {
