@@ -88,6 +88,9 @@ pub(crate) struct InventoryGoldAmount;
 #[derive(Component)]
 pub(crate) struct InventorySparksAmount;
 
+#[derive(Component)]
+struct InventoryCurrencyMark;
+
 pub fn spawn_inventory_window(
     commands: &mut Commands,
     inventory: &Inventory,
@@ -517,7 +520,7 @@ fn spawn_currency_footer(parent: &mut ChildBuilder<'_>, wallet: &Wallet) {
         .spawn((
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Px(28.0),
+                height: Val::Px(36.0),
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(14.0),
@@ -529,27 +532,12 @@ fn spawn_currency_footer(parent: &mut ChildBuilder<'_>, wallet: &Wallet) {
             BorderColor(Color::srgb(0.28, 0.18, 0.1)),
         ))
         .with_children(|footer| {
-            spawn_coin_display(
-                footer,
-                Color::srgb(0.92, 0.76, 0.18),
-                &wallet.gold.to_string(),
-                InventoryGoldAmount,
-            );
-            spawn_coin_display(
-                footer,
-                Color::srgb(0.72, 0.74, 0.78),
-                &wallet.sparks.amount().to_string(),
-                InventorySparksAmount,
-            );
+            spawn_coin_display(footer, Color::srgb(0.92, 0.76, 0.18), "$", &wallet.gold.to_string(), InventoryGoldAmount);
+            spawn_coin_display(footer, Color::srgb(0.72, 0.74, 0.78), "*", &wallet.sparks.amount().to_string(), InventorySparksAmount);
         });
 }
 
-fn spawn_coin_display(
-    parent: &mut ChildBuilder<'_>,
-    coin_color: Color,
-    amount: &str,
-    amount_marker: impl Bundle,
-) {
+fn spawn_coin_display(parent: &mut ChildBuilder<'_>, coin_color: Color, mark: &str, amount: &str, amount_marker: impl Bundle) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -558,48 +546,19 @@ fn spawn_coin_display(
             ..default()
         })
         .with_children(|group| {
-            group.spawn((
-                Node {
-                    width: Val::Px(14.0),
-                    height: Val::Px(14.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                },
-                BackgroundColor(coin_color),
-                BorderColor(Color::srgb(0.18, 0.12, 0.08)),
-            ));
-            group.spawn((
-                amount_marker,
-                Text::new(amount),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.9, 0.88, 0.84)),
-            ));
+            group.spawn((InventoryCurrencyMark, Text::new(mark), TextFont { font_size: 18.0, ..default() }, TextColor(coin_color)));
+            group.spawn((amount_marker, Text::new(amount), TextFont { font_size: 18.0, ..default() }, TextColor(Color::srgb(0.9, 0.88, 0.84))));
         });
 }
 
-pub fn sync_inventory_wallet_footer(
-    wallet: Res<Wallet>,
-    open: Res<InventoryWindowOpen>,
-    mut gold_amounts: Query<&mut Text, (With<InventoryGoldAmount>, Without<InventorySparksAmount>)>,
-    mut spark_amounts: Query<
-        &mut Text,
-        (With<InventorySparksAmount>, Without<InventoryGoldAmount>),
-    >,
-) {
-    if !open.0 || !wallet.is_changed() {
-        return;
-    }
-
-    let gold_label = wallet.gold.to_string();
-    let sparks_label = wallet.sparks.amount().to_string();
-    for mut text in &mut gold_amounts {
-        text.0 = gold_label.clone();
-    }
-    for mut text in &mut spark_amounts {
-        text.0 = sparks_label.clone();
+pub fn sync_inventory_wallet_footer(wallet: Res<Wallet>, open: Res<InventoryWindowOpen>, mut gold_amounts: Query<&mut Text, (With<InventoryGoldAmount>, Without<InventorySparksAmount>)>, mut spark_amounts: Query<&mut Text, (With<InventorySparksAmount>, Without<InventoryGoldAmount>)>) {
+    if open.0 && wallet.is_changed() {
+        for mut text in &mut gold_amounts {
+            text.0 = wallet.gold.to_string();
+        }
+        for mut text in &mut spark_amounts {
+            text.0 = wallet.sparks.amount().to_string();
+        }
     }
 }
 
@@ -648,26 +607,12 @@ pub fn toggle_inventory_window(mut commands: Commands, mut toggle: InventoryTogg
 }
 
 fn close_open_inventory(commands: &mut Commands, toggle: &mut InventoryToggle) {
-    close_inventory(
-        &mut toggle.open,
-        commands,
-        &toggle.windows,
-        toggle.game.get(),
-        toggle.dungeon.as_deref(),
-        &mut toggle.time,
-    );
+    close_inventory(&mut toggle.open, commands, &toggle.windows, toggle.game.get(), toggle.dungeon.as_deref(), &mut toggle.time);
 }
 
 fn open_inventory(commands: &mut Commands, toggle: &mut InventoryToggle) {
     toggle.open.0 = true;
-    spawn_inventory_window(
-        commands,
-        &toggle.inventory,
-        &toggle.loadout,
-        LoadoutSwapAccess::from_game_state(toggle.game.get()),
-        toggle.selected.0,
-        &toggle.wallet,
-    );
+    spawn_inventory_window(commands, &toggle.inventory, &toggle.loadout, LoadoutSwapAccess::from_game_state(toggle.game.get()), toggle.selected.0, &toggle.wallet);
     toggle.time.pause();
 }
 
@@ -690,14 +635,7 @@ pub fn rebuild_inventory_on_loadout_change(mut commands: Commands, inputs: Inven
     for entity in &inputs.windows {
         commands.entity(entity).try_despawn_recursive();
     }
-    spawn_inventory_window(
-        &mut commands,
-        &inputs.inventory,
-        &inputs.loadout,
-        LoadoutSwapAccess::from_game_state(inputs.game.get()),
-        inputs.selected.0,
-        &inputs.wallet,
-    );
+    spawn_inventory_window(&mut commands, &inputs.inventory, &inputs.loadout, LoadoutSwapAccess::from_game_state(inputs.game.get()), inputs.selected.0, &inputs.wallet);
 }
 
 pub fn handle_inventory_close_button(
@@ -1047,5 +985,26 @@ mod tests {
 
         let empty = selected_item_description(&inventory, &loadout, LoadoutSwapAccess::Hub, 5);
         assert_eq!(empty.name_line, "Empty slot");
+    }
+
+    #[test]
+    fn inventory_footer_prints_the_spark_amount() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default()).init_resource::<Loadout>().insert_resource(Wallet { gold: 250, sparks: crate::player::DestinySpark(4) });
+        app.world_mut().run_system_once(spawn_inventory_with_wallet).unwrap();
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
+        assert_eq!(currency_marks(&mut app), vec!["$", "*"]);
+    }
+    fn spawn_inventory_with_wallet(mut commands: Commands, inventory: Res<Inventory>, loadout: Res<Loadout>, wallet: Res<Wallet>) {
+        spawn_inventory_window(&mut commands, &inventory, &loadout, LoadoutSwapAccess::Hub, 0, &wallet);
+    }
+    fn footer_amount<T: Component>(app: &mut App) -> String {
+        app.world_mut().query_filtered::<&Text, With<T>>().single(app.world()).0.clone()
+    }
+    fn currency_marks(app: &mut App) -> Vec<String> {
+        let mut labels: Vec<_> = app.world_mut().query_filtered::<&Text, With<InventoryCurrencyMark>>().iter(app.world()).map(|text| text.0.clone()).collect();
+        labels.sort();
+        labels
     }
 }
