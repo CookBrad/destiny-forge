@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
 from pathlib import Path
-
 from PIL import Image
-
 from art_common import CLEAR, Canvas, clipping_canvas, require_opaque_color
-
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / "assets" / "dungeon" / "environment"
 VFX = ROOT / "assets" / "dungeon" / "vfx"
-
 INK = require_opaque_color((16, 14, 20, 255))
 MORTAR = require_opaque_color((54, 42, 36, 255))
 MORTAR_DK = require_opaque_color((32, 26, 28, 255))
@@ -38,80 +33,47 @@ RED = require_opaque_color((214, 48, 24, 255))
 RED_DK = require_opaque_color((112, 18, 14, 255))
 ORANGE = require_opaque_color((255, 132, 36, 255))
 YELLOW = require_opaque_color((255, 214, 96, 255))
-
-
-def clamp_channel(value: int) -> int:
-    return 0 if value < 0 else 255 if value > 255 else value
-
-
-def shade(color: tuple[int, int, int, int], delta: int) -> tuple[int, int, int, int]:
-    red, green, blue, alpha = color
-    return (
-        clamp_channel(red + delta),
-        clamp_channel(green + delta),
-        clamp_channel(blue + delta),
-        alpha,
-    )
-
-
-def speck(x: int, y: int) -> int:
-    pick = (x * 13 + y * 29 + x * y) % 11
-    if pick == 0:
-        return -18
-    if pick == 1:
-        return 14
-    return 0
-
-
-def rivet(canvas: Canvas, x: int, y: int) -> None:
-    canvas.put(x, y, BRASS_DK)
-    canvas.put(x + 1, y, BRASS)
-    canvas.put(x, y + 1, BRASS)
-    canvas.put(x + 1, y + 1, BRASS_LT)
 TILE_PX = 32
-
-
-def hash2(x: int, y: int, salt: int = 0) -> int:
-    value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
-    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
-    return (value ^ (value >> 16)) & 0xFF
-
-
-def bevel_block(
-    canvas: Canvas,
-    x0: int,
-    y0: int,
-    x1: int,
-    y1: int,
-    base: tuple[int, int, int, int],
-    wrap: bool = False,
-) -> None:
-    for y in range(y0, y1):
-        for x in range(x0, x1):
-            color = shade(base, speck(x, y))
-            if y < y0 + 2 or x < x0 + 2:
-                color = shade(color, 20 if (y == y0 or x == x0) else 10)
-            if y >= y1 - 2 or x >= x1 - 2:
-                color = shade(color, -24 if (y == y1 - 1 or x == x1 - 1) else -12)
-            if wrap:
-                canvas.put(x % canvas.width, y % canvas.height, color)
-            else:
-                canvas.put(x, y, color)
-
-
-def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> None:
-    for (ax, ay), (bx, by) in zip(points, points[1:]):
-        steps = max(abs(bx - ax), abs(by - ay), 1)
-        for step in range(steps + 1):
-            x = ax + (bx - ax) * step // steps
-            y = ay + (by - ay) * step // steps
-            canvas.put(x, y, glow if step % 3 == 0 else color)
-
-
 WALL_BRICK_W = 32
 WALL_BRICK_H = 16
 WALL_PATTERN = 256
+SLAB_W = 64
+GROUND_PATTERN_W = 128
+LADDER_W = 64
+LADDER_H = 256
+STAKE_W = 24
+STAKE_H = 112
+LIP_W = 24
+LIP_H = 96
+PILLAR_W = 64
+PILLAR_H = 512
+TORCH_W = 32
+TORCH_H = 64
+CHAIN_W = 16
+CHAIN_H = 160
 
+def main() -> None:
+    targets = (
+        (draw_wall(), ENV / "wall.png", WALL_PATTERN, WALL_PATTERN, True),
+        (draw_floor(), ENV / "floor_ground.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_ground_fill(), ENV / "ground_fill.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
+        (draw_ceiling_beam(), ENV / "ceiling_beam.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_platform(), ENV / "floor_platform.png", GROUND_PATTERN_W, TILE_PX, True),
+        (draw_pit(), ENV / "floor_pit.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
+        (draw_ladder(), ENV / "floor_ladder.png", LADDER_W, LADDER_H, False),
+        (draw_stake(), ENV / "pit_stake.png", STAKE_W, STAKE_H, False),
+        (draw_lip(), ENV / "pit_lip.png", LIP_W, LIP_H, False),
+        (draw_pillar(), ENV / "pillar.png", PILLAR_W, PILLAR_H, False),
+        (draw_torch(), ENV / "torch.png", TORCH_W, TORCH_H, False),
+        (draw_chain(), ENV / "chain.png", CHAIN_W, CHAIN_H, False),
+        (draw_ground_slam(), VFX / "ground_slam.png", 96, 24, False),
+    )
+    for canvas, path, width, height, opaque in targets:
+        if (canvas.width, canvas.height) != (width, height):
+            raise SystemExit(f"canvas {path.name} is {(canvas.width, canvas.height)}")
+        save(canvas, path)
+        assert_size(path, width, height, opaque)
+        print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
 
 def draw_wall() -> Canvas:
     canvas = clipping_canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DK)
@@ -123,14 +85,13 @@ def draw_wall() -> Canvas:
             x0 = brick * WALL_BRICK_W - offset
             pick = hash2(brick, course, 3)
             base = stones[pick % 4] if pick > 20 else shade(BROWN_DK, -10)
-            bevel_block(
+            bevel_wrapped_block(
                 canvas,
                 x0 + 1,
                 y0 + 1,
                 x0 + WALL_BRICK_W - 1,
                 y0 + WALL_BRICK_H - 1,
                 base,
-                wrap=True,
             )
             if pick % 9 == 0:
 
@@ -156,10 +117,72 @@ def draw_wall() -> Canvas:
     rivet(canvas, 117, 108)
     return canvas
 
+def shade(color: tuple[int, int, int, int], delta: int) -> tuple[int, int, int, int]:
+    red, green, blue, alpha = color
+    return (
+        clamp_channel(red + delta),
+        clamp_channel(green + delta),
+        clamp_channel(blue + delta),
+        alpha,
+    )
 
-SLAB_W = 64
-GROUND_PATTERN_W = 128
+def clamp_channel(value: int) -> int:
+    return 0 if value < 0 else 255 if value > 255 else value
 
+def hash2(x: int, y: int, salt: int = 0) -> int:
+    value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
+    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (value ^ (value >> 16)) & 0xFF
+
+def bevel_wrapped_block(
+    canvas: Canvas,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    base: tuple[int, int, int, int],
+) -> None:
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            canvas.put(x % canvas.width, y % canvas.height, beveled_color(x, y, x0, y0, x1, y1, base))
+
+def beveled_color(
+    x: int,
+    y: int,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    base: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    color = shade(base, speck(x, y))
+    if y < y0 + 2 or x < x0 + 2:
+        color = shade(color, 20 if (y == y0 or x == x0) else 10)
+    if y >= y1 - 2 or x >= x1 - 2:
+        color = shade(color, -24 if (y == y1 - 1 or x == x1 - 1) else -12)
+    return color
+
+def speck(x: int, y: int) -> int:
+    pick = (x * 13 + y * 29 + x * y) % 11
+    if pick == 0:
+        return -18
+    if pick == 1:
+        return 14
+    return 0
+
+def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> None:
+    for (ax, ay), (bx, by) in zip(points, points[1:]):
+        steps = max(abs(bx - ax), abs(by - ay), 1)
+        for step in range(steps + 1):
+            x = ax + (bx - ax) * step // steps
+            y = ay + (by - ay) * step // steps
+            canvas.put(x, y, glow if step % 3 == 0 else color)
+
+def rivet(canvas: Canvas, x: int, y: int) -> None:
+    canvas.put(x, y, BRASS_DK)
+    canvas.put(x + 1, y, BRASS)
+    canvas.put(x, y + 1, BRASS)
+    canvas.put(x + 1, y + 1, BRASS_LT)
 
 def draw_floor() -> Canvas:
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DK)
@@ -184,6 +207,17 @@ def draw_floor() -> Canvas:
         canvas.put(x, 1, BRASS_DK)
     return canvas
 
+def bevel_block(
+    canvas: Canvas,
+    x0: int,
+    y0: int,
+    x1: int,
+    y1: int,
+    base: tuple[int, int, int, int],
+) -> None:
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            canvas.put(x, y, beveled_color(x, y, x0, y0, x1, y1, base))
 
 def draw_ground_fill() -> Canvas:
     canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, INK)
@@ -193,11 +227,10 @@ def draw_ground_fill() -> Canvas:
             x0 = block * SLAB_W - offset
             pick = hash2(block, course, 11)
             base = (BROWN_DEEP, shade(BROWN_DEEP, -10), shade(GRAY_DK, -6))[pick % 3]
-            bevel_block(canvas, x0 + 1, course * 32 + 1, x0 + SLAB_W - 1, course * 32 + 31, base, wrap=True)
+            bevel_wrapped_block(canvas, x0 + 1, course * 32 + 1, x0 + SLAB_W - 1, course * 32 + 31, base)
     crack(canvas, ((20, 40), (28, 48), (36, 49), (44, 58)), PURPLE_DK, PURPLE_DK)
     crack(canvas, ((90, 100), (96, 104), (104, 104), (110, 112)), BLUE_DK, BLUE_DK)
     return canvas
-
 
 def draw_ceiling_beam() -> Canvas:
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, IRON)
@@ -219,7 +252,6 @@ def draw_ceiling_beam() -> Canvas:
         canvas.put(x, TILE_PX - 2, BRASS_DK)
         canvas.put(x + 1, TILE_PX - 2, BRASS)
     return canvas
-
 
 def draw_platform() -> Canvas:
     canvas = clipping_canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
@@ -253,7 +285,6 @@ def draw_platform() -> Canvas:
         canvas.put(x0 + SLAB_W // 2 + 1, 17, BLUE)
     return canvas
 
-
 def draw_pit() -> Canvas:
     canvas = clipping_canvas(GROUND_PATTERN_W, GROUND_PATTERN_W, VOID)
     for y in range(GROUND_PATTERN_W):
@@ -272,11 +303,6 @@ def draw_pit() -> Canvas:
     for x, y in ((8, 12), (60, 74), (110, 20), (44, 120), (100, 64)):
         canvas.put(x, y, PURPLE_DK)
     return canvas
-
-
-LADDER_W = 64
-LADDER_H = 256
-
 
 def draw_ladder() -> Canvas:
     canvas = clipping_canvas(LADDER_W, LADDER_H, CLEAR)
@@ -320,11 +346,6 @@ def draw_ladder() -> Canvas:
     rivet(canvas, 52, LADDER_H - 7)
     return canvas
 
-
-STAKE_W = 24
-STAKE_H = 112
-
-
 def draw_stake() -> Canvas:
     canvas = clipping_canvas(STAKE_W, STAKE_H, CLEAR)
 
@@ -349,11 +370,6 @@ def draw_stake() -> Canvas:
     rivet(canvas, 18, STAKE_H - 6)
     return canvas
 
-
-LIP_W = 24
-LIP_H = 96
-
-
 def draw_lip() -> Canvas:
     canvas = clipping_canvas(LIP_W, LIP_H, CLEAR)
     for y in range(LIP_H):
@@ -373,11 +389,6 @@ def draw_lip() -> Canvas:
     for y in range(10, 70, 9):
         canvas.put(3 + y % 5, y, BLUE_DK)
     return canvas
-
-
-PILLAR_W = 64
-PILLAR_H = 512
-
 
 def draw_pillar() -> Canvas:
     canvas = clipping_canvas(PILLAR_W, PILLAR_H, CLEAR)
@@ -417,11 +428,6 @@ def draw_pillar() -> Canvas:
     crack(canvas, ((18, 210), (22, 220), (20, 232), (26, 244)), BLUE_DK, BLUE)
     return canvas
 
-
-TORCH_W = 32
-TORCH_H = 64
-
-
 def draw_torch() -> Canvas:
     canvas = clipping_canvas(TORCH_W, TORCH_H, CLEAR)
     flame = (
@@ -452,11 +458,6 @@ def draw_torch() -> Canvas:
     rivet(canvas, 10, 56)
     rivet(canvas, 20, 56)
     return canvas
-
-
-CHAIN_W = 16
-CHAIN_H = 160
-
 
 def draw_chain() -> Canvas:
     canvas = clipping_canvas(CHAIN_W, CHAIN_H, CLEAR)
@@ -490,7 +491,6 @@ def draw_chain() -> Canvas:
     canvas.put(3, CHAIN_H - 13, BRASS_LT)
     return canvas
 
-
 def draw_ground_slam() -> Canvas:
     canvas = clipping_canvas(96, 24, CLEAR)
     for x in range(96):
@@ -520,11 +520,9 @@ def draw_ground_slam() -> Canvas:
             canvas.put(x, 23, YELLOW if 40 <= x <= 55 else ORANGE)
     return canvas
 
-
 def save(canvas: Canvas, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas.image().save(path, format="PNG", optimize=False)
-
 
 def assert_size(path: Path, width: int, height: int, opaque: bool) -> None:
     img = Image.open(path)
@@ -539,31 +537,6 @@ def assert_size(path: Path, width: int, height: int, opaque: bool) -> None:
         raise SystemExit(f"{path} has no transparent pixel")
     if not opaque and 255 not in alphas:
         raise SystemExit(f"{path} has no opaque pixel")
-
-
-def main() -> None:
-    targets = (
-        (draw_wall(), ENV / "wall.png", WALL_PATTERN, WALL_PATTERN, True),
-        (draw_floor(), ENV / "floor_ground.png", GROUND_PATTERN_W, TILE_PX, True),
-        (draw_ground_fill(), ENV / "ground_fill.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
-        (draw_ceiling_beam(), ENV / "ceiling_beam.png", GROUND_PATTERN_W, TILE_PX, True),
-        (draw_platform(), ENV / "floor_platform.png", GROUND_PATTERN_W, TILE_PX, True),
-        (draw_pit(), ENV / "floor_pit.png", GROUND_PATTERN_W, GROUND_PATTERN_W, True),
-        (draw_ladder(), ENV / "floor_ladder.png", LADDER_W, LADDER_H, False),
-        (draw_stake(), ENV / "pit_stake.png", STAKE_W, STAKE_H, False),
-        (draw_lip(), ENV / "pit_lip.png", LIP_W, LIP_H, False),
-        (draw_pillar(), ENV / "pillar.png", PILLAR_W, PILLAR_H, False),
-        (draw_torch(), ENV / "torch.png", TORCH_W, TORCH_H, False),
-        (draw_chain(), ENV / "chain.png", CHAIN_W, CHAIN_H, False),
-        (draw_ground_slam(), VFX / "ground_slam.png", 96, 24, False),
-    )
-    for canvas, path, width, height, opaque in targets:
-        if (canvas.width, canvas.height) != (width, height):
-            raise SystemExit(f"canvas {path.name} is {(canvas.width, canvas.height)}")
-        save(canvas, path)
-        assert_size(path, width, height, opaque)
-        print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
-
 
 if __name__ == "__main__":
     main()

@@ -57,6 +57,17 @@ CHEEK_BULGE = [
     "d",
 ]
 
+def main() -> None:
+    base = Image.open(BASE).convert("RGBA")
+    frames = [pose(base) for pose in (reach, lift, bite, chew)]
+    for index, frame in enumerate(frames):
+        frame.save(SPRITES / f"dwarf_m_eat_anim_f{index}.png", optimize=True)
+
+def reach(base: Image.Image) -> Image.Image:
+    frame = base.copy()
+    stamp(frame, DRUMSTICK, 9, 21)
+    stamp(frame, HAND, 13, 24)
+    return frame
 
 def stamp(image: Image.Image, pattern: list[str], left: int, top: int) -> None:
     for row, line in enumerate(pattern):
@@ -68,27 +79,6 @@ def stamp(image: Image.Image, pattern: list[str], left: int, top: int) -> None:
             if 0 <= x < image.width and 0 <= y < image.height:
                 image.putpixel((x, y), PALETTE[key])
 
-
-def dip_head(image: Image.Image, rows: int) -> Image.Image:
-    neck = 20
-    top = image.crop((0, 0, image.width, neck))
-    bottom = image.crop((0, neck, image.width, image.height))
-    return composite_images(image.size, [(bottom, (0, neck)), (top, (0, rows))])
-
-
-def close_eyes(image: Image.Image, head_offset: int) -> None:
-    for x in (8, 9):
-        image.putpixel((x, 18 + head_offset), SKIN)
-        image.putpixel((x, 19 + head_offset), OUTLINE)
-
-
-def reach(base: Image.Image) -> Image.Image:
-    frame = base.copy()
-    stamp(frame, DRUMSTICK, 9, 21)
-    stamp(frame, HAND, 13, 24)
-    return frame
-
-
 def lift(base: Image.Image) -> Image.Image:
     frame = base.copy()
     stamp(frame, OPEN_MOUTH, 9, 21)
@@ -96,13 +86,17 @@ def lift(base: Image.Image) -> Image.Image:
     stamp(frame, HAND, 14, 22)
     return frame
 
-
 def bite(base: Image.Image) -> Image.Image:
     frame = dip_head(base, 1)
     stamp(frame, DRUMSTICK, 10, 20)
     stamp(frame, HAND, 14, 23)
     return frame
 
+def dip_head(image: Image.Image, rows: int) -> Image.Image:
+    neck = 20
+    top = image.crop((0, 0, image.width, neck))
+    bottom = image.crop((0, neck, image.width, image.height))
+    return composite_images(image.size, [(bottom, (0, neck)), (top, (0, rows))])
 
 def chew(base: Image.Image) -> Image.Image:
     frame = dip_head(base, 1)
@@ -112,13 +106,10 @@ def chew(base: Image.Image) -> Image.Image:
     stamp(frame, HAND, 15, 25)
     return frame
 
-
-def main() -> None:
-    base = Image.open(BASE).convert("RGBA")
-    frames = [pose(base) for pose in (reach, lift, bite, chew)]
-    for index, frame in enumerate(frames):
-        frame.save(SPRITES / f"dwarf_m_eat_anim_f{index}.png", optimize=True)
-
+def close_eyes(image: Image.Image, head_offset: int) -> None:
+    for x in (8, 9):
+        image.putpixel((x, 18 + head_offset), SKIN)
+        image.putpixel((x, 19 + head_offset), OUTLINE)
 
 if __name__ == "__main__":
     main()

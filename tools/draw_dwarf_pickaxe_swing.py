@@ -33,26 +33,16 @@ POSES = [
     {"lean_x": 1, "drop_y": 1, "grip": (33.5, 35.5), "angle": 140.0, "in_front": True},
 ]
 
+def main():
+    frames = [draw_frame(pose) for pose in POSES]
+    for index, frame in enumerate(frames):
+        frame.save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
 
-def distance_to_segment(px, py, ax, ay, bx, by):
-    abx, aby = bx - ax, by - ay
-    length_squared = abx * abx + aby * aby
-    t = 0.0 if length_squared == 0 else max(0.0, min(1.0, ((px - ax) * abx + (py - ay) * aby) / length_squared))
-    cx, cy = ax + abx * t, ay + aby * t
-    return math.hypot(px - cx, py - cy)
-
-
-def stroke(layer, segments, core_radius, colour):
-    for y in range(CANVAS_H):
-        for x in range(CANVAS_W):
-            cx, cy = x + 0.5, y + 0.5
-            if any(distance_to_segment(cx, cy, *a, *b) <= core_radius for a, b in segments):
-                layer[(x, y)] = colour
-
-
-def outline_around(layer):
-    return outline_layer(layer, OUTLINE, CANVAS_W, CANVAS_H)
-
+def draw_frame(pose):
+    pickaxe = pickaxe_pixels(pose["grip"], pose["angle"])
+    layers = [dwarf_pixels(pose), pickaxe] if pose["in_front"] else [pickaxe, dwarf_pixels(pose)]
+    layers.append(fist_pixels(pose["grip"]))
+    return composite_layers(CANVAS_W, CANVAS_H, layers)
 
 def pickaxe_pixels(grip, angle_degrees):
     radians = math.radians(angle_degrees)
@@ -73,12 +63,22 @@ def pickaxe_pixels(grip, angle_degrees):
     stroke(layer, [(prong_back, tip), (tip, prong_forward)], 0.75, STEEL)
     return outline_around(layer)
 
+def stroke(layer, segments, core_radius, colour):
+    for y in range(CANVAS_H):
+        for x in range(CANVAS_W):
+            cx, cy = x + 0.5, y + 0.5
+            if any(distance_to_segment(cx, cy, *a, *b) <= core_radius for a, b in segments):
+                layer[(x, y)] = colour
 
-def fist_pixels(grip):
-    gx, gy = int(grip[0]), int(grip[1])
-    layer = {(gx + dx, gy + dy): SKIN for dx in (-1, 0) for dy in (0, 1)}
-    return outline_around(layer)
+def distance_to_segment(px, py, ax, ay, bx, by):
+    abx, aby = bx - ax, by - ay
+    length_squared = abx * abx + aby * aby
+    t = 0.0 if length_squared == 0 else max(0.0, min(1.0, ((px - ax) * abx + (py - ay) * aby) / length_squared))
+    cx, cy = ax + abx * t, ay + aby * t
+    return math.hypot(px - cx, py - cy)
 
+def outline_around(layer):
+    return outline_layer(layer, OUTLINE, CANVAS_W, CANVAS_H)
 
 def dwarf_pixels(pose):
     dwarf = Image.open(DWARF).convert("RGBA")
@@ -96,19 +96,10 @@ def dwarf_pixels(pose):
                 layer[(DWARF_X + x + pose["lean_x"], DWARF_Y + y + pose["drop_y"])] = colour
     return layer
 
-
-def draw_frame(pose):
-    pickaxe = pickaxe_pixels(pose["grip"], pose["angle"])
-    layers = [dwarf_pixels(pose), pickaxe] if pose["in_front"] else [pickaxe, dwarf_pixels(pose)]
-    layers.append(fist_pixels(pose["grip"]))
-    return composite_layers(CANVAS_W, CANVAS_H, layers)
-
-
-def main():
-    frames = [draw_frame(pose) for pose in POSES]
-    for index, frame in enumerate(frames):
-        frame.save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
-
+def fist_pixels(grip):
+    gx, gy = int(grip[0]), int(grip[1])
+    layer = {(gx + dx, gy + dy): SKIN for dx in (-1, 0) for dy in (0, 1)}
+    return outline_around(layer)
 
 if __name__ == "__main__":
     main()

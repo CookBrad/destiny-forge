@@ -43,76 +43,46 @@ ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
 IRON_TONES = {IRON_LT, IRON, IRON_DK}
 BRASS_TONES = {BRASS_LT, BRASS, BRASS_DK}
 
+def main() -> None:
+    check = "--check" in sys.argv
+    icons = {
+        "short_wep.png": draw_sword(),
+        "shield.png": draw_shield(),
+        "boot.png": draw_boot(),
+        "wand.png": draw_wand(),
+    }
+    payloads = [list(image.getdata()) for image in icons.values()]
+    if len({tuple(payload) for payload in payloads}) != len(icons):
+        raise SystemExit("skill icons are not unique")
+
+    for name, image in icons.items():
+        verify(image, name)
+        dest = OUT_DIR / name
+        if check:
+            if not dest.is_file():
+                raise SystemExit(f"missing {dest}")
+            existing = Image.open(dest).convert("RGBA")
+            verify(existing, name)
+            if list(existing.getdata()) != list(image.getdata()):
+                raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
+        else:
+            save_png(image, dest)
+        min_x, min_y, max_x, max_y = glyph_box(image)
+        print(
+            f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
+            f"at ({min_x},{min_y})-({max_x},{max_y})"
+        )
+        print(ascii_preview(image))
+        print()
+
+def draw_sword() -> Image.Image:
+    canvas = new_canvas()
+    paint_sword(canvas)
+    finish_body(canvas)
+    return to_image(canvas)
 
 def new_canvas() -> Canvas:
     return rejecting_canvas(SIZE, SIZE)
-
-
-def put(
-    canvas: Canvas,
-    x: int,
-    y: int,
-    color: tuple[int, int, int, int],
-) -> None:
-    canvas.put(x, y, color)
-
-
-def fills_span(
-    canvas: Canvas,
-    y: int,
-    x0: int,
-    x1: int,
-    color: tuple[int, int, int, int],
-) -> None:
-    for x in range(x0, x1 + 1):
-        put(canvas, x, y, color)
-
-
-def neighbor(
-    canvas: Canvas, x: int, y: int, dx: int, dy: int
-) -> tuple[int, int, int, int] | None:
-    nx, ny = x + dx, y + dy
-    if 0 <= nx < SIZE and 0 <= ny < SIZE:
-        return canvas[ny][nx]
-    return None
-
-
-def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
-    return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
-
-
-def outline_icon(canvas: Canvas) -> None:
-    add_outline(canvas, OUTLINE)
-
-
-def shade_outline(canvas: Canvas) -> None:
-    light_contour(canvas, OUTLINE, RIM_LIT)
-
-
-def recolor_rim(
-    canvas: Canvas,
-    lit: tuple[int, int, int, int],
-    mid: tuple[int, int, int, int],
-    shadow: tuple[int, int, int, int],
-) -> None:
-    edge = [
-        (x, y)
-        for y in range(SIZE)
-        for x in range(SIZE)
-        if canvas[y][x] is not None and touches_empty(canvas, x, y)
-    ]
-    for x, y in edge:
-        above_empty = neighbor(canvas, x, y, 0, -1) is None
-        left_empty = neighbor(canvas, x, y, -1, 0) is None
-        below_empty = neighbor(canvas, x, y, 0, 1) is None
-        right_empty = neighbor(canvas, x, y, 1, 0) is None
-        if above_empty or (left_empty and not right_empty and not below_empty):
-            canvas[y][x] = lit
-        elif below_empty or right_empty:
-            canvas[y][x] = shadow
-        else:
-            canvas[y][x] = mid
-
 
 def paint_sword(canvas: Canvas) -> None:
     put(canvas, 15, 3, STEEL_LT)
@@ -150,29 +120,32 @@ def paint_sword(canvas: Canvas) -> None:
         put(canvas, x, 28, BRASS if x < 16 else BRASS_DK)
     put(canvas, 15, 28, CYAN)
 
+def put(
+    canvas: Canvas,
+    x: int,
+    y: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    canvas.put(x, y, color)
 
-def shield_spans() -> list[tuple[int, int, int]]:
-    spans = [
-        (6, 10, 21),
-        (7, 8, 23),
-        (8, 7, 24),
-    ]
-    spans.extend((y, 6, 25) for y in range(9, 18))
-    spans.extend(
-        [
-            (18, 7, 24),
-            (19, 8, 23),
-            (20, 9, 22),
-            (21, 10, 21),
-            (22, 11, 20),
-            (23, 12, 19),
-            (24, 13, 18),
-            (25, 14, 17),
-            (26, 15, 16),
-        ]
-    )
-    return spans
+def finish_body(canvas: Canvas) -> None:
+    outline_icon(canvas)
+    shade_outline(canvas)
 
+def outline_icon(canvas: Canvas) -> None:
+    add_outline(canvas, OUTLINE)
+
+def shade_outline(canvas: Canvas) -> None:
+    light_contour(canvas, OUTLINE, RIM_LIT)
+
+def to_image(canvas: Canvas) -> Image.Image:
+    return canvas.image()
+
+def draw_shield() -> Image.Image:
+    canvas = new_canvas()
+    paint_shield(canvas)
+    finish_body(canvas)
+    return to_image(canvas)
 
 def paint_shield(canvas: Canvas) -> None:
     for y, x0, x1 in shield_spans():
@@ -213,6 +186,62 @@ def paint_shield(canvas: Canvas) -> None:
         if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DK}:
             canvas[y][x] = BRASS_LT
 
+def shield_spans() -> list[tuple[int, int, int]]:
+    spans = [
+        (6, 10, 21),
+        (7, 8, 23),
+        (8, 7, 24),
+    ]
+    spans.extend((y, 6, 25) for y in range(9, 18))
+    spans.extend(
+        [
+            (18, 7, 24),
+            (19, 8, 23),
+            (20, 9, 22),
+            (21, 10, 21),
+            (22, 11, 20),
+            (23, 12, 19),
+            (24, 13, 18),
+            (25, 14, 17),
+            (26, 15, 16),
+        ]
+    )
+    return spans
+
+def recolor_rim(
+    canvas: Canvas,
+    lit: tuple[int, int, int, int],
+    mid: tuple[int, int, int, int],
+    shadow: tuple[int, int, int, int],
+) -> None:
+    edge = [
+        (x, y)
+        for y in range(SIZE)
+        for x in range(SIZE)
+        if canvas[y][x] is not None and touches_empty(canvas, x, y)
+    ]
+    for x, y in edge:
+        above_empty = neighbor(canvas, x, y, 0, -1) is None
+        left_empty = neighbor(canvas, x, y, -1, 0) is None
+        below_empty = neighbor(canvas, x, y, 0, 1) is None
+        right_empty = neighbor(canvas, x, y, 1, 0) is None
+        if above_empty or (left_empty and not right_empty and not below_empty):
+            canvas[y][x] = lit
+        elif below_empty or right_empty:
+            canvas[y][x] = shadow
+        else:
+            canvas[y][x] = mid
+
+def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
+    return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
+
+def neighbor(
+    canvas: Canvas, x: int, y: int, dx: int, dy: int
+) -> tuple[int, int, int, int] | None:
+    nx, ny = x + dx, y + dy
+    if 0 <= nx < SIZE and 0 <= ny < SIZE:
+        return canvas[ny][nx]
+    return None
 
 def stamp_boss(canvas: Canvas) -> None:
     cx, cy = 15, 14
@@ -233,6 +262,12 @@ def stamp_boss(canvas: Canvas) -> None:
         if y % 2 == 0 and canvas[y][15] in IRON_TONES:
             canvas[y][15] = CYAN
 
+def draw_boot() -> Image.Image:
+    canvas = new_canvas()
+    paint_boot(canvas)
+    finish_body(canvas)
+    paint_boot_trail(canvas)
+    return to_image(canvas)
 
 def paint_boot(canvas: Canvas) -> None:
     spans = [
@@ -274,6 +309,15 @@ def paint_boot(canvas: Canvas) -> None:
         if y < 16:
             canvas[y][29] = BRASS_DK
 
+def fills_span(
+    canvas: Canvas,
+    y: int,
+    x0: int,
+    x1: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    for x in range(x0, x1 + 1):
+        put(canvas, x, y, color)
 
 def paint_boot_trail(canvas: Canvas) -> None:
     streaks = (
@@ -294,31 +338,12 @@ def paint_boot_trail(canvas: Canvas) -> None:
         if canvas[y][x] is None:
             put(canvas, x, y, color)
 
-
-def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
-    points: set[tuple[int, int]] = set()
-    x, y, decision = 0, radius, 3 - 2 * radius
-
-    def plot(px: int, py: int) -> None:
-        points.add((cx + px, cy + py))
-        points.add((cx - px, cy + py))
-        points.add((cx + px, cy - py))
-        points.add((cx - px, cy - py))
-        points.add((cx + py, cy + px))
-        points.add((cx - py, cy + px))
-        points.add((cx + py, cy - px))
-        points.add((cx - py, cy - px))
-
-    while x <= y:
-        plot(x, y)
-        if decision < 0:
-            decision += 4 * x + 6
-        else:
-            decision += 4 * (x - y) + 10
-            y -= 1
-        x += 1
-    return sorted(points)
-
+def draw_wand() -> Image.Image:
+    canvas = new_canvas()
+    paint_wand(canvas)
+    finish_body(canvas)
+    paint_wand_orbit(canvas)
+    return to_image(canvas)
 
 def paint_wand(canvas: Canvas) -> None:
     diamond = {
@@ -348,7 +373,6 @@ def paint_wand(canvas: Canvas) -> None:
         put(canvas, x, 28, BRASS_DK)
     put(canvas, 16, 28, CYAN_DK)
 
-
 def paint_wand_orbit(canvas: Canvas) -> None:
     for x, y in circle_pixels(16, 10, 8):
         if y >= 13 or canvas[y][x] is not None:
@@ -362,58 +386,29 @@ def paint_wand_orbit(canvas: Canvas) -> None:
             color = CYAN_DK
         put(canvas, x, y, color)
 
+def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
+    points: set[tuple[int, int]] = set()
+    x, y, decision = 0, radius, 3 - 2 * radius
 
-def finish_body(canvas: Canvas) -> None:
-    outline_icon(canvas)
-    shade_outline(canvas)
+    def plot(px: int, py: int) -> None:
+        points.add((cx + px, cy + py))
+        points.add((cx - px, cy + py))
+        points.add((cx + px, cy - py))
+        points.add((cx - px, cy - py))
+        points.add((cx + py, cy + px))
+        points.add((cx - py, cy + px))
+        points.add((cx + py, cy - px))
+        points.add((cx - py, cy - px))
 
-
-def to_image(canvas: Canvas) -> Image.Image:
-    return canvas.image()
-
-
-def draw_sword() -> Image.Image:
-    canvas = new_canvas()
-    paint_sword(canvas)
-    finish_body(canvas)
-    return to_image(canvas)
-
-
-def draw_shield() -> Image.Image:
-    canvas = new_canvas()
-    paint_shield(canvas)
-    finish_body(canvas)
-    return to_image(canvas)
-
-
-def draw_boot() -> Image.Image:
-    canvas = new_canvas()
-    paint_boot(canvas)
-    finish_body(canvas)
-    paint_boot_trail(canvas)
-    return to_image(canvas)
-
-
-def draw_wand() -> Image.Image:
-    canvas = new_canvas()
-    paint_wand(canvas)
-    finish_body(canvas)
-    paint_wand_orbit(canvas)
-    return to_image(canvas)
-
-
-def glyph_box(image: Image.Image) -> tuple[int, int, int, int]:
-    pixels = image.load()
-    min_x, min_y, max_x, max_y = SIZE, SIZE, -1, -1
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if pixels[x, y][3]:
-                min_x = min(min_x, x)
-                min_y = min(min_y, y)
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
-    return min_x, min_y, max_x, max_y
-
+    while x <= y:
+        plot(x, y)
+        if decision < 0:
+            decision += 4 * x + 6
+        else:
+            decision += 4 * (x - y) + 10
+            y -= 1
+        x += 1
+    return sorted(points)
 
 def verify(image: Image.Image, name: str) -> None:
     if image.size != (SIZE, SIZE):
@@ -439,11 +434,21 @@ def verify(image: Image.Image, name: str) -> None:
     if min_x < 1 or min_y < 1 or max_x > SIZE - 2 or max_y > SIZE - 2:
         raise SystemExit(f"{name} glyph touches the canvas edge {(min_x, min_y, max_x, max_y)}")
 
+def glyph_box(image: Image.Image) -> tuple[int, int, int, int]:
+    pixels = image.load()
+    min_x, min_y, max_x, max_y = SIZE, SIZE, -1, -1
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if pixels[x, y][3]:
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    return min_x, min_y, max_x, max_y
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     image.save(path, format="PNG", pnginfo=PngImagePlugin.PngInfo(), compress_level=9)
-
 
 def ascii_preview(image: Image.Image) -> str:
     legend = {
@@ -478,40 +483,6 @@ def ascii_preview(image: Image.Image) -> str:
                 chars.append(legend.get(pixel, "?"))
         rows.append("".join(chars).rstrip())
     return "\n".join(rows)
-
-
-def main() -> None:
-    check = "--check" in sys.argv
-    icons = {
-        "short_wep.png": draw_sword(),
-        "shield.png": draw_shield(),
-        "boot.png": draw_boot(),
-        "wand.png": draw_wand(),
-    }
-    payloads = [list(image.getdata()) for image in icons.values()]
-    if len({tuple(payload) for payload in payloads}) != len(icons):
-        raise SystemExit("skill icons are not unique")
-
-    for name, image in icons.items():
-        verify(image, name)
-        dest = OUT_DIR / name
-        if check:
-            if not dest.is_file():
-                raise SystemExit(f"missing {dest}")
-            existing = Image.open(dest).convert("RGBA")
-            verify(existing, name)
-            if list(existing.getdata()) != list(image.getdata()):
-                raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
-        else:
-            save_png(image, dest)
-        min_x, min_y, max_x, max_y = glyph_box(image)
-        print(
-            f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
-            f"at ({min_x},{min_y})-({max_x},{max_y})"
-        )
-        print(ascii_preview(image))
-        print()
-
 
 if __name__ == "__main__":
     main()
