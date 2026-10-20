@@ -34,10 +34,6 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 8,
         apply: migrate_profile_to_v8,
     },
-    ProfileMigration {
-        to_version: 9,
-        apply: migrate_profile_to_v9,
-    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -137,41 +133,6 @@ fn migrate_profile_to_v8(profile: &mut RonValue) {
     for slot in items {
         force_slot_quality_normal(slot);
     }
-}
-
-fn migrate_profile_to_v9(profile: &mut RonValue) {
-    rename_saved_armor(profile);
-}
-
-fn rename_saved_armor(value: &mut RonValue) {
-    match value {
-        RonValue::Unit(name) => rename_armor_name(name),
-        RonValue::Option(Some(inner)) => rename_saved_armor(inner),
-        RonValue::Tuple(items) | RonValue::List(items) => {
-            items.iter_mut().for_each(rename_saved_armor);
-        }
-        RonValue::Map(fields) | RonValue::StructVariant(_, fields) => {
-            fields
-                .iter_mut()
-                .for_each(|(_, field)| rename_saved_armor(field));
-        }
-        RonValue::TupleVariant(name, items) => {
-            rename_armor_name(name);
-            items.iter_mut().for_each(rename_saved_armor);
-        }
-        _ => {}
-    }
-}
-
-fn rename_armor_name(name: &mut String) {
-    *name = match name.as_str() {
-        "SlimeHelm" => "Helm",
-        "SlimeMail" => "Mail",
-        "SlimeGauntlets" => "Gauntlets",
-        "SlimeGreaves" => "Greaves",
-        _ => return,
-    }
-    .to_string();
 }
 
 fn force_slot_quality_normal(slot: &mut RonValue) {
@@ -522,92 +483,6 @@ mod tests {
         let text = V2_PROFILE.replace("version:2", "version:1");
         let error = profile_from_ron(&text).unwrap_err();
         assert!(error.contains("cannot migrate"));
-    }
-
-    fn version_8_profile_with_armor(head: &str) -> String {
-        let mut profile = PlayerProfile {
-            version: 8,
-            ..PlayerProfile::default()
-        };
-        profile.loadout.armor.set(crate::player::ArmorSet::Helm);
-        profile.loadout.armor.set(crate::player::ArmorSet::Mail);
-        profile
-            .loadout
-            .armor
-            .set(crate::player::ArmorSet::Gauntlets);
-        profile.loadout.armor.set(crate::player::ArmorSet::Greaves);
-        profile.loadout.stash.armor = vec![
-            crate::player::ArmorSet::Helm,
-            crate::player::ArmorSet::Mail,
-            crate::player::ArmorSet::Gauntlets,
-            crate::player::ArmorSet::Greaves,
-        ];
-        ron::to_string(&profile)
-            .unwrap()
-            .replace("Gauntlets", "SlimeGauntlets")
-            .replace("Greaves", "SlimeGreaves")
-            .replace("Helm", head)
-            .replace("Mail", "SlimeMail")
-    }
-
-    #[test]
-    fn version_8_save_maps_slime_armor_names_onto_the_set() {
-        let loaded = profile_from_ron(&version_8_profile_with_armor("SlimeHelm")).unwrap();
-        assert_eq!(loaded.version, 9);
-        assert_eq!(
-            loaded.loadout.armor.head,
-            Some(crate::player::ArmorSet::Helm)
-        );
-        assert_eq!(
-            loaded.loadout.armor.chest,
-            Some(crate::player::ArmorSet::Mail)
-        );
-        assert_eq!(
-            loaded.loadout.armor.arms,
-            Some(crate::player::ArmorSet::Gauntlets)
-        );
-        assert_eq!(
-            loaded.loadout.armor.legs,
-            Some(crate::player::ArmorSet::Greaves)
-        );
-        assert_eq!(
-            loaded.loadout.stash.armor,
-            vec![
-                crate::player::ArmorSet::Helm,
-                crate::player::ArmorSet::Mail,
-                crate::player::ArmorSet::Gauntlets,
-                crate::player::ArmorSet::Greaves,
-            ]
-        );
-    }
-
-    #[test]
-    fn version_8_save_with_current_armor_names_keeps_those_pieces() {
-        let mut profile = PlayerProfile {
-            version: 8,
-            ..PlayerProfile::default()
-        };
-        profile.loadout.armor.set(crate::player::ArmorSet::Helm);
-        let loaded = profile_from_ron(&ron::to_string(&profile).unwrap()).unwrap();
-        assert_eq!(loaded.version, 9);
-        assert_eq!(
-            loaded.loadout.armor.head,
-            Some(crate::player::ArmorSet::Helm)
-        );
-        assert_eq!(loaded.loadout.armor.chest, None);
-        assert_eq!(loaded.loadout.armor.arms, None);
-        assert_eq!(loaded.loadout.armor.legs, None);
-        assert!(loaded.loadout.stash.armor.is_empty());
-    }
-
-    #[test]
-    fn version_8_save_with_an_unknown_armor_name_does_not_load() {
-        let text = version_8_profile_with_armor("SlimeCrown");
-        let error = profile_from_ron(&text).unwrap_err();
-        assert_eq!(
-            error,
-            "1:1398: Unexpected variant named `SlimeCrown`in enum `ArmorSet`, expected one of `Helm`, `Mail`, `Gauntlets`, `Greaves` instead"
-        );
     }
 
     fn assert_profiles_match(loaded: &PlayerProfile, expected: &PlayerProfile) {

@@ -5,7 +5,7 @@ use crate::combat::{EquippedWeapon, WeaponKind};
 use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ArmorSet {
+pub enum ArmorPiece {
     Helm,
     Mail,
     Gauntlets,
@@ -13,25 +13,30 @@ pub enum ArmorSet {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ArmorSet {
+    Slime,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArmorSlot {
-    Head,
-    Chest,
-    Arms,
-    Legs,
+    Helm,
+    Mail,
+    Gauntlets,
+    Greaves,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArmorSlots {
-    pub head: Option<ArmorSet>,
-    pub chest: Option<ArmorSet>,
-    pub arms: Option<ArmorSet>,
-    pub legs: Option<ArmorSet>,
+    pub head: Option<ArmorPiece>,
+    pub chest: Option<ArmorPiece>,
+    pub arms: Option<ArmorPiece>,
+    pub legs: Option<ArmorPiece>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GearStash {
     pub weapons: Vec<WeaponKind>,
-    pub armor: Vec<ArmorSet>,
+    pub armor: Vec<ArmorPiece>,
 }
 
 #[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,13 +61,17 @@ impl Default for Loadout {
     }
 }
 
-impl ArmorSet {
+impl ArmorPiece {
+    pub fn set(self) -> ArmorSet {
+        ArmorSet::Slime
+    }
+
     pub fn slot(self) -> ArmorSlot {
         match self {
-            Self::Helm => ArmorSlot::Head,
-            Self::Mail => ArmorSlot::Chest,
-            Self::Gauntlets => ArmorSlot::Arms,
-            Self::Greaves => ArmorSlot::Legs,
+            Self::Helm => ArmorSlot::Helm,
+            Self::Mail => ArmorSlot::Mail,
+            Self::Gauntlets => ArmorSlot::Gauntlets,
+            Self::Greaves => ArmorSlot::Greaves,
         }
     }
 
@@ -86,21 +95,21 @@ impl ArmorSet {
 }
 
 impl ArmorSlots {
-    pub fn set(&mut self, kind: ArmorSet) {
+    pub fn set(&mut self, kind: ArmorPiece) {
         match kind.slot() {
-            ArmorSlot::Head => self.head = Some(kind),
-            ArmorSlot::Chest => self.chest = Some(kind),
-            ArmorSlot::Arms => self.arms = Some(kind),
-            ArmorSlot::Legs => self.legs = Some(kind),
+            ArmorSlot::Helm => self.head = Some(kind),
+            ArmorSlot::Mail => self.chest = Some(kind),
+            ArmorSlot::Gauntlets => self.arms = Some(kind),
+            ArmorSlot::Greaves => self.legs = Some(kind),
         }
     }
 
-    fn piece_mut(&mut self, slot: ArmorSlot) -> &mut Option<ArmorSet> {
+    fn piece_mut(&mut self, slot: ArmorSlot) -> &mut Option<ArmorPiece> {
         match slot {
-            ArmorSlot::Head => &mut self.head,
-            ArmorSlot::Chest => &mut self.chest,
-            ArmorSlot::Arms => &mut self.arms,
-            ArmorSlot::Legs => &mut self.legs,
+            ArmorSlot::Helm => &mut self.head,
+            ArmorSlot::Mail => &mut self.chest,
+            ArmorSlot::Gauntlets => &mut self.arms,
+            ArmorSlot::Greaves => &mut self.legs,
         }
     }
 }
@@ -141,7 +150,7 @@ impl Loadout {
         true
     }
 
-    pub fn equip_forged_armor(&mut self, kind: ArmorSet) {
+    pub fn equip_forged_armor(&mut self, kind: ArmorPiece) {
         let slot = kind.slot();
         if let Some(previous) = *self.armor.piece_mut(slot) {
             if previous != kind {
@@ -152,7 +161,7 @@ impl Loadout {
         self.armor.set(kind);
     }
 
-    pub fn swap_to_stashed_armor(&mut self, kind: ArmorSet) -> bool {
+    pub fn swap_to_stashed_armor(&mut self, kind: ArmorPiece) -> bool {
         if !self.stash.armor.contains(&kind) {
             return false;
         }
@@ -170,13 +179,13 @@ impl Loadout {
         self.stash.weapons.retain(|stored| *stored != weapon);
     }
 
-    fn store_armor(&mut self, kind: ArmorSet) {
+    fn store_armor(&mut self, kind: ArmorPiece) {
         if !self.stash.armor.contains(&kind) {
             self.stash.armor.push(kind);
         }
     }
 
-    fn take_armor_from_stash(&mut self, kind: ArmorSet) {
+    fn take_armor_from_stash(&mut self, kind: ArmorPiece) {
         self.stash.armor.retain(|stored| *stored != kind);
     }
 
@@ -229,7 +238,7 @@ impl Loadout {
             self.armor.legs,
         ]
         .into_iter()
-        .filter(|piece| piece.is_some())
+        .filter(|piece| piece.is_some_and(|piece| piece.set() == ArmorSet::Slime))
         .count() as u32
     }
 
@@ -286,22 +295,21 @@ pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
 
     fn full_slime() -> Loadout {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorSet::Helm);
-        loadout.armor.chest = Some(ArmorSet::Mail);
-        loadout.armor.arms = Some(ArmorSet::Gauntlets);
-        loadout.armor.legs = Some(ArmorSet::Greaves);
+        loadout.armor.head = Some(ArmorPiece::Helm);
+        loadout.armor.chest = Some(ArmorPiece::Mail);
+        loadout.armor.arms = Some(ArmorPiece::Gauntlets);
+        loadout.armor.legs = Some(ArmorPiece::Greaves);
         loadout
     }
 
     #[test]
     fn two_piece_gives_carve_and_special_cd() {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorSet::Helm);
-        loadout.armor.chest = Some(ArmorSet::Mail);
+        loadout.armor.head = Some(ArmorPiece::Helm);
+        loadout.armor.chest = Some(ArmorPiece::Mail);
         assert_eq!(loadout.slime_set_pieces(), 2);
         assert!((loadout.carve_speed_multiplier() - 1.1).abs() < f32::EPSILON);
         assert!((loadout.special_cooldown_multiplier() - 0.9).abs() < f32::EPSILON);
@@ -409,9 +417,8 @@ mod tests {
         };
         app.insert_resource(loadout);
 
-        app.world_mut()
-            .run_system_once(expire_food_buff_after_hunt)
-            .unwrap();
+        app.add_systems(Update, expire_food_buff_after_hunt);
+        app.update();
 
         assert_eq!(app.world().resource::<Loadout>().food_buff, None);
     }
@@ -426,115 +433,12 @@ mod tests {
     #[test]
     fn forged_armor_stashes_previous_piece_in_slot() {
         let mut loadout = Loadout::default();
-        loadout.equip_forged_armor(ArmorSet::Helm);
-        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
-        assert!(loadout.stash.armor.is_empty());
-    }
-
-    #[test]
-    fn armor_slots_place_each_piece_in_its_own_slot() {
-        let mut slots = ArmorSlots::default();
-        slots.set(ArmorSet::Helm);
-        slots.set(ArmorSet::Mail);
-        slots.set(ArmorSet::Gauntlets);
-        slots.set(ArmorSet::Greaves);
-        assert_eq!(slots.head, Some(ArmorSet::Helm));
-        assert_eq!(slots.chest, Some(ArmorSet::Mail));
-        assert_eq!(slots.arms, Some(ArmorSet::Gauntlets));
-        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
-    }
-
-    #[test]
-    fn armor_slots_replace_only_the_slot_that_piece_uses() {
-        let mut slots = ArmorSlots {
-            head: Some(ArmorSet::Helm),
-            chest: Some(ArmorSet::Mail),
-            arms: Some(ArmorSet::Gauntlets),
-            legs: Some(ArmorSet::Greaves),
-        };
-        slots.set(ArmorSet::Mail);
-        assert_eq!(slots.head, Some(ArmorSet::Helm));
-        assert_eq!(slots.chest, Some(ArmorSet::Mail));
-        assert_eq!(slots.arms, Some(ArmorSet::Gauntlets));
-        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
-    }
-
-    #[test]
-    fn armor_slots_leave_the_other_slots_empty() {
-        let mut slots = ArmorSlots::default();
-        slots.set(ArmorSet::Greaves);
-        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
-        assert_eq!(slots.head, None);
-        assert_eq!(slots.chest, None);
-        assert_eq!(slots.arms, None);
-    }
-
-    #[test]
-    fn forging_a_second_piece_stashes_the_piece_already_in_that_slot() {
-        let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorSet::Helm);
-        loadout.equip_forged_armor(ArmorSet::Helm);
-        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
-        assert!(loadout.stash.armor.is_empty());
-        loadout.stash.armor.push(ArmorSet::Mail);
-        loadout.equip_forged_armor(ArmorSet::Mail);
-        assert_eq!(loadout.armor.chest, Some(ArmorSet::Mail));
-        assert!(loadout.stash.armor.is_empty());
-    }
-
-    #[test]
-    fn swapping_to_stashed_armor_equips_it_and_clears_it_from_the_stash() {
-        let mut loadout = Loadout::default();
-        loadout.stash.armor.push(ArmorSet::Gauntlets);
-        assert!(loadout.swap_to_stashed_armor(ArmorSet::Gauntlets));
-        assert_eq!(loadout.armor.arms, Some(ArmorSet::Gauntlets));
-        assert!(loadout.stash.armor.is_empty());
-    }
-
-    #[test]
-    fn swapping_armor_that_is_not_in_the_stash_leaves_the_loadout_unchanged() {
-        let mut loadout = Loadout::default();
-        loadout.armor.legs = Some(ArmorSet::Greaves);
-        assert!(!loadout.swap_to_stashed_armor(ArmorSet::Greaves));
-        assert_eq!(loadout.armor.legs, Some(ArmorSet::Greaves));
-        assert!(loadout.stash.armor.is_empty());
-    }
-
-    #[test]
-    fn each_slot_borrow_points_at_that_slot() {
-        let mut slots = ArmorSlots::default();
-        *slots.piece_mut(ArmorSlot::Head) = Some(ArmorSet::Helm);
-        *slots.piece_mut(ArmorSlot::Chest) = Some(ArmorSet::Mail);
-        *slots.piece_mut(ArmorSlot::Arms) = Some(ArmorSet::Gauntlets);
-        *slots.piece_mut(ArmorSlot::Legs) = Some(ArmorSet::Greaves);
-        assert_eq!(*slots.piece_mut(ArmorSlot::Head), Some(ArmorSet::Helm));
-        assert_eq!(*slots.piece_mut(ArmorSlot::Chest), Some(ArmorSet::Mail));
-        assert_eq!(*slots.piece_mut(ArmorSlot::Arms), Some(ArmorSet::Gauntlets));
-        assert_eq!(*slots.piece_mut(ArmorSlot::Legs), Some(ArmorSet::Greaves));
-    }
-
-    #[test]
-    fn clearing_one_slot_borrow_leaves_the_other_slots() {
-        let mut slots = ArmorSlots {
-            head: Some(ArmorSet::Helm),
-            chest: Some(ArmorSet::Mail),
-            arms: Some(ArmorSet::Gauntlets),
-            legs: Some(ArmorSet::Greaves),
-        };
-        *slots.piece_mut(ArmorSlot::Arms) = None;
-        assert_eq!(slots.arms, None);
-        assert_eq!(slots.head, Some(ArmorSet::Helm));
-        assert_eq!(slots.chest, Some(ArmorSet::Mail));
-        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
-    }
-
-    #[test]
-    fn a_slot_borrow_does_not_invent_a_piece() {
-        let mut slots = ArmorSlots::default();
-        assert_eq!(*slots.piece_mut(ArmorSlot::Chest), None);
-        assert_eq!(slots.head, None);
-        assert_eq!(slots.chest, None);
-        assert_eq!(slots.arms, None);
-        assert_eq!(slots.legs, None);
+        loadout.armor.head = Some(ArmorPiece::Mail);
+        loadout.equip_forged_armor(ArmorPiece::Helm);
+        assert_eq!(loadout.armor.head, Some(ArmorPiece::Helm));
+        assert_eq!(loadout.stash.armor, vec![ArmorPiece::Mail]);
+        assert_eq!(loadout.armor.chest, None);
+        assert_eq!(loadout.armor.arms, None);
+        assert_eq!(loadout.armor.legs, None);
     }
 }

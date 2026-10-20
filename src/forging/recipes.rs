@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::combat::WeaponKind;
 use crate::core::data_load::load_ron_from_assets_or_embedded;
 use crate::items::{Inventory, MaterialId};
-use crate::player::{weapon_kind_label, ArmorSet, Loadout};
+use crate::player::{weapon_kind_label, ArmorPiece, Loadout};
 
 const RECIPES_PATH: &str = "assets/data/recipes.ron";
 const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
@@ -12,7 +12,7 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecipeOutput {
     Weapon(WeaponKind),
-    Armor(ArmorSet),
+    Armor(ArmorPiece),
     Food(MaterialId),
     Item(MaterialId),
 }
@@ -73,9 +73,9 @@ impl RecipeBook {
 
 pub fn recipe_set_bonus_hint(recipe: &Recipe) -> Option<&'static str> {
     match recipe.output {
-        RecipeOutput::Armor(_) => Some(
-            "Set: 2pc +10% carve & −10% special CD · 4pc 35% KB resist & +10% attack",
-        ),
+        RecipeOutput::Armor(_) => {
+            Some("Set: 2pc +10% carve & −10% special CD · 4pc 35% KB resist & +10% attack")
+        }
         _ => None,
     }
 }
@@ -304,18 +304,10 @@ mod tests {
         inventory.try_add(MaterialId::SlimeCore, 2);
         inventory.try_add(MaterialId::RoyalSlimeCore, 1);
 
-        assert!(!try_craft_recipe(
-            &mut inventory,
-            &mut loadout,
-            &blade
-        ));
+        assert!(!try_craft_recipe(&mut inventory, &mut loadout, &blade));
 
         loadout.weapon = WeaponKind::IronSword;
-        assert!(try_craft_recipe(
-            &mut inventory,
-            &mut loadout,
-            &blade
-        ));
+        assert!(try_craft_recipe(&mut inventory, &mut loadout, &blade));
         assert_eq!(loadout.weapon, WeaponKind::SlimeBlade);
         assert_eq!(inventory.count(MaterialId::RoyalSlimeCore), 0);
         assert!(!loadout.stash.weapons.contains(&WeaponKind::IronSword));
@@ -329,7 +321,7 @@ mod tests {
         inventory.try_add(MaterialId::SlimeGel, 4);
 
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &helm));
-        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
+        assert_eq!(loadout.armor.head, Some(ArmorPiece::Helm));
     }
 
     #[test]

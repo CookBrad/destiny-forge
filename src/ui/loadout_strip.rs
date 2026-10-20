@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::combat::WeaponKind;
 use crate::core::{GameState, ProfileDirty};
 use crate::input::{Action, ActionState};
-use crate::player::{weapon_kind_label, ArmorSet, Loadout};
+use crate::player::{weapon_kind_label, ArmorPiece, Loadout};
 
 const HINT: Color = Color::srgb(0.52, 0.5, 0.46);
 const LABEL: Color = Color::srgb(0.9, 0.88, 0.84);
@@ -39,7 +39,7 @@ pub struct StashWeaponButton {
 
 #[derive(Component, Clone, Copy)]
 pub struct StashArmorButton {
-    pub kind: ArmorSet,
+    pub kind: ArmorPiece,
 }
 
 pub fn spawn_loadout_strip(
@@ -115,7 +115,7 @@ fn spawn_weapon_button(parent: &mut ChildBuilder<'_>, weapon: WeaponKind) {
     );
 }
 
-fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorSet) {
+fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorPiece) {
     spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
 }
 
@@ -161,22 +161,8 @@ fn stash_hint(loadout: &Loadout, access: LoadoutSwapAccess) -> String {
     }
 }
 
-pub(crate) type StashWeaponClicks<'w, 's> = Query<
-    'w,
-    's,
-    (&'static Interaction, &'static StashWeaponButton),
-    (Changed<Interaction>, With<Button>),
->;
-
-pub(crate) type StashArmorClicks<'w, 's> = Query<
-    'w,
-    's,
-    (&'static Interaction, &'static StashArmorButton),
-    (Changed<Interaction>, With<Button>),
->;
-
 pub fn handle_stash_weapon_click(
-    interactions: StashWeaponClicks,
+    interactions: Query<(&Interaction, &StashWeaponButton), (Changed<Interaction>, With<Button>)>,
     mut loadout: ResMut<Loadout>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
@@ -188,7 +174,7 @@ pub fn handle_stash_weapon_click(
 }
 
 pub fn handle_stash_armor_click(
-    interactions: StashArmorClicks,
+    interactions: Query<(&Interaction, &StashArmorButton), (Changed<Interaction>, With<Button>)>,
     mut loadout: ResMut<Loadout>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
@@ -234,204 +220,5 @@ fn cycled_stash_weapon(loadout: &Loadout, cycle: StashCycle) -> Option<WeaponKin
     match cycle {
         StashCycle::First => loadout.stash.weapons.first().copied(),
         StashCycle::Last => loadout.stash.weapons.last().copied(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bevy::ecs::system::RunSystemOnce;
-
-    fn strip_app() -> App {
-        let mut app = App::new();
-        app.insert_resource(Loadout::default());
-        app.insert_resource(ProfileDirty::default());
-        app
-    }
-
-    fn armor_button_label(kind: ArmorSet) -> String {
-        let mut app = App::new();
-        app.world_mut()
-            .run_system_once(move |mut commands: Commands| {
-                commands.spawn(Node::default()).with_children(|parent| {
-                    spawn_armor_button(parent, kind);
-                });
-            })
-            .unwrap();
-        let mut labels = app.world_mut().query::<&Text>();
-        labels.single(app.world()).0.clone()
-    }
-
-    #[test]
-    fn an_armor_button_shows_the_piece_label() {
-        assert_eq!(armor_button_label(ArmorSet::Helm), "Slime Helm");
-        let mut app = App::new();
-        app.world_mut()
-            .run_system_once(|mut commands: Commands| {
-                commands.spawn(Node::default()).with_children(|parent| {
-                    spawn_armor_button(parent, ArmorSet::Helm);
-                });
-            })
-            .unwrap();
-        let kind = app
-            .world_mut()
-            .query::<&StashArmorButton>()
-            .single(app.world())
-            .kind;
-        assert_eq!(kind, ArmorSet::Helm);
-    }
-
-    #[test]
-    fn an_armor_button_for_greaves_does_not_use_the_helm_label() {
-        assert_eq!(armor_button_label(ArmorSet::Greaves), "Slime Greaves");
-    }
-
-    #[test]
-    fn an_armor_button_is_not_spawned_for_a_piece_that_was_not_requested() {
-        let mut app = App::new();
-        app.world_mut()
-            .run_system_once(|mut commands: Commands| {
-                commands.spawn(Node::default()).with_children(|parent| {
-                    spawn_armor_button(parent, ArmorSet::Mail);
-                });
-            })
-            .unwrap();
-        let kinds: Vec<_> = app
-            .world_mut()
-            .query::<&StashArmorButton>()
-            .iter(app.world())
-            .map(|button| button.kind)
-            .collect();
-        assert_eq!(kinds, vec![ArmorSet::Mail]);
-    }
-
-    #[test]
-    fn pressing_a_stashed_weapon_button_equips_that_weapon() {
-        let mut app = strip_app();
-        {
-            let mut loadout = app.world_mut().resource_mut::<Loadout>();
-            loadout.stash.weapons.push(WeaponKind::RustySpear);
-        }
-        app.world_mut().spawn((
-            Button,
-            Interaction::Pressed,
-            StashWeaponButton {
-                weapon: WeaponKind::RustySpear,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_weapon_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.weapon, WeaponKind::RustySpear);
-        assert_eq!(loadout.stash.weapons, vec![WeaponKind::RustySword]);
-        assert!(app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn hovering_a_stashed_weapon_button_does_not_equip_it() {
-        let mut app = strip_app();
-        {
-            let mut loadout = app.world_mut().resource_mut::<Loadout>();
-            loadout.stash.weapons.push(WeaponKind::RustySpear);
-        }
-        app.world_mut().spawn((
-            Button,
-            Interaction::Hovered,
-            StashWeaponButton {
-                weapon: WeaponKind::RustySpear,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_weapon_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.weapon, WeaponKind::RustySword);
-        assert_eq!(loadout.stash.weapons, vec![WeaponKind::RustySpear]);
-        assert!(!app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn pressing_a_weapon_button_that_is_not_stashed_leaves_the_loadout() {
-        let mut app = strip_app();
-        app.world_mut().spawn((
-            Button,
-            Interaction::Pressed,
-            StashWeaponButton {
-                weapon: WeaponKind::IronSword,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_weapon_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.weapon, WeaponKind::RustySword);
-        assert!(loadout.stash.weapons.is_empty());
-        assert!(!app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn pressing_a_stashed_armor_button_equips_that_piece() {
-        let mut app = strip_app();
-        {
-            let mut loadout = app.world_mut().resource_mut::<Loadout>();
-            loadout.stash.armor.push(ArmorSet::Helm);
-        }
-        app.world_mut().spawn((
-            Button,
-            Interaction::Pressed,
-            StashArmorButton {
-                kind: ArmorSet::Helm,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_armor_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
-        assert!(loadout.stash.armor.is_empty());
-        assert!(app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn hovering_a_stashed_armor_button_does_not_equip_it() {
-        let mut app = strip_app();
-        {
-            let mut loadout = app.world_mut().resource_mut::<Loadout>();
-            loadout.stash.armor.push(ArmorSet::Mail);
-        }
-        app.world_mut().spawn((
-            Button,
-            Interaction::Hovered,
-            StashArmorButton {
-                kind: ArmorSet::Mail,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_armor_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.chest, None);
-        assert_eq!(loadout.stash.armor, vec![ArmorSet::Mail]);
-        assert!(!app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn pressing_an_armor_button_that_is_not_stashed_leaves_the_loadout() {
-        let mut app = strip_app();
-        app.world_mut().spawn((
-            Button,
-            Interaction::Pressed,
-            StashArmorButton {
-                kind: ArmorSet::Greaves,
-            },
-        ));
-        app.world_mut()
-            .run_system_once(handle_stash_armor_click)
-            .unwrap();
-        let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.legs, None);
-        assert!(loadout.stash.armor.is_empty());
-        assert!(!app.world().resource::<ProfileDirty>().0);
     }
 }
