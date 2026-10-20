@@ -48,22 +48,26 @@ impl PlayerDeath {
     }
 }
 
+pub(crate) type PlayerDeathCheck<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static Health,
+        &'static PlayerAnimation,
+        Option<&'static PlayerDeath>,
+        Option<&'static PlayerFallDeath>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn detect_player_death(
     mut commands: Commands,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
     mut next_game: ResMut<NextState<GameState>>,
     mut profile_dirty: ResMut<ProfileDirty>,
-    player: Query<
-        (
-            Entity,
-            &Transform,
-            &Health,
-            &PlayerAnimation,
-            Option<&PlayerDeath>,
-            Option<&PlayerFallDeath>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    player: PlayerDeathCheck,
 ) {
     let Ok((entity, transform, health, animation, death, fall_death)) = player.get_single() else {
         return;

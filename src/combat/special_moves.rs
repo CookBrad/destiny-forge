@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use std::f32::consts::{FRAC_PI_2, TAU};
@@ -223,27 +224,40 @@ pub fn tick_special_cooldowns(
     cooldowns.tick(time.delta_secs());
 }
 
+#[derive(SystemParam)]
+pub(crate) struct SpecialMoveStartWriters<'w, 's> {
+    commands: Commands<'w, 's>,
+    sfx: EventWriter<'w, CombatSfx>,
+}
+
+pub(crate) type SpecialMoveActor<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static EquippedWeapon,
+        &'static PlayerAnimation,
+        &'static PlayerVelocity,
+        &'static PlayerAttack,
+        &'static PlayerBlock,
+        Option<&'static PlayerSpecialMove>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn start_player_special_moves(
-    mut commands: Commands,
-    mut sfx: EventWriter<CombatSfx>,
+    writers: SpecialMoveStartWriters,
     mut cooldowns: ResMut<SpecialCooldownState>,
     bindings: Res<SkillBindings>,
     loadout: Res<Loadout>,
     actions: Res<crate::input::ActionState>,
     hit_stop: Res<HitStop>,
-    mut player: Query<
-        (
-            Entity,
-            &EquippedWeapon,
-            &PlayerAnimation,
-            &PlayerVelocity,
-            &PlayerAttack,
-            &PlayerBlock,
-            Option<&PlayerSpecialMove>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    mut player: SpecialMoveActor,
 ) {
+    let SpecialMoveStartWriters {
+        mut commands,
+        mut sfx,
+    } = writers;
     if hit_stop.is_active() {
         return;
     }
@@ -286,7 +300,8 @@ pub fn start_player_special_moves(
         return;
     }
 
-    let facing = animation.facing.signum().max(-1.0).min(1.0);
+    let sign = animation.facing.signum();
+    let facing = if sign.is_nan() || sign < -1.0 { -1.0 } else if sign > 1.0 { 1.0 } else { sign };
     let direction = if facing == 0.0 { 1.0 } else { facing };
     let duration = match kind {
         SpecialMoveKind::Charge => CHARGE_SECS,
@@ -334,24 +349,28 @@ pub fn tick_player_special_moves(
     }
 }
 
+pub(crate) type SpecialMoveHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
+>;
+
 pub fn resolve_special_move_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
     mut player: Query<(&Transform, &mut PlayerSpecialMove), With<DungeonPlayer>>,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
-    >,
+    mut enemies: SpecialMoveHitEnemies,
 ) {
     let Ok((player_transform, mut special)) = player.get_single_mut() else {
         return;
@@ -581,7 +600,7 @@ mod tests {
     #[test]
     fn spin_arm_stays_on_the_sixteen_px_orbit() {
         assert_eq!(SPIN_ARM_RADIUS, 16.0 * 1.85);
-        assert!(SPIN_ARM_RADIUS < TILE * 1.85);
+        const { assert!(SPIN_ARM_RADIUS < TILE * 1.85); }
         assert_eq!(SPIN_SWORD_HIT_PADDING, 16.0 * 0.85);
     }
 
