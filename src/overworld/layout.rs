@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::exploration::{
     build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade, zone_at,
-    GridOverlayStyle, ZoneRect,
+    GridOverlayExtent, GridOverlayStyle, ZoneRect,
 };
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
@@ -30,7 +30,8 @@ pub fn homestead_forest_transition() -> Rect {
 }
 
 pub fn homestead_forest_trail(tx: u32, ty: u32) -> bool {
-    (tx >= 2 && tx <= 4 && ty >= 22 && ty <= 39) || (tx >= 4 && tx <= 6 && ty >= 25 && ty <= 28)
+    ((2..=4).contains(&tx) && (22..=39).contains(&ty))
+        || ((4..=6).contains(&tx) && (25..=28).contains(&ty))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,37 +60,36 @@ impl Default for OverworldLayout {
 impl OverworldLayout {
     pub fn homestead() -> Self {
         let mut solids = Vec::new();
-        let mut zones = Vec::new();
-
-        zones.push(ZoneRect {
-            zone: HomesteadZone::House,
-            bounds: tile_rect(2, 26, 15, 38),
-        });
-        zones.push(ZoneRect {
-            zone: HomesteadZone::Forge,
-            bounds: tile_rect(35, 26, 48, 38),
-        });
-        zones.push(ZoneRect {
-            zone: HomesteadZone::Crops,
-            bounds: tile_rect(2, 5, 21, 19),
-        });
-        zones.push(ZoneRect {
-            zone: HomesteadZone::Animals,
-            bounds: tile_rect(31, 5, 49, 19),
-        });
-        zones.push(ZoneRect {
-            zone: HomesteadZone::ForestTrail,
-            bounds: tile_rect(1, 22, 8, 40),
-        });
-        zones.push(ZoneRect {
-            zone: HomesteadZone::DungeonGate,
-            bounds: tile_rect(22, 1, 29, 5),
-        });
-
-        zones.push(ZoneRect {
-            zone: HomesteadZone::MineEntrance,
-            bounds: mine_entrance_rect(),
-        });
+        let zones = vec![
+            ZoneRect {
+                zone: HomesteadZone::House,
+                bounds: tile_rect(2, 26, 15, 38),
+            },
+            ZoneRect {
+                zone: HomesteadZone::Forge,
+                bounds: tile_rect(35, 26, 48, 38),
+            },
+            ZoneRect {
+                zone: HomesteadZone::Crops,
+                bounds: tile_rect(2, 5, 21, 19),
+            },
+            ZoneRect {
+                zone: HomesteadZone::Animals,
+                bounds: tile_rect(31, 5, 49, 19),
+            },
+            ZoneRect {
+                zone: HomesteadZone::ForestTrail,
+                bounds: tile_rect(1, 22, 8, 40),
+            },
+            ZoneRect {
+                zone: HomesteadZone::DungeonGate,
+                bounds: tile_rect(22, 1, 29, 5),
+            },
+            ZoneRect {
+                zone: HomesteadZone::MineEntrance,
+                bounds: mine_entrance_rect(),
+            },
+        ];
 
         build_map_border(&mut solids, MAP_TILES_W, MAP_TILES_H);
 
@@ -123,10 +123,12 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     spawn_grid_overlay(
         commands,
         art.grid_line.clone(),
-        WORLD_WIDTH,
-        WORLD_HEIGHT,
-        MAP_TILES_W,
-        MAP_TILES_H,
+        GridOverlayExtent {
+            world_width: WORLD_WIDTH,
+            world_height: WORLD_HEIGHT,
+            map_tiles_w: MAP_TILES_W,
+            map_tiles_h: MAP_TILES_H,
+        },
         GridOverlayStyle {
             line_color: Color::srgba(0.08, 0.1, 0.06, 0.72),
             z: 0.08,
@@ -147,16 +149,16 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
 
 fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) {
     let on_path = (22..=29).contains(&tx) && ty <= 24
-        || (tx >= 14 && tx <= 37 && (19..=24).contains(&ty))
-        || (tx >= 38 && tx <= 48 && (20..=23).contains(&ty))
-        || (ty >= 25 && ty <= 28 && ((4..=13).contains(&tx) || (37..=46).contains(&tx)))
+        || ((14..=37).contains(&tx) && (19..=24).contains(&ty))
+        || ((38..=48).contains(&tx) && (20..=23).contains(&ty))
+        || ((25..=28).contains(&ty) && ((4..=13).contains(&tx) || (37..=46).contains(&tx)))
         || homestead_forest_trail(tx, ty);
 
     if on_path {
         (|art| art.path.clone(), Color::srgb(0.58, 0.48, 0.34))
-    } else if tx >= 4 && tx <= 20 && ty >= 7 && ty <= 17 {
+    } else if (4..=20).contains(&tx) && (7..=17).contains(&ty) {
         (|art| art.soil.clone(), Color::srgb(0.36, 0.24, 0.14))
-    } else if tx >= 33 && tx <= 48 && ty >= 7 && ty <= 17 {
+    } else if (33..=48).contains(&tx) && (7..=17).contains(&ty) {
         (|art| art.grass.clone(), Color::srgb(0.42, 0.58, 0.3))
     } else {
         (|art| art.grass.clone(), Color::srgb(0.34, 0.52, 0.28))
@@ -254,15 +256,16 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         OverworldEntity,
     ));
 
-    // One native tile per column. Stretching one 16×16 cell across the roof resamples it.
     spawn_native_roof_row(
         commands,
-        art.roof.clone(),
-        Color::srgb(0.34, 0.3, 0.28),
-        min_tx,
-        max_tx,
-        max_ty.saturating_sub(1),
-        2.6,
+        NativeRoofRow {
+            image: art.roof.clone(),
+            color: Color::srgb(0.34, 0.3, 0.28),
+            min_tx,
+            max_tx,
+            tile_y: max_ty.saturating_sub(1),
+            z: 2.6,
+        },
         |entity| {
             entity.insert((ForgeEntity, OverworldEntity));
         },
@@ -344,28 +347,42 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
 
     spawn_native_roof_row(
         commands,
-        art.roof.clone(),
-        Color::srgb(0.45, 0.22, 0.16),
-        min_tx,
-        max_tx,
-        max_ty.saturating_sub(1),
-        2.0,
+        NativeRoofRow {
+            image: art.roof.clone(),
+            color: Color::srgb(0.45, 0.22, 0.16),
+            min_tx,
+            max_tx,
+            tile_y: max_ty.saturating_sub(1),
+            z: 2.0,
+        },
         |entity| {
             entity.insert((HouseEntity, OverworldEntity));
         },
     );
 }
 
-fn spawn_native_roof_row(
-    commands: &mut Commands,
+struct NativeRoofRow {
     image: Handle<Image>,
     color: Color,
     min_tx: u32,
     max_tx: u32,
     tile_y: u32,
     z: f32,
+}
+
+fn spawn_native_roof_row(
+    commands: &mut Commands,
+    row: NativeRoofRow,
     mut mark: impl FnMut(&mut EntityCommands),
 ) {
+    let NativeRoofRow {
+        image,
+        color,
+        min_tx,
+        max_tx,
+        tile_y,
+        z,
+    } = row;
     for tx in min_tx..max_tx {
         let mut roof = commands.spawn((
             Sprite {

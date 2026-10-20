@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::exploration::{
-    build_map_border, spawn_grid_overlay, tile_checker_shade, tint_shade, GridOverlayStyle,
+    build_map_border, spawn_grid_overlay, tile_checker_shade, tint_shade, GridOverlayExtent,
+    GridOverlayStyle,
 };
 use crate::graphics::{world_transform, TILE};
 use crate::overworld::layout::tile_center;
@@ -159,10 +160,12 @@ pub fn spawn_mine(commands: &mut Commands, art: &OverworldArt, depleted_node_ids
     spawn_grid_overlay(
         commands,
         art.grid_line.clone(),
-        WORLD_WIDTH,
-        WORLD_HEIGHT,
-        MAP_TILES_W,
-        MAP_TILES_H,
+        GridOverlayExtent {
+            world_width: WORLD_WIDTH,
+            world_height: WORLD_HEIGHT,
+            map_tiles_w: MAP_TILES_W,
+            map_tiles_h: MAP_TILES_H,
+        },
         GridOverlayStyle {
             line_color: Color::srgba(0.04, 0.03, 0.04, 0.72),
             z: 0.08,
