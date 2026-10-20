@@ -348,6 +348,7 @@ fn swing_angle(progress: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
 
     #[test]
     fn combo_chains_within_window() {
@@ -560,5 +561,118 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn hit_world() -> App {
+        let mut app = App::new();
+        app.init_resource::<super::super::hit_stop::HitStop>();
+        app.add_event::<crate::audio::CombatSfx>();
+        app.insert_resource(Loadout::default());
+        app
+    }
+
+    fn spawn_sword_player(app: &mut App, elapsed: f32) -> Transform {
+        let transform = hunter(1.0);
+        let mut attack = attack_at(WeaponKind::RustySword, 0, elapsed);
+        attack.weapon = WeaponKind::RustySword;
+        app.world_mut()
+            .spawn((crate::dungeon::DungeonPlayer, transform, attack));
+        transform
+    }
+
+    fn spawn_enemy(app: &mut App, translation: Vec3, health: f32) -> Entity {
+        app.world_mut()
+            .spawn((
+                Transform::from_translation(translation),
+                crate::dungeon::EnemyHitbox(crate::graphics::ENEMY_DISPLAY_SIZE * 0.5),
+                super::super::health::Health::new(health),
+                Sprite::default(),
+            ))
+            .id()
+    }
+
+    #[test]
+    fn a_sword_hit_in_the_window_deals_ten_damage_and_freezes() {
+        let mut app = hit_world();
+        let player = spawn_sword_player(&mut app, (0.07 + 0.16) * 0.5);
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        let ahead = super::player_half_extents().x + enemy_half.x + 1.0;
+        spawn_enemy(
+            &mut app,
+            Vec3::new(
+                player.translation.x + ahead,
+                crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y,
+                0.0,
+            ),
+            40.0,
+        );
+        app.world_mut()
+            .run_system_once(resolve_weapon_hits)
+            .unwrap();
+        let health = app
+            .world_mut()
+            .query::<&super::super::health::Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, 30.0);
+        assert_eq!(
+            app.world()
+                .resource::<super::super::hit_stop::HitStop>()
+                .remaining,
+            super::super::hit_stop::HIT_STOP_LIGHT
+        );
+    }
+
+    #[test]
+    fn a_sword_outside_the_hit_window_leaves_the_enemy_at_full_health() {
+        let mut app = hit_world();
+        let player = spawn_sword_player(&mut app, 0.0);
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        let ahead = super::player_half_extents().x + enemy_half.x + 1.0;
+        spawn_enemy(
+            &mut app,
+            Vec3::new(
+                player.translation.x + ahead,
+                crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y,
+                0.0,
+            ),
+            40.0,
+        );
+        app.world_mut()
+            .run_system_once(resolve_weapon_hits)
+            .unwrap();
+        let health = app
+            .world_mut()
+            .query::<&super::super::health::Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, 40.0);
+        assert_eq!(
+            app.world()
+                .resource::<super::super::hit_stop::HitStop>()
+                .remaining,
+            0.0
+        );
+    }
+
+    #[test]
+    fn weapon_hits_do_nothing_when_no_hunter_is_spawned() {
+        let mut app = hit_world();
+        spawn_enemy(&mut app, Vec3::new(400.0, 80.0, 0.0), 40.0);
+        app.world_mut()
+            .run_system_once(resolve_weapon_hits)
+            .unwrap();
+        let health = app
+            .world_mut()
+            .query::<&super::super::health::Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, 40.0);
+        assert_eq!(
+            app.world()
+                .resource::<super::super::hit_stop::HitStop>()
+                .remaining,
+            0.0
+        );
     }
 }

@@ -6,13 +6,9 @@ use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArmorSet {
-    #[serde(rename = "SlimeHelm")]
     Helm,
-    #[serde(rename = "SlimeMail")]
     Mail,
-    #[serde(rename = "SlimeGauntlets")]
     Gauntlets,
-    #[serde(rename = "SlimeGreaves")]
     Greaves,
 }
 
@@ -226,10 +222,15 @@ impl Loadout {
     }
 
     pub fn slime_set_pieces(&self) -> u32 {
-        [self.armor.head, self.armor.chest, self.armor.arms, self.armor.legs]
-            .into_iter()
-            .filter(|piece| piece.is_some())
-            .count() as u32
+        [
+            self.armor.head,
+            self.armor.chest,
+            self.armor.arms,
+            self.armor.legs,
+        ]
+        .into_iter()
+        .filter(|piece| piece.is_some())
+        .count() as u32
     }
 
     pub fn carve_speed_multiplier(&self) -> f32 {
@@ -428,5 +429,112 @@ mod tests {
         loadout.equip_forged_armor(ArmorSet::Helm);
         assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
         assert!(loadout.stash.armor.is_empty());
+    }
+
+    #[test]
+    fn armor_slots_place_each_piece_in_its_own_slot() {
+        let mut slots = ArmorSlots::default();
+        slots.set(ArmorSet::Helm);
+        slots.set(ArmorSet::Mail);
+        slots.set(ArmorSet::Gauntlets);
+        slots.set(ArmorSet::Greaves);
+        assert_eq!(slots.head, Some(ArmorSet::Helm));
+        assert_eq!(slots.chest, Some(ArmorSet::Mail));
+        assert_eq!(slots.arms, Some(ArmorSet::Gauntlets));
+        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
+    }
+
+    #[test]
+    fn armor_slots_replace_only_the_slot_that_piece_uses() {
+        let mut slots = ArmorSlots {
+            head: Some(ArmorSet::Helm),
+            chest: Some(ArmorSet::Mail),
+            arms: Some(ArmorSet::Gauntlets),
+            legs: Some(ArmorSet::Greaves),
+        };
+        slots.set(ArmorSet::Mail);
+        assert_eq!(slots.head, Some(ArmorSet::Helm));
+        assert_eq!(slots.chest, Some(ArmorSet::Mail));
+        assert_eq!(slots.arms, Some(ArmorSet::Gauntlets));
+        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
+    }
+
+    #[test]
+    fn armor_slots_leave_the_other_slots_empty() {
+        let mut slots = ArmorSlots::default();
+        slots.set(ArmorSet::Greaves);
+        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
+        assert_eq!(slots.head, None);
+        assert_eq!(slots.chest, None);
+        assert_eq!(slots.arms, None);
+    }
+
+    #[test]
+    fn forging_a_second_piece_stashes_the_piece_already_in_that_slot() {
+        let mut loadout = Loadout::default();
+        loadout.armor.head = Some(ArmorSet::Helm);
+        loadout.equip_forged_armor(ArmorSet::Helm);
+        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
+        assert!(loadout.stash.armor.is_empty());
+        loadout.stash.armor.push(ArmorSet::Mail);
+        loadout.equip_forged_armor(ArmorSet::Mail);
+        assert_eq!(loadout.armor.chest, Some(ArmorSet::Mail));
+        assert!(loadout.stash.armor.is_empty());
+    }
+
+    #[test]
+    fn swapping_to_stashed_armor_equips_it_and_clears_it_from_the_stash() {
+        let mut loadout = Loadout::default();
+        loadout.stash.armor.push(ArmorSet::Gauntlets);
+        assert!(loadout.swap_to_stashed_armor(ArmorSet::Gauntlets));
+        assert_eq!(loadout.armor.arms, Some(ArmorSet::Gauntlets));
+        assert!(loadout.stash.armor.is_empty());
+    }
+
+    #[test]
+    fn swapping_armor_that_is_not_in_the_stash_leaves_the_loadout_unchanged() {
+        let mut loadout = Loadout::default();
+        loadout.armor.legs = Some(ArmorSet::Greaves);
+        assert!(!loadout.swap_to_stashed_armor(ArmorSet::Greaves));
+        assert_eq!(loadout.armor.legs, Some(ArmorSet::Greaves));
+        assert!(loadout.stash.armor.is_empty());
+    }
+
+    #[test]
+    fn each_slot_borrow_points_at_that_slot() {
+        let mut slots = ArmorSlots::default();
+        *slots.piece_mut(ArmorSlot::Head) = Some(ArmorSet::Helm);
+        *slots.piece_mut(ArmorSlot::Chest) = Some(ArmorSet::Mail);
+        *slots.piece_mut(ArmorSlot::Arms) = Some(ArmorSet::Gauntlets);
+        *slots.piece_mut(ArmorSlot::Legs) = Some(ArmorSet::Greaves);
+        assert_eq!(*slots.piece_mut(ArmorSlot::Head), Some(ArmorSet::Helm));
+        assert_eq!(*slots.piece_mut(ArmorSlot::Chest), Some(ArmorSet::Mail));
+        assert_eq!(*slots.piece_mut(ArmorSlot::Arms), Some(ArmorSet::Gauntlets));
+        assert_eq!(*slots.piece_mut(ArmorSlot::Legs), Some(ArmorSet::Greaves));
+    }
+
+    #[test]
+    fn clearing_one_slot_borrow_leaves_the_other_slots() {
+        let mut slots = ArmorSlots {
+            head: Some(ArmorSet::Helm),
+            chest: Some(ArmorSet::Mail),
+            arms: Some(ArmorSet::Gauntlets),
+            legs: Some(ArmorSet::Greaves),
+        };
+        *slots.piece_mut(ArmorSlot::Arms) = None;
+        assert_eq!(slots.arms, None);
+        assert_eq!(slots.head, Some(ArmorSet::Helm));
+        assert_eq!(slots.chest, Some(ArmorSet::Mail));
+        assert_eq!(slots.legs, Some(ArmorSet::Greaves));
+    }
+
+    #[test]
+    fn a_slot_borrow_does_not_invent_a_piece() {
+        let mut slots = ArmorSlots::default();
+        assert_eq!(*slots.piece_mut(ArmorSlot::Chest), None);
+        assert_eq!(slots.head, None);
+        assert_eq!(slots.chest, None);
+        assert_eq!(slots.arms, None);
+        assert_eq!(slots.legs, None);
     }
 }
