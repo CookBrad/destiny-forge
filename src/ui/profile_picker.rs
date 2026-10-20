@@ -157,7 +157,7 @@ mod tests {
             },
             ..PlayerProfile::default()
         };
-        let mut app = profile_run_app(profile, Wallet::default(), false);
+        let mut app = open_profile_run_app(profile, Wallet::default());
         app.add_systems(Update, start_active_profile);
         app.update();
         assert!(app.world().resource::<StartResult>().0);
@@ -175,13 +175,12 @@ mod tests {
             },
             ..PlayerProfile::default()
         };
-        let mut app = profile_run_app(
+        let mut app = blocked_profile_run_app(
             profile,
             Wallet {
                 gold: 1,
                 sparks: DestinySpark(0),
             },
-            true,
         );
         app.add_systems(Update, start_active_profile);
         app.update();
@@ -198,7 +197,7 @@ mod tests {
             },
             ..PlayerProfile::default()
         };
-        let mut app = profile_run_app(profile, Wallet::default(), false);
+        let mut app = open_profile_run_app(profile, Wallet::default());
         app.world_mut().resource_mut::<ActiveProfile>().0 = PROFILE_COUNT - 1;
         app.add_systems(Update, start_past_the_last_slot);
         app.update();
@@ -215,11 +214,21 @@ mod tests {
         result.0 = begin_profile_run(99, &mut run);
     }
 
-    fn profile_run_app(profile: PlayerProfile, wallet: Wallet, blocked: bool) -> App {
+    fn open_profile_run_app(profile: PlayerProfile, wallet: Wallet) -> App {
+        profile_run_app_with_block(profile, wallet, ProfileAutosaveBlock::default())
+    }
+
+    fn blocked_profile_run_app(profile: PlayerProfile, wallet: Wallet) -> App {
         let mut block = ProfileAutosaveBlock::default();
-        if blocked {
-            block.block(0);
-        }
+        block.block(0);
+        profile_run_app_with_block(profile, wallet, block)
+    }
+
+    fn profile_run_app_with_block(
+        profile: PlayerProfile,
+        wallet: Wallet,
+        block: ProfileAutosaveBlock,
+    ) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(Inventory::default())
