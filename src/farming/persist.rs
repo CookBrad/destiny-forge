@@ -127,12 +127,14 @@ mod tests {
 
     #[test]
     fn save_teardown_reload_restores_plots() {
-        let live = vec![growing_turnip(), tilled(), ready_potato()];
+        let live = [growing_turnip(), tilled(), ready_potato()];
         let saved = capture_plots(live.iter());
         assert_eq!(saved.len(), 3);
 
-        let mut profile = PlayerProfile::default();
-        profile.crop_plots = saved.clone();
+        let profile = PlayerProfile {
+            crop_plots: saved.clone(),
+            ..PlayerProfile::default()
+        };
         assert_eq!(profile.version, PlayerProfile::default().version);
 
         let encoded = ron::ser::to_string(&profile).expect("serialize profile");
@@ -173,7 +175,7 @@ mod tests {
 
     #[test]
     fn soil_is_not_persisted() {
-        let live = vec![soil_at(4, 7), tilled(), soil_at(8, 8)];
+        let live = [soil_at(4, 7), tilled(), soil_at(8, 8)];
         let saved = capture_plots(live.iter());
         assert_eq!(saved.len(), 1);
         assert_eq!(saved[0].tile_x, 5);
@@ -185,7 +187,7 @@ mod tests {
 
     #[test]
     fn harvest_back_to_soil_drops_entry() {
-        let before = vec![
+        let before = [
             CropPlot {
                 tile_x: 4,
                 tile_y: 7,
@@ -198,7 +200,7 @@ mod tests {
         let saved = capture_plots(before.iter());
         assert_eq!(saved.len(), 2);
 
-        let after = vec![soil_at(4, 7), tilled()];
+        let after = [soil_at(4, 7), tilled()];
         let saved = capture_plots(after.iter());
         assert_eq!(saved.len(), 1);
         assert_eq!(saved[0].tile_x, 5);
