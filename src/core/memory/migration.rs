@@ -236,7 +236,7 @@ fn copy_flat_calendar_onto_header(profile: &mut RonValue) {
     let Some(header) = field_mut(profile, "header") else {
         return;
     };
-    if !matches!(field_mut(header, "calendar"), Some(_)) {
+    if field_mut(header, "calendar").is_none() {
         replace_field(header, "calendar", RonValue::Map(Vec::new()));
     }
     let Some(calendar) = field_mut(header, "calendar") else {
