@@ -38,6 +38,10 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 9,
         apply: migrate_profile_to_v9,
     },
+    ProfileMigration {
+        to_version: 10,
+        apply: migrate_profile_to_v10,
+    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -193,6 +197,82 @@ fn migrate_profile_to_v9(profile: &mut RonValue) {
     ));
 }
 
+fn migrate_profile_to_v10(profile: &mut RonValue) {
+    if !matches!(profile, RonValue::Map(_)) {
+        return;
+    }
+    migrate_profile_to_v9(profile);
+    copy_flat_name_onto_header(profile);
+    copy_flat_calendar_onto_header(profile);
+    remove_field(profile, "name");
+    remove_field(profile, "calendar_day");
+    remove_field(profile, "day_phase");
+}
+
+fn copy_flat_name_onto_header(profile: &mut RonValue) {
+    let Some(name) = copied_field(profile, "name") else {
+        return;
+    };
+    let Some(header) = field_mut(profile, "header") else {
+        return;
+    };
+    replace_field(header, "name", name);
+}
+
+fn copy_flat_calendar_onto_header(profile: &mut RonValue) {
+    let calendar_day = copied_field(profile, "calendar_day");
+    let day_phase = copied_field(profile, "day_phase");
+    if calendar_day.is_none() && day_phase.is_none() {
+        return;
+    }
+    let Some(header) = field_mut(profile, "header") else {
+        return;
+    };
+    if !matches!(field_mut(header, "calendar"), Some(_)) {
+        replace_field(header, "calendar", RonValue::Map(Vec::new()));
+    }
+    let Some(calendar) = field_mut(header, "calendar") else {
+        return;
+    };
+    if let Some(calendar_day) = calendar_day {
+        replace_field(calendar, "calendar_day", calendar_day);
+    }
+    if let Some(day_phase) = day_phase {
+        replace_field(calendar, "day_phase", day_phase);
+    }
+}
+
+fn copied_field(value: &RonValue, key: &str) -> Option<RonValue> {
+    let RonValue::Map(fields) = value else {
+        return None;
+    };
+    let (_, field) = fields.iter().find(|(name, _)| name == key)?;
+    match field {
+        RonValue::String(text) => Some(RonValue::String(text.clone())),
+        RonValue::Integer(number) => Some(RonValue::Integer(*number)),
+        RonValue::Unit(name) => Some(RonValue::Unit(name.clone())),
+        _ => None,
+    }
+}
+
+fn replace_field(value: &mut RonValue, key: &str, field: RonValue) {
+    let RonValue::Map(fields) = value else {
+        return;
+    };
+    if let Some((_, existing)) = fields.iter_mut().find(|(name, _)| name == key) {
+        *existing = field;
+        return;
+    }
+    fields.push((key.to_string(), field));
+}
+
+fn remove_field(value: &mut RonValue, key: &str) {
+    let RonValue::Map(fields) = value else {
+        return;
+    };
+    fields.retain(|(name, _)| name != key);
+}
+
 fn widen_inventory_to_v7(profile: &mut RonValue) {
     let Some(inventory) = field_mut(profile, "inventory") else {
         return;
@@ -271,9 +351,9 @@ mod tests {
     fn version_2_save_migrates_to_the_current_profile() {
         let profile = profile_from_ron(V2_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "");
-        assert_eq!(profile.calendar_day, 1);
-        assert_eq!(profile.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
@@ -294,9 +374,9 @@ mod tests {
     fn version_3_save_keeps_its_name() {
         let profile = profile_from_ron(V3_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Ada");
-        assert_eq!(profile.calendar_day, 1);
-        assert_eq!(profile.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.name, "Ada");
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::IronScrap), 4);
@@ -307,9 +387,9 @@ mod tests {
     fn version_4_save_keeps_the_calendar() {
         let profile = profile_from_ron(V4_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Bram");
-        assert_eq!(profile.calendar_day, 12);
-        assert_eq!(profile.day_phase, DayPhase::Afternoon);
+        assert_eq!(profile.header.name, "Bram");
+        assert_eq!(profile.header.calendar.calendar_day, 12);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Afternoon);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::Turnip), 6);
@@ -320,9 +400,9 @@ mod tests {
     fn version_5_save_keeps_tool_energy() {
         let profile = profile_from_ron(V5_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Cora");
-        assert_eq!(profile.calendar_day, 3);
-        assert_eq!(profile.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.name, "Cora");
+        assert_eq!(profile.header.calendar.calendar_day, 3);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.tool_energy, 40.0);
         assert!(profile.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
@@ -336,8 +416,8 @@ mod tests {
         let profile = profile_from_ron(V6_PROFILE).unwrap();
 
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Old Save");
-        assert_eq!(profile.calendar_day, 4);
+        assert_eq!(profile.header.name, "Old Save");
+        assert_eq!(profile.header.calendar.calendar_day, 4);
         assert_eq!(profile.inventory.slots.len(), INVENTORY_SLOT_COUNT);
         assert_eq!(profile.inventory.count(MaterialId::Hoe), 1);
         assert_eq!(profile.inventory.count(MaterialId::TurnipSeed), 8);
@@ -379,9 +459,9 @@ mod tests {
     fn version_7_save_keeps_mining_and_cooking_schema() {
         let profile = profile_from_ron(V7_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Hearth");
-        assert_eq!(profile.calendar_day, 18);
-        assert_eq!(profile.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.tool_energy, 55.0);
         assert!(profile.progress.boss_defeated_floor_1);
         assert_eq!(profile.depleted_ore_node_ids, vec![3, 9]);
@@ -416,9 +496,9 @@ mod tests {
     #[test]
     fn current_profile_round_trips_through_the_save_text() {
         let mut profile = PlayerProfile::default();
-        profile.name = "Hélène \"the\" smith".to_string();
-        profile.calendar_day = 18;
-        profile.day_phase = DayPhase::Evening;
+        profile.header.name = "Hélène \"the\" smith".to_string();
+        profile.header.calendar.calendar_day = 18;
+        profile.header.calendar.day_phase = DayPhase::Evening;
         profile.tool_energy = 55.0;
         profile.progress.boss_defeated_floor_1 = true;
         profile.depleted_ore_node_ids = vec![3, 9];
@@ -536,8 +616,6 @@ mod tests {
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
-        assert_eq!(profile.name, "Hearth");
-        assert_eq!(profile.calendar_day, 18);
         assert_eq!(profile.tool_energy, 55.0);
         assert_eq!(
             profile
@@ -548,19 +626,36 @@ mod tests {
     }
 
     #[test]
-    fn version_8_save_keeps_an_existing_header() {
+    fn version_8_save_keeps_header_playtime_and_refreshes_the_flat_calendar() {
         let text = V8_PROFILE.replace(
             "version:8,",
             "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
         );
         let profile = profile_from_ron(&text).unwrap();
-        assert_eq!(profile.header.name, "Kept");
+        assert_eq!(profile.header.name, "Hearth");
         assert_eq!(profile.header.playtime_seconds, 9);
         assert_eq!(profile.header.location, SaveLocation::Mine);
         assert_eq!(profile.header.gold, 4);
-        assert_eq!(profile.header.calendar.calendar_day, 2);
-        assert_eq!(profile.name, "Hearth");
-        assert_eq!(profile.calendar_day, 18);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+    }
+
+    #[test]
+    fn version_10_migration_leaves_a_list_unchanged() {
+        let mut value = RonValue::List(vec![RonValue::Integer(1)]);
+        migrate_profile_to_v10(&mut value);
+        assert!(matches!(value, RonValue::List(items) if items.len() == 1));
+    }
+
+    #[test]
+    fn version_10_migration_keeps_a_header_when_the_flat_fields_are_gone() {
+        let mut value = parse_ron_value(
+            "(version:9,header:(name:\"Ada\",playtime_seconds:3,calendar:(calendar_day:4,day_phase:Evening),location:Forest,gold:2))",
+        )
+        .unwrap();
+        let before = print_ron_value(&value);
+        migrate_profile_to_v10(&mut value);
+        assert_eq!(print_ron_value(&value), before);
     }
 
     #[test]
@@ -580,12 +675,9 @@ mod tests {
     fn assert_profiles_match(loaded: &PlayerProfile, expected: &PlayerProfile) {
         assert_eq!(loaded.version, expected.version);
         assert_eq!(loaded.header, expected.header);
-        assert_eq!(loaded.name, expected.name);
         assert_eq!(loaded.inventory, expected.inventory);
         assert_eq!(loaded.loadout, expected.loadout);
         assert_eq!(loaded.progress, expected.progress);
-        assert_eq!(loaded.calendar_day, expected.calendar_day);
-        assert_eq!(loaded.day_phase, expected.day_phase);
         assert_eq!(loaded.tool_energy, expected.tool_energy);
         assert_eq!(loaded.crop_plots, expected.crop_plots);
         assert_eq!(loaded.depleted_ore_node_ids, expected.depleted_ore_node_ids);
