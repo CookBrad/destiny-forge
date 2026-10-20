@@ -38,10 +38,6 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 9,
         apply: migrate_profile_to_v9,
     },
-    ProfileMigration {
-        to_version: 10,
-        apply: migrate_profile_to_v10,
-    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -206,75 +202,6 @@ fn remove_field(value: &mut RonValue, key: &str) {
         return;
     };
     fields.retain(|(name, _)| name != key);
-}
-
-fn migrate_profile_to_v10(profile: &mut RonValue) {
-    if !matches!(profile, RonValue::Map(_)) {
-        return;
-    }
-    migrate_profile_to_v9(profile);
-    copy_flat_name_onto_header(profile);
-    copy_flat_calendar_onto_header(profile);
-    remove_field(profile, "name");
-    remove_field(profile, "calendar_day");
-    remove_field(profile, "day_phase");
-}
-
-fn copy_flat_name_onto_header(profile: &mut RonValue) {
-    let Some(name) = copied_field(profile, "name") else {
-        return;
-    };
-    let Some(header) = field_mut(profile, "header") else {
-        return;
-    };
-    replace_field(header, "name", name);
-}
-
-fn copy_flat_calendar_onto_header(profile: &mut RonValue) {
-    let calendar_day = copied_field(profile, "calendar_day");
-    let day_phase = copied_field(profile, "day_phase");
-    if calendar_day.is_none() && day_phase.is_none() {
-        return;
-    }
-    let Some(header) = field_mut(profile, "header") else {
-        return;
-    };
-    if field_mut(header, "calendar").is_none() {
-        replace_field(header, "calendar", RonValue::Map(Vec::new()));
-    }
-    let Some(calendar) = field_mut(header, "calendar") else {
-        return;
-    };
-    if let Some(calendar_day) = calendar_day {
-        replace_field(calendar, "calendar_day", calendar_day);
-    }
-    if let Some(day_phase) = day_phase {
-        replace_field(calendar, "day_phase", day_phase);
-    }
-}
-
-fn copied_field(value: &RonValue, key: &str) -> Option<RonValue> {
-    let RonValue::Map(fields) = value else {
-        return None;
-    };
-    let (_, field) = fields.iter().find(|(name, _)| name == key)?;
-    match field {
-        RonValue::String(text) => Some(RonValue::String(text.clone())),
-        RonValue::Integer(number) => Some(RonValue::Integer(*number)),
-        RonValue::Unit(name) => Some(RonValue::Unit(name.clone())),
-        _ => None,
-    }
-}
-
-fn replace_field(value: &mut RonValue, key: &str, field: RonValue) {
-    let RonValue::Map(fields) = value else {
-        return;
-    };
-    if let Some((_, existing)) = fields.iter_mut().find(|(name, _)| name == key) {
-        *existing = field;
-        return;
-    }
-    fields.push((key.to_string(), field));
 }
 
 fn widen_inventory_to_v7(profile: &mut RonValue) {
@@ -635,6 +562,14 @@ mod tests {
             "version:8,",
             "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
         );
+        let mut value = parse_ron_value(&text).unwrap();
+        apply_profile_migrations(&mut value).unwrap();
+        let RonValue::Map(fields) = &value else {
+            panic!("profile save is not a struct");
+        };
+        assert!(!fields.iter().any(|(name, _)| name == "name"));
+        assert!(!fields.iter().any(|(name, _)| name == "calendar_day"));
+        assert!(!fields.iter().any(|(name, _)| name == "day_phase"));
         let profile = profile_from_ron(&text).unwrap();
         assert_eq!(profile.header.name, "Kept");
         assert_eq!(profile.header.playtime_seconds, 9);
@@ -642,6 +577,27 @@ mod tests {
         assert_eq!(profile.header.gold, 4);
         assert_eq!(profile.header.calendar.calendar_day, 2);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+    }
+
+    #[test]
+    fn a_version_9_save_loads_its_header() {
+        let text = V8_PROFILE
+            .replace("version:8,", "version:9,")
+            .replace(
+                "name:\"Hearth\",\n",
+                "header:(name:\"Hearth\",playtime_seconds:4,calendar:(calendar_day:18,day_phase:Evening),location:Forest,gold:7),\n",
+            )
+            .replace("calendar_day:18,\n", "")
+            .replace("day_phase:Evening,\n", "");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.version, 9);
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.playtime_seconds, 4);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Forest);
+        assert_eq!(profile.header.gold, 7);
+        assert_eq!(profile.tool_energy, 55.0);
     }
 
     #[test]
@@ -656,24 +612,6 @@ mod tests {
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
-    }
-
-    #[test]
-    fn version_10_migration_leaves_a_list_unchanged() {
-        let mut value = RonValue::List(vec![RonValue::Integer(1)]);
-        migrate_profile_to_v10(&mut value);
-        assert!(matches!(value, RonValue::List(items) if items.len() == 1));
-    }
-
-    #[test]
-    fn version_10_migration_keeps_a_header_when_the_flat_fields_are_gone() {
-        let mut value = parse_ron_value(
-            "(version:9,header:(name:\"Ada\",playtime_seconds:3,calendar:(calendar_day:4,day_phase:Evening),location:Forest,gold:2))",
-        )
-        .unwrap();
-        let before = print_ron_value(&value);
-        migrate_profile_to_v10(&mut value);
-        assert_eq!(print_ron_value(&value), before);
     }
 
     #[test]
