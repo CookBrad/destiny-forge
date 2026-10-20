@@ -48,23 +48,27 @@ const PROJECTILE_HIT_HALF: Vec2 = Vec2::new(ARROW_WIDTH * 0.5, ARROW_HEIGHT * 0.
 const PROJECTILE_DAMAGE_INTERVAL: f32 = 0.45;
 const DEFLECT_SPEED_MULT: f32 = 1.2;
 
+pub(crate) type ProjectileShooters<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyKind,
+        &'static Health,
+        &'static mut EnemyShootCooldown,
+        Option<&'static EnemyAggro>,
+    ),
+    (Without<EnemyCorpse>, Without<DungeonPlayer>),
+>;
+
 pub fn enemy_shoot_projectiles(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     time: Res<Time>,
     art: Res<DungeonArt>,
     player: Query<&Transform, With<DungeonPlayer>>,
-    mut shooters: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyKind,
-            &Health,
-            &mut EnemyShootCooldown,
-            Option<&EnemyAggro>,
-        ),
-        (Without<EnemyCorpse>, Without<DungeonPlayer>),
-    >,
+    mut shooters: ProjectileShooters,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -161,21 +165,33 @@ pub fn move_enemy_projectiles(
     }
 }
 
+pub(crate) type SwingDeflectPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        &'static PlayerAttack,
+        Option<&'static PlayerSpecialMove>,
+    ),
+    (With<DungeonPlayer>, Without<EnemyProjectile>),
+>;
+
+pub(crate) type SwingDeflectProjectiles<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Transform,
+        &'static mut ProjectileVelocity,
+        &'static mut Sprite,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
 pub fn deflect_projectiles_with_swing(
     mut sfx: EventWriter<CombatSfx>,
-    player: Query<
-        (&Transform, &PlayerAttack, Option<&PlayerSpecialMove>),
-        (With<DungeonPlayer>, Without<EnemyProjectile>),
-    >,
-    mut projectiles: Query<
-        (
-            &mut Transform,
-            &mut ProjectileVelocity,
-            &mut Sprite,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
+    player: SwingDeflectPlayer,
+    mut projectiles: SwingDeflectProjectiles,
 ) {
     let Ok((player_transform, attack, special)) = player.get_single() else {
         return;
@@ -210,36 +226,44 @@ pub fn deflect_projectiles_with_swing(
     }
 }
 
+pub(crate) type DeflectedProjectileShots<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyProjectile,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
+pub(crate) type DeflectedHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (
+        With<Health>,
+        Without<DungeonPlayer>,
+        Without<EnemyCorpse>,
+        Without<EnemyProjectile>,
+        Without<DeflectedProjectile>,
+    ),
+>;
+
 pub fn resolve_deflected_projectile_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut projectiles: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyProjectile,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (
-            With<Health>,
-            Without<DungeonPlayer>,
-            Without<EnemyCorpse>,
-            Without<EnemyProjectile>,
-            Without<DeflectedProjectile>,
-        ),
-    >,
+    mut projectiles: DeflectedProjectileShots,
+    mut enemies: DeflectedHitEnemies,
 ) {
     for (projectile_entity, transform, projectile, mut deflected) in &mut projectiles {
         if !deflected.active {
@@ -291,33 +315,41 @@ pub fn resolve_deflected_projectile_hits(
     }
 }
 
+pub(crate) type ProjectileHitPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static mut Health,
+        &'static mut ContactDamageCooldown,
+        &'static PlayerBlock,
+        Option<&'static PlayerHitFlash>,
+    ),
+    (With<DungeonPlayer>, Without<EnemyProjectile>),
+>;
+
+pub(crate) type IncomingProjectiles<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Transform,
+        &'static EnemyProjectile,
+        &'static mut ProjectileVelocity,
+        &'static mut Sprite,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
 pub fn resolve_enemy_projectiles(
     time: Res<Time>,
     loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut player: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            &mut ContactDamageCooldown,
-            &PlayerBlock,
-            Option<&PlayerHitFlash>,
-        ),
-        (With<DungeonPlayer>, Without<EnemyProjectile>),
-    >,
-    mut projectiles: Query<
-        (
-            Entity,
-            &mut Transform,
-            &EnemyProjectile,
-            &mut ProjectileVelocity,
-            &mut Sprite,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
+    mut player: ProjectileHitPlayer,
+    mut projectiles: IncomingProjectiles,
 ) {
     let Ok((player_entity, player_transform, mut health, mut cooldown, block, hit_flash)) =
         player.get_single_mut()
