@@ -1,0 +1,11 @@
+(
+version:5,
+name:"Cora",
+inventory:(slots:((material:None,count:0),(material:None,count:0),(material:Some(Potato),count:9),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0))),
+loadout:(weapon:SlimeBlade,armor:(head:None,chest:None,arms:None,legs:None)),
+progress:(boss_defeated_floor_1:true),
+calendar_day:3,
+day_phase:Evening,
+tool_energy:40.0,
+settings:(audio:(music_enabled:true,music_volume:1.0,sfx_enabled:true,sfx_volume:1.0),skill_bindings:(Some(Attack),Some(Block),Some(Charge),Some(Spin),None,None,None,None,None)),
+)

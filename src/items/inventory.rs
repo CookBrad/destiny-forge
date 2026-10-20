@@ -5,6 +5,7 @@ use serde::de::{SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::material::MaterialId;
+use super::quality::ItemQuality;
 
 pub const INVENTORY_SLOT_COUNT: usize = 32;
 pub const MAX_STACK: u32 = 99;
@@ -12,7 +13,19 @@ pub const MAX_STACK: u32 = 99;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterialStack {
     pub material: Option<MaterialId>,
+    #[serde(default)]
+    pub quality: ItemQuality,
     pub count: u32,
+}
+
+impl MaterialStack {
+    fn holds(self, material: MaterialId, quality: ItemQuality) -> bool {
+        self.material == Some(material) && self.quality == quality && self.count > 0
+    }
+
+    fn clear(&mut self) {
+        *self = Self::default();
+    }
 }
 
 #[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,12 +60,12 @@ where
                 if slot_index < INVENTORY_SLOT_COUNT {
                     inventory.slots[slot_index] = stack;
                 } else if let Some(material) = stack.material {
-                    overflow_stacks.push((material, stack.count));
+                    overflow_stacks.push((material, stack.quality, stack.count));
                 }
                 slot_index += 1;
             }
-            for (material, count) in overflow_stacks {
-                inventory.try_add(material, count);
+            for (material, quality, count) in overflow_stacks {
+                inventory.try_add_quality(material, quality, count);
             }
             Ok(inventory.slots)
         }
@@ -81,9 +94,16 @@ impl Inventory {
     }
 
     pub fn count(&self, material: MaterialId) -> u32 {
+        ItemQuality::LOWEST_FIRST
+            .into_iter()
+            .map(|quality| self.count_quality(material, quality))
+            .sum()
+    }
+
+    pub fn count_quality(&self, material: MaterialId, quality: ItemQuality) -> u32 {
         self.slots
             .iter()
-            .filter(|slot| slot.material == Some(material))
+            .filter(|slot| slot.holds(material, quality))
             .map(|slot| slot.count)
             .sum()
     }
@@ -93,14 +113,67 @@ impl Inventory {
     }
 
     pub fn try_add(&mut self, material: MaterialId, amount: u32) -> u32 {
+        self.try_add_quality(material, ItemQuality::Normal, amount)
+    }
+
+    pub fn try_add_quality(
+        &mut self,
+        material: MaterialId,
+        quality: ItemQuality,
+        amount: u32,
+    ) -> u32 {
         if amount == 0 {
             return 0;
         }
+        let remaining = self.pour_into_matching(material, quality, amount);
+        self.pour_into_empty(material, quality, remaining)
+    }
+
+    pub fn try_remove(&mut self, material: MaterialId, amount: u32) -> bool {
+        if self.count(material) < amount {
+            return false;
+        }
 
         let mut remaining = amount;
+        for quality in ItemQuality::LOWEST_FIRST {
+            remaining = self.take(material, quality, remaining);
+            if remaining == 0 {
+                return true;
+            }
+        }
+        false
+    }
 
+    pub fn merge_stacks_and_sort_by_category(&mut self) {
+        let mut totals = self.totals_by_material_and_quality();
+        totals.sort_by_key(|(material, quality, _)| (material.category(), *material, *quality));
+        self.slots = [MaterialStack::default(); INVENTORY_SLOT_COUNT];
+        for (material, quality, total) in totals {
+            self.try_add_quality(material, quality, total);
+        }
+    }
+
+    pub fn has_room_for(&self, material: MaterialId) -> bool {
+        self.has_room_for_quality(material, ItemQuality::Normal)
+    }
+
+    pub fn has_room_for_quality(&self, material: MaterialId, quality: ItemQuality) -> bool {
+        self.slots.iter().any(|slot| {
+            slot.material.is_none() || (slot.holds(material, quality) && slot.count < MAX_STACK)
+        })
+    }
+
+    fn pour_into_matching(
+        &mut self,
+        material: MaterialId,
+        quality: ItemQuality,
+        mut remaining: u32,
+    ) -> u32 {
         for slot in &mut self.slots {
-            if slot.material != Some(material) {
+            if remaining == 0 {
+                return 0;
+            }
+            if !slot.holds(material, quality) {
                 continue;
             }
             let space = MAX_STACK.saturating_sub(slot.count);
@@ -110,53 +183,52 @@ impl Inventory {
             let added = remaining.min(space);
             slot.count += added;
             remaining -= added;
+        }
+        remaining
+    }
+
+    fn pour_into_empty(
+        &mut self,
+        material: MaterialId,
+        quality: ItemQuality,
+        mut remaining: u32,
+    ) -> u32 {
+        for slot in &mut self.slots {
             if remaining == 0 {
                 return 0;
             }
-        }
-
-        for slot in &mut self.slots {
             if slot.material.is_some() {
                 continue;
             }
             let added = remaining.min(MAX_STACK);
             slot.material = Some(material);
+            slot.quality = quality;
             slot.count = added;
             remaining -= added;
-            if remaining == 0 {
-                return 0;
-            }
         }
-
         remaining
     }
 
-    pub fn try_remove(&mut self, material: MaterialId, amount: u32) -> bool {
-        if self.count(material) < amount {
-            return false;
-        }
-
-        let mut remaining = amount;
+    fn take(&mut self, material: MaterialId, quality: ItemQuality, mut remaining: u32) -> u32 {
         for slot in &mut self.slots {
-            if slot.material != Some(material) || slot.count == 0 {
+            if remaining == 0 {
+                return 0;
+            }
+            if !slot.holds(material, quality) {
                 continue;
             }
             let removed = remaining.min(slot.count);
             slot.count -= removed;
             remaining -= removed;
             if slot.count == 0 {
-                slot.material = None;
-            }
-            if remaining == 0 {
-                return true;
+                slot.clear();
             }
         }
-
-        false
+        remaining
     }
 
-    pub fn merge_stacks_and_sort_by_category(&mut self) {
-        let mut material_totals: Vec<(MaterialId, u32)> = Vec::new();
+    fn totals_by_material_and_quality(&self) -> Vec<(MaterialId, ItemQuality, u32)> {
+        let mut totals = Vec::new();
         for slot in &self.slots {
             let Some(material) = slot.material else {
                 continue;
@@ -164,29 +236,30 @@ impl Inventory {
             if slot.count == 0 {
                 continue;
             }
-            match material_totals.iter_mut().find(|(id, _)| *id == material) {
-                Some((_, total)) => *total += slot.count,
-                None => material_totals.push((material, slot.count)),
-            }
+            add_total(&mut totals, material, slot.quality, slot.count);
         }
-        material_totals.sort_by_key(|(material, _)| (material.category(), *material));
-
-        self.slots = [MaterialStack::default(); INVENTORY_SLOT_COUNT];
-        for (material, total) in material_totals {
-            self.try_add(material, total);
-        }
-    }
-
-    pub fn has_room_for(&self, material: MaterialId) -> bool {
-        self.slots.iter().any(|slot| {
-            slot.material.is_none() || (slot.material == Some(material) && slot.count < MAX_STACK)
-        })
+        totals
     }
 
     pub fn has_materials(&self, costs: &[(MaterialId, u32)]) -> bool {
         costs
             .iter()
             .all(|(material, amount)| self.count(*material) >= *amount)
+    }
+}
+
+fn add_total(
+    totals: &mut Vec<(MaterialId, ItemQuality, u32)>,
+    material: MaterialId,
+    quality: ItemQuality,
+    count: u32,
+) {
+    match totals
+        .iter_mut()
+        .find(|(id, stacked_quality, _)| *id == material && *stacked_quality == quality)
+    {
+        Some((_, _, total)) => *total += count,
+        None => totals.push((material, quality, count)),
     }
 }
 
@@ -253,22 +326,27 @@ mod tests {
         inventory.slots[0] = MaterialStack {
             material: Some(MaterialId::SlimeGel),
             count: 4,
+            ..MaterialStack::default()
         };
         inventory.slots[3] = MaterialStack {
             material: Some(MaterialId::PotatoStew),
             count: 1,
+            ..MaterialStack::default()
         };
         inventory.slots[5] = MaterialStack {
             material: Some(MaterialId::SlimeGel),
             count: 6,
+            ..MaterialStack::default()
         };
         inventory.slots[9] = MaterialStack {
             material: Some(MaterialId::Hoe),
             count: 1,
+            ..MaterialStack::default()
         };
         inventory.slots[12] = MaterialStack {
             material: Some(MaterialId::Turnip),
             count: 2,
+            ..MaterialStack::default()
         };
         let items_before_sort = inventory.total_items();
 
@@ -304,6 +382,7 @@ mod tests {
         let inventory: Inventory = ron::from_str(old).unwrap();
         assert_eq!(inventory.slots.len(), INVENTORY_SLOT_COUNT);
         assert_eq!(inventory.count(MaterialId::Turnip), 5);
+        assert_eq!(inventory.slots[0].quality, ItemQuality::Normal);
     }
 
     #[test]
@@ -322,10 +401,134 @@ mod tests {
         inventory.try_add(MaterialId::PotatoStew, 2);
         inventory.slots[INVENTORY_SLOT_COUNT - 1] = MaterialStack {
             material: Some(MaterialId::IronScrap),
+            quality: ItemQuality::Silver,
             count: 7,
         };
         let text = ron::to_string(&inventory).unwrap();
         let loaded: Inventory = ron::from_str(&text).unwrap();
         assert_eq!(loaded, inventory);
+        assert_eq!(
+            loaded.slots[INVENTORY_SLOT_COUNT - 1].quality,
+            ItemQuality::Silver
+        );
+    }
+
+    #[test]
+    fn different_qualities_stay_in_separate_stacks() {
+        let mut inventory = Inventory::default();
+        assert_eq!(
+            inventory.try_add_quality(MaterialId::Turnip, ItemQuality::Silver, 10),
+            0
+        );
+        assert_eq!(inventory.try_add(MaterialId::Turnip, 4), 0);
+        assert_eq!(inventory.count(MaterialId::Turnip), 14);
+        assert_eq!(
+            inventory.count_quality(MaterialId::Turnip, ItemQuality::Normal),
+            4
+        );
+        assert_eq!(
+            inventory.count_quality(MaterialId::Turnip, ItemQuality::Silver),
+            10
+        );
+        assert_eq!(inventory.slots[0].quality, ItemQuality::Silver);
+        assert_eq!(inventory.slots[0].count, 10);
+        assert_eq!(inventory.slots[1].quality, ItemQuality::Normal);
+        assert_eq!(inventory.slots[1].count, 4);
+    }
+
+    #[test]
+    fn sort_merges_same_quality_and_keeps_other_qualities_apart() {
+        let mut inventory = Inventory::default();
+        inventory.slots[0] = MaterialStack {
+            material: Some(MaterialId::Turnip),
+            quality: ItemQuality::Gold,
+            count: 2,
+        };
+        inventory.slots[4] = MaterialStack {
+            material: Some(MaterialId::Turnip),
+            quality: ItemQuality::Normal,
+            count: 3,
+        };
+        inventory.slots[8] = MaterialStack {
+            material: Some(MaterialId::Turnip),
+            quality: ItemQuality::Normal,
+            count: 4,
+        };
+        inventory.slots[11] = MaterialStack {
+            material: Some(MaterialId::Turnip),
+            quality: ItemQuality::Destiny,
+            count: 1,
+        };
+
+        inventory.merge_stacks_and_sort_by_category();
+
+        assert_eq!(inventory.slots[0].quality, ItemQuality::Normal);
+        assert_eq!(inventory.slots[0].count, 7);
+        assert_eq!(inventory.slots[1].quality, ItemQuality::Gold);
+        assert_eq!(inventory.slots[1].count, 2);
+        assert_eq!(inventory.slots[2].quality, ItemQuality::Destiny);
+        assert_eq!(inventory.slots[2].count, 1);
+        assert!(inventory.slots[3].material.is_none());
+        assert_eq!(inventory.count(MaterialId::Turnip), 10);
+    }
+
+    #[test]
+    fn remove_spends_lower_quality_before_higher_quality() {
+        let mut inventory = Inventory::default();
+        assert_eq!(
+            inventory.try_add_quality(MaterialId::Potato, ItemQuality::Gold, 2),
+            0
+        );
+        assert_eq!(inventory.try_add(MaterialId::Potato, 2), 0);
+        assert!(inventory.try_remove(MaterialId::Potato, 3));
+        assert_eq!(
+            inventory.count_quality(MaterialId::Potato, ItemQuality::Normal),
+            0
+        );
+        assert_eq!(
+            inventory.count_quality(MaterialId::Potato, ItemQuality::Gold),
+            1
+        );
+    }
+
+    #[test]
+    fn partial_stack_of_another_quality_is_not_room_for_normal() {
+        let mut inventory = Inventory::default();
+        assert_eq!(
+            inventory.try_add_quality(MaterialId::Turnip, ItemQuality::Silver, 1),
+            0
+        );
+        for slot in inventory.slots.iter_mut().skip(1) {
+            *slot = MaterialStack {
+                material: Some(MaterialId::Fang),
+                quality: ItemQuality::Normal,
+                count: MAX_STACK,
+            };
+        }
+
+        assert!(!inventory.has_room_for(MaterialId::Turnip));
+        assert!(inventory.has_room_for_quality(MaterialId::Turnip, ItemQuality::Silver));
+        assert_eq!(inventory.try_add(MaterialId::Turnip, 1), 1);
+        assert_eq!(
+            inventory.try_add_quality(MaterialId::Turnip, ItemQuality::Silver, 1),
+            0
+        );
+        assert_eq!(inventory.slots[0].count, 2);
+    }
+
+    #[test]
+    fn overflow_past_the_slot_list_keeps_its_quality() {
+        let mut stacks = vec!["(material: None, count: 0)".to_string(); INVENTORY_SLOT_COUNT];
+        stacks.push("(material: Some(Turnip), quality: Gold, count: 6)".to_string());
+        let text = format!("(slots: ({}))", stacks.join(", "));
+        let inventory: Inventory = ron::from_str(&text).unwrap();
+        assert_eq!(
+            inventory.count_quality(MaterialId::Turnip, ItemQuality::Gold),
+            6
+        );
+        assert_eq!(
+            inventory.count_quality(MaterialId::Turnip, ItemQuality::Normal),
+            0
+        );
     }
 }

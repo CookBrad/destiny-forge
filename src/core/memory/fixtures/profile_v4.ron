@@ -1,0 +1,10 @@
+(
+version:4,
+name:"Bram",
+inventory:(slots:((material:None,count:0),(material:Some(Turnip),count:6),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0))),
+loadout:(weapon:IronSword,armor:(head:None,chest:None,arms:None,legs:None)),
+progress:(boss_defeated_floor_1:false),
+calendar_day:12,
+day_phase:Afternoon,
+settings:(audio:(music_enabled:true,music_volume:1.0,sfx_enabled:true,sfx_volume:1.0),skill_bindings:(Some(Attack),Some(Block),Some(Charge),Some(Spin),None,None,None,None,None)),
+)

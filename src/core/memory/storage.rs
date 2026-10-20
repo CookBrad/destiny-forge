@@ -70,7 +70,7 @@ pub fn save_profile(index: u8, profile: &PlayerProfile) -> io::Result<()> {
 }
 
 fn load_profile_at(path: &Path) -> Result<PlayerProfile, ProfileLoadError> {
-    let loaded = read_profile_file(path).map(PlayerProfile::migrate);
+    let loaded = read_profile_file(path);
     if matches!(
         loaded,
         Err(ProfileLoadError::Corrupt(_) | ProfileLoadError::Unreadable(_))
@@ -102,7 +102,7 @@ fn read_profile_file(path: &Path) -> Result<PlayerProfile, ProfileLoadError> {
         }
         Err(error) => return Err(ProfileLoadError::Unreadable(error)),
     };
-    ron::from_str(&contents).map_err(|error| ProfileLoadError::Corrupt(error.to_string()))
+    super::migration::profile_from_ron(&contents).map_err(ProfileLoadError::Corrupt)
 }
 
 fn backup_bad_save(path: &Path) -> io::Result<PathBuf> {
@@ -170,9 +170,9 @@ pub fn save_root_display() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::profile::PROFILE_VERSION;
-    use crate::items::MaterialId;
+    use super::*;
+    use crate::items::{ItemQuality, MaterialId};
     use crate::player::Loadout;
 
     #[test]
@@ -256,6 +256,11 @@ mod tests {
         let loaded = load_profile_at(&primary).unwrap();
         assert_eq!(loaded.version, PROFILE_VERSION);
         assert_eq!(loaded.inventory.count(MaterialId::SlimeGel), 3);
+        assert!(loaded
+            .inventory
+            .slots
+            .iter()
+            .all(|slot| slot.quality == ItemQuality::Normal));
         assert_eq!(loaded.loadout, Loadout::default());
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());
         let _ = fs::remove_dir_all(&root);

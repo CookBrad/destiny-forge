@@ -1,0 +1,7 @@
+(
+version:2,
+inventory:(slots:((material:Some(SlimeGel),count:12),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:Some(Fang),count:3),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0),(material:None,count:0))),
+loadout:(weapon:RustySpear,armor:(head:None,chest:None,arms:None,legs:None)),
+progress:(boss_defeated_floor_1:true),
+settings:(audio:(music_enabled:true,music_volume:1.0,sfx_enabled:true,sfx_volume:1.0),skill_bindings:(Some(Attack),Some(Block),Some(Charge),Some(Spin),None,None,None,None,None)),
+)
