@@ -199,7 +199,6 @@ mod tests {
     use super::*;
     use crate::combat::WeaponKind;
     use crate::player::DestinySpark;
-
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
         let profile = PlayerProfile {
