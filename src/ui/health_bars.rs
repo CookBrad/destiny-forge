@@ -14,17 +14,9 @@ const PLAYER_BAR_WIDTH: f32 = 14.0;
 const PLAYER_BAR_HEIGHT: f32 = 120.0;
 const PLAYER_BAR_BORDER: f32 = 2.0;
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct HealthBarAssets {
     pub pixel: Handle<Image>,
-}
-
-impl Default for HealthBarAssets {
-    fn default() -> Self {
-        Self {
-            pixel: Handle::default(),
-        }
-    }
 }
 
 #[derive(Component)]
@@ -46,6 +38,64 @@ pub(crate) struct EnemyHealthBarBackground;
 
 #[derive(Component)]
 pub(crate) struct EnemyHealthBarFill;
+
+pub(crate) type EnemyHealthBarCandidates<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static SpriteCanvas,
+    ),
+    (With<Health>, Without<DungeonPlayer>),
+>;
+
+pub(crate) type EnemyHealthBarOwners<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static Health,
+        &'static EnemyHitbox,
+        &'static SpriteCanvas,
+        Option<&'static EnemyCorpse>,
+    ),
+    (
+        Without<EnemyHealthBar>,
+        Without<EnemyHealthBarFill>,
+        Without<EnemyHealthBarBackground>,
+    ),
+>;
+
+pub(crate) type EnemyHealthBarSprites<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static EnemyHealthBar,
+        &'static mut Transform,
+        &'static mut Visibility,
+    ),
+    (
+        With<EnemyHealthBar>,
+        Without<EnemyHealthBarFill>,
+        Without<Health>,
+    ),
+>;
+
+pub(crate) type EnemyHealthBarFills<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Sprite, &'static mut Transform),
+    (
+        With<EnemyHealthBarFill>,
+        Without<EnemyHealthBar>,
+        Without<EnemyHealthBarBackground>,
+        Without<Health>,
+    ),
+>;
 
 pub fn setup_health_bar_assets(
     mut images: ResMut<Assets<Image>>,
@@ -104,10 +154,7 @@ pub fn spawn_player_health_bar(mut commands: Commands) {
 pub fn spawn_enemy_health_bars(
     mut commands: Commands,
     assets: Res<HealthBarAssets>,
-    enemies: Query<
-        (Entity, &Transform, &EnemyHitbox, &SpriteCanvas),
-        (With<Health>, Without<DungeonPlayer>),
-    >,
+    enemies: EnemyHealthBarCandidates,
     existing: Query<&EnemyHealthBar>,
 ) {
     let covered: HashSet<Entity> = existing.iter().map(|bar| bar.owner).collect();
@@ -175,38 +222,9 @@ pub fn despawn_orphan_enemy_health_bars(
 }
 
 pub fn update_enemy_health_bars(
-    owners: Query<
-        (
-            Entity,
-            &Transform,
-            &Health,
-            &EnemyHitbox,
-            &SpriteCanvas,
-            Option<&EnemyCorpse>,
-        ),
-        (
-            Without<EnemyHealthBar>,
-            Without<EnemyHealthBarFill>,
-            Without<EnemyHealthBarBackground>,
-        ),
-    >,
-    mut bars: Query<
-        (Entity, &EnemyHealthBar, &mut Transform, &mut Visibility),
-        (
-            With<EnemyHealthBar>,
-            Without<EnemyHealthBarFill>,
-            Without<Health>,
-        ),
-    >,
-    mut fills: Query<
-        (&mut Sprite, &mut Transform),
-        (
-            With<EnemyHealthBarFill>,
-            Without<EnemyHealthBar>,
-            Without<EnemyHealthBarBackground>,
-            Without<Health>,
-        ),
-    >,
+    owners: EnemyHealthBarOwners,
+    mut bars: EnemyHealthBarSprites,
+    mut fills: EnemyHealthBarFills,
     children: Query<&Children>,
 ) {
     for (bar_entity, bar, mut bar_transform, mut visibility) in &mut bars {
