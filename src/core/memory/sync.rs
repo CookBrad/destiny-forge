@@ -413,4 +413,28 @@ mod tests {
         assert!(app.world().resource::<ProfileDirty>().0);
         assert_eq!(saved_profile(&app).settings.skill_bindings[0], None);
     }
+
+    #[test]
+    fn a_day_clock_change_alone_leaves_the_profile_clean() {
+        let mut app = runtime_app(Wallet::default());
+        app.add_systems(Update, capture_profile_from_runtime);
+        app.update();
+        mark_clean(&mut app);
+        app.world_mut().resource_mut::<DayClock>().calendar_day = 9;
+        app.update();
+        assert!(!app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).calendar_day, 1);
+    }
+
+    #[test]
+    fn editing_the_saved_profile_without_a_runtime_change_leaves_the_profile_clean() {
+        let mut app = runtime_app(Wallet::default());
+        app.add_systems(Update, capture_profile_from_runtime);
+        app.update();
+        mark_clean(&mut app);
+        app.world_mut().resource_mut::<PlayerProfile>().wallet.gold = 3;
+        app.update();
+        assert!(!app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).wallet.gold, 3);
+    }
 }
