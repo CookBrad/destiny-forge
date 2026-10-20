@@ -102,7 +102,6 @@ pub fn overworld_interaction(
     }
 }
 
-/// Hold E near the house bed to end the day.
 #[derive(SystemParam)]
 pub(crate) struct SleepAtBed<'w, 's> {
     day_clock: ResMut<'w, DayClock>,

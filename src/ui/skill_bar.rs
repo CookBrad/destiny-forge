@@ -497,7 +497,7 @@ mod tests {
         SLOT_PADDING, SLOT_WIDTH,
     };
     use crate::combat::{SkillKind, SpecialCooldownState, SpecialMoveKind, WeaponKind};
-    use crate::player::{ArmorKind, Loadout};
+    use crate::player::{ArmorSet, Loadout};
 
     #[test]
     fn cooldown_veil_fills_from_the_special_the_weapon_fired() {
@@ -532,8 +532,8 @@ mod tests {
             weapon: WeaponKind::RustySpear,
             ..Loadout::default()
         };
-        spear.armor.head = Some(ArmorKind::Helm);
-        spear.armor.chest = Some(ArmorKind::Mail);
+        spear.armor.head = Some(ArmorSet::Helm);
+        spear.armor.chest = Some(ArmorSet::Mail);
         let full = SpecialMoveKind::Thrust.base_cooldown() * spear.special_cooldown_multiplier();
         assert!((full - 3.5 * 0.9).abs() < 1e-5);
 

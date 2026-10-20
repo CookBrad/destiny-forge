@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::combat::WeaponKind;
 use crate::core::data_load::load_ron_from_assets_or_embedded;
 use crate::items::{Inventory, MaterialId};
-use crate::player::{weapon_kind_label, ArmorKind, Loadout};
+use crate::player::{weapon_kind_label, ArmorSet, Loadout};
 
 const RECIPES_PATH: &str = "assets/data/recipes.ron";
 const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
@@ -12,7 +12,7 @@ const EMBEDDED_RECIPES: &str = include_str!("../../assets/data/recipes.ron");
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RecipeOutput {
     Weapon(WeaponKind),
-    Armor(ArmorKind),
+    Armor(ArmorSet),
     Food(MaterialId),
     Item(MaterialId),
 }
@@ -329,7 +329,7 @@ mod tests {
         inventory.try_add(MaterialId::SlimeGel, 4);
 
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &helm));
-        assert_eq!(loadout.armor.head, Some(ArmorKind::Helm));
+        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
     }
 
     #[test]

@@ -124,7 +124,6 @@ pub fn capture_profile_from_runtime(
         day_clock,
         tool_energy,
     } = runtime;
-    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
     if !audio.is_changed()
         && !bindings.is_changed()
         && !inventory.is_changed()

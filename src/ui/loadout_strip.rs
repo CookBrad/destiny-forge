@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::combat::WeaponKind;
 use crate::core::{GameState, ProfileDirty};
 use crate::input::{Action, ActionState};
-use crate::player::{weapon_kind_label, ArmorKind, Loadout};
+use crate::player::{weapon_kind_label, ArmorSet, Loadout};
 
 const HINT: Color = Color::srgb(0.52, 0.5, 0.46);
 const LABEL: Color = Color::srgb(0.9, 0.88, 0.84);
@@ -39,7 +39,7 @@ pub struct StashWeaponButton {
 
 #[derive(Component, Clone, Copy)]
 pub struct StashArmorButton {
-    pub kind: ArmorKind,
+    pub kind: ArmorSet,
 }
 
 pub fn spawn_loadout_strip(
@@ -115,7 +115,7 @@ fn spawn_weapon_button(parent: &mut ChildBuilder<'_>, weapon: WeaponKind) {
     );
 }
 
-fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
+fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorSet) {
     spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
 }
 

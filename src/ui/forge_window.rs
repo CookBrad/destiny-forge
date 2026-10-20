@@ -412,7 +412,6 @@ pub fn sync_forge_display(
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
     recipes: Res<RecipeBook>,
-    // ParamSet: multiple &mut Text queries conflict without full Without chains (B0001).
     mut texts: ParamSet<(
         ForgeRecipeNameText,
         ForgeCostsText,

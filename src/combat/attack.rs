@@ -371,12 +371,12 @@ mod tests {
         attack.step_index = 0;
         let base = Loadout::default();
         let mut full = Loadout::default();
-        use crate::player::{ArmorKind, ArmorSlots};
+        use crate::player::{ArmorSet, ArmorSlots};
         full.armor = ArmorSlots {
-            head: Some(ArmorKind::Helm),
-            chest: Some(ArmorKind::Mail),
-            arms: Some(ArmorKind::Gauntlets),
-            legs: Some(ArmorKind::Greaves),
+            head: Some(ArmorSet::Helm),
+            chest: Some(ArmorSet::Mail),
+            arms: Some(ArmorSet::Gauntlets),
+            legs: Some(ArmorSet::Greaves),
         };
         assert!(attack.step_power(&full) > attack.step_power(&base));
     }

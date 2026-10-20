@@ -256,7 +256,6 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         OverworldEntity,
     ));
 
-    // One native tile per column. Stretching one 16×16 cell across the roof resamples it.
     spawn_native_roof_row(
         commands,
         NativeRoofRow {

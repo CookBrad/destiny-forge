@@ -19,7 +19,6 @@ pub(crate) type DungeonCameraFollow<'w, 's> = Query<
     (With<Camera2d>, Without<DungeonPlayer>),
 >;
 
-/// Horizontal span of the current dungeon floor in native world pixels.
 #[derive(Resource, Clone, Copy)]
 pub struct DungeonScrollBounds {
     pub width: f32,

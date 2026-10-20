@@ -1,5 +1,3 @@
-//! Use the equipped homestead tool (keys 1–4) on a nearby crop plot.
-
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 

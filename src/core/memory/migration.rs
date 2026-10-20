@@ -367,13 +367,15 @@ mod tests {
 
     #[test]
     fn current_profile_round_trips_through_the_save_text() {
-        let mut profile = PlayerProfile::default();
-        profile.name = "Hélène \"the\" smith".to_string();
-        profile.calendar_day = 18;
-        profile.day_phase = DayPhase::Evening;
-        profile.tool_energy = 55.0;
+        let mut profile = PlayerProfile {
+            name: "Hélène \"the\" smith".to_string(),
+            calendar_day: 18,
+            day_phase: DayPhase::Evening,
+            tool_energy: 55.0,
+            depleted_ore_node_ids: vec![3, 9],
+            ..PlayerProfile::default()
+        };
         profile.progress.boss_defeated_floor_1 = true;
-        profile.depleted_ore_node_ids = vec![3, 9];
         profile.loadout.food_buff = Some(MaterialId::PotatoStew);
         profile.loadout.weapon = WeaponKind::IronSword;
         profile.loadout.stash.weapons.push(WeaponKind::RustySword);
