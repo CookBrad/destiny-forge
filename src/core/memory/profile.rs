@@ -9,7 +9,7 @@ use super::sections::{HomesteadSave, MineSave};
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 12;
+pub const PROFILE_VERSION: u32 = 11;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -105,6 +105,31 @@ pub fn rename_profile_on_disk(index: u8, name: String) -> Option<PlayerProfile> 
     Some(profile)
 }
 
+pub(super) fn bank_playtime(profile: &mut PlayerProfile, delta_seconds: f32) -> u64 {
+    let seconds_before = profile.header.playtime_seconds;
+    add_playtime(profile, delta_seconds);
+    profile
+        .header
+        .playtime_seconds
+        .saturating_sub(seconds_before)
+}
+
+fn add_playtime(profile: &mut PlayerProfile, delta_seconds: f32) {
+    if delta_seconds <= 0.0 {
+        return;
+    }
+    profile.playtime_fraction += f64::from(delta_seconds);
+    let whole_seconds = profile.playtime_fraction.floor();
+    if whole_seconds < 1.0 {
+        return;
+    }
+    profile.playtime_fraction -= whole_seconds;
+    profile.header.playtime_seconds = profile
+        .header
+        .playtime_seconds
+        .saturating_add(whole_seconds as u64);
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::super::day_cycle::DayPhase;
@@ -120,6 +145,7 @@ mod tests {
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
+        assert_eq!(profile.playtime_fraction, 0.0);
         assert_eq!(profile.display_name(0), "Profile 1");
     }
 
@@ -137,5 +163,50 @@ mod tests {
         profile.set_name("\n\t");
         assert_eq!(profile.header.name, "");
         assert_eq!(profile.display_name(2), "Profile 3");
+    }
+
+    #[test]
+    fn bank_playtime_banks_one_second_and_keeps_half_a_second() {
+        let mut profile = PlayerProfile::default();
+        assert_eq!(bank_playtime(&mut profile, 1.5), 1);
+        assert_eq!(profile.header.playtime_seconds, 1);
+        assert_eq!(profile.playtime_fraction, 0.5);
+    }
+
+    #[test]
+    fn bank_playtime_carries_a_quarter_second_across_two_spans() {
+        let mut profile = PlayerProfile::default();
+        assert_eq!(bank_playtime(&mut profile, 0.75), 0);
+        assert_eq!(profile.playtime_fraction, 0.75);
+        assert_eq!(bank_playtime(&mut profile, 0.5), 1);
+        assert_eq!(profile.header.playtime_seconds, 1);
+        assert_eq!(profile.playtime_fraction, 0.25);
+    }
+
+    #[test]
+    fn bank_playtime_keeps_half_a_second_below_one() {
+        let mut profile = PlayerProfile::default();
+        assert_eq!(bank_playtime(&mut profile, 0.5), 0);
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.playtime_fraction, 0.5);
+    }
+
+    #[test]
+    fn bank_playtime_ignores_a_zero_or_negative_span() {
+        let mut profile = PlayerProfile::default();
+        profile.playtime_fraction = 0.25;
+        assert_eq!(bank_playtime(&mut profile, 0.0), 0);
+        assert_eq!(bank_playtime(&mut profile, -1.0), 0);
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.playtime_fraction, 0.25);
+    }
+
+    #[test]
+    fn bank_playtime_saturates_at_the_largest_second_count() {
+        let mut profile = PlayerProfile::default();
+        profile.header.playtime_seconds = u64::MAX;
+        assert_eq!(bank_playtime(&mut profile, 1.0), 0);
+        assert_eq!(profile.header.playtime_seconds, u64::MAX);
+        assert_eq!(profile.playtime_fraction, 0.0);
     }
 }
