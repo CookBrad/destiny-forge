@@ -118,57 +118,42 @@ pub fn snapshot_profile(sources: &ProfileCapture<'_>, profile: &mut PlayerProfil
     profile.settings.capture_skill_bindings(sources.bindings);
 }
 
+pub struct ProfileSession<'a> {
+    pub active: &'a mut ActiveProfile,
+    pub profile: &'a mut PlayerProfile,
+    pub global: &'a mut GameSettings,
+    pub dirty: &'a mut ProfileDirty,
+    pub autosave_block: &'a mut ProfileAutosaveBlock,
+}
+
 pub fn activate_profile(
     index: u8,
-    inventory: &Inventory,
-    loadout: &Loadout,
-    progress: &WorldProgress,
-    day_clock: &DayClock,
-    tool_energy: &ToolEnergy,
-    audio: &AudioSettings,
-    bindings: &SkillBindings,
-    wallet: &Wallet,
-    active: &mut ActiveProfile,
-    profile: &mut PlayerProfile,
-    global: &mut GameSettings,
-    dirty: &mut ProfileDirty,
-    autosave_block: &mut ProfileAutosaveBlock,
+    sources: &ProfileCapture<'_>,
+    session: &mut ProfileSession<'_>,
 ) -> bool {
     let index = index.min(PROFILE_COUNT - 1);
-    if active.0 == index {
-        return !autosave_block.is_blocked(index);
+    if session.active.0 == index {
+        return !session.autosave_block.is_blocked(index);
     }
 
-    snapshot_profile(
-        &ProfileCapture {
-            inventory,
-            loadout,
-            progress,
-            day_clock,
-            tool_energy,
-            audio,
-            bindings,
-            wallet,
-        },
-        profile,
-    );
-    if let Err(error) = save_profile(active.index(), profile) {
+    snapshot_profile(sources, session.profile);
+    if let Err(error) = save_profile(session.active.index(), session.profile) {
         warn!("Failed to save profile before switch: {error}");
     } else {
-        dirty.0 = false;
+        session.dirty.0 = false;
     }
 
-    let Ok(loaded) = load_profile_for_slot(index, autosave_block) else {
+    let Ok(loaded) = load_profile_for_slot(index, session.autosave_block) else {
         return false;
     };
-    *profile = loaded;
-    active.0 = index;
-    global.last_active_profile = index;
-    if let Err(error) = save_settings(global) {
+    *session.profile = loaded;
+    session.active.0 = index;
+    session.global.last_active_profile = index;
+    if let Err(error) = save_settings(session.global) {
         warn!("Failed to save global preferences: {error}");
     }
 
-    dirty.0 = false;
+    session.dirty.0 = false;
     true
 }
 
