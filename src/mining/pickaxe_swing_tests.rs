@@ -145,7 +145,6 @@ fn second_swing_breaks_copper_after_its_animation_and_drops_ore() {
     assert_eq!(
         app.world()
             .resource::<PlayerProfile>()
-            .mine
             .depleted_ore_node_ids,
         vec![0]
     );

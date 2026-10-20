@@ -37,8 +37,6 @@ impl Plugin for MemoryPlugin {
             .add_systems(
                 Update,
                 (
-                    super::header::accrue_playtime,
-                    super::header::remember_current_location,
                     super::sync::capture_profile_from_runtime,
                     queue_autosave,
                     debounced_autosave,

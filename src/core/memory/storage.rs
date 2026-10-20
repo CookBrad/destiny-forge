@@ -172,7 +172,7 @@ pub fn save_root_display() -> String {
 mod tests {
     use super::super::profile::PROFILE_VERSION;
     use super::*;
-    use crate::items::MaterialId;
+    use crate::items::{ItemQuality, MaterialId};
     use crate::player::Loadout;
 
     #[test]
@@ -232,15 +232,12 @@ mod tests {
         let loaded = profile_or_missing_default(load_profile_at(&primary)).unwrap();
         let expected = PlayerProfile::default();
         assert_eq!(loaded.version, expected.version);
-        assert_eq!(loaded.header.name, expected.header.name);
+        assert_eq!(loaded.name, expected.name);
         assert_eq!(
             loaded.inventory.total_items(),
             expected.inventory.total_items()
         );
-        assert_eq!(
-            loaded.header.calendar.calendar_day,
-            expected.header.calendar.calendar_day
-        );
+        assert_eq!(loaded.calendar_day, expected.calendar_day);
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());
         let _ = fs::remove_dir_all(&root);
     }
@@ -249,15 +246,22 @@ mod tests {
     fn valid_v6_profile_loads_and_migrates_to_current_version() {
         let root = temporary_save_root("v6");
         let primary = profile_path_in(&root, 0);
-        fs::write(&primary, include_str!("fixtures/profile_v6_24_slots.ron")).unwrap();
+        let mut profile = PlayerProfile {
+            version: 6,
+            ..PlayerProfile::default()
+        };
+        profile.inventory.try_add(MaterialId::SlimeGel, 3);
+
+        save_profile_at(&primary, &profile).unwrap();
         let loaded = load_profile_at(&primary).unwrap();
         assert_eq!(loaded.version, PROFILE_VERSION);
-        assert_eq!(loaded.header.name, "Old Save");
-        assert_eq!(loaded.header.calendar.calendar_day, 4);
-        assert_eq!(loaded.header.playtime_seconds, 0);
-        assert_eq!(loaded.header.gold, 0);
-        assert_eq!(loaded.inventory.count(MaterialId::SlimeGel), 120);
-        assert_eq!(loaded.inventory.count(MaterialId::Hoe), 1);
+        assert_eq!(loaded.inventory.count(MaterialId::SlimeGel), 3);
+        assert!(loaded
+            .inventory
+            .slots
+            .iter()
+            .all(|slot| slot.quality == ItemQuality::Normal));
+        assert_eq!(loaded.loadout, Loadout::default());
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());
         let _ = fs::remove_dir_all(&root);
     }

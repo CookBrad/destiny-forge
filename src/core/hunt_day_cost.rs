@@ -13,8 +13,8 @@ pub fn apply_hunt_day_cost_on_dungeon_enter(
 ) {
     let before = clock.phase;
     let changed = clock.apply_hunt_day_cost();
-    profile.header.calendar.calendar_day = clock.calendar_day;
-    profile.header.calendar.day_phase = clock.phase;
+    profile.calendar_day = clock.calendar_day;
+    profile.day_phase = clock.phase;
     dirty.mark();
 
     if changed {

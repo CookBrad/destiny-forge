@@ -264,7 +264,7 @@ pub fn handle_profile_rename_input(
         let buffer = session.buffer.clone();
         if let Some(saved) = rename_profile_on_disk(index, buffer) {
             if active.index() == index {
-                profile.header.name = saved.header.name;
+                profile.name = saved.name;
             }
         }
         *picker = ProfilePicker::refresh(&mut autosave_block);

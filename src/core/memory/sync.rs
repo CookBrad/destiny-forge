@@ -99,9 +99,9 @@ pub fn snapshot_profile(
     profile.inventory = inventory.clone();
     profile.loadout = loadout.clone();
     profile.progress = progress.clone();
-    profile.header.calendar.calendar_day = day_clock.calendar_day;
-    profile.header.calendar.day_phase = day_clock.phase;
-    profile.homestead.tool_energy = tool_energy.current;
+    profile.calendar_day = day_clock.calendar_day;
+    profile.day_phase = day_clock.phase;
+    profile.tool_energy = tool_energy.current;
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -171,11 +171,8 @@ pub fn apply_profile_to_runtime(
     *inventory = profile.inventory.clone();
     *loadout = profile.loadout.clone();
     *progress = profile.progress.clone();
-    *day_clock = DayClock::from_saved(
-        profile.header.calendar.calendar_day,
-        profile.header.calendar.day_phase,
-    );
-    *tool_energy = ToolEnergy::from_saved(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
+    *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
     *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
@@ -187,8 +184,10 @@ mod tests {
 
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
-        let mut profile = PlayerProfile::default();
-        profile.header.calendar.calendar_day = 200;
+        let profile = PlayerProfile {
+            calendar_day: 200,
+            ..PlayerProfile::default()
+        };
         let mut inventory = Inventory::default();
         let mut loadout = Loadout::default();
         let mut progress = WorldProgress::default();

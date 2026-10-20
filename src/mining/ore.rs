@@ -143,13 +143,13 @@ pub fn swing_pickaxe(
 }
 
 pub fn mark_node_depleted(profile: &mut PlayerProfile, id: u16) {
-    if !profile.mine.depleted_ore_node_ids.contains(&id) {
-        profile.mine.depleted_ore_node_ids.push(id);
+    if !profile.depleted_ore_node_ids.contains(&id) {
+        profile.depleted_ore_node_ids.push(id);
     }
 }
 
 pub fn respawn_ore_nodes_on_sleep(profile: &mut PlayerProfile) {
-    profile.mine.depleted_ore_node_ids.clear();
+    profile.depleted_ore_node_ids.clear();
 }
 
 #[cfg(test)]
@@ -302,13 +302,13 @@ mod tests {
         mark_node_depleted(&mut profile, 3);
         mark_node_depleted(&mut profile, 3);
         mark_node_depleted(&mut profile, 9);
-        assert_eq!(profile.mine.depleted_ore_node_ids, vec![3, 9]);
+        assert_eq!(profile.depleted_ore_node_ids, vec![3, 9]);
 
         let saved_ron = ron::to_string(&profile).expect("serialize");
         let loaded: PlayerProfile = ron::from_str(&saved_ron).expect("deserialize");
-        assert_eq!(loaded.mine.depleted_ore_node_ids, vec![3, 9]);
+        assert_eq!(loaded.depleted_ore_node_ids, vec![3, 9]);
 
         respawn_ore_nodes_on_sleep(&mut profile);
-        assert!(profile.mine.depleted_ore_node_ids.is_empty());
+        assert!(profile.depleted_ore_node_ids.is_empty());
     }
 }
