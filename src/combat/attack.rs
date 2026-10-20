@@ -561,4 +561,131 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn a_sword_hit_in_the_window_deals_the_opening_step_and_freezes() {
+        let mut app = hit_world();
+        let starting_health = 40.0;
+        let player = spawn_sword_player(&mut app, opening_sword_hit_midpoint());
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        let just_past_the_body = 1.0;
+        let ahead = super::player_half_extents().x + enemy_half.x + just_past_the_body;
+        spawn_enemy(
+            &mut app,
+            Vec3::new(
+                player.translation.x + ahead,
+                crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y,
+                0.0,
+            ),
+            starting_health,
+        );
+        app.add_systems(Update, resolve_weapon_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        let defense = Loadout::default().total_defense();
+        let dealt = damage_amount(
+            opening_sword_attack().step_power(&Loadout::default()),
+            defense,
+        );
+        assert_eq!(health, starting_health - dealt);
+        assert_eq!(app.world().resource::<HitStop>().remaining, HIT_STOP_LIGHT);
+    }
+
+    fn hit_world() -> App {
+        let mut app = App::new();
+        app.init_resource::<HitStop>();
+        app.add_event::<CombatSfx>();
+        app.insert_resource(Loadout::default());
+        app
+    }
+
+    fn opening_sword_hit_midpoint() -> f32 {
+        let step = WeaponKind::RustySword.moveset().steps[0];
+        (step.hit_start + step.hit_end) * 0.5
+    }
+
+    fn spawn_sword_player(app: &mut App, elapsed: f32) -> Transform {
+        let transform = hunter(1.0);
+        let attack = attack_at(WeaponKind::RustySword, 0, elapsed);
+        app.world_mut().spawn((DungeonPlayer, transform, attack));
+        transform
+    }
+
+    fn spawn_enemy(app: &mut App, translation: Vec3, health: f32) -> Entity {
+        app.world_mut()
+            .spawn((
+                Transform::from_translation(translation),
+                EnemyHitbox(crate::graphics::ENEMY_DISPLAY_SIZE * 0.5),
+                Health::new(health),
+                Sprite::default(),
+            ))
+            .id()
+    }
+
+    fn opening_sword_attack() -> PlayerAttack {
+        attack_at(WeaponKind::RustySword, 0, opening_sword_hit_midpoint())
+    }
+
+    #[test]
+    fn a_sword_outside_the_hit_window_leaves_the_enemy_at_full_health() {
+        let mut app = hit_world();
+        let starting_health = 40.0;
+        let player = spawn_sword_player(&mut app, before_the_hit_window());
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        let just_past_the_body = 1.0;
+        let ahead = super::player_half_extents().x + enemy_half.x + just_past_the_body;
+        spawn_enemy(
+            &mut app,
+            Vec3::new(
+                player.translation.x + ahead,
+                crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y,
+                0.0,
+            ),
+            starting_health,
+        );
+        app.add_systems(Update, resolve_weapon_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting_health);
+        assert_eq!(
+            app.world().resource::<HitStop>().remaining,
+            HitStop::default().remaining
+        );
+    }
+
+    fn before_the_hit_window() -> f32 {
+        0.0
+    }
+
+    #[test]
+    fn weapon_hits_do_nothing_when_no_hunter_is_spawned() {
+        let mut app = hit_world();
+        let starting_health = 40.0;
+        let enemy_half = crate::graphics::ENEMY_DISPLAY_SIZE * 0.5;
+        spawn_enemy(
+            &mut app,
+            Vec3::new(0.0, crate::graphics::DUNGEON_FLOOR_Y + enemy_half.y, 0.0),
+            starting_health,
+        );
+        app.add_systems(Update, resolve_weapon_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting_health);
+        assert_eq!(
+            app.world().resource::<HitStop>().remaining,
+            HitStop::default().remaining
+        );
+    }
 }
