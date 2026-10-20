@@ -8,7 +8,7 @@ pub struct ZoneRect<Z> {
     pub bounds: Rect,
 }
 
-pub fn zone_at<'a, Z>(zones: &'a [ZoneRect<Z>], position: Vec2) -> Option<&'a ZoneRect<Z>> {
+pub fn zone_at<Z>(zones: &[ZoneRect<Z>], position: Vec2) -> Option<&ZoneRect<Z>> {
     zones
         .iter()
         .rev()
@@ -30,7 +30,7 @@ pub fn build_map_border(solids: &mut Vec<Rect>, map_tiles_w: u32, map_tiles_h: u
 }
 
 pub fn tile_checker_shade(tx: u32, ty: u32) -> f32 {
-    if (tx + ty) % 2 == 0 {
+    if (tx + ty).is_multiple_of(2) {
         1.0
     } else {
         0.9
@@ -47,16 +47,26 @@ pub struct GridOverlayStyle {
     pub z: f32,
 }
 
+pub struct GridOverlayExtent {
+    pub world_width: f32,
+    pub world_height: f32,
+    pub map_tiles_w: u32,
+    pub map_tiles_h: u32,
+}
+
 pub fn spawn_grid_overlay(
     commands: &mut Commands,
     grid_line: Handle<Image>,
-    world_width: f32,
-    world_height: f32,
-    map_tiles_w: u32,
-    map_tiles_h: u32,
+    extent: GridOverlayExtent,
     style: GridOverlayStyle,
     mut decorate: impl FnMut(&mut EntityCommands),
 ) {
+    let GridOverlayExtent {
+        world_width,
+        world_height,
+        map_tiles_w,
+        map_tiles_h,
+    } = extent;
     for tx in 0..=map_tiles_w {
         let x = tx as f32 * TILE;
         let mut entity = commands.spawn((
