@@ -132,7 +132,7 @@ mod tests {
         assert_eq!(saved.len(), 3);
 
         let mut profile = PlayerProfile::default();
-        profile.crop_plots = saved.clone();
+        profile.homestead.crop_plots = saved.clone();
         assert_eq!(profile.version, PlayerProfile::default().version);
 
         let encoded = ron::ser::to_string(&profile).expect("serialize profile");
@@ -146,26 +146,29 @@ mod tests {
         );
 
         let loaded: PlayerProfile = ron::from_str(&encoded).expect("deserialize profile");
-        assert_eq!(loaded.crop_plots, saved);
+        assert_eq!(loaded.homestead.crop_plots, saved);
 
         assert_eq!(
-            restored_stage(&loaded.crop_plots, 4, 7),
+            restored_stage(&loaded.homestead.crop_plots, 4, 7),
             PlotStage::Growing {
                 crop: CropKind::Turnip,
                 days: 1,
                 watered: true,
             }
         );
-        assert_eq!(restored_stage(&loaded.crop_plots, 5, 7), PlotStage::Tilled);
         assert_eq!(
-            restored_stage(&loaded.crop_plots, 6, 7),
+            restored_stage(&loaded.homestead.crop_plots, 5, 7),
+            PlotStage::Tilled
+        );
+        assert_eq!(
+            restored_stage(&loaded.homestead.crop_plots, 6, 7),
             PlotStage::Ready {
                 crop: CropKind::Potato,
             }
         );
         assert_eq!(restored_stage(&[], 4, 7), PlotStage::Soil);
         assert_eq!(
-            restored_stage(&loaded.crop_plots, 99, 99),
+            restored_stage(&loaded.homestead.crop_plots, 99, 99),
             PlotStage::Soil,
             "unknown tiles drop to Soil"
         );
@@ -211,6 +214,6 @@ mod tests {
     fn empty_vec_is_virgin_field() {
         assert!(capture_plots(std::iter::empty()).is_empty());
         assert_eq!(restored_stage(&[], 0, 0), PlotStage::Soil);
-        assert_eq!(PlayerProfile::default().crop_plots, Vec::new());
+        assert_eq!(PlayerProfile::default().homestead.crop_plots, Vec::new());
     }
 }

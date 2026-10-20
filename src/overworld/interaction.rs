@@ -121,8 +121,8 @@ pub fn try_sleep_at_bed(
     loadout.clear_food_buff();
     profile.header.calendar.calendar_day = day_clock.calendar_day;
     profile.header.calendar.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
-    profile.crop_plots = capture_plots(plots.iter());
+    profile.homestead.tool_energy = tool_energy.current;
+    profile.homestead.crop_plots = capture_plots(plots.iter());
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();

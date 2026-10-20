@@ -4,17 +4,13 @@ use serde::{Deserialize, Serialize};
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::crop_save::SavedCropPlot;
 use super::header::SaveHeader;
+use super::sections::HomesteadSave;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 10;
+pub const PROFILE_VERSION: u32 = 11;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
-
-fn default_tool_energy() -> f32 {
-    super::super::day_cycle::TOOL_ENERGY_MAX
-}
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ActiveProfile(pub u8);
@@ -32,8 +28,7 @@ pub struct PlayerProfile {
     pub inventory: Inventory,
     pub loadout: Loadout,
     pub progress: WorldProgress,
-    pub tool_energy: f32,
-    pub crop_plots: Vec<SavedCropPlot>,
+    pub homestead: HomesteadSave,
     pub depleted_ore_node_ids: Vec<u16>,
     #[serde(default)]
     pub settings: ProfileSettings,
@@ -49,8 +44,7 @@ impl Default for PlayerProfile {
             inventory: Inventory::with_starter_kit(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
-            tool_energy: default_tool_energy(),
-            crop_plots: Vec::new(),
+            homestead: HomesteadSave::default(),
             depleted_ore_node_ids: Vec::new(),
             settings: ProfileSettings::default(),
             playtime_fraction: 0.0,

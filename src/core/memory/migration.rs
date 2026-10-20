@@ -42,6 +42,10 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 10,
         apply: migrate_profile_to_v10,
     },
+    ProfileMigration {
+        to_version: 11,
+        apply: migrate_profile_to_v11,
+    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -273,6 +277,51 @@ fn remove_field(value: &mut RonValue, key: &str) {
     fields.retain(|(name, _)| name != key);
 }
 
+fn migrate_profile_to_v11(profile: &mut RonValue) {
+    if !matches!(profile, RonValue::Map(_)) {
+        return;
+    }
+    let full_tool = RonValue::Float(f64::from(TOOL_ENERGY_MAX));
+    nest_flat_field(profile, "homestead", "tool_energy", full_tool);
+    nest_flat_field(
+        profile,
+        "homestead",
+        "crop_plots",
+        RonValue::List(Vec::new()),
+    );
+}
+
+fn nest_flat_field(profile: &mut RonValue, section: &str, key: &str, fallback: RonValue) {
+    let taken = take_field(profile, key);
+    if !section_is_map(profile, section) {
+        replace_field(profile, section, RonValue::Map(Vec::new()));
+    }
+    let Some(section_value) = field_mut(profile, section) else {
+        return;
+    };
+    match taken {
+        Some(value) => replace_field(section_value, key, value),
+        None => insert_field_if_missing(section_value, key, fallback),
+    }
+}
+
+fn section_is_map(value: &RonValue, key: &str) -> bool {
+    let RonValue::Map(fields) = value else {
+        return false;
+    };
+    fields
+        .iter()
+        .any(|(name, field)| name == key && matches!(field, RonValue::Map(_)))
+}
+
+fn take_field(value: &mut RonValue, key: &str) -> Option<RonValue> {
+    let RonValue::Map(fields) = value else {
+        return None;
+    };
+    let index = fields.iter().position(|(name, _)| name == key)?;
+    Some(fields.remove(index).1)
+}
+
 fn widen_inventory_to_v7(profile: &mut RonValue) {
     let Some(inventory) = field_mut(profile, "inventory") else {
         return;
@@ -354,8 +403,8 @@ mod tests {
         assert_eq!(profile.header.name, "");
         assert_eq!(profile.header.calendar.calendar_day, 1);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
-        assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
-        assert!(profile.crop_plots.is_empty());
+        assert_eq!(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
+        assert!(profile.homestead.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
         assert_eq!(profile.loadout.food_buff, None);
         assert!(profile.loadout.stash.weapons.is_empty());
@@ -377,8 +426,8 @@ mod tests {
         assert_eq!(profile.header.name, "Ada");
         assert_eq!(profile.header.calendar.calendar_day, 1);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
-        assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
-        assert!(profile.crop_plots.is_empty());
+        assert_eq!(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
+        assert!(profile.homestead.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::IronScrap), 4);
         assert_eq!(profile.loadout.weapon, WeaponKind::RustySword);
     }
@@ -390,8 +439,8 @@ mod tests {
         assert_eq!(profile.header.name, "Bram");
         assert_eq!(profile.header.calendar.calendar_day, 12);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Afternoon);
-        assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
-        assert!(profile.crop_plots.is_empty());
+        assert_eq!(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
+        assert!(profile.homestead.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::Turnip), 6);
         assert_eq!(profile.loadout.weapon, WeaponKind::IronSword);
     }
@@ -403,8 +452,8 @@ mod tests {
         assert_eq!(profile.header.name, "Cora");
         assert_eq!(profile.header.calendar.calendar_day, 3);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
-        assert_eq!(profile.tool_energy, 40.0);
-        assert!(profile.crop_plots.is_empty());
+        assert_eq!(profile.homestead.tool_energy, 40.0);
+        assert!(profile.homestead.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::Potato), 9);
         assert_eq!(profile.loadout.weapon, WeaponKind::SlimeBlade);
@@ -462,7 +511,7 @@ mod tests {
         assert_eq!(profile.header.name, "Hearth");
         assert_eq!(profile.header.calendar.calendar_day, 18);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
-        assert_eq!(profile.tool_energy, 55.0);
+        assert_eq!(profile.homestead.tool_energy, 55.0);
         assert!(profile.progress.boss_defeated_floor_1);
         assert_eq!(profile.depleted_ore_node_ids, vec![3, 9]);
         assert_eq!(profile.loadout.food_buff, Some(MaterialId::PotatoStew));
@@ -480,11 +529,11 @@ mod tests {
             Some(MaterialId::IronScrap)
         );
         assert_eq!(profile.inventory.slots[31].count, 2);
-        assert_eq!(profile.crop_plots.len(), 1);
-        assert_eq!(profile.crop_plots[0].tile_x, 4);
-        assert_eq!(profile.crop_plots[0].tile_y, 2);
+        assert_eq!(profile.homestead.crop_plots.len(), 1);
+        assert_eq!(profile.homestead.crop_plots[0].tile_x, 4);
+        assert_eq!(profile.homestead.crop_plots[0].tile_y, 2);
         assert_eq!(
-            profile.crop_plots[0].stage,
+            profile.homestead.crop_plots[0].stage,
             SavedPlotStage::Growing {
                 crop: SavedCropKind::Turnip,
                 days: 1,
@@ -499,7 +548,7 @@ mod tests {
         profile.header.name = "Hélène \"the\" smith".to_string();
         profile.header.calendar.calendar_day = 18;
         profile.header.calendar.day_phase = DayPhase::Evening;
-        profile.tool_energy = 55.0;
+        profile.homestead.tool_energy = 55.0;
         profile.progress.boss_defeated_floor_1 = true;
         profile.depleted_ore_node_ids = vec![3, 9];
         profile.loadout.food_buff = Some(MaterialId::PotatoStew);
@@ -509,6 +558,7 @@ mod tests {
         profile.inventory.slots[31].count = 2;
         profile.inventory.try_add(MaterialId::CopperOre, 12);
         profile
+            .homestead
             .crop_plots
             .push(super::super::crop_save::SavedCropPlot {
                 tile_x: 4,
@@ -616,7 +666,8 @@ mod tests {
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
-        assert_eq!(profile.tool_energy, 55.0);
+        assert_eq!(profile.homestead.tool_energy, 55.0);
+        assert_eq!(profile.homestead.crop_plots.len(), 1);
         assert_eq!(
             profile
                 .inventory
@@ -659,6 +710,26 @@ mod tests {
     }
 
     #[test]
+    fn version_11_migration_prefers_flat_homestead_fields() {
+        let mut value = parse_ron_value(
+            "(version:10,tool_energy:40.0,crop_plots:[],homestead:(tool_energy:1.0,crop_plots:[(tile_x:1)]))",
+        )
+        .unwrap();
+        migrate_profile_to_v11(&mut value);
+        assert_eq!(
+            print_ron_value(&value),
+            "(version:10,homestead:(tool_energy:40.0,crop_plots:[]))",
+        );
+    }
+
+    #[test]
+    fn version_11_migration_leaves_a_list_unchanged() {
+        let mut value = RonValue::List(vec![RonValue::Integer(1)]);
+        migrate_profile_to_v11(&mut value);
+        assert!(matches!(value, RonValue::List(items) if items.len() == 1));
+    }
+
+    #[test]
     fn version_9_migration_leaves_a_list_unchanged() {
         let mut value = RonValue::List(vec![RonValue::Integer(1)]);
         migrate_profile_to_v9(&mut value);
@@ -678,8 +749,8 @@ mod tests {
         assert_eq!(loaded.inventory, expected.inventory);
         assert_eq!(loaded.loadout, expected.loadout);
         assert_eq!(loaded.progress, expected.progress);
-        assert_eq!(loaded.tool_energy, expected.tool_energy);
-        assert_eq!(loaded.crop_plots, expected.crop_plots);
+        assert_eq!(loaded.homestead.tool_energy, expected.homestead.tool_energy);
+        assert_eq!(loaded.homestead.crop_plots, expected.homestead.crop_plots);
         assert_eq!(loaded.depleted_ore_node_ids, expected.depleted_ore_node_ids);
         assert_eq!(loaded.settings, expected.settings);
     }

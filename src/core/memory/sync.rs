@@ -101,7 +101,7 @@ pub fn snapshot_profile(
     profile.progress = progress.clone();
     profile.header.calendar.calendar_day = day_clock.calendar_day;
     profile.header.calendar.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
+    profile.homestead.tool_energy = tool_energy.current;
     profile.settings.capture_audio(audio);
     profile.settings.capture_skill_bindings(bindings);
 }
@@ -175,7 +175,7 @@ pub fn apply_profile_to_runtime(
         profile.header.calendar.calendar_day,
         profile.header.calendar.day_phase,
     );
-    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *tool_energy = ToolEnergy::from_saved(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
     *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
     profile.settings.apply_audio(audio);
     profile.settings.apply_skill_bindings(bindings);
