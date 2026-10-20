@@ -225,13 +225,13 @@ fn migrate_profile_to_v10(profile: &mut RonValue) {
 fn nest_flat_field(profile: &mut RonValue, section: &str, key: &str, fallback: RonValue) {
     let taken = take_field(profile, key);
     if !section_is_map(profile, section) {
-        replace_field(profile, section, RonValue::Map(Vec::new()));
+        set_or_insert_field(profile, section, RonValue::Map(Vec::new()));
     }
     let Some(section_value) = field_mut(profile, section) else {
         return;
     };
     match taken {
-        Some(value) => replace_field(section_value, key, value),
+        Some(value) => set_or_insert_field(section_value, key, value),
         None => insert_field_if_missing(section_value, key, fallback),
     }
 }
@@ -253,7 +253,7 @@ fn section_is_map(value: &RonValue, key: &str) -> bool {
         .any(|(name, field)| name == key && matches!(field, RonValue::Map(_)))
 }
 
-fn replace_field(value: &mut RonValue, key: &str, field: RonValue) {
+fn set_or_insert_field(value: &mut RonValue, key: &str, field: RonValue) {
     let RonValue::Map(fields) = value else {
         return;
     };
@@ -667,6 +667,17 @@ mod tests {
         assert_eq!(profile.header.location, SaveLocation::Forest);
         assert_eq!(profile.header.gold, 7);
         assert_eq!(profile.homestead.tool_energy, 55.0);
+        assert_eq!(profile.homestead.crop_plots.len(), 1);
+        assert_eq!(profile.homestead.crop_plots[0].tile_x, 4);
+        assert_eq!(profile.homestead.crop_plots[0].tile_y, 2);
+        assert_eq!(
+            profile.homestead.crop_plots[0].stage,
+            SavedPlotStage::Growing {
+                crop: SavedCropKind::Turnip,
+                days: 1,
+                watered: true,
+            }
+        );
     }
 
     #[test]
@@ -735,6 +746,42 @@ mod tests {
         let mut value = parse_ron_value("(crop_plots:[])").unwrap();
         assert!(take_field(&mut value, "tool_energy").is_none());
         assert_eq!(print_ron_value(&value), "(crop_plots:[])");
+    }
+
+    #[test]
+    fn nest_flat_field_moves_a_flat_value_under_the_section() {
+        let mut value = parse_ron_value("(tool_energy:40.0)").unwrap();
+        nest_flat_field(
+            &mut value,
+            "homestead",
+            "tool_energy",
+            RonValue::Float(1.0),
+        );
+        assert_eq!(print_ron_value(&value), "(homestead:(tool_energy:40.0))");
+    }
+
+    #[test]
+    fn set_or_insert_field_replaces_a_present_field() {
+        let mut value = parse_ron_value("(tool_energy:1.0)").unwrap();
+        set_or_insert_field(&mut value, "tool_energy", RonValue::Float(40.0));
+        assert_eq!(print_ron_value(&value), "(tool_energy:40.0)");
+    }
+
+    #[test]
+    fn set_or_insert_field_inserts_a_missing_field() {
+        let mut value = parse_ron_value("(crop_plots:[])").unwrap();
+        set_or_insert_field(&mut value, "tool_energy", RonValue::Float(40.0));
+        assert_eq!(
+            print_ron_value(&value),
+            "(crop_plots:[],tool_energy:40.0)",
+        );
+    }
+
+    #[test]
+    fn set_or_insert_field_leaves_a_non_map_unchanged() {
+        let mut value = RonValue::Integer(1);
+        set_or_insert_field(&mut value, "tool_energy", RonValue::Float(40.0));
+        assert_eq!(print_ron_value(&value), "1");
     }
 
     #[test]
