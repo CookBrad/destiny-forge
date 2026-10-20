@@ -217,8 +217,8 @@ pub fn tick_day_clock(
     if !clock.tick(time.delta_secs()) {
         return;
     }
-    profile.calendar_day = clock.calendar_day;
-    profile.day_phase = clock.phase;
+    profile.header.calendar.calendar_day = clock.calendar_day;
+    profile.header.calendar.day_phase = clock.phase;
     dirty.mark();
     info!(
         "Day phase → {} (day {})",
