@@ -18,6 +18,11 @@ impl Default for HomesteadSave {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MineSave {
+    pub depleted_ore_node_ids: Vec<u16>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::crop_save::SavedPlotStage;
@@ -44,5 +49,22 @@ mod tests {
     fn a_homestead_save_rejects_a_missing_tool_energy() {
         let error = ron::from_str::<HomesteadSave>("(crop_plots:[])").unwrap_err();
         assert!(error.to_string().contains("tool_energy"));
+    }
+
+    #[test]
+    fn a_new_mine_save_starts_with_no_depleted_nodes() {
+        assert!(MineSave::default().depleted_ore_node_ids.is_empty());
+    }
+
+    #[test]
+    fn a_mine_save_keeps_one_depleted_node() {
+        let mine: MineSave = ron::from_str("(depleted_ore_node_ids:[4])").unwrap();
+        assert_eq!(mine.depleted_ore_node_ids, vec![4]);
+    }
+
+    #[test]
+    fn a_mine_save_rejects_a_missing_node_list() {
+        let error = ron::from_str::<MineSave>("()").unwrap_err();
+        assert!(error.to_string().contains("depleted_ore_node_ids"));
     }
 }
