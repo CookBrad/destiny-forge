@@ -48,20 +48,21 @@ pub fn enemy_cell_rect(frame: usize, cell: Vec2) -> Rect {
     }
 }
 
-pub fn animate_enemies(
-    time: Res<Time>,
-    mut enemies: Query<
-        (
-            &Transform,
-            &SpriteCanvas,
-            &mut EnemyAnimation,
-            &mut Sprite,
-            Option<&EnemyKind>,
-            Option<&KingSlimeBoss>,
-        ),
-        Without<EnemyCorpse>,
-    >,
-) {
+pub(crate) type EnemySpriteQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        &'static SpriteCanvas,
+        &'static mut EnemyAnimation,
+        &'static mut Sprite,
+        Option<&'static EnemyKind>,
+        Option<&'static KingSlimeBoss>,
+    ),
+    Without<EnemyCorpse>,
+>;
+
+pub fn animate_enemies(time: Res<Time>, mut enemies: EnemySpriteQuery) {
     let dt = time.delta_secs();
     for (transform, canvas, mut animation, mut sprite, kind, boss) in &mut enemies {
         apply_enemy_frame(
