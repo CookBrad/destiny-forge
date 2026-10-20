@@ -3,9 +3,10 @@ use bevy::prelude::*;
 
 use crate::core::ProfileDirty;
 use crate::forging::{
-    forge_status, recipe_costs_text, recipe_requirement_text, recipe_set_bonus_hint, try_craft_recipe,
-    Recipe, RecipeBook,
+    forge_status, recipe_costs_text, recipe_requirement_text, recipe_set_bonus_hint,
+    try_craft_recipe, Recipe, RecipeBook,
 };
+use crate::input::{Action, ActionState};
 use crate::items::Inventory;
 use crate::player::Loadout;
 
@@ -223,8 +224,7 @@ fn spawn_recipe_panel(
             panel.spawn((
                 ForgeRequirementLabel,
                 Text::new(
-                    recipe_requirement_text(loadout, recipe)
-                        .unwrap_or_else(|| " ".to_string()),
+                    recipe_requirement_text(loadout, recipe).unwrap_or_else(|| " ".to_string()),
                 ),
                 TextFont {
                     font_size: 12.0,
@@ -235,11 +235,7 @@ fn spawn_recipe_panel(
 
             panel.spawn((
                 ForgeSetBonusLabel,
-                Text::new(
-                    recipe_set_bonus_hint(recipe)
-                        .unwrap_or(" ")
-                        .to_string(),
-                ),
+                Text::new(recipe_set_bonus_hint(recipe).unwrap_or(" ").to_string()),
                 TextFont {
                     font_size: 12.0,
                     ..default()
@@ -312,7 +308,7 @@ pub fn cleanup_forge_window(
 }
 
 pub fn handle_forge_close_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCloseButton>)>,
     mut commands: Commands,
     mut open: ResMut<ForgeWindowOpen>,
@@ -324,7 +320,7 @@ pub fn handle_forge_close_input(
         return;
     }
 
-    let close_key = keyboard.just_pressed(KeyCode::Escape);
+    let close_key = actions.just_pressed(Action::Cancel);
     let close_button = interactions
         .iter()
         .any(|interaction| *interaction == Interaction::Pressed);
@@ -350,7 +346,7 @@ fn close_forge_window(
 }
 
 pub fn handle_forge_recipe_cycle(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     open: Res<ForgeWindowOpen>,
     mut selected: ResMut<ForgeSelectedRecipe>,
     mut commands: Commands,
@@ -364,11 +360,11 @@ pub fn handle_forge_recipe_cycle(
     }
 
     let mut changed = false;
-    if keyboard.just_pressed(KeyCode::ArrowUp) {
+    if actions.just_pressed(Action::PreviousRecipe) {
         selected.0 = selected.0.checked_sub(1).unwrap_or(recipes.len() - 1);
         changed = true;
     }
-    if keyboard.just_pressed(KeyCode::ArrowDown) {
+    if actions.just_pressed(Action::NextRecipe) {
         selected.0 = (selected.0 + 1) % recipes.len();
         changed = true;
     }
@@ -409,12 +405,7 @@ pub fn sync_forge_display(
     };
 
     if let Ok(mut text) = texts.p0().get_single_mut() {
-        text.0 = format!(
-            "{} ({}/{})",
-            recipe.name,
-            selected.0 + 1,
-            recipes.len()
-        );
+        text.0 = format!("{} ({}/{})", recipe.name, selected.0 + 1, recipes.len());
     }
     if let Ok(mut text) = texts.p1().get_single_mut() {
         text.0 = recipe_costs_text(&inventory, recipe);
@@ -423,9 +414,7 @@ pub fn sync_forge_display(
         text.0 = recipe_requirement_text(&loadout, recipe).unwrap_or_else(|| " ".to_string());
     }
     if let Ok(mut text) = texts.p3().get_single_mut() {
-        text.0 = recipe_set_bonus_hint(recipe)
-            .unwrap_or(" ")
-            .to_string();
+        text.0 = recipe_set_bonus_hint(recipe).unwrap_or(" ").to_string();
     }
     if let Ok(mut text) = texts.p4().get_single_mut() {
         text.0 = forge_status(&inventory, &loadout, recipe);
@@ -450,7 +439,7 @@ fn craft_selected_recipe(
 }
 
 pub fn handle_forge_craft_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
     recipes: Res<RecipeBook>,
@@ -464,7 +453,7 @@ pub fn handle_forge_craft_input(
         return;
     }
 
-    let craft_key = keyboard.just_pressed(KeyCode::KeyF);
+    let craft_key = actions.just_pressed(Action::Craft);
     let craft_button = interactions
         .iter()
         .any(|interaction| *interaction == Interaction::Pressed);
@@ -473,8 +462,7 @@ pub fn handle_forge_craft_input(
         return;
     }
 
-    if let Some(message) =
-        craft_selected_recipe(&mut inventory, &mut loadout, &recipes, selected.0)
+    if let Some(message) = craft_selected_recipe(&mut inventory, &mut loadout, &recipes, selected.0)
     {
         profile_dirty.mark();
         if let Ok(mut text) = status.get_single_mut() {

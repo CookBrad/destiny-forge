@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 
 use crate::core::{
-    perform_sleep, DayClock, GameState, PlayerProfile, ProfileDirty, ToolEnergy,
+    perform_sleep, CalendarDate, CalendarRules, DayClock, GameState, PlayerProfile, ProfileDirty,
+    Season, SeasonRollover, ToolEnergy,
 };
 use crate::farming::{advance_all_plots_on_sleep, capture_plots, CropPlot};
 use crate::forging::RecipeBook;
+use crate::graphics::INTERACT_DISTANCE;
+use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
 use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
-use crate::graphics::INTERACT_DISTANCE;
 
 use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
@@ -19,7 +21,7 @@ const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
 const BED_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 1.5;
 
 pub fn overworld_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     mut commands: Commands,
     game_inventory: Res<crate::items::Inventory>,
@@ -47,7 +49,7 @@ pub fn overworld_interaction(
     if let Some(zone) = layout.zone_at(position) {
         let near = distance_to_zone(position, &zone.bounds) <= ZONE_INTERACT_RANGE;
         match zone.zone {
-            HomesteadZone::Forge if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::Forge if near && actions.just_pressed(Action::Interact) => {
                 open_forge_window(
                     &mut forge,
                     &mut forge_recipe,
@@ -59,45 +61,46 @@ pub fn overworld_interaction(
                     &mut time,
                 );
             }
-            HomesteadZone::DungeonGate if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::DungeonGate if near && actions.just_pressed(Action::Interact) => {
                 // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
-            HomesteadZone::MineEntrance if near && keyboard.just_pressed(KeyCode::KeyE) => {
+            HomesteadZone::MineEntrance if near && actions.just_pressed(Action::Interact) => {
                 next_state.set(GameState::Mine);
             }
             _ => {}
         }
     }
 
-    if cooldown.0.finished()
-        && homestead_forest_transition().contains(position)
-        && velocity.y > 1.0
+    if cooldown.0.finished() && homestead_forest_transition().contains(position) && velocity.y > 1.0
     {
         next_state.set(GameState::Forest);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         next_state.set(GameState::Title);
     }
 }
 
 /// Hold E near the house bed to end the day.
 pub fn try_sleep_at_bed(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
     player: Query<&Transform, With<OverworldPlayer>>,
     beds: Query<&Transform, With<Bed>>,
     mut day_clock: ResMut<DayClock>,
     mut tool_energy: ResMut<ToolEnergy>,
+    mut season: ResMut<Season>,
+    rules: Res<CalendarRules>,
+    mut season_rollovers: EventWriter<SeasonRollover>,
     mut profile: ResMut<PlayerProfile>,
     mut profile_dirty: ResMut<ProfileDirty>,
     mut clear: ResMut<ClearColor>,
     mut plots: Query<&mut CropPlot>,
     mut loadout: ResMut<Loadout>,
 ) {
-    if inventory.0 || forge.0 || !keyboard.just_pressed(KeyCode::KeyE) {
+    if inventory.0 || forge.0 || !actions.just_pressed(Action::Interact) {
         return;
     }
 
@@ -109,7 +112,11 @@ pub fn try_sleep_at_bed(
         return;
     }
 
-    let day = perform_sleep(&mut day_clock, &mut tool_energy);
+    let outcome = perform_sleep(&mut day_clock, &mut tool_energy, &mut season, &rules);
+    if let Some(rollover) = outcome.season_rollover {
+        season_rollovers.send(rollover);
+    }
+    let day = outcome.calendar_day;
     advance_all_plots_on_sleep(&mut plots);
     loadout.clear_food_buff();
     profile.calendar_day = day_clock.calendar_day;
@@ -119,7 +126,14 @@ pub fn try_sleep_at_bed(
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
-    info!("Slept — morning of day {day}. Tool energy restored; crops advanced; mine ore respawned.");
+    let date = CalendarDate::from_calendar_day(day, &rules);
+    info!(
+        "Slept — calendar day {day}, {} {} year {} ({}). Tool energy restored; crops advanced; mine ore respawned.",
+        date.season.display_name(),
+        date.day_of_season,
+        date.year,
+        date.weekday.display_name(),
+    );
 }
 
 /// Show tooltip for forge / dungeon gate / bed when in range.
@@ -189,19 +203,23 @@ mod tests {
     #[test]
     fn sleeping_ends_the_food_buff() {
         let mut app = App::new();
-        let mut keyboard = ButtonInput::<KeyCode>::default();
-        keyboard.press(KeyCode::KeyE);
         let mut loadout = Loadout::default();
         loadout.food_buff = Some(MaterialId::RoastTurnip);
-        app.insert_resource(keyboard)
-            .insert_resource(loadout)
-            .init_resource::<InventoryWindowOpen>()
-            .init_resource::<ForgeWindowOpen>()
-            .init_resource::<DayClock>()
-            .init_resource::<ToolEnergy>()
-            .init_resource::<PlayerProfile>()
-            .init_resource::<ProfileDirty>()
-            .init_resource::<ClearColor>();
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
+        .insert_resource(loadout)
+        .init_resource::<InventoryWindowOpen>()
+        .init_resource::<ForgeWindowOpen>()
+        .init_resource::<DayClock>()
+        .init_resource::<ToolEnergy>()
+        .init_resource::<Season>()
+        .init_resource::<CalendarRules>()
+        .add_event::<SeasonRollover>()
+        .init_resource::<PlayerProfile>()
+        .init_resource::<ProfileDirty>()
+        .init_resource::<ClearColor>();
         app.world_mut()
             .spawn((OverworldPlayer, Transform::default()));
         app.world_mut().spawn((Bed, Transform::default()));
@@ -210,5 +228,59 @@ mod tests {
 
         assert_eq!(app.world().resource::<Loadout>().food_buff, None);
         assert_eq!(app.world().resource::<DayClock>().calendar_day, 2);
+        assert_eq!(*app.world().resource::<Season>(), Season::Spring);
+        assert!(app
+            .world_mut()
+            .resource_mut::<Events<SeasonRollover>>()
+            .drain()
+            .next()
+            .is_none());
+    }
+
+    #[test]
+    fn sleeping_out_of_winter_emits_a_season_rollover() {
+        let mut app = App::new();
+        app.insert_resource(crate::input::action_state_after_pressing(
+            &[KeyCode::KeyE],
+            &[],
+        ))
+        .insert_resource(Loadout::default())
+        .init_resource::<InventoryWindowOpen>()
+        .init_resource::<ForgeWindowOpen>()
+        .init_resource::<DayClock>()
+        .init_resource::<ToolEnergy>()
+        .init_resource::<Season>()
+        .init_resource::<CalendarRules>()
+        .add_event::<SeasonRollover>()
+        .init_resource::<PlayerProfile>()
+        .init_resource::<ProfileDirty>()
+        .init_resource::<ClearColor>();
+        let rules = *app.world().resource::<CalendarRules>();
+        let last_day = rules.season_length() * 4;
+        app.world_mut().resource_mut::<DayClock>().calendar_day = last_day;
+        *app.world_mut().resource_mut::<Season>() =
+            CalendarDate::from_calendar_day(last_day, &rules).season;
+        app.world_mut()
+            .spawn((OverworldPlayer, Transform::default()));
+        app.world_mut().spawn((Bed, Transform::default()));
+
+        app.world_mut().run_system_once(try_sleep_at_bed).unwrap();
+
+        let rollover = app
+            .world_mut()
+            .resource_mut::<Events<SeasonRollover>>()
+            .drain()
+            .next()
+            .expect("season rollover");
+        assert_eq!(rollover.ended, Season::Winter);
+        assert_eq!(rollover.started, Season::Spring);
+        assert_eq!(rollover.year, 2);
+        assert_eq!(rollover.day_of_season, 1);
+        assert_eq!(
+            rollover.weekday,
+            CalendarDate::from_calendar_day(last_day + 1, &rules).weekday
+        );
+        assert_eq!(rollover.calendar_day, last_day + 1);
+        assert_eq!(*app.world().resource::<Season>(), Season::Spring);
     }
 }

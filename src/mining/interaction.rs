@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::core::{GameState, PlayerProfile, ProfileDirty, ToolEnergy};
+use crate::input::{Action, ActionState};
 use crate::graphics::INTERACT_DISTANCE;
 use crate::items::Inventory;
 use crate::overworld::movement::{MapTransitionCooldown, OverworldPlayer};
@@ -20,7 +21,7 @@ const MAX_CRACK_DARKNESS: f32 = 0.6;
 const CRACKED_ROCK_COLOR: Color = Color::srgb(0.2, 0.18, 0.2);
 
 pub fn mine_interaction(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<&Transform, With<OverworldPlayer>>,
@@ -37,21 +38,20 @@ pub fn mine_interaction(
     let position = transform.translation.truncate();
 
     if cooldown.0.finished()
-        && keyboard.just_pressed(KeyCode::KeyE)
+        && actions.just_pressed(Action::Interact)
         && near_ladder(position, &ladders)
     {
         commands.insert_resource(OverworldEntry::MineReturn);
         next_state.set(GameState::Overworld);
     }
 
-    if keyboard.just_pressed(KeyCode::Escape) {
+    if actions.just_pressed(Action::Cancel) {
         next_state.set(GameState::Title);
     }
 }
 
 pub fn start_pickaxe_swing_at_nearest_ore(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    actions: Res<ActionState>,
     mut commands: Commands,
     energy: Res<ToolEnergy>,
     inventory: Res<Inventory>,
@@ -60,7 +60,7 @@ pub fn start_pickaxe_swing_at_nearest_ore(
     nodes: Query<(Entity, &Transform, &OreNode)>,
     swings_in_progress: Query<(), With<PickaxeSwing>>,
 ) {
-    if !(keyboard.just_pressed(KeyCode::Space) || mouse.just_pressed(MouseButton::Left)) {
+    if !actions.just_pressed(Action::UseTool) {
         return;
     }
     if !swings_in_progress.is_empty() {

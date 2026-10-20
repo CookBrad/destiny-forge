@@ -5,6 +5,7 @@ use bevy::time::TimeUpdateStrategy;
 
 use crate::core::{PlayerProfile, ProfileDirty, ToolEnergy};
 use crate::graphics::world_transform;
+use crate::input::InputPlugin;
 use crate::items::{Inventory, MaterialId};
 use crate::overworld::layout::tile_center;
 use crate::overworld::movement::OverworldPlayer;
@@ -27,7 +28,7 @@ fn distinct_swing_frame_handles() -> DwarfPickaxeSwingFrames {
 
 fn headless_mine_with_copper_node_beside_player() -> (App, Entity) {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins)
+    app.add_plugins((MinimalPlugins, InputPlugin))
         .insert_resource(TimeUpdateStrategy::ManualDuration(FRAME))
         .init_resource::<ButtonInput<KeyCode>>()
         .init_resource::<ButtonInput<MouseButton>>()

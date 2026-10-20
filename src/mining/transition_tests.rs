@@ -6,6 +6,7 @@ use bevy::state::app::StatesPlugin;
 use crate::core::GameState;
 use crate::forging::RecipeBook;
 use crate::graphics::{center_on_surface, world_transform};
+use crate::input::InputPlugin;
 use crate::items::Inventory;
 use crate::overworld::interaction::overworld_interaction;
 use crate::overworld::layout::{
@@ -61,7 +62,7 @@ fn spawn_mine_ladder_and_player_without_art(mut commands: Commands) {
 
 fn headless_app_with_real_map_transition_systems() -> App {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, StatesPlugin))
+    app.add_plugins((MinimalPlugins, StatesPlugin, InputPlugin))
         .init_state::<GameState>()
         .init_resource::<ButtonInput<KeyCode>>()
         .init_resource::<InventoryWindowOpen>()

@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::input::Action;
 use crate::items::MaterialId;
 
 use super::crops::CropKind;
@@ -47,12 +48,12 @@ impl HomesteadTool {
         }
     }
 
-    pub fn from_digit_key(key: KeyCode) -> Option<Self> {
-        match key {
-            KeyCode::Digit1 | KeyCode::Numpad1 => Some(Self::Hoe),
-            KeyCode::Digit2 | KeyCode::Numpad2 => Some(Self::WateringCan),
-            KeyCode::Digit3 | KeyCode::Numpad3 => Some(Self::Seeds),
-            KeyCode::Digit4 | KeyCode::Numpad4 => Some(Self::Hand),
+    pub fn from_action(action: Action) -> Option<Self> {
+        match action {
+            Action::EquipHoe => Some(Self::Hoe),
+            Action::EquipWateringCan => Some(Self::WateringCan),
+            Action::EquipSeeds => Some(Self::Seeds),
+            Action::EquipHand => Some(Self::Hand),
             _ => None,
         }
     }

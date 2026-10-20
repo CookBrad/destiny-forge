@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::day_cycle::{tick_day_clock, DayClock, ToolEnergy};
 use super::hunt_day_cost::apply_hunt_day_cost_on_dungeon_enter;
 use super::memory::MemoryPlugin;
+use super::season::register_season;
 use super::{DungeonPlayState, GameState};
 
 pub struct CorePlugin;
@@ -13,18 +14,19 @@ impl Plugin for CorePlugin {
             .init_resource::<DayClock>()
             .init_resource::<ToolEnergy>()
             .init_state::<GameState>()
-            .add_sub_state::<DungeonPlayState>()
-            .add_systems(
-                Update,
-                tick_day_clock.run_if(
-                    in_state(GameState::Overworld)
-                        .or(in_state(GameState::Forest))
-                        .or(in_state(GameState::Mine)),
-                ),
-            )
-            .add_systems(
-                OnEnter(GameState::Dungeon),
-                apply_hunt_day_cost_on_dungeon_enter,
-            );
+            .add_sub_state::<DungeonPlayState>();
+        register_season(app);
+        app.add_systems(
+            Update,
+            tick_day_clock.run_if(
+                in_state(GameState::Overworld)
+                    .or(in_state(GameState::Forest))
+                    .or(in_state(GameState::Mine)),
+            ),
+        )
+        .add_systems(
+            OnEnter(GameState::Dungeon),
+            apply_hunt_day_cost_on_dungeon_enter,
+        );
     }
 }

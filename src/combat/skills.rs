@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::input::{Action, ActionState};
+
 use super::weapon::{WeaponFamily, WeaponKind};
 
 pub const SKILL_SLOT_COUNT: usize = 9;
@@ -99,18 +101,11 @@ impl Default for SkillBindings {
 }
 
 impl SkillBindings {
-    pub fn key_for_slot(slot: usize) -> Option<KeyCode> {
-        match slot {
-            0 => Some(KeyCode::Digit1),
-            1 => Some(KeyCode::Digit2),
-            2 => Some(KeyCode::Digit3),
-            3 => Some(KeyCode::Digit4),
-            4 => Some(KeyCode::Digit5),
-            5 => Some(KeyCode::Digit6),
-            6 => Some(KeyCode::Digit7),
-            7 => Some(KeyCode::Digit8),
-            8 => Some(KeyCode::Digit9),
-            _ => None,
+    pub fn action_for_slot(slot: usize) -> Option<Action> {
+        if slot < SKILL_SLOT_COUNT {
+            Some(Action::SkillSlot(slot as u8))
+        } else {
+            None
         }
     }
 
@@ -121,31 +116,33 @@ impl SkillBindings {
     }
 
     pub fn skill_just_pressed(
-        keyboard: &ButtonInput<KeyCode>,
+        actions: &ActionState,
         bindings: &SkillBindings,
         skill: SkillKind,
     ) -> bool {
         bindings.slots.iter().enumerate().any(|(slot, bound)| {
             bound == &Some(skill)
-                && Self::key_for_slot(slot).is_some_and(|key| keyboard.just_pressed(key))
+                && Self::action_for_slot(slot).is_some_and(|action| actions.just_pressed(action))
         })
     }
 
     pub fn skill_pressed(
-        keyboard: &ButtonInput<KeyCode>,
+        actions: &ActionState,
         bindings: &SkillBindings,
         skill: SkillKind,
     ) -> bool {
         bindings.slots.iter().enumerate().any(|(slot, bound)| {
             bound == &Some(skill)
-                && Self::key_for_slot(slot).is_some_and(|key| keyboard.pressed(key))
+                && Self::action_for_slot(slot).is_some_and(|action| actions.pressed(action))
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::SkillKind;
+    use bevy::prelude::*;
+
+    use super::{SkillBindings, SkillKind};
 
     const SKILL_KINDS: [SkillKind; 4] = [
         SkillKind::Attack,
@@ -175,6 +172,59 @@ mod tests {
             );
             assert_png_rgba32(&path);
         }
+    }
+
+    #[test]
+    fn digit_keys_still_fire_the_skill_bound_to_that_slot() {
+        use crate::input::action_state_after_pressing;
+
+        let pressed = action_state_after_pressing(&[KeyCode::Digit1], &[]);
+        let mut bindings = SkillBindings::default();
+        assert!(SkillBindings::skill_just_pressed(
+            &pressed,
+            &bindings,
+            SkillKind::Attack
+        ));
+        assert!(!SkillBindings::skill_pressed(
+            &pressed,
+            &bindings,
+            SkillKind::Block
+        ));
+
+        bindings.swap_slots(0, 1);
+        assert!(SkillBindings::skill_just_pressed(
+            &pressed,
+            &bindings,
+            SkillKind::Block
+        ));
+        assert!(!SkillBindings::skill_just_pressed(
+            &pressed,
+            &bindings,
+            SkillKind::Attack
+        ));
+
+        let held = hold_digit2();
+        assert!(SkillBindings::skill_pressed(
+            &held,
+            &SkillBindings::default(),
+            SkillKind::Block
+        ));
+        assert!(!SkillBindings::skill_just_pressed(
+            &held,
+            &SkillBindings::default(),
+            SkillKind::Block
+        ));
+    }
+
+    fn hold_digit2() -> crate::input::ActionState {
+        let mut keyboard = ButtonInput::default();
+        keyboard.press(KeyCode::Digit2);
+        keyboard.clear();
+        crate::input::ActionState::from_devices(
+            &crate::input::InputMap::default(),
+            &keyboard,
+            &ButtonInput::<MouseButton>::default(),
+        )
     }
 
     fn assert_png_rgba32(path: &str) {

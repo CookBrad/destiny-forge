@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::combat::WeaponKind;
 use crate::core::{GameState, ProfileDirty};
+use crate::input::{Action, ActionState};
 use crate::player::{weapon_kind_label, ArmorKind, Loadout};
 
 const HINT: Color = Color::srgb(0.52, 0.5, 0.46);
@@ -73,11 +74,7 @@ fn spawn_equipped_row(parent: &mut ChildBuilder<'_>, loadout: &Loadout) {
     ));
 }
 
-fn spawn_stash_row(
-    parent: &mut ChildBuilder<'_>,
-    loadout: &Loadout,
-    access: LoadoutSwapAccess,
-) {
+fn spawn_stash_row(parent: &mut ChildBuilder<'_>, loadout: &Loadout, access: LoadoutSwapAccess) {
     parent.spawn((
         StashHintLabel,
         Text::new(stash_hint(loadout, access)),
@@ -122,11 +119,7 @@ fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorKind) {
     spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
 }
 
-fn spawn_stash_button(
-    parent: &mut ChildBuilder<'_>,
-    marker: impl Bundle,
-    label: &'static str,
-) {
+fn spawn_stash_button(parent: &mut ChildBuilder<'_>, marker: impl Bundle, label: &'static str) {
     parent
         .spawn((
             Button,
@@ -198,7 +191,7 @@ enum StashCycle {
 }
 
 pub fn handle_loadout_swap_keys(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    actions: Res<ActionState>,
     game: Res<State<GameState>>,
     mut loadout: ResMut<Loadout>,
     mut dirty: ResMut<ProfileDirty>,
@@ -207,9 +200,9 @@ pub fn handle_loadout_swap_keys(
         return;
     }
 
-    let cycle = if keyboard.just_pressed(KeyCode::BracketRight) {
+    let cycle = if actions.just_pressed(Action::EquipFirstStashedWeapon) {
         StashCycle::First
-    } else if keyboard.just_pressed(KeyCode::BracketLeft) {
+    } else if actions.just_pressed(Action::EquipLastStashedWeapon) {
         StashCycle::Last
     } else {
         return;
