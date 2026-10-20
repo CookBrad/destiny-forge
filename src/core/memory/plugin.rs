@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
+use super::autosave::{flush_saves_on_exit, ProfileDirty};
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::profile::ActiveProfile;
 use super::storage::load_settings;
@@ -34,18 +34,8 @@ impl Plugin for MemoryPlugin {
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
             .add_systems(Startup, hydrate_runtime_from_memory)
-            .add_systems(
-                Update,
-                (
-                    super::header::accrue_playtime,
-                    super::header::remember_current_location,
-                    super::sync::capture_profile_from_runtime,
-                    queue_autosave,
-                    debounced_autosave,
-                )
-                    .chain(),
-            )
             .add_systems(Last, flush_saves_on_exit);
+        super::header::add_save_header_systems(app);
     }
 }
 
