@@ -41,6 +41,8 @@ pub struct PlayerProfile {
     pub depleted_ore_node_ids: Vec<u16>,
     #[serde(default)]
     pub settings: ProfileSettings,
+    #[serde(skip)]
+    pub playtime_fraction: f64,
 }
 
 impl Default for PlayerProfile {
@@ -58,6 +60,7 @@ impl Default for PlayerProfile {
             crop_plots: Vec::new(),
             depleted_ore_node_ids: Vec::new(),
             settings: ProfileSettings::default(),
+            playtime_fraction: 0.0,
         }
     }
 }

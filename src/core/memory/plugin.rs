@@ -37,6 +37,7 @@ impl Plugin for MemoryPlugin {
             .add_systems(
                 Update,
                 (
+                    super::header::accrue_playtime,
                     super::sync::capture_profile_from_runtime,
                     queue_autosave,
                     debounced_autosave,
@@ -44,5 +45,36 @@ impl Plugin for MemoryPlugin {
                     .chain(),
             )
             .add_systems(Last, flush_saves_on_exit);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::AudioSettings;
+    use crate::combat::SkillBindings;
+    use crate::core::day_cycle::{DayClock, ToolEnergy};
+    use crate::core::season::{CalendarRules, Season};
+    use crate::core::state::GameState;
+
+    #[test]
+    fn memory_plugin_runs_one_update_with_a_blank_header() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(GameState::Title))
+            .init_resource::<AudioSettings>()
+            .init_resource::<SkillBindings>()
+            .init_resource::<DayClock>()
+            .init_resource::<ToolEnergy>()
+            .init_resource::<Season>()
+            .init_resource::<CalendarRules>()
+            .add_plugins(MemoryPlugin);
+        app.update();
+        let profile = app
+            .world()
+            .resource::<super::super::profile::PlayerProfile>();
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.playtime_fraction, 0.0);
+        assert!(!app.world().resource::<ProfileDirty>().0);
     }
 }
