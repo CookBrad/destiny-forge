@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -56,42 +57,15 @@ pub fn hydrate_runtime_from_memory(
 }
 
 pub fn capture_profile_from_runtime(
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
-    wallet: Res<Wallet>,
+    sources: ProfileCaptureInputs,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
-    if !audio.is_changed()
-        && !bindings.is_changed()
-        && !inventory.is_changed()
-        && !loadout.is_changed()
-        && !progress.is_changed()
-        && !tool_energy.is_changed()
-        && !wallet.is_changed()
-    {
+    if !sources.gameplay_changed() {
         return;
     }
 
-    snapshot_profile(
-        &ProfileCapture {
-            inventory: &inventory,
-            loadout: &loadout,
-            progress: &progress,
-            day_clock: &day_clock,
-            tool_energy: &tool_energy,
-            audio: &audio,
-            bindings: &bindings,
-            wallet: &wallet,
-        },
-        &mut profile,
-    );
+    snapshot_profile(&sources.capture(), &mut profile);
     dirty.mark();
 }
 
@@ -181,6 +155,43 @@ pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileAp
     *runtime.wallet = profile.wallet;
     profile.settings.apply_audio(runtime.audio);
     profile.settings.apply_skill_bindings(runtime.bindings);
+}
+
+#[derive(SystemParam)]
+pub(super) struct ProfileCaptureInputs<'w> {
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    progress: Res<'w, WorldProgress>,
+    day_clock: Res<'w, DayClock>,
+    tool_energy: Res<'w, ToolEnergy>,
+    audio: Res<'w, AudioSettings>,
+    bindings: Res<'w, SkillBindings>,
+    wallet: Res<'w, Wallet>,
+}
+
+impl ProfileCaptureInputs<'_> {
+    pub(super) fn capture(&self) -> ProfileCapture<'_> {
+        ProfileCapture {
+            inventory: &self.inventory,
+            loadout: &self.loadout,
+            progress: &self.progress,
+            day_clock: &self.day_clock,
+            tool_energy: &self.tool_energy,
+            audio: &self.audio,
+            bindings: &self.bindings,
+            wallet: &self.wallet,
+        }
+    }
+
+    fn gameplay_changed(&self) -> bool {
+        self.audio.is_changed()
+            || self.bindings.is_changed()
+            || self.inventory.is_changed()
+            || self.loadout.is_changed()
+            || self.progress.is_changed()
+            || self.tool_energy.is_changed()
+            || self.wallet.is_changed()
+    }
 }
 
 #[cfg(test)]
