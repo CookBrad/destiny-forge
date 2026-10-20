@@ -30,16 +30,18 @@ pub fn hydrate_runtime_from_memory(
 ) {
     apply_profile_to_runtime(
         &profile,
-        &mut inventory,
-        &mut loadout,
-        &mut progress,
-        &mut day_clock,
-        &mut tool_energy,
-        &mut audio,
-        &mut bindings,
-        &mut season,
-        &rules,
-        &mut wallet,
+        &mut ProfileApply {
+            inventory: &mut inventory,
+            loadout: &mut loadout,
+            progress: &mut progress,
+            day_clock: &mut day_clock,
+            tool_energy: &mut tool_energy,
+            audio: &mut audio,
+            bindings: &mut bindings,
+            season: &mut season,
+            rules: &rules,
+            wallet: &mut wallet,
+        },
     );
 
     info!(
@@ -170,28 +172,30 @@ pub fn activate_profile(
     true
 }
 
-pub fn apply_profile_to_runtime(
-    profile: &PlayerProfile,
-    inventory: &mut Inventory,
-    loadout: &mut Loadout,
-    progress: &mut WorldProgress,
-    day_clock: &mut DayClock,
-    tool_energy: &mut ToolEnergy,
-    audio: &mut AudioSettings,
-    bindings: &mut SkillBindings,
-    season: &mut Season,
-    rules: &CalendarRules,
-    wallet: &mut Wallet,
-) {
-    *inventory = profile.inventory.clone();
-    *loadout = profile.loadout.clone();
-    *progress = profile.progress.clone();
-    *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
-    *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
-    *wallet = profile.wallet;
-    profile.settings.apply_audio(audio);
-    profile.settings.apply_skill_bindings(bindings);
+pub struct ProfileApply<'a> {
+    pub inventory: &'a mut Inventory,
+    pub loadout: &'a mut Loadout,
+    pub progress: &'a mut WorldProgress,
+    pub day_clock: &'a mut DayClock,
+    pub tool_energy: &'a mut ToolEnergy,
+    pub audio: &'a mut AudioSettings,
+    pub bindings: &'a mut SkillBindings,
+    pub season: &'a mut Season,
+    pub rules: &'a CalendarRules,
+    pub wallet: &'a mut Wallet,
+}
+
+pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileApply<'_>) {
+    *runtime.inventory = profile.inventory.clone();
+    *runtime.loadout = profile.loadout.clone();
+    *runtime.progress = profile.progress.clone();
+    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *runtime.season =
+        CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, runtime.rules).season;
+    *runtime.wallet = profile.wallet;
+    profile.settings.apply_audio(runtime.audio);
+    profile.settings.apply_skill_bindings(runtime.bindings);
 }
 
 #[cfg(test)]
@@ -214,18 +218,21 @@ mod tests {
         let mut season = Season::Spring;
         let mut wallet = Wallet::default();
 
+        let rules = CalendarRules::load();
         apply_profile_to_runtime(
             &profile,
-            &mut inventory,
-            &mut loadout,
-            &mut progress,
-            &mut day_clock,
-            &mut tool_energy,
-            &mut audio,
-            &mut bindings,
-            &mut season,
-            &CalendarRules::load(),
-            &mut wallet,
+            &mut ProfileApply {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                audio: &mut audio,
+                bindings: &mut bindings,
+                season: &mut season,
+                rules: &rules,
+                wallet: &mut wallet,
+            },
         );
 
         assert_eq!(day_clock.calendar_day, 200);
