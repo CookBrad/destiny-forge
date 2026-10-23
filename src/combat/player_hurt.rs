@@ -62,13 +62,17 @@ pub fn apply_player_hurt(
     ));
 }
 
+pub(crate) type PlayerHitFlashTicks<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static mut PlayerHitFlash, &'static mut Sprite),
+    (With<DungeonPlayer>, Without<PlayerDeath>),
+>;
+
 pub fn tick_player_hit_flash(
     time: Res<Time>,
     mut commands: Commands,
-    mut player: Query<
-        (Entity, &mut PlayerHitFlash, &mut Sprite),
-        (With<DungeonPlayer>, Without<PlayerDeath>),
-    >,
+    mut player: PlayerHitFlashTicks,
 ) {
     for (entity, mut flash, mut sprite) in &mut player {
         flash.timer.tick(time.delta());

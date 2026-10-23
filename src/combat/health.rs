@@ -66,33 +66,41 @@ impl Default for ContactDamageCooldown {
     }
 }
 
+pub(crate) type ContactDamagePlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static mut Health,
+        &'static mut ContactDamageCooldown,
+        &'static super::player_block::PlayerBlock,
+    ),
+    (With<crate::dungeon::DungeonPlayer>, Without<PlayerHitFlash>),
+>;
+
+pub(crate) type ContactDamageEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        &'static crate::dungeon::EnemyHitbox,
+        Option<&'static crate::dungeon::EnemyContactDamage>,
+    ),
+    (
+        With<Health>,
+        Without<crate::dungeon::DungeonPlayer>,
+        Without<crate::combat::EnemyCorpse>,
+    ),
+>;
+
 pub fn apply_enemy_contact_damage(
     time: Res<Time>,
     loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut player: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            &mut ContactDamageCooldown,
-            &super::player_block::PlayerBlock,
-        ),
-        (With<crate::dungeon::DungeonPlayer>, Without<PlayerHitFlash>),
-    >,
-    enemies: Query<
-        (
-            &Transform,
-            &crate::dungeon::EnemyHitbox,
-            Option<&crate::dungeon::EnemyContactDamage>,
-        ),
-        (
-            With<Health>,
-            Without<crate::dungeon::DungeonPlayer>,
-            Without<crate::combat::EnemyCorpse>,
-        ),
-    >,
+    mut player: ContactDamagePlayer,
+    enemies: ContactDamageEnemies,
 ) {
     let Ok((entity, player_transform, mut health, mut cooldown, block)) = player.get_single_mut()
     else {
