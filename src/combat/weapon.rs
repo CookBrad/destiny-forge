@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::gear::{gear_catalog, GearFamily};
 use crate::graphics::hunter_blade_tip_reach;
 
 /// Sword reach is the painted hit-frame blade, measured from the body center.
@@ -126,20 +127,24 @@ const SPEAR_COMBO: &[ComboStep] = &[
 ];
 
 impl WeaponKind {
-    pub fn family(self) -> WeaponFamily {
+    pub(crate) fn gear_id(self) -> &'static str {
         match self {
-            Self::RustySword | Self::IronSword | Self::SlimeBlade => WeaponFamily::Sword,
-            Self::RustySpear => WeaponFamily::Spear,
+            Self::RustySword => "rusty_sword",
+            Self::RustySpear => "rusty_spear",
+            Self::IronSword => "iron_sword",
+            Self::SlimeBlade => "slime_blade",
+        }
+    }
+
+    pub fn family(self) -> WeaponFamily {
+        match gear_catalog().family(self.gear_id()) {
+            Some(GearFamily::Spear) => WeaponFamily::Spear,
+            Some(GearFamily::Sword) | None => WeaponFamily::Sword,
         }
     }
 
     pub fn base_power(self) -> f32 {
-        match self {
-            Self::RustySword => 10.0,
-            Self::RustySpear => 12.0,
-            Self::IronSword => 14.0,
-            Self::SlimeBlade => 18.0,
-        }
+        gear_catalog().attack(self.gear_id())
     }
 
     pub fn moveset(self) -> WeaponMoveset {

@@ -6,6 +6,7 @@ mod exploration;
 mod farming;
 mod forest;
 mod forging;
+mod gear;
 mod graphics;
 mod input;
 mod items;
