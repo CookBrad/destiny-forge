@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-
 from __future__ import annotations
 
-import hashlib
 import io
 from pathlib import Path
 
 from PIL import Image
+
+from art_common import Canvas, Palette, add_cast_rim, add_outline, clipping_canvas, hunter_palette, load_pinned_colors, reject_resample_names
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
@@ -19,13 +19,15 @@ SIGNED_SHA256 = {
     "knight_attack_side.png": "ca089a0e93524161f020d9ef91f736e330d36f3530749b8296e918b088620b04",
 }
 
-NEIGHBORS = tuple((delta_x, delta_y) for delta_y in (-1, 0, 1) for delta_x in (-1, 0, 1) if delta_x or delta_y)
 BAYER4 = (
     (0, 8, 2, 10),
     (12, 4, 14, 6),
     (3, 11, 1, 9),
     (15, 7, 13, 5),
 )
+
+import hashlib
+NEIGHBORS = tuple((delta_x, delta_y) for delta_y in (-1, 0, 1) for delta_x in (-1, 0, 1) if delta_x or delta_y)
 
 def reject_resample_names() -> None:
     text = Path(__file__).read_text(encoding="utf-8")
