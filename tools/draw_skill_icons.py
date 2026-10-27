@@ -75,13 +75,11 @@ def main() -> None:
         print(ascii_preview(image))
         print()
 
-def put(
-    canvas: Canvas,
-    x: int,
-    y: int,
-    color: tuple[int, int, int, int],
-) -> None:
-    canvas.put(x, y, color)
+def draw_sword() -> Image.Image:
+    canvas = new_canvas()
+    paint_sword(canvas)
+    finish_body(canvas)
+    return to_image(canvas)
 
 def new_canvas() -> Canvas:
     return rejecting_canvas(SIZE, SIZE)
@@ -122,14 +120,32 @@ def paint_sword(canvas: Canvas) -> None:
         put(canvas, x, 28, BRASS if x < 16 else BRASS_DARK)
     put(canvas, 15, 28, CYAN)
 
+def put(
+    canvas: Canvas,
+    x: int,
+    y: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    canvas.put(x, y, color)
+
+def finish_body(canvas: Canvas) -> None:
+    outline_icon(canvas)
+    shade_outline(canvas)
+
 def outline_icon(canvas: Canvas) -> None:
     add_outline(canvas, OUTLINE)
 
-def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
-    return any(neighbor(canvas, x, y, delta_x, delta_y) is None for delta_x, delta_y in ORTHO)
-
 def shade_outline(canvas: Canvas) -> None:
     light_contour(canvas, OUTLINE, RIM_LIT)
+
+def to_image(canvas: Canvas) -> Image.Image:
+    return canvas.image()
+
+def draw_shield() -> Image.Image:
+    canvas = new_canvas()
+    paint_shield(canvas)
+    finish_body(canvas)
+    return to_image(canvas)
 
 def paint_shield(canvas: Canvas) -> None:
     for y, start_x, end_x in shield_spans():
@@ -216,17 +232,41 @@ def recolor_rim(
         else:
             canvas[y][x] = mid
 
-def finish_body(canvas: Canvas) -> None:
-    outline_icon(canvas)
-    shade_outline(canvas)
+def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
+    return any(neighbor(canvas, x, y, delta_x, delta_y) is None for delta_x, delta_y in ORTHO)
 
-def to_image(canvas: Canvas) -> Image.Image:
-    return canvas.image()
+def neighbor(
+    canvas: Canvas, x: int, y: int, delta_x: int, delta_y: int
+) -> tuple[int, int, int, int] | None:
+    nx, ny = x + delta_x, y + delta_y
+    if 0 <= nx < SIZE and 0 <= ny < SIZE:
+        return canvas[ny][nx]
+    return None
 
-def draw_sword() -> Image.Image:
+def stamp_boss(canvas: Canvas) -> None:
+    center_x, center_y = 15, 14
+    for delta_y in range(-4, 5):
+        for delta_x in range(-4, 5):
+            x, y = center_x + delta_x, center_y + delta_y
+            if canvas[y][x] not in IRON_TONES:
+                continue
+            dist2 = delta_x * delta_x + delta_y * delta_y
+            if dist2 <= 2:
+                canvas[y][x] = CYAN
+            elif dist2 <= 6:
+                canvas[y][x] = CYAN_DARK
+    put(canvas, center_x - 1, center_y - 1, STEEL_LIGHT)
+    for y in range(18, 24):
+        if canvas[y][16] in IRON_TONES:
+            canvas[y][16] = CYAN_DARK
+        if y % 2 == 0 and canvas[y][15] in IRON_TONES:
+            canvas[y][15] = CYAN
+
+def draw_boot() -> Image.Image:
     canvas = new_canvas()
-    paint_sword(canvas)
+    paint_boot(canvas)
     finish_body(canvas)
+    paint_boot_trail(canvas)
     return to_image(canvas)
 
 def paint_boot(canvas: Canvas) -> None:
@@ -268,46 +308,6 @@ def paint_boot(canvas: Canvas) -> None:
         canvas[y][28] = BRASS
         if y < 16:
             canvas[y][29] = BRASS_DARK
-
-def neighbor(
-    canvas: Canvas, x: int, y: int, delta_x: int, delta_y: int
-) -> tuple[int, int, int, int] | None:
-    nx, ny = x + delta_x, y + delta_y
-    if 0 <= nx < SIZE and 0 <= ny < SIZE:
-        return canvas[ny][nx]
-    return None
-
-def stamp_boss(canvas: Canvas) -> None:
-    center_x, center_y = 15, 14
-    for delta_y in range(-4, 5):
-        for delta_x in range(-4, 5):
-            x, y = center_x + delta_x, center_y + delta_y
-            if canvas[y][x] not in IRON_TONES:
-                continue
-            dist2 = delta_x * delta_x + delta_y * delta_y
-            if dist2 <= 2:
-                canvas[y][x] = CYAN
-            elif dist2 <= 6:
-                canvas[y][x] = CYAN_DARK
-    put(canvas, center_x - 1, center_y - 1, STEEL_LIGHT)
-    for y in range(18, 24):
-        if canvas[y][16] in IRON_TONES:
-            canvas[y][16] = CYAN_DARK
-        if y % 2 == 0 and canvas[y][15] in IRON_TONES:
-            canvas[y][15] = CYAN
-
-def draw_shield() -> Image.Image:
-    canvas = new_canvas()
-    paint_shield(canvas)
-    finish_body(canvas)
-    return to_image(canvas)
-
-def draw_boot() -> Image.Image:
-    canvas = new_canvas()
-    paint_boot(canvas)
-    finish_body(canvas)
-    paint_boot_trail(canvas)
-    return to_image(canvas)
 
 def fills_span(
     canvas: Canvas,
@@ -410,18 +410,6 @@ def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, 
         x += 1
     return sorted(points)
 
-def glyph_box(image: Image.Image) -> tuple[int, int, int, int]:
-    pixels = image.load()
-    min_x, min_y, max_x, max_y = SIZE, SIZE, -1, -1
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if pixels[x, y][3]:
-                min_x = min(min_x, x)
-                min_y = min(min_y, y)
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
-    return min_x, min_y, max_x, max_y
-
 def verify(image: Image.Image, name: str) -> None:
     if image.size != (SIZE, SIZE):
         raise SystemExit(f"{name} is {image.size}, expected {SIZE}×{SIZE}")
@@ -445,6 +433,18 @@ def verify(image: Image.Image, name: str) -> None:
         raise SystemExit(f"{name} glyph is too small: {(min_x, min_y, max_x, max_y)}")
     if min_x < 1 or min_y < 1 or max_x > SIZE - 2 or max_y > SIZE - 2:
         raise SystemExit(f"{name} glyph touches the canvas edge {(min_x, min_y, max_x, max_y)}")
+
+def glyph_box(image: Image.Image) -> tuple[int, int, int, int]:
+    pixels = image.load()
+    min_x, min_y, max_x, max_y = SIZE, SIZE, -1, -1
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if pixels[x, y][3]:
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    return min_x, min_y, max_x, max_y
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
