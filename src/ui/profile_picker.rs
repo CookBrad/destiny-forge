@@ -6,7 +6,8 @@ use crate::combat::SkillBindings;
 use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
     CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileApply, ProfileAutosaveBlock,
-    ProfileDirty, ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
+    ProfileCapture, ProfileDirty, ProfileNeedsAttention, ProfileSession, Season, ToolEnergy,
+    PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, Wallet, WorldProgress};
@@ -100,19 +101,23 @@ pub fn begin_profile_run(index: u8, run: &mut ProfileRun) -> bool {
     }
     let switched = activate_profile(
         index,
-        &run.inventory,
-        &run.loadout,
-        &run.progress,
-        &run.day_clock,
-        &run.tool_energy,
-        &run.audio,
-        &run.bindings,
-        &run.wallet,
-        &mut run.active,
-        &mut run.profile,
-        &mut run.global,
-        &mut run.profile_dirty,
-        &mut run.autosave_block,
+        &ProfileCapture {
+            inventory: &run.inventory,
+            loadout: &run.loadout,
+            progress: &run.progress,
+            day_clock: &run.day_clock,
+            tool_energy: &run.tool_energy,
+            audio: &run.audio,
+            bindings: &run.bindings,
+            wallet: &run.wallet,
+        },
+        &mut ProfileSession {
+            active: &mut run.active,
+            profile: &mut run.profile,
+            global: &mut run.global,
+            dirty: &mut run.profile_dirty,
+            autosave_block: &mut run.autosave_block,
+        },
     );
     if !switched {
         return false;
