@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::core::{GameState, PlayerProfile, ProfileDirty, ToolEnergy};
@@ -50,16 +51,26 @@ pub fn mine_interaction(
     }
 }
 
+#[derive(SystemParam)]
+pub(crate) struct PickaxeSwingTargets<'w, 's> {
+    player_sprites: Query<'w, 's, &'static mut Sprite, With<OverworldPlayer>>,
+    nodes: Query<'w, 's, (Entity, &'static Transform, &'static OreNode)>,
+    swings_in_progress: Query<'w, 's, (), With<PickaxeSwing>>,
+}
+
 pub fn start_pickaxe_swing_at_nearest_ore(
     actions: Res<ActionState>,
     mut commands: Commands,
     energy: Res<ToolEnergy>,
     inventory: Res<Inventory>,
     player: Query<&Transform, With<OverworldPlayer>>,
-    mut player_sprites: Query<&mut Sprite, With<OverworldPlayer>>,
-    nodes: Query<(Entity, &Transform, &OreNode)>,
-    swings_in_progress: Query<(), With<PickaxeSwing>>,
+    targets: PickaxeSwingTargets,
 ) {
+    let PickaxeSwingTargets {
+        mut player_sprites,
+        nodes,
+        swings_in_progress,
+    } = targets;
     if !actions.just_pressed(Action::UseTool) {
         return;
     }
