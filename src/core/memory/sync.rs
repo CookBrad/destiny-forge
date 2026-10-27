@@ -26,6 +26,25 @@ pub struct ProfileSnapshot<'a> {
     pub bindings: &'a SkillBindings,
 }
 
+pub struct RuntimeProfile<'a> {
+    pub inventory: &'a mut Inventory,
+    pub loadout: &'a mut Loadout,
+    pub progress: &'a mut WorldProgress,
+    pub day_clock: &'a mut DayClock,
+    pub tool_energy: &'a mut ToolEnergy,
+    pub season: &'a mut Season,
+    pub audio: &'a mut AudioSettings,
+    pub bindings: &'a mut SkillBindings,
+}
+
+pub struct ProfileSwitch<'a> {
+    pub active: &'a mut ActiveProfile,
+    pub profile: &'a mut PlayerProfile,
+    pub global: &'a mut GameSettings,
+    pub dirty: &'a mut ProfileDirty,
+    pub autosave_block: &'a mut ProfileAutosaveBlock,
+}
+
 #[derive(SystemParam)]
 pub(crate) struct HydratedRuntime<'w> {
     audio: ResMut<'w, AudioSettings>,
@@ -139,6 +158,48 @@ pub fn snapshot_profile(source: ProfileSnapshot<'_>, profile: &mut PlayerProfile
     profile.settings.capture_skill_bindings(source.bindings);
 }
 
+fn switch_profile(index: u8, source: &ProfileSnapshot<'_>, switch: &mut ProfileSwitch<'_>) -> bool {
+    let index = index.min(PROFILE_COUNT - 1);
+    if switch.active.0 == index {
+        return !switch.autosave_block.is_blocked(index);
+    }
+
+    snapshot_profile(*source, switch.profile);
+    if let Err(error) = save_profile(switch.active.index(), switch.profile) {
+        warn!("Failed to save profile before switch: {error}");
+    } else {
+        switch.dirty.0 = false;
+    }
+
+    let Ok(loaded) = load_profile_for_slot(index, switch.autosave_block) else {
+        return false;
+    };
+    *switch.profile = loaded;
+    switch.active.0 = index;
+    switch.global.last_active_profile = index;
+    if let Err(error) = save_settings(switch.global) {
+        warn!("Failed to save global preferences: {error}");
+    }
+
+    switch.dirty.0 = false;
+    true
+}
+
+fn apply_saved_profile(
+    profile: &PlayerProfile,
+    runtime: &mut RuntimeProfile<'_>,
+    rules: &CalendarRules,
+) {
+    *runtime.inventory = profile.inventory.clone();
+    *runtime.loadout = profile.loadout.clone();
+    *runtime.progress = profile.progress.clone();
+    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
+    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *runtime.season = CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, rules).season;
+    profile.settings.apply_audio(runtime.audio);
+    profile.settings.apply_skill_bindings(runtime.bindings);
+}
+
 pub fn activate_profile(
     index: u8,
     inventory: &Inventory,
@@ -154,41 +215,26 @@ pub fn activate_profile(
     dirty: &mut ProfileDirty,
     autosave_block: &mut ProfileAutosaveBlock,
 ) -> bool {
-    let index = index.min(PROFILE_COUNT - 1);
-    if active.0 == index {
-        return !autosave_block.is_blocked(index);
-    }
-
-    snapshot_profile(
-        ProfileSnapshot {
-            inventory,
-            loadout,
-            progress,
-            day_clock,
-            tool_energy,
-            audio,
-            bindings,
-        },
-        profile,
-    );
-    if let Err(error) = save_profile(active.index(), profile) {
-        warn!("Failed to save profile before switch: {error}");
-    } else {
-        dirty.0 = false;
-    }
-
-    let Ok(loaded) = load_profile_for_slot(index, autosave_block) else {
-        return false;
+    let source = ProfileSnapshot {
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+        audio,
+        bindings,
     };
-    *profile = loaded;
-    active.0 = index;
-    global.last_active_profile = index;
-    if let Err(error) = save_settings(global) {
-        warn!("Failed to save global preferences: {error}");
-    }
-
-    dirty.0 = false;
-    true
+    switch_profile(
+        index,
+        &source,
+        &mut ProfileSwitch {
+            active,
+            profile,
+            global,
+            dirty,
+            autosave_block,
+        },
+    )
 }
 
 pub fn apply_profile_to_runtime(
@@ -203,14 +249,20 @@ pub fn apply_profile_to_runtime(
     season: &mut Season,
     rules: &CalendarRules,
 ) {
-    *inventory = profile.inventory.clone();
-    *loadout = profile.loadout.clone();
-    *progress = profile.progress.clone();
-    *day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    *tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
-    *season = CalendarDate::from_calendar_day(day_clock.calendar_day, rules).season;
-    profile.settings.apply_audio(audio);
-    profile.settings.apply_skill_bindings(bindings);
+    apply_saved_profile(
+        profile,
+        &mut RuntimeProfile {
+            inventory,
+            loadout,
+            progress,
+            day_clock,
+            tool_energy,
+            season,
+            audio,
+            bindings,
+        },
+        rules,
+    );
 }
 
 #[cfg(test)]
