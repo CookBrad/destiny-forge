@@ -48,23 +48,27 @@ const PROJECTILE_HIT_HALF: Vec2 = Vec2::new(ARROW_WIDTH * 0.5, ARROW_HEIGHT * 0.
 const PROJECTILE_DAMAGE_INTERVAL: f32 = 0.45;
 const DEFLECT_SPEED_MULT: f32 = 1.2;
 
+pub(crate) type ProjectileShooters<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyKind,
+        &'static Health,
+        &'static mut EnemyShootCooldown,
+        Option<&'static EnemyAggro>,
+    ),
+    (Without<EnemyCorpse>, Without<DungeonPlayer>),
+>;
+
 pub fn enemy_shoot_projectiles(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     time: Res<Time>,
     art: Res<DungeonArt>,
     player: Query<&Transform, With<DungeonPlayer>>,
-    mut shooters: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyKind,
-            &Health,
-            &mut EnemyShootCooldown,
-            Option<&EnemyAggro>,
-        ),
-        (Without<EnemyCorpse>, Without<DungeonPlayer>),
-    >,
+    mut shooters: ProjectileShooters,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -161,21 +165,33 @@ pub fn move_enemy_projectiles(
     }
 }
 
+pub(crate) type SwingDeflectPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Transform,
+        &'static PlayerAttack,
+        Option<&'static PlayerSpecialMove>,
+    ),
+    (With<DungeonPlayer>, Without<EnemyProjectile>),
+>;
+
+pub(crate) type SwingDeflectProjectiles<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Transform,
+        &'static mut ProjectileVelocity,
+        &'static mut Sprite,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
 pub fn deflect_projectiles_with_swing(
     mut sfx: EventWriter<CombatSfx>,
-    player: Query<
-        (&Transform, &PlayerAttack, Option<&PlayerSpecialMove>),
-        (With<DungeonPlayer>, Without<EnemyProjectile>),
-    >,
-    mut projectiles: Query<
-        (
-            &mut Transform,
-            &mut ProjectileVelocity,
-            &mut Sprite,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
+    player: SwingDeflectPlayer,
+    mut projectiles: SwingDeflectProjectiles,
 ) {
     let Ok((player_transform, attack, special)) = player.get_single() else {
         return;
@@ -210,36 +226,44 @@ pub fn deflect_projectiles_with_swing(
     }
 }
 
+pub(crate) type DeflectedProjectileShots<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyProjectile,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
+pub(crate) type DeflectedHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (
+        With<Health>,
+        Without<DungeonPlayer>,
+        Without<EnemyCorpse>,
+        Without<EnemyProjectile>,
+        Without<DeflectedProjectile>,
+    ),
+>;
+
 pub fn resolve_deflected_projectile_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut projectiles: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyProjectile,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (
-            With<Health>,
-            Without<DungeonPlayer>,
-            Without<EnemyCorpse>,
-            Without<EnemyProjectile>,
-            Without<DeflectedProjectile>,
-        ),
-    >,
+    mut projectiles: DeflectedProjectileShots,
+    mut enemies: DeflectedHitEnemies,
 ) {
     for (projectile_entity, transform, projectile, mut deflected) in &mut projectiles {
         if !deflected.active {
@@ -291,33 +315,41 @@ pub fn resolve_deflected_projectile_hits(
     }
 }
 
+pub(crate) type ProjectileHitPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static mut Health,
+        &'static mut ContactDamageCooldown,
+        &'static PlayerBlock,
+        Option<&'static PlayerHitFlash>,
+    ),
+    (With<DungeonPlayer>, Without<EnemyProjectile>),
+>;
+
+pub(crate) type IncomingProjectiles<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Transform,
+        &'static EnemyProjectile,
+        &'static mut ProjectileVelocity,
+        &'static mut Sprite,
+        &'static mut DeflectedProjectile,
+    ),
+    (With<EnemyProjectile>, Without<DungeonPlayer>),
+>;
+
 pub fn resolve_enemy_projectiles(
     time: Res<Time>,
     loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut player: Query<
-        (
-            Entity,
-            &Transform,
-            &mut Health,
-            &mut ContactDamageCooldown,
-            &PlayerBlock,
-            Option<&PlayerHitFlash>,
-        ),
-        (With<DungeonPlayer>, Without<EnemyProjectile>),
-    >,
-    mut projectiles: Query<
-        (
-            Entity,
-            &mut Transform,
-            &EnemyProjectile,
-            &mut ProjectileVelocity,
-            &mut Sprite,
-            &mut DeflectedProjectile,
-        ),
-        (With<EnemyProjectile>, Without<DungeonPlayer>),
-    >,
+    mut player: ProjectileHitPlayer,
+    mut projectiles: IncomingProjectiles,
 ) {
     let Ok((player_entity, player_transform, mut health, mut cooldown, block, hit_flash)) =
         player.get_single_mut()
@@ -398,6 +430,415 @@ mod tests {
     fn projectile_hit_stays_seven_by_twenty_one() {
         assert_eq!(ARROW_WIDTH, 7.0);
         assert_eq!(ARROW_HEIGHT, 21.0);
-        assert_eq!(PROJECTILE_HIT_HALF, Vec2::new(3.5, 10.5));
+        assert_eq!(
+            PROJECTILE_HIT_HALF,
+            Vec2::new(ARROW_WIDTH * 0.5, ARROW_HEIGHT * 0.5)
+        );
+    }
+
+    #[test]
+    fn a_skeleton_in_range_shoots_an_arrow_at_the_hunter() {
+        let mut app = projectile_app();
+        let kind = EnemyKind::Skeleton;
+        let skeleton = Vec3::ZERO;
+        let hunter = Vec3::new(kind.shoot_range() * 0.5, 0.0, 0.0);
+        app.world_mut()
+            .spawn((DungeonPlayer, Transform::from_translation(hunter)));
+        app.world_mut().spawn((
+            Transform::from_translation(skeleton),
+            kind,
+            Health::new(kind.projectile_damage() + kind.projectile_damage()),
+            ready_to_shoot(),
+        ));
+        app.add_systems(Update, enemy_shoot_projectiles);
+        app.update();
+
+        let direction = (hunter.truncate() - skeleton.truncate()).normalize_or_zero();
+        let spawn = skeleton.truncate() + direction * (TILE * 0.55);
+        assert_eq!(projectile_count(&mut app), 1);
+        let (translation, damage, velocity) = {
+            let shot = app
+                .world_mut()
+                .query::<(&Transform, &EnemyProjectile, &ProjectileVelocity)>()
+                .single(app.world());
+            (shot.0.translation, shot.1.damage, shot.2 .0)
+        };
+        assert_eq!(translation, Vec3::new(spawn.x, spawn.y, PROJECTILE_Z));
+        assert_eq!(damage, kind.projectile_damage());
+        assert_eq!(velocity, direction * kind.projectile_speed());
+    }
+
+    fn projectile_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<Assets<Image>>();
+        app.insert_resource(Time::<()>::default());
+        app.add_event::<CombatSfx>();
+        let image = app
+            .world_mut()
+            .resource_mut::<Assets<Image>>()
+            .add(Image::default());
+        app.insert_resource(blank_art(image));
+        app
+    }
+
+    fn blank_art(image: Handle<Image>) -> DungeonArt {
+        DungeonArt {
+            player_idle: image.clone(),
+            player_run: image.clone(),
+            player_attack: image.clone(),
+            player_jump: image.clone(),
+            player_fall: image.clone(),
+            player_death: image.clone(),
+            floor_ground: image.clone(),
+            floor_platform: image.clone(),
+            floor_ladder: image.clone(),
+            wall: image.clone(),
+            floor_pit: image.clone(),
+            pit_stake: image.clone(),
+            pit_lip: image.clone(),
+            ground_fill: image.clone(),
+            ceiling_beam: image.clone(),
+            pillar: image.clone(),
+            torch: image.clone(),
+            chain: image.clone(),
+            ground_slam: image.clone(),
+            slime: image.clone(),
+            bat: image.clone(),
+            goblin: image.clone(),
+            skeleton: image.clone(),
+            zombie: image.clone(),
+            king_slime: image.clone(),
+            arrow: image.clone(),
+            slime_bolt: image.clone(),
+            slime_blob: image.clone(),
+            fill: image,
+        }
+    }
+
+    fn ready_to_shoot() -> EnemyShootCooldown {
+        EnemyShootCooldown(Timer::from_seconds(0.0, TimerMode::Once))
+    }
+
+    fn projectile_count(app: &mut App) -> usize {
+        let mut shots = app.world_mut().query::<&EnemyProjectile>();
+        shots.iter(app.world()).len()
+    }
+
+    #[test]
+    fn a_skeleton_closer_than_one_tile_does_not_shoot() {
+        let mut app = projectile_app();
+        let kind = EnemyKind::Skeleton;
+        let skeleton = Vec3::ZERO;
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::from_translation(skeleton + Vec3::new(TILE * 0.5, 0.0, 0.0)),
+        ));
+        app.world_mut().spawn((
+            Transform::from_translation(skeleton),
+            kind,
+            Health::new(kind.projectile_damage()),
+            ready_to_shoot(),
+        ));
+        app.add_systems(Update, enemy_shoot_projectiles);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 0);
+    }
+
+    #[test]
+    fn enemies_do_not_shoot_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        let kind = EnemyKind::Skeleton;
+        app.world_mut().spawn((
+            Transform::default(),
+            kind,
+            Health::new(kind.projectile_damage()),
+            ready_to_shoot(),
+        ));
+        app.add_systems(Update, enemy_shoot_projectiles);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 0);
+    }
+
+    #[test]
+    fn a_swing_that_meets_an_arrow_reverses_it() {
+        let mut app = projectile_app();
+        let (transform, attack) = sword_player(opening_sword_hit_midpoint());
+        let swing = player_sword_hit_rect(&transform, &attack).expect("hit window");
+        let center = Vec2::new(
+            (swing.min_x + swing.max_x) * 0.5,
+            (swing.min_y + swing.max_y) * 0.5,
+        );
+        let incoming = Vec2::new(TILE, 0.0);
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        app.world_mut().spawn((DungeonPlayer, transform, attack));
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::from_xyz(center.x, center.y, PROJECTILE_Z),
+            ProjectileVelocity(incoming),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.add_systems(Update, deflect_projectiles_with_swing);
+        app.update();
+        let (velocity, deflected, sprite) = app
+            .world_mut()
+            .query::<(&ProjectileVelocity, &DeflectedProjectile, &Sprite)>()
+            .single(app.world());
+        assert_eq!(velocity.0, -incoming * DEFLECT_SPEED_MULT);
+        assert!(deflected.active);
+        assert_eq!(sprite.color, parried_arrow_color());
+    }
+
+    fn opening_sword_hit_midpoint() -> f32 {
+        let step = crate::combat::WeaponKind::RustySword.moveset().steps[0];
+        (step.hit_start + step.hit_end) * 0.5
+    }
+
+    fn sword_player(elapsed: f32) -> (Transform, PlayerAttack) {
+        let transform = Transform::default();
+        let mut attack = PlayerAttack::inactive();
+        attack.weapon = crate::combat::WeaponKind::RustySword;
+        attack.step_index = 0;
+        let duration = attack.weapon.moveset().steps[0].duration;
+        attack.timer = Timer::from_seconds(duration, TimerMode::Once);
+        attack
+            .timer
+            .tick(std::time::Duration::from_secs_f32(elapsed));
+        (transform, attack)
+    }
+
+    fn parried_arrow_color() -> Color {
+        Color::srgb(1.0, 0.95, 0.55)
+    }
+
+    #[test]
+    fn an_arrow_already_deflected_keeps_its_velocity() {
+        let mut app = projectile_app();
+        let (transform, attack) = sword_player(opening_sword_hit_midpoint());
+        let incoming = Vec2::new(TILE, 0.0);
+        app.world_mut().spawn((DungeonPlayer, transform, attack));
+        app.world_mut().spawn((
+            EnemyProjectile {
+                damage: EnemyKind::Skeleton.projectile_damage(),
+            },
+            Transform::default(),
+            ProjectileVelocity(incoming),
+            Sprite::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.add_systems(Update, deflect_projectiles_with_swing);
+        app.update();
+        let velocity = app
+            .world_mut()
+            .query::<&ProjectileVelocity>()
+            .single(app.world())
+            .0;
+        assert_eq!(velocity, incoming);
+    }
+
+    #[test]
+    fn a_swing_does_not_deflect_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        let incoming = Vec2::new(TILE, 0.0);
+        app.world_mut().spawn((
+            EnemyProjectile {
+                damage: EnemyKind::Skeleton.projectile_damage(),
+            },
+            Transform::default(),
+            ProjectileVelocity(incoming),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.add_systems(Update, deflect_projectiles_with_swing);
+        app.update();
+        let (velocity, deflected) = app
+            .world_mut()
+            .query::<(&ProjectileVelocity, &DeflectedProjectile)>()
+            .single(app.world());
+        assert_eq!(velocity.0, incoming);
+        assert!(!deflected.active);
+    }
+
+    #[test]
+    fn a_deflected_arrow_deals_its_damage_to_the_enemy_it_hits() {
+        let mut app = projectile_app();
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        let starting = damage + damage;
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut().spawn((
+            Transform::default(),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_deflected_projectile_hits);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 0);
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting - damage);
+    }
+
+    #[test]
+    fn a_deflected_arrow_misses_an_enemy_standing_apart_from_it() {
+        let mut app = projectile_app();
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        let starting = damage + damage;
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(TILE * 10.0, 0.0, 0.0),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_deflected_projectile_hits);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting);
+    }
+
+    #[test]
+    fn an_arrow_that_was_not_deflected_does_not_damage_an_enemy() {
+        let mut app = projectile_app();
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        let starting = damage + damage;
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.world_mut().spawn((
+            Transform::default(),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_deflected_projectile_hits);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting);
+    }
+
+    #[test]
+    fn an_arrow_that_hits_the_hunter_deals_its_damage() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        let dealt = damage_amount(damage, Loadout::default().total_defense());
+        let starting = dealt + dealt;
+        spawn_hunter(&mut app, starting);
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::default(),
+            ProjectileVelocity(approaching_arrow()),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.add_systems(Update, resolve_enemy_projectiles);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 0);
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting - dealt);
+    }
+
+    fn spawn_hunter(app: &mut App, health: f32) {
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::default(),
+            Health::new(health),
+            ContactDamageCooldown::default(),
+            PlayerBlock::default(),
+        ));
+    }
+
+    fn approaching_arrow() -> Vec2 {
+        Vec2::new(-TILE, 0.0)
+    }
+
+    #[test]
+    fn a_deflected_arrow_does_not_damage_the_hunter() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        let damage = EnemyKind::Skeleton.projectile_damage();
+        let starting = damage + damage;
+        spawn_hunter(&mut app, starting);
+        app.world_mut().spawn((
+            EnemyProjectile { damage },
+            Transform::default(),
+            ProjectileVelocity(approaching_arrow()),
+            Sprite::default(),
+            DeflectedProjectile {
+                active: true,
+                hit_entities: Vec::new(),
+            },
+        ));
+        app.add_systems(Update, resolve_enemy_projectiles);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 1);
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting);
+    }
+
+    #[test]
+    fn enemy_arrows_do_nothing_when_no_hunter_is_present() {
+        let mut app = projectile_app();
+        app.insert_resource(Loadout::default());
+        let incoming = approaching_arrow();
+        app.world_mut().spawn((
+            EnemyProjectile {
+                damage: EnemyKind::Skeleton.projectile_damage(),
+            },
+            Transform::default(),
+            ProjectileVelocity(incoming),
+            Sprite::default(),
+            DeflectedProjectile::default(),
+        ));
+        app.add_systems(Update, resolve_enemy_projectiles);
+        app.update();
+        assert_eq!(projectile_count(&mut app), 1);
+        let velocity = app
+            .world_mut()
+            .query::<&ProjectileVelocity>()
+            .single(app.world())
+            .0;
+        assert_eq!(velocity, incoming);
     }
 }
