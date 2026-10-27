@@ -14,34 +14,34 @@ SIZE = 32
 OUTLINE = (16, 10, 14, 255)
 RIM_LIT = (196, 176, 140, 255)
 
-STEEL_LT = (232, 240, 248, 255)
+STEEL_LIGHT = (232, 240, 248, 255)
 STEEL = (168, 180, 194, 255)
-STEEL_DK = (74, 86, 98, 255)
+STEEL_DARK = (74, 86, 98, 255)
 
 CYAN = (57, 214, 255, 255)
-CYAN_DK = (18, 104, 128, 255)
+CYAN_DARK = (18, 104, 128, 255)
 
 PURPLE = (214, 75, 255, 255)
-PURPLE_DK = (122, 34, 176, 255)
+PURPLE_DARK = (122, 34, 176, 255)
 
-BRASS_LT = (244, 214, 140, 255)
+BRASS_LIGHT = (244, 214, 140, 255)
 BRASS = (198, 158, 84, 255)
-BRASS_DK = (122, 88, 40, 255)
+BRASS_DARK = (122, 88, 40, 255)
 
-LEATHER_LT = (196, 138, 82, 255)
+LEATHER_LIGHT = (196, 138, 82, 255)
 LEATHER = (122, 78, 48, 255)
-LEATHER_DK = (74, 44, 24, 255)
+LEATHER_DARK = (74, 44, 24, 255)
 SOLE = (36, 28, 26, 255)
 
-IRON_LT = (158, 152, 144, 255)
+IRON_LIGHT = (158, 152, 144, 255)
 IRON = (96, 92, 88, 255)
-IRON_DK = (52, 48, 46, 255)
+IRON_DARK = (52, 48, 46, 255)
 
 ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
-KING = tuple((dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+KING = tuple((delta_x, delta_y) for delta_y in (-1, 0, 1) for delta_x in (-1, 0, 1) if delta_x or delta_y)
 
-IRON_TONES = {IRON_LT, IRON, IRON_DK}
-BRASS_TONES = {BRASS_LT, BRASS, BRASS_DK}
+IRON_TONES = {IRON_LIGHT, IRON, IRON_DARK}
+BRASS_TONES = {BRASS_LIGHT, BRASS, BRASS_DARK}
 
 def new_canvas() -> list[list[tuple[int, int, int, int] | None]]:
     return [[None] * SIZE for _ in range(SIZE)]
@@ -59,17 +59,17 @@ def put(
 def fills_span(
     canvas: list[list[tuple[int, int, int, int] | None]],
     y: int,
-    x0: int,
-    x1: int,
+    start_x: int,
+    end_x: int,
     color: tuple[int, int, int, int],
 ) -> None:
-    for x in range(x0, x1 + 1):
+    for x in range(start_x, end_x + 1):
         put(canvas, x, y, color)
 
 def neighbor(
-    canvas: list[list[tuple[int, int, int, int] | None]], x: int, y: int, dx: int, dy: int
+    canvas: list[list[tuple[int, int, int, int] | None]], x: int, y: int, delta_x: int, delta_y: int
 ) -> tuple[int, int, int, int] | None:
-    nx, ny = x + dx, y + dy
+    nx, ny = x + delta_x, y + delta_y
     if 0 <= nx < SIZE and 0 <= ny < SIZE:
         return canvas[ny][nx]
     return None
@@ -77,7 +77,7 @@ def neighbor(
 def touches_empty(
     canvas: list[list[tuple[int, int, int, int] | None]], x: int, y: int
 ) -> bool:
-    return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
+    return any(neighbor(canvas, x, y, delta_x, delta_y) is None for delta_x, delta_y in ORTHO)
 
 def add_outline(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     extra: list[tuple[int, int]] = []
@@ -85,7 +85,7 @@ def add_outline(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         for x in range(SIZE):
             if canvas[y][x] is not None:
                 continue
-            if any(neighbor(canvas, x, y, dx, dy) is not None for dx, dy in KING):
+            if any(neighbor(canvas, x, y, delta_x, delta_y) is not None for delta_x, delta_y in KING):
                 extra.append((x, y))
     for x, y in extra:
         canvas[y][x] = OUTLINE
@@ -129,39 +129,39 @@ def recolor_rim(
             canvas[y][x] = mid
 
 def paint_sword(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    put(canvas, 15, 3, STEEL_LT)
+    put(canvas, 15, 3, STEEL_LIGHT)
     put(canvas, 16, 3, STEEL)
-    put(canvas, 14, 4, STEEL_LT)
+    put(canvas, 14, 4, STEEL_LIGHT)
     put(canvas, 15, 4, STEEL)
-    put(canvas, 16, 4, STEEL_DK)
+    put(canvas, 16, 4, STEEL_DARK)
     put(canvas, 17, 4, STEEL)
     for y in range(5, 18):
-        put(canvas, 13, y, STEEL_LT)
+        put(canvas, 13, y, STEEL_LIGHT)
         put(canvas, 14, y, STEEL)
-        put(canvas, 15, y, STEEL_DK)
+        put(canvas, 15, y, STEEL_DARK)
         put(canvas, 16, y, STEEL)
         put(canvas, 17, y, CYAN if 7 <= y <= 16 else STEEL)
-    put(canvas, 17, 17, STEEL_DK)
+    put(canvas, 17, 17, STEEL_DARK)
 
     for x in range(7, 25):
-        put(canvas, x, 18, BRASS_LT if x < 16 else BRASS)
-        put(canvas, x, 19, BRASS if x < 18 else BRASS_DK)
-        put(canvas, x, 20, BRASS_DK)
+        put(canvas, x, 18, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 19, BRASS if x < 18 else BRASS_DARK)
+        put(canvas, x, 20, BRASS_DARK)
     put(canvas, 15, 19, PURPLE)
-    put(canvas, 16, 19, PURPLE_DK)
-    put(canvas, 14, 19, BRASS_LT)
+    put(canvas, 16, 19, PURPLE_DARK)
+    put(canvas, 14, 19, BRASS_LIGHT)
 
     for y in range(21, 27):
         band = y in (22, 24)
-        put(canvas, 13, y, LEATHER_LT if not band else LEATHER_DK)
-        put(canvas, 14, y, LEATHER_DK if band else LEATHER)
-        put(canvas, 15, y, LEATHER_DK if band else LEATHER)
-        put(canvas, 16, y, LEATHER_DK)
-        put(canvas, 17, y, LEATHER_DK)
+        put(canvas, 13, y, LEATHER_LIGHT if not band else LEATHER_DARK)
+        put(canvas, 14, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 15, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 16, y, LEATHER_DARK)
+        put(canvas, 17, y, LEATHER_DARK)
 
     for x in range(12, 19):
-        put(canvas, x, 27, BRASS_LT if x < 16 else BRASS)
-        put(canvas, x, 28, BRASS if x < 16 else BRASS_DK)
+        put(canvas, x, 27, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 28, BRASS if x < 16 else BRASS_DARK)
     put(canvas, 15, 28, CYAN)
 
 def shield_spans() -> list[tuple[int, int, int]]:
@@ -187,18 +187,18 @@ def shield_spans() -> list[tuple[int, int, int]]:
     return spans
 
 def paint_shield(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    for y, x0, x1 in shield_spans():
-        for x in range(x0, x1 + 1):
+    for y, start_x, end_x in shield_spans():
+        for x in range(start_x, end_x + 1):
             shade = x + y
             if shade < 22:
-                color = IRON_LT
+                color = IRON_LIGHT
             elif shade > 36:
-                color = IRON_DK
+                color = IRON_DARK
             else:
                 color = IRON
             put(canvas, x, y, color)
 
-    recolor_rim(canvas, BRASS_LT, BRASS, BRASS_DK)
+    recolor_rim(canvas, BRASS_LIGHT, BRASS, BRASS_DARK)
 
     piping: list[tuple[int, int]] = []
     for y in range(SIZE):
@@ -206,7 +206,7 @@ def paint_shield(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
             tone = canvas[y][x]
             if tone not in IRON_TONES:
                 continue
-            if any(neighbor(canvas, x, y, dx, dy) in BRASS_TONES for dx, dy in ORTHO):
+            if any(neighbor(canvas, x, y, delta_x, delta_y) in BRASS_TONES for delta_x, delta_y in ORTHO):
                 piping.append((x, y))
     for x, y in piping:
         above = neighbor(canvas, x, y, 0, -1)
@@ -214,38 +214,38 @@ def paint_shield(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         if above in BRASS_TONES or left in BRASS_TONES:
             canvas[y][x] = PURPLE
         else:
-            canvas[y][x] = PURPLE_DK
+            canvas[y][x] = PURPLE_DARK
 
     stamp_boss(canvas)
     for x, y in ((11, 11), (20, 11), (12, 16), (19, 18)):
         if canvas[y][x] in IRON_TONES:
-            canvas[y][x] = IRON_DK
+            canvas[y][x] = IRON_DARK
     for x, y in ((10, 10), (21, 10)):
-        if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DK}:
-            canvas[y][x] = BRASS_LT
+        if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DARK}:
+            canvas[y][x] = BRASS_LIGHT
 
 def stamp_boss(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    cx, cy = 15, 14
-    for dy in range(-4, 5):
-        for dx in range(-4, 5):
-            x, y = cx + dx, cy + dy
+    center_x, center_y = 15, 14
+    for delta_y in range(-4, 5):
+        for delta_x in range(-4, 5):
+            x, y = center_x + delta_x, center_y + delta_y
             if canvas[y][x] not in IRON_TONES:
                 continue
-            dist2 = dx * dx + dy * dy
+            dist2 = delta_x * delta_x + delta_y * delta_y
             if dist2 <= 2:
                 canvas[y][x] = CYAN
             elif dist2 <= 6:
-                canvas[y][x] = CYAN_DK
-    put(canvas, cx - 1, cy - 1, STEEL_LT)
+                canvas[y][x] = CYAN_DARK
+    put(canvas, center_x - 1, center_y - 1, STEEL_LIGHT)
     for y in range(18, 24):
         if canvas[y][16] in IRON_TONES:
-            canvas[y][16] = CYAN_DK
+            canvas[y][16] = CYAN_DARK
         if y % 2 == 0 and canvas[y][15] in IRON_TONES:
             canvas[y][15] = CYAN
 
 def paint_boot(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     spans = [
-        (6, 17, 24, LEATHER_LT),
+        (6, 17, 24, LEATHER_LIGHT),
         (7, 16, 25, LEATHER),
         (8, 16, 25, LEATHER),
         (9, 16, 25, LEATHER),
@@ -256,44 +256,44 @@ def paint_boot(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         (14, 13, 29, LEATHER),
         (15, 12, 29, LEATHER),
         (16, 11, 28, LEATHER),
-        (17, 10, 27, LEATHER_DK),
+        (17, 10, 27, LEATHER_DARK),
         (18, 9, 26, SOLE),
         (19, 9, 17, SOLE),
         (20, 9, 16, SOLE),
         (21, 10, 15, SOLE),
     ]
-    for y, x0, x1, color in spans:
-        fills_span(canvas, y, x0, x1, color)
+    for y, start_x, end_x, color in spans:
+        fills_span(canvas, y, start_x, end_x, color)
     for y in (7, 8):
         fills_span(canvas, y, 19, 22, SOLE)
     for y in range(7, 12):
-        canvas[y][16] = LEATHER_LT
-        canvas[y][25] = LEATHER_DK
+        canvas[y][16] = LEATHER_LIGHT
+        canvas[y][25] = LEATHER_DARK
     for y in range(9, 12):
         for x in range(19, 23):
-            canvas[y][x] = BRASS_LT if y == 9 or x == 19 else BRASS
-    put(canvas, 20, 10, BRASS_DK)
+            canvas[y][x] = BRASS_LIGHT if y == 9 or x == 19 else BRASS
+    put(canvas, 20, 10, BRASS_DARK)
     put(canvas, 21, 10, CYAN)
     for x in (16, 18, 24):
         if canvas[12][x] == LEATHER:
             canvas[12][x] = PURPLE
     for y in range(14, 17):
-        canvas[y][27] = BRASS_LT
+        canvas[y][27] = BRASS_LIGHT
         canvas[y][28] = BRASS
         if y < 16:
-            canvas[y][29] = BRASS_DK
+            canvas[y][29] = BRASS_DARK
 
 def paint_boot_trail(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     streaks = (
-        (2, 8, CYAN_DK),
+        (2, 8, CYAN_DARK),
         (3, 8, CYAN),
         (4, 8, CYAN),
         (5, 8, CYAN),
-        (1, 13, PURPLE_DK),
+        (1, 13, PURPLE_DARK),
         (2, 13, PURPLE),
         (3, 13, PURPLE),
         (4, 13, PURPLE),
-        (2, 18, CYAN_DK),
+        (2, 18, CYAN_DARK),
         (3, 18, CYAN),
         (4, 18, CYAN),
         (5, 18, CYAN),
@@ -302,19 +302,19 @@ def paint_boot_trail(canvas: list[list[tuple[int, int, int, int] | None]]) -> No
         if canvas[y][x] is None:
             put(canvas, x, y, color)
 
-def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
+def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, int]]:
     points: set[tuple[int, int]] = set()
     x, y, decision = 0, radius, 3 - 2 * radius
 
-    def plot(px: int, py: int) -> None:
-        points.add((cx + px, cy + py))
-        points.add((cx - px, cy + py))
-        points.add((cx + px, cy - py))
-        points.add((cx - px, cy - py))
-        points.add((cx + py, cy + px))
-        points.add((cx - py, cy + px))
-        points.add((cx + py, cy - px))
-        points.add((cx - py, cy - px))
+    def plot(offset_x: int, offset_y: int) -> None:
+        points.add((center_x + offset_x, center_y + offset_y))
+        points.add((center_x - offset_x, center_y + offset_y))
+        points.add((center_x + offset_x, center_y - offset_y))
+        points.add((center_x - offset_x, center_y - offset_y))
+        points.add((center_x + offset_y, center_y + offset_x))
+        points.add((center_x - offset_y, center_y + offset_x))
+        points.add((center_x + offset_y, center_y - offset_x))
+        points.add((center_x - offset_y, center_y - offset_x))
 
     while x <= y:
         plot(x, y)
@@ -337,21 +337,21 @@ def paint_wand(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     }
     for y, xs in diamond.items():
         for x in xs:
-            color = PURPLE_DK if x + y >= 28 else PURPLE
+            color = PURPLE_DARK if x + y >= 28 else PURPLE
             put(canvas, x, y, color)
-    put(canvas, 15, 7, STEEL_LT)
+    put(canvas, 15, 7, STEEL_LIGHT)
 
     for x in range(14, 19):
-        put(canvas, x, 12, BRASS_LT if x < 17 else BRASS)
-        put(canvas, x, 13, BRASS_DK)
+        put(canvas, x, 12, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 13, BRASS_DARK)
     for y in range(14, 27):
-        put(canvas, 15, y, BRASS_LT)
+        put(canvas, 15, y, BRASS_LIGHT)
         put(canvas, 16, y, BRASS)
-        put(canvas, 17, y, BRASS_DK)
+        put(canvas, 17, y, BRASS_DARK)
     for x in range(14, 19):
-        put(canvas, x, 27, BRASS_LT if x < 17 else BRASS)
-        put(canvas, x, 28, BRASS_DK)
-    put(canvas, 16, 28, CYAN_DK)
+        put(canvas, x, 27, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 28, BRASS_DARK)
+    put(canvas, 16, 28, CYAN_DARK)
 
 def paint_wand_orbit(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     for x, y in circle_pixels(16, 10, 8):
@@ -362,7 +362,7 @@ def paint_wand_orbit(canvas: list[list[tuple[int, int, int, int] | None]]) -> No
         elif x + y < 20:
             color = CYAN
         else:
-            color = CYAN_DK
+            color = CYAN_DARK
         put(canvas, x, y, color)
 
 def finish_body(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
@@ -448,23 +448,23 @@ def ascii_preview(image: Image.Image) -> str:
     legend = {
         OUTLINE: "·",
         RIM_LIT: "+",
-        STEEL_LT: "W",
+        STEEL_LIGHT: "W",
         STEEL: "w",
-        STEEL_DK: "x",
+        STEEL_DARK: "x",
         CYAN: "c",
-        CYAN_DK: "C",
+        CYAN_DARK: "C",
         PURPLE: "p",
-        PURPLE_DK: "P",
-        BRASS_LT: "B",
+        PURPLE_DARK: "P",
+        BRASS_LIGHT: "B",
         BRASS: "b",
-        BRASS_DK: "n",
-        LEATHER_LT: "L",
+        BRASS_DARK: "n",
+        LEATHER_LIGHT: "L",
         LEATHER: "l",
-        LEATHER_DK: "r",
+        LEATHER_DARK: "r",
         SOLE: "s",
-        IRON_LT: "H",
+        IRON_LIGHT: "H",
         IRON: "m",
-        IRON_DK: "d",
+        IRON_DARK: "d",
     }
     rows: list[str] = []
     for y in range(SIZE):
