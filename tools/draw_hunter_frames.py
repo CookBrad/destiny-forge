@@ -49,9 +49,6 @@ RUN_SWORD_DEG = 16.0
 RUN_SWORD_LENGTH = 58
 CAPE_TRIM_X = 18
 
-def iround(value: float) -> int:
-    return int(math.floor(value + 0.5))
-
 class Sprite:
     def __init__(self, pixels: dict[Point, Color] | None = None) -> None:
         self.pixels = {} if pixels is None else dict(pixels)
@@ -314,31 +311,9 @@ def shorten(sprite: Sprite, pivot: tuple[float, float], length: float) -> Sprite
         raise SystemExit("shorten removed the sprite")
     return Sprite(kept)
 
-def blade_base(blade: Sprite, end: str = "low") -> tuple[float, float]:
-    if end == "left":
-        min_x = min(x for x, _ in blade.pixels)
-        ys = [y for x, y in blade.pixels if x <= min_x + 2]
-        return float(min_x), (min(ys) + max(ys)) / 2
-    max_y = max(y for _, y in blade.pixels)
-    xs = [x for x, y in blade.pixels if y >= max_y - 1]
-    return (min(xs) + max(xs)) / 2, float(max_y)
-
 def blade_tip(blade: Sprite, pivot: tuple[float, float]) -> tuple[int, int]:
     px, py = pivot
     return max(blade.pixels, key=lambda point: math.hypot(point[0] - px, point[1] - py))
-
-def aim_blade(
-    blade: Sprite,
-    degrees_above_horizontal: float,
-    length: float,
-    end: str = "low",
-) -> tuple[Sprite, tuple[float, float]]:
-    pivot = blade_base(blade, end)
-    tip = blade_tip(blade, pivot)
-    current = math.degrees(math.atan2(-(tip[1] - pivot[1]), tip[0] - pivot[0]))
-    turned = rotate(blade, current - degrees_above_horizontal, pivot)
-    aimed = shorten(turned, pivot, length)
-    return aimed, pivot
 
 def place_aimed(aimed: Sprite, pivot: tuple[float, float], hand: tuple[float, float]) -> Sprite:
     return aimed.shift(round_half_up(hand[0] - pivot[0]), round_half_up(hand[1] - pivot[1]))
@@ -438,17 +413,6 @@ def _sole(leg: Sprite) -> tuple[float, int]:
     except SystemExit:
         return bottom_band(leg)
 
-def _seat_leg(leg: Sprite, plant: bool, chest: float) -> Sprite:
-    center, sole = _sole(leg)
-    delta_x = iround(chest - center) if plant else 0
-    delta_y = iround(FOOT_ROW - sole) if plant else min(0, FOOT_ROW - sole)
-    if plant and abs((chest - center) - delta_x) > 1e-6:
-        widen_sole(leg, toward_right=(chest - center) > 0)
-        center, sole = _sole(leg)
-        delta_x = iround(chest - center)
-        delta_y = iround(FOOT_ROW - sole)
-    return leg.shift(delta_x, delta_y)
-
 def compose_run_frame(parts: dict, pose: dict) -> Sprite:
     chest = parts["chest"]
     body = parts["body"].shift(0, pose["bob"])
@@ -504,21 +468,6 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
                 f"after shift {delta_x},{delta_y} leaves the cell"
             )
     return frames
-
-def shave_chest_edge(sprite: Sprite, take_from_right: bool) -> None:
-    xs = [
-        x
-        for (x, y), color in sprite.pixels.items()
-        if 50 <= y <= 96 and not is_hot_blade(color)
-    ]
-    edge = max(xs) if take_from_right else min(xs)
-    victims = [
-        (x, y)
-        for (x, y), color in sprite.pixels.items()
-        if x == edge and 50 <= y <= 96 and not is_hot_blade(color)
-    ]
-    for point in victims:
-        del sprite.pixels[point]
 
 def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
     moved = sprite
@@ -723,15 +672,6 @@ def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
         lambda x, y, _c: x < -24 or x >= CELL_WIDTH + 24 or y < -8 or y >= CELL_HEIGHT + 8
     )
     return plant_on_foot(frame)
-
-def blit(image: Image.Image, sprite: Sprite, origin_x: int) -> None:
-    pixels = image.load()
-    width, height = image.size
-    for (x, y), color in sprite.pixels.items():
-        xx, yy = x + origin_x, y
-        if not (0 <= xx < width and 0 <= yy < height):
-            raise SystemExit(f"blit clipped {xx},{yy}")
-        pixels[xx, yy] = color
 
 def sheet_image(sprites: list[Sprite]) -> Image.Image:
     return pack_strip(sprites, CELL_WIDTH, CELL_HEIGHT)
