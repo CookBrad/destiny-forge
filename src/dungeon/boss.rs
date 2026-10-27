@@ -111,29 +111,33 @@ pub struct BossGroundHazard {
     pub half_height: f32,
 }
 
+pub(crate) type BossAttackQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static Health,
+        &'static mut Sprite,
+        &'static mut BossAttackController,
+        Option<&'static EnemyKnockback>,
+        Option<&'static EnemyAggro>,
+        Option<&'static BossCharging>,
+    ),
+    (
+        With<KingSlimeBoss>,
+        Without<EnemyCorpse>,
+        Without<DungeonPlayer>,
+    ),
+>;
+
 pub fn tick_boss_attacks(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     time: Res<Time>,
     art: Res<DungeonArt>,
     player: Query<&Transform, (With<DungeonPlayer>, Without<KingSlimeBoss>)>,
-    mut bosses: Query<
-        (
-            Entity,
-            &Transform,
-            &Health,
-            &mut Sprite,
-            &mut BossAttackController,
-            Option<&EnemyKnockback>,
-            Option<&EnemyAggro>,
-            Option<&BossCharging>,
-        ),
-        (
-            With<KingSlimeBoss>,
-            Without<EnemyCorpse>,
-            Without<DungeonPlayer>,
-        ),
-    >,
+    mut bosses: BossAttackQuery,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -190,10 +194,12 @@ pub fn tick_boss_attacks(
                         &mut commands,
                         &mut sfx,
                         &art,
-                        entity,
-                        boss_pos,
-                        player_pos,
-                        to_player,
+                        BossAttackAim {
+                            boss_entity: entity,
+                            boss_pos,
+                            player_pos,
+                            to_player,
+                        },
                         kind,
                     );
                     controller.last_kind = Some(kind);
@@ -243,19 +249,28 @@ pub fn tick_boss_phase_flash(
     }
 }
 
+pub(crate) type BossHazardPlayerQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static mut Health,
+        &'static mut ContactDamageCooldown,
+    ),
+    (
+        With<DungeonPlayer>,
+        Without<BossGroundHazard>,
+        Without<PlayerHitFlash>,
+    ),
+>;
+
 pub fn resolve_boss_hazards(
     time: Res<Time>,
     loadout: Res<Loadout>,
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
-    mut player: Query<
-        (Entity, &Transform, &mut Health, &mut ContactDamageCooldown),
-        (
-            With<DungeonPlayer>,
-            Without<BossGroundHazard>,
-            Without<PlayerHitFlash>,
-        ),
-    >,
+    mut player: BossHazardPlayerQuery,
     mut hazards: Query<(Entity, &Transform, &mut BossGroundHazard), Without<DungeonPlayer>>,
 ) {
     let Ok((player_entity, player_transform, mut health, mut cooldown)) = player.get_single_mut()
@@ -348,16 +363,26 @@ fn pick_attack(last: Option<BossAttackKind>, phase: u8) -> BossAttackKind {
     pool[rng.gen_range(0..pool.len())]
 }
 
-fn execute_attack(
-    commands: &mut Commands,
-    sfx: &mut EventWriter<CombatSfx>,
-    art: &DungeonArt,
+struct BossAttackAim {
     boss_entity: Entity,
     boss_pos: Vec2,
     player_pos: Vec2,
     to_player: Vec2,
+}
+
+fn execute_attack(
+    commands: &mut Commands,
+    sfx: &mut EventWriter<CombatSfx>,
+    art: &DungeonArt,
+    aim: BossAttackAim,
     kind: BossAttackKind,
 ) {
+    let BossAttackAim {
+        boss_entity,
+        boss_pos,
+        player_pos,
+        to_player,
+    } = aim;
     match kind {
         BossAttackKind::SlimeBolt => {
             fire_slime_bolt(commands, art, boss_pos, to_player, 11.0, 240.0);
