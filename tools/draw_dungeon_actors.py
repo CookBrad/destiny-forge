@@ -56,6 +56,31 @@ def capsule_pixels(start_x: int, start_y: int, end_x: int, end_y: int, radius: i
                 points.append((x, y))
     return points
 
+def draw_slime(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(64, 64)
+    blit_ellipse(canvas, 33, 42, 23, 20, palette.gel_under, 10)
+    blit_ellipse(canvas, 32, 36, 21, 18, palette.gel_body, 10)
+    blit_ellipse(canvas, 32, 16, 7, 10, palette.gel_body, 5)
+    blit_ellipse(canvas, 14, 52, 7, 9, palette.gel_under, 5)
+    blit_ellipse(canvas, 36, 51, 13, 8, palette.sage_ramp, 6)
+    canvas.blit(volume(ellipse_pixels(24, 30, 8, 6), 22, 28, palette.gel_shine, 4))
+    canvas.fill(ellipse_pixels(22, 28, 3, 2), palette.gel_hot)
+    canvas.put(21, 27, palette.white)
+    canvas.fill(ellipse_pixels(28, 46, 5, 5), palette.gel_deep)
+    canvas.fill(ellipse_pixels(40, 38, 3, 3), palette.gel_well)
+    canvas.fill([(x, 62) for x in range(14, 52)], palette.gel_deep)
+    canvas.fill([(x, 63) for x in range(16, 50)], palette.gel_shadow)
+    add_cast_rim(canvas, palette.gel_shadow)
+    canvas.fill(ellipse_pixels(43, 47, 6, 2), palette.ink)
+    canvas.fill(ellipse_pixels(43, 46, 4, 1), palette.gel_deep)
+    paint_eye(canvas, 36, 35, palette, palette.gel_deep)
+    paint_eye(canvas, 48, 36, palette, palette.purple_dark)
+    add_outline(canvas, palette.ink)
+    canvas.put(35, 34, palette.white)
+    canvas.put(47, 35, palette.white)
+    canvas.put(26, 22, palette.gel_hi)
+    return canvas
+
 def _near_segment(
     x: int,
     y: int,
@@ -121,10 +146,6 @@ def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> li
             continue
         crossings.append(start_x + (end_x - start_x) * (y - start_y) // (end_y - start_y))
     return crossings
-
-def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
-    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
-    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
 def draw_bat(palette: Palette) -> Canvas:
     canvas = clipping_canvas(96, 48)
@@ -313,102 +334,6 @@ def blit_poly(
     canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
     return points
 
-def stitch(canvas: Canvas, points: list[tuple[int, int]], color: tuple[int, int, int, int]) -> None:
-    for index, (x, y) in enumerate(points):
-        if index % 3 != 2:
-            canvas.put(x, y, color)
-
-def crown_spike(
-    canvas: Canvas,
-    cx: int,
-    tip_y: int,
-    base_y: int,
-    half_base: int,
-    palette: Palette,
-) -> None:
-    mid_y = (tip_y + base_y) // 2
-    waist = max(3, half_base - 4)
-    outline = [
-        (cx, tip_y),
-        (cx - 3, tip_y + 8),
-        (cx - 2, tip_y + 16),
-        (cx - waist, mid_y),
-        (cx - half_base, base_y),
-        (cx + half_base, base_y),
-        (cx + waist, mid_y),
-        (cx + 2, tip_y + 16),
-        (cx + 3, tip_y + 8),
-    ]
-    ridge = (cx, mid_y)
-    left_face = polygon_pixels(outline[:5] + [ridge])
-    right_face = polygon_pixels([outline[0], ridge] + outline[5:])
-    canvas.blit(volume(left_face, cx - 6, tip_y + 18, palette.brass_ramp[:4], 8))
-    canvas.blit(volume(right_face, cx + 4, tip_y + 14, palette.brass_ramp[2:], 8))
-    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
-    canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
-    canvas.put(cx, tip_y + 1, palette.brass_hi)
-
-def draw_slime(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(64, 64)
-    blit_ellipse(canvas, 33, 42, 23, 20, palette.gel_under, 10)
-    blit_ellipse(canvas, 32, 36, 21, 18, palette.gel_body, 10)
-    blit_ellipse(canvas, 32, 16, 7, 10, palette.gel_body, 5)
-    blit_ellipse(canvas, 14, 52, 7, 9, palette.gel_under, 5)
-    blit_ellipse(canvas, 36, 51, 13, 8, palette.sage_ramp, 6)
-    canvas.blit(volume(ellipse_pixels(24, 30, 8, 6), 22, 28, palette.gel_shine, 4))
-    canvas.fill(ellipse_pixels(22, 28, 3, 2), palette.gel_hot)
-    canvas.put(21, 27, palette.white)
-    canvas.fill(ellipse_pixels(28, 46, 5, 5), palette.gel_deep)
-    canvas.fill(ellipse_pixels(40, 38, 3, 3), palette.gel_well)
-    canvas.fill([(x, 62) for x in range(14, 52)], palette.gel_deep)
-    canvas.fill([(x, 63) for x in range(16, 50)], palette.gel_shadow)
-    add_cast_rim(canvas, palette.gel_shadow)
-    canvas.fill(ellipse_pixels(43, 47, 6, 2), palette.ink)
-    canvas.fill(ellipse_pixels(43, 46, 4, 1), palette.gel_deep)
-    paint_eye(canvas, 36, 35, palette, palette.gel_deep)
-    paint_eye(canvas, 48, 36, palette, palette.purple_dark)
-    add_outline(canvas, palette.ink)
-    canvas.put(35, 34, palette.white)
-    canvas.put(47, 35, palette.white)
-    canvas.put(26, 22, palette.gel_hi)
-    return canvas
-
-def draw_blob(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(32, 32)
-    blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
-    blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
-    canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
-    canvas.fill(ellipse_pixels(16, 19, 4, 4), palette.gel_deep)
-    canvas.fill(ellipse_pixels(12, 12, 4, 3), palette.gel_bright)
-    canvas.fill(ellipse_pixels(11, 11, 2, 2), palette.gel_hot)
-    add_cast_rim(canvas, palette.gel_shadow)
-    add_outline(canvas, palette.ink)
-    canvas.put(10, 10, palette.white)
-    return canvas
-
-def draw_bolt(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(16, 48)
-    blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
-    tail: list[tuple[int, int]] = []
-    for y in range(15, 46):
-        half = 4 - (y - 15) * 3 // 31
-        if half < 1:
-            half = 1
-        for x in range(8 - half, 9 + half):
-            tail.append((x, y))
-    canvas.blit(volume(tail, 8, 22, palette.gel_under, 6))
-    core: list[tuple[int, int]] = []
-    for y in range(8, 36):
-        core.append((8, y))
-        if y < 28:
-            core.append((7, y))
-    canvas.blit(volume(core, 8, 12, palette.gel_shine, 4))
-    canvas.fill(ellipse_pixels(8, 8, 2, 3), palette.gel_hot)
-    canvas.put(7, 7, palette.white)
-    canvas.put(8, 6, palette.gel_hi)
-    add_outline(canvas, palette.ink)
-    return canvas
-
 def draw_goblin(palette: Palette) -> Canvas:
     canvas = clipping_canvas(80, 112)
     blit_poly(canvas, [(44, 26), (24, 10), (30, 22), (48, 32)], (32, 18), palette.leather_ramp, 6)
@@ -469,6 +394,11 @@ def draw_goblin(palette: Palette) -> Canvas:
     canvas.put(48, 34, palette.skin_dark)
     spark(canvas, duster + flap, palette.leather_hi, 17)
     return canvas
+
+def stitch(canvas: Canvas, points: list[tuple[int, int]], color: tuple[int, int, int, int]) -> None:
+    for index, (x, y) in enumerate(points):
+        if index % 3 != 2:
+            canvas.put(x, y, color)
 
 def draw_skeleton(palette: Palette) -> Canvas:
     canvas = clipping_canvas(64, 144)
@@ -686,12 +616,82 @@ def png_bytes(image: Image.Image) -> bytes:
     image.save(buffer, format="PNG", compress_level=9)
     return buffer.getvalue()
 
+def crown_spike(
+    canvas: Canvas,
+    cx: int,
+    tip_y: int,
+    base_y: int,
+    half_base: int,
+    palette: Palette,
+) -> None:
+    mid_y = (tip_y + base_y) // 2
+    waist = max(3, half_base - 4)
+    outline = [
+        (cx, tip_y),
+        (cx - 3, tip_y + 8),
+        (cx - 2, tip_y + 16),
+        (cx - waist, mid_y),
+        (cx - half_base, base_y),
+        (cx + half_base, base_y),
+        (cx + waist, mid_y),
+        (cx + 2, tip_y + 16),
+        (cx + 3, tip_y + 8),
+    ]
+    ridge = (cx, mid_y)
+    left_face = polygon_pixels(outline[:5] + [ridge])
+    right_face = polygon_pixels([outline[0], ridge] + outline[5:])
+    canvas.blit(volume(left_face, cx - 6, tip_y + 18, palette.brass_ramp[:4], 8))
+    canvas.blit(volume(right_face, cx + 4, tip_y + 14, palette.brass_ramp[2:], 8))
+    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
+    canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
+    canvas.put(cx, tip_y + 1, palette.brass_hi)
+
+def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
+    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
+    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
+
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     first = png_bytes(image)
     path.write_bytes(first)
     if png_bytes(Image.open(path).convert("RGBA")) != first:
         raise SystemExit(f"{path.name} did not round-trip")
+
+def draw_bolt(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(16, 48)
+    blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
+    tail: list[tuple[int, int]] = []
+    for y in range(15, 46):
+        half = 4 - (y - 15) * 3 // 31
+        if half < 1:
+            half = 1
+        for x in range(8 - half, 9 + half):
+            tail.append((x, y))
+    canvas.blit(volume(tail, 8, 22, palette.gel_under, 6))
+    core: list[tuple[int, int]] = []
+    for y in range(8, 36):
+        core.append((8, y))
+        if y < 28:
+            core.append((7, y))
+    canvas.blit(volume(core, 8, 12, palette.gel_shine, 4))
+    canvas.fill(ellipse_pixels(8, 8, 2, 3), palette.gel_hot)
+    canvas.put(7, 7, palette.white)
+    canvas.put(8, 6, palette.gel_hi)
+    add_outline(canvas, palette.ink)
+    return canvas
+
+def draw_blob(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(32, 32)
+    blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
+    blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
+    canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
+    canvas.fill(ellipse_pixels(16, 19, 4, 4), palette.gel_deep)
+    canvas.fill(ellipse_pixels(12, 12, 4, 3), palette.gel_bright)
+    canvas.fill(ellipse_pixels(11, 11, 2, 2), palette.gel_hot)
+    add_cast_rim(canvas, palette.gel_shadow)
+    add_outline(canvas, palette.ink)
+    canvas.put(10, 10, palette.white)
+    return canvas
 
 def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int, int, int, int]]]:
     count = 0
