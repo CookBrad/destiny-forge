@@ -34,6 +34,10 @@ const PROFILE_MIGRATIONS: &[ProfileMigration] = &[
         to_version: 8,
         apply: migrate_profile_to_v8,
     },
+    ProfileMigration {
+        to_version: 9,
+        apply: migrate_profile_to_v9,
+    },
 ];
 
 pub(crate) fn profile_from_ron(text: &str) -> Result<PlayerProfile, String> {
@@ -147,6 +151,59 @@ fn force_slot_quality_normal(slot: &mut RonValue) {
     fields.push(("quality".to_string(), normal));
 }
 
+fn migrate_profile_to_v9(profile: &mut RonValue) {
+    let header = build_header_from_flat_fields(profile);
+    insert_field_if_missing(profile, "header", header);
+    remove_field(profile, "name");
+    remove_field(profile, "calendar_day");
+    remove_field(profile, "day_phase");
+}
+
+fn build_header_from_flat_fields(profile: &RonValue) -> RonValue {
+    let name = copied_field_or_fallback(profile, "name", RonValue::String(String::new()));
+    let calendar_day = copied_field_or_fallback(profile, "calendar_day", RonValue::Integer(1));
+    let day_phase =
+        copied_field_or_fallback(profile, "day_phase", RonValue::Unit("Morning".to_string()));
+    RonValue::Map(vec![
+        ("name".to_string(), name),
+        ("playtime_seconds".to_string(), RonValue::Integer(0)),
+        (
+            "calendar".to_string(),
+            RonValue::Map(vec![
+                ("calendar_day".to_string(), calendar_day),
+                ("day_phase".to_string(), day_phase),
+            ]),
+        ),
+        (
+            "location".to_string(),
+            RonValue::Unit("Homestead".to_string()),
+        ),
+        ("gold".to_string(), RonValue::Integer(0)),
+    ])
+}
+
+fn copied_field_or_fallback(value: &RonValue, key: &str, fallback: RonValue) -> RonValue {
+    let RonValue::Map(fields) = value else {
+        return fallback;
+    };
+    let Some((_, field)) = fields.iter().find(|(name, _)| name == key) else {
+        return fallback;
+    };
+    match field {
+        RonValue::String(text) => RonValue::String(text.clone()),
+        RonValue::Integer(number) => RonValue::Integer(*number),
+        RonValue::Unit(name) => RonValue::Unit(name.clone()),
+        _ => fallback,
+    }
+}
+
+fn remove_field(value: &mut RonValue, key: &str) {
+    let RonValue::Map(fields) = value else {
+        return;
+    };
+    fields.retain(|(name, _)| name != key);
+}
+
 fn widen_inventory_to_v7(profile: &mut RonValue) {
     let Some(inventory) = field_mut(profile, "inventory") else {
         return;
@@ -208,6 +265,7 @@ fn field_mut<'a>(value: &'a mut RonValue, key: &str) -> Option<&'a mut RonValue>
 mod tests {
     use super::super::super::day_cycle::DayPhase;
     use super::super::crop_save::{SavedCropKind, SavedPlotStage};
+    use super::super::header::SaveLocation;
     use super::*;
     use crate::combat::WeaponKind;
     use crate::items::{ItemQuality, MaterialId, INVENTORY_SLOT_COUNT};
@@ -218,14 +276,15 @@ mod tests {
     const V5_PROFILE: &str = include_str!("fixtures/profile_v5.ron");
     const V6_PROFILE: &str = include_str!("fixtures/profile_v6_24_slots.ron");
     const V7_PROFILE: &str = include_str!("fixtures/profile_v7.ron");
+    const V8_PROFILE: &str = include_str!("fixtures/profile_v8.ron");
 
     #[test]
     fn version_2_save_migrates_to_the_current_profile() {
         let profile = profile_from_ron(V2_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "");
-        assert_eq!(profile.calendar_day, 1);
-        assert_eq!(profile.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
@@ -246,9 +305,9 @@ mod tests {
     fn version_3_save_keeps_its_name() {
         let profile = profile_from_ron(V3_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Ada");
-        assert_eq!(profile.calendar_day, 1);
-        assert_eq!(profile.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.name, "Ada");
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::IronScrap), 4);
@@ -259,9 +318,9 @@ mod tests {
     fn version_4_save_keeps_the_calendar() {
         let profile = profile_from_ron(V4_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Bram");
-        assert_eq!(profile.calendar_day, 12);
-        assert_eq!(profile.day_phase, DayPhase::Afternoon);
+        assert_eq!(profile.header.name, "Bram");
+        assert_eq!(profile.header.calendar.calendar_day, 12);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Afternoon);
         assert_eq!(profile.tool_energy, TOOL_ENERGY_MAX);
         assert!(profile.crop_plots.is_empty());
         assert_eq!(profile.inventory.count(MaterialId::Turnip), 6);
@@ -272,9 +331,9 @@ mod tests {
     fn version_5_save_keeps_tool_energy() {
         let profile = profile_from_ron(V5_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Cora");
-        assert_eq!(profile.calendar_day, 3);
-        assert_eq!(profile.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.name, "Cora");
+        assert_eq!(profile.header.calendar.calendar_day, 3);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.tool_energy, 40.0);
         assert!(profile.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
@@ -288,8 +347,8 @@ mod tests {
         let profile = profile_from_ron(V6_PROFILE).unwrap();
 
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Old Save");
-        assert_eq!(profile.calendar_day, 4);
+        assert_eq!(profile.header.name, "Old Save");
+        assert_eq!(profile.header.calendar.calendar_day, 4);
         assert_eq!(profile.inventory.slots.len(), INVENTORY_SLOT_COUNT);
         assert_eq!(profile.inventory.count(MaterialId::Hoe), 1);
         assert_eq!(profile.inventory.count(MaterialId::TurnipSeed), 8);
@@ -331,9 +390,9 @@ mod tests {
     fn version_7_save_keeps_mining_and_cooking_schema() {
         let profile = profile_from_ron(V7_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
-        assert_eq!(profile.name, "Hearth");
-        assert_eq!(profile.calendar_day, 18);
-        assert_eq!(profile.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.tool_energy, 55.0);
         assert!(profile.progress.boss_defeated_floor_1);
         assert_eq!(profile.depleted_ore_node_ids, vec![3, 9]);
@@ -368,9 +427,9 @@ mod tests {
     #[test]
     fn current_profile_round_trips_through_the_save_text() {
         let mut profile = PlayerProfile::default();
-        profile.name = "Hélène \"the\" smith".to_string();
-        profile.calendar_day = 18;
-        profile.day_phase = DayPhase::Evening;
+        profile.header.name = "Hélène \"the\" smith".to_string();
+        profile.header.calendar.calendar_day = 18;
+        profile.header.calendar.day_phase = DayPhase::Evening;
         profile.tool_energy = 55.0;
         profile.progress.boss_defeated_floor_1 = true;
         profile.depleted_ore_node_ids = vec![3, 9];
@@ -479,6 +538,99 @@ mod tests {
     }
 
     #[test]
+    fn version_8_save_builds_a_header_from_flat_fields_and_keeps_the_silver_stack() {
+        let profile = profile_from_ron(V8_PROFILE).unwrap();
+        assert_eq!(profile.version, PROFILE_VERSION);
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+        assert_eq!(profile.tool_energy, 55.0);
+        assert_eq!(
+            profile
+                .inventory
+                .count_quality(MaterialId::CopperOre, ItemQuality::Silver),
+            12
+        );
+    }
+
+    #[test]
+    fn version_8_save_keeps_an_existing_header() {
+        let text = V8_PROFILE.replace(
+            "version:8,",
+            "version:8,header:(name:\"Kept\",playtime_seconds:9,calendar:(calendar_day:2,day_phase:Morning),location:Mine,gold:4),",
+        );
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "Kept");
+        assert_eq!(profile.header.playtime_seconds, 9);
+        assert_eq!(profile.header.location, SaveLocation::Mine);
+        assert_eq!(profile.header.gold, 4);
+        assert_eq!(profile.header.calendar.calendar_day, 2);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+    }
+
+    #[test]
+    fn version_8_save_without_a_name_or_day_phase_uses_header_fallbacks() {
+        let text = V8_PROFILE
+            .replace("name:\"Hearth\",\n", "")
+            .replace("day_phase:Evening,\n", "");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+    }
+
+    #[test]
+    fn version_8_save_with_a_list_name_stores_an_empty_header_name() {
+        let text = V8_PROFILE.replace("name:\"Hearth\",\n", "name:[\"Hearth\"],\n");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+    }
+
+    #[test]
+    fn version_8_save_missing_calendar_day_stores_header_day_one() {
+        let text = V8_PROFILE.replace("calendar_day:18,\n", "");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+    }
+
+    #[test]
+    fn version_8_migration_stores_the_header_without_flat_fields() {
+        let mut value = parse_ron_value(V8_PROFILE).unwrap();
+        migrate_profile_to_v9(&mut value);
+        let RonValue::Map(fields) = &value else {
+            panic!("version 8 profile is a map");
+        };
+        let names: Vec<&str> = fields.iter().map(|(name, _)| name.as_str()).collect();
+        assert!(names.contains(&"header"));
+        assert!(!names.contains(&"name"));
+        assert!(!names.contains(&"calendar_day"));
+        assert!(!names.contains(&"day_phase"));
+    }
+
+    #[test]
+    fn version_9_migration_leaves_a_list_unchanged() {
+        let mut value = RonValue::List(vec![RonValue::Integer(1)]);
+        migrate_profile_to_v9(&mut value);
+        assert!(matches!(value, RonValue::List(items) if items.len() == 1));
+    }
+
+    #[test]
     fn save_older_than_the_first_schema_does_not_load() {
         let text = V2_PROFILE.replace("version:2", "version:1");
         let error = profile_from_ron(&text).unwrap_err();
@@ -487,12 +639,10 @@ mod tests {
 
     fn assert_profiles_match(loaded: &PlayerProfile, expected: &PlayerProfile) {
         assert_eq!(loaded.version, expected.version);
-        assert_eq!(loaded.name, expected.name);
+        assert_eq!(loaded.header, expected.header);
         assert_eq!(loaded.inventory, expected.inventory);
         assert_eq!(loaded.loadout, expected.loadout);
         assert_eq!(loaded.progress, expected.progress);
-        assert_eq!(loaded.calendar_day, expected.calendar_day);
-        assert_eq!(loaded.day_phase, expected.day_phase);
         assert_eq!(loaded.tool_energy, expected.tool_energy);
         assert_eq!(loaded.crop_plots, expected.crop_plots);
         assert_eq!(loaded.depleted_ore_node_ids, expected.depleted_ore_node_ids);

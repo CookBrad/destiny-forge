@@ -1,6 +1,7 @@
 mod autosave;
 mod autosave_block;
 mod crop_save;
+mod header;
 mod migration;
 mod plugin;
 mod profile;

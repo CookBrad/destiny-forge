@@ -421,7 +421,9 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Term | Code form | Meaning |
 | --- | --- | --- |
 | Save file | `SaveFile` | The header plus the player profile. |
-| Save header | `SaveHeader` | Version, build, save time, playtime and location. |
+| Save header | `SaveHeader` | Name, playtime, calendar, location and gold stored with a profile. |
+| Save calendar | `SaveCalendar` | The calendar day and day phase stored on a save header. |
+| Save location | `SaveLocation` | Homestead, Forest, Mine or Dungeon stored on a save header. |
 | Player profile | `PlayerProfile` | All saved player state in namespaced sub-structs. |
 | Profile | `profile` | One save slot picked on the title screen. |
 | Migration | `Migrations` | Ordered transforms from one save version to the next. |
