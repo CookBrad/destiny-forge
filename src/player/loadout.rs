@@ -1,48 +1,49 @@
 use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::de::Deserializer;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::combat::{EquippedWeapon, WeaponKind};
 use crate::items::{FoodBuff, Inventory, MaterialId};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ArmorSet {
-    #[serde(rename = "SlimeHelm")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ArmorPiece {
     Helm,
-    #[serde(rename = "SlimeMail")]
     Mail,
-    #[serde(rename = "SlimeGauntlets")]
     Gauntlets,
-    #[serde(rename = "SlimeGreaves")]
     Greaves,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ArmorSlot {
-    Head,
-    Chest,
-    Arms,
-    Legs,
+pub enum ArmorSet {
+    Slime,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ArmorSlot {
+    Helm,
+    Mail,
+    Gauntlets,
+    Greaves,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ArmorSlots {
-    pub head: Option<ArmorSet>,
-    pub chest: Option<ArmorSet>,
-    pub arms: Option<ArmorSet>,
-    pub legs: Option<ArmorSet>,
+    pub helm: Option<ArmorPiece>,
+    pub mail: Option<ArmorPiece>,
+    pub gauntlets: Option<ArmorPiece>,
+    pub greaves: Option<ArmorPiece>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GearStash {
     pub weapons: Vec<WeaponKind>,
-    pub armor: Vec<ArmorSet>,
+    pub armor: Vec<ArmorPiece>,
 }
 
 #[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Loadout {
     pub weapon: WeaponKind,
     pub armor: ArmorSlots,
-    /// Additive so old profiles deserialize without this field.
     #[serde(default)]
     pub stash: GearStash,
     #[serde(default)]
@@ -60,13 +61,17 @@ impl Default for Loadout {
     }
 }
 
-impl ArmorSet {
+impl ArmorPiece {
+    pub fn set(self) -> ArmorSet {
+        ArmorSet::Slime
+    }
+
     pub fn slot(self) -> ArmorSlot {
         match self {
-            Self::Helm => ArmorSlot::Head,
-            Self::Mail => ArmorSlot::Chest,
-            Self::Gauntlets => ArmorSlot::Arms,
-            Self::Greaves => ArmorSlot::Legs,
+            Self::Helm => ArmorSlot::Helm,
+            Self::Mail => ArmorSlot::Mail,
+            Self::Gauntlets => ArmorSlot::Gauntlets,
+            Self::Greaves => ArmorSlot::Greaves,
         }
     }
 
@@ -89,24 +94,98 @@ impl ArmorSet {
     }
 }
 
+impl Serialize for ArmorPiece {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        StoredArmorPiece::from(*self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ArmorPiece {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        StoredArmorPiece::deserialize(deserializer).map(Self::from)
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+enum StoredArmorPiece {
+    SlimeHelm,
+    SlimeMail,
+    SlimeGauntlets,
+    SlimeGreaves,
+}
+
+impl From<ArmorPiece> for StoredArmorPiece {
+    fn from(piece: ArmorPiece) -> Self {
+        match piece {
+            ArmorPiece::Helm => Self::SlimeHelm,
+            ArmorPiece::Mail => Self::SlimeMail,
+            ArmorPiece::Gauntlets => Self::SlimeGauntlets,
+            ArmorPiece::Greaves => Self::SlimeGreaves,
+        }
+    }
+}
+
+impl From<StoredArmorPiece> for ArmorPiece {
+    fn from(stored: StoredArmorPiece) -> Self {
+        match stored {
+            StoredArmorPiece::SlimeHelm => Self::Helm,
+            StoredArmorPiece::SlimeMail => Self::Mail,
+            StoredArmorPiece::SlimeGauntlets => Self::Gauntlets,
+            StoredArmorPiece::SlimeGreaves => Self::Greaves,
+        }
+    }
+}
+
 impl ArmorSlots {
-    pub fn set(&mut self, kind: ArmorSet) {
-        match kind.slot() {
-            ArmorSlot::Head => self.head = Some(kind),
-            ArmorSlot::Chest => self.chest = Some(kind),
-            ArmorSlot::Arms => self.arms = Some(kind),
-            ArmorSlot::Legs => self.legs = Some(kind),
+    pub fn set(&mut self, piece: ArmorPiece) {
+        match piece.slot() {
+            ArmorSlot::Helm => self.helm = Some(piece),
+            ArmorSlot::Mail => self.mail = Some(piece),
+            ArmorSlot::Gauntlets => self.gauntlets = Some(piece),
+            ArmorSlot::Greaves => self.greaves = Some(piece),
         }
     }
 
-    fn piece_mut(&mut self, slot: ArmorSlot) -> &mut Option<ArmorSet> {
+    fn piece_mut(&mut self, slot: ArmorSlot) -> &mut Option<ArmorPiece> {
         match slot {
-            ArmorSlot::Head => &mut self.head,
-            ArmorSlot::Chest => &mut self.chest,
-            ArmorSlot::Arms => &mut self.arms,
-            ArmorSlot::Legs => &mut self.legs,
+            ArmorSlot::Helm => &mut self.helm,
+            ArmorSlot::Mail => &mut self.mail,
+            ArmorSlot::Gauntlets => &mut self.gauntlets,
+            ArmorSlot::Greaves => &mut self.greaves,
         }
     }
+}
+
+impl Serialize for ArmorSlots {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        StoredArmorSlots {
+            head: self.helm,
+            chest: self.mail,
+            arms: self.gauntlets,
+            legs: self.greaves,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ArmorSlots {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let stored = StoredArmorSlots::deserialize(deserializer)?;
+        Ok(Self {
+            helm: stored.head,
+            mail: stored.chest,
+            gauntlets: stored.arms,
+            greaves: stored.legs,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct StoredArmorSlots {
+    head: Option<ArmorPiece>,
+    chest: Option<ArmorPiece>,
+    arms: Option<ArmorPiece>,
+    legs: Option<ArmorPiece>,
 }
 
 impl Loadout {
@@ -145,22 +224,22 @@ impl Loadout {
         true
     }
 
-    pub fn equip_forged_armor(&mut self, kind: ArmorSet) {
-        let slot = kind.slot();
+    pub fn equip_forged_armor(&mut self, piece: ArmorPiece) {
+        let slot = piece.slot();
         if let Some(previous) = *self.armor.piece_mut(slot) {
-            if previous != kind {
+            if previous != piece {
                 self.store_armor(previous);
             }
         }
-        self.take_armor_from_stash(kind);
-        self.armor.set(kind);
+        self.take_armor_from_stash(piece);
+        self.armor.set(piece);
     }
 
-    pub fn swap_to_stashed_armor(&mut self, kind: ArmorSet) -> bool {
-        if !self.stash.armor.contains(&kind) {
+    pub fn swap_to_stashed_armor(&mut self, piece: ArmorPiece) -> bool {
+        if !self.stash.armor.contains(&piece) {
             return false;
         }
-        self.equip_forged_armor(kind);
+        self.equip_forged_armor(piece);
         true
     }
 
@@ -174,14 +253,14 @@ impl Loadout {
         self.stash.weapons.retain(|stored| *stored != weapon);
     }
 
-    fn store_armor(&mut self, kind: ArmorSet) {
-        if !self.stash.armor.contains(&kind) {
-            self.stash.armor.push(kind);
+    fn store_armor(&mut self, piece: ArmorPiece) {
+        if !self.stash.armor.contains(&piece) {
+            self.stash.armor.push(piece);
         }
     }
 
-    fn take_armor_from_stash(&mut self, kind: ArmorSet) {
-        self.stash.armor.retain(|stored| *stored != kind);
+    fn take_armor_from_stash(&mut self, piece: ArmorPiece) {
+        self.stash.armor.retain(|stored| *stored != piece);
     }
 
     pub fn eat_food_replacing_active_buff(
@@ -210,26 +289,31 @@ impl Loadout {
 
     pub fn total_defense(&self) -> f32 {
         let mut total = self.active_food_buff().defense_bonus;
-        if let Some(kind) = self.armor.head {
-            total += kind.defense();
+        if let Some(piece) = self.armor.helm {
+            total += piece.defense();
         }
-        if let Some(kind) = self.armor.chest {
-            total += kind.defense();
+        if let Some(piece) = self.armor.mail {
+            total += piece.defense();
         }
-        if let Some(kind) = self.armor.arms {
-            total += kind.defense();
+        if let Some(piece) = self.armor.gauntlets {
+            total += piece.defense();
         }
-        if let Some(kind) = self.armor.legs {
-            total += kind.defense();
+        if let Some(piece) = self.armor.greaves {
+            total += piece.defense();
         }
         total
     }
 
     pub fn slime_set_pieces(&self) -> u32 {
-        [self.armor.head, self.armor.chest, self.armor.arms, self.armor.legs]
-            .into_iter()
-            .filter(|piece| piece.is_some())
-            .count() as u32
+        [
+            self.armor.helm,
+            self.armor.mail,
+            self.armor.gauntlets,
+            self.armor.greaves,
+        ]
+        .into_iter()
+        .filter(|piece| piece.is_some_and(|piece| piece.set() == ArmorSet::Slime))
+        .count() as u32
     }
 
     pub fn carve_speed_multiplier(&self) -> f32 {
@@ -285,22 +369,21 @@ pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
 
     fn full_slime() -> Loadout {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorSet::Helm);
-        loadout.armor.chest = Some(ArmorSet::Mail);
-        loadout.armor.arms = Some(ArmorSet::Gauntlets);
-        loadout.armor.legs = Some(ArmorSet::Greaves);
+        loadout.armor.helm = Some(ArmorPiece::Helm);
+        loadout.armor.mail = Some(ArmorPiece::Mail);
+        loadout.armor.gauntlets = Some(ArmorPiece::Gauntlets);
+        loadout.armor.greaves = Some(ArmorPiece::Greaves);
         loadout
     }
 
     #[test]
     fn two_piece_gives_carve_and_special_cd() {
         let mut loadout = Loadout::default();
-        loadout.armor.head = Some(ArmorSet::Helm);
-        loadout.armor.chest = Some(ArmorSet::Mail);
+        loadout.armor.helm = Some(ArmorPiece::Helm);
+        loadout.armor.mail = Some(ArmorPiece::Mail);
         assert_eq!(loadout.slime_set_pieces(), 2);
         assert!((loadout.carve_speed_multiplier() - 1.1).abs() < f32::EPSILON);
         assert!((loadout.special_cooldown_multiplier() - 0.9).abs() < f32::EPSILON);
@@ -408,11 +491,30 @@ mod tests {
         };
         app.insert_resource(loadout);
 
-        app.world_mut()
-            .run_system_once(expire_food_buff_after_hunt)
-            .unwrap();
+        app.add_systems(Update, expire_food_buff_after_hunt);
+        app.update();
 
         assert_eq!(app.world().resource::<Loadout>().food_buff, None);
+    }
+
+    #[test]
+    fn helm_is_in_the_slime_set() {
+        assert_eq!(ArmorPiece::Helm.set(), ArmorSet::Slime);
+    }
+
+    #[test]
+    fn mail_is_in_the_slime_set() {
+        assert_eq!(ArmorPiece::Mail.set(), ArmorSet::Slime);
+    }
+
+    #[test]
+    fn gauntlets_are_in_the_slime_set() {
+        assert_eq!(ArmorPiece::Gauntlets.set(), ArmorSet::Slime);
+    }
+
+    #[test]
+    fn greaves_are_in_the_slime_set() {
+        assert_eq!(ArmorPiece::Greaves.set(), ArmorSet::Slime);
     }
 
     #[test]
@@ -423,10 +525,48 @@ mod tests {
     }
 
     #[test]
+    fn saved_slime_armor_names_load_into_the_piece_slots() {
+        let old = "(weapon: RustySword, armor: (head: Some(SlimeHelm), chest: Some(SlimeMail), arms: Some(SlimeGauntlets), legs: Some(SlimeGreaves)), stash: (weapons: [], armor: [SlimeMail]))";
+        let loadout: Loadout = ron::from_str(old).unwrap();
+        assert_eq!(loadout.armor.helm, Some(ArmorPiece::Helm));
+        assert_eq!(loadout.armor.mail, Some(ArmorPiece::Mail));
+        assert_eq!(loadout.armor.gauntlets, Some(ArmorPiece::Gauntlets));
+        assert_eq!(loadout.armor.greaves, Some(ArmorPiece::Greaves));
+        assert_eq!(loadout.stash.armor, vec![ArmorPiece::Mail]);
+        let saved = ron::to_string(&loadout).unwrap();
+        assert_eq!(
+            saved,
+            "(weapon:RustySword,armor:(head:Some(SlimeHelm),chest:Some(SlimeMail),arms:Some(SlimeGauntlets),legs:Some(SlimeGreaves)),stash:(weapons:[],armor:[SlimeMail]),food_buff:None)"
+        );
+    }
+
+    #[test]
+    fn an_unknown_stored_armor_piece_name_is_rejected() {
+        let error = ron::from_str::<ArmorPiece>("Helm").unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "1:5: Unexpected variant named `Helm`in enum `StoredArmorPiece`, expected one of `SlimeHelm`, `SlimeMail`, `SlimeGauntlets`, `SlimeGreaves` instead"
+        );
+    }
+
+    #[test]
+    fn an_unknown_stored_name_in_armor_slots_is_rejected() {
+        let error = ron::from_str::<ArmorSlots>("(head:Some(Helm),chest:None,arms:None,legs:None)")
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "1:16: Unexpected variant named `Helm`in enum `StoredArmorPiece`, expected one of `SlimeHelm`, `SlimeMail`, `SlimeGauntlets`, `SlimeGreaves` instead"
+        );
+    }
+
+    #[test]
     fn forged_armor_stashes_previous_piece_in_slot() {
         let mut loadout = Loadout::default();
-        loadout.equip_forged_armor(ArmorSet::Helm);
-        assert_eq!(loadout.armor.head, Some(ArmorSet::Helm));
+        loadout.equip_forged_armor(ArmorPiece::Helm);
+        assert_eq!(loadout.armor.helm, Some(ArmorPiece::Helm));
         assert!(loadout.stash.armor.is_empty());
+        assert_eq!(loadout.armor.mail, None);
+        assert_eq!(loadout.armor.gauntlets, None);
+        assert_eq!(loadout.armor.greaves, None);
     }
 }
