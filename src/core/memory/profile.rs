@@ -10,7 +10,7 @@ use super::crop_save::SavedCropPlot;
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 9;
+pub const PROFILE_VERSION: u32 = 8;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 fn default_tool_energy() -> f32 {
