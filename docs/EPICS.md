@@ -83,6 +83,7 @@ Deeper combat than Stardew: combos, CDs, parry, boss phases, set skills, juice.
 | 56 | Migrate recipes/loot to RON data | ✅ [PR #67](https://github.com/CookBrad/destiny-forge/pull/67) |
 | 57 | Forge tool recipes (hoe, pickaxe, rod…) | ⬜ |
 | 58 | Gear storage / multi-weapon stash | ⬜ |
+| 107 | PRG-01 wallet of gold and sparks | 🔧 [#107](https://github.com/CookBrad/destiny-forge/issues/107) |
 
 *(Also: #26 metal ore recipes, #33 spear branches, #31 second set — under Mining/Content but forge-facing.)*
 
@@ -100,6 +101,7 @@ Zones, transitions, persistence, menus.
 | 62 | House interior / bed for sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 63 | Landmarks: mine entrance + fishing dock | ⬜ |
 | 64 | Pause menu + key rebinding polish | ⬜ |
+| 101 | SAV-05 namespaced save header | 🔧 [#101](https://github.com/CookBrad/destiny-forge/issues/101) |
 
 ---
 
