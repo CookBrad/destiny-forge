@@ -169,6 +169,12 @@ pub fn save_root_display() -> String {
 }
 
 #[cfg(test)]
+pub(crate) fn lock_profile_files() -> std::sync::MutexGuard<'static, ()> {
+    static FILES: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    FILES.lock().unwrap()
+}
+
+#[cfg(test)]
 mod tests {
     use super::super::profile::PROFILE_VERSION;
     use super::*;
