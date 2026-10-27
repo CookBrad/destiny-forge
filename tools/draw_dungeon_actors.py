@@ -35,19 +35,18 @@ def main() -> None:
     for name, path in output_paths().items():
         save_png(to_image(sheets[name]), path)
 
-def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
-    if rx < 1 or ry < 1:
-        return []
-    rx2 = rx * rx
-    ry2 = ry * ry
-    points = []
-    for y in range(cy - ry, cy + ry + 1):
-        delta_y = y - cy
-        for x in range(cx - rx, cx + rx + 1):
-            delta_x = x - cx
-            if delta_x * delta_x * ry2 + delta_y * delta_y * rx2 <= rx2 * ry2:
-                points.append((x, y))
-    return points
+def draw_all(palette: Palette) -> dict[str, Canvas]:
+    return {
+        "slime": draw_slime(palette),
+        "bat": draw_bat(palette),
+        "goblin": draw_goblin(palette),
+        "skeleton": draw_skeleton(palette),
+        "zombie": draw_zombie(palette),
+        "king_slime": draw_king(palette),
+        "arrow": draw_arrow(palette),
+        "slime_bolt": draw_bolt(palette),
+        "slime_blob": draw_blob(palette),
+    }
 
 def draw_slime(palette: Palette) -> Canvas:
     canvas = clipping_canvas(64, 64)
@@ -74,24 +73,32 @@ def draw_slime(palette: Palette) -> Canvas:
     canvas.put(26, 22, palette.gel_hi)
     return canvas
 
-def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
-    if len(points) < 3:
+def blit_ellipse(
+    canvas: Canvas,
+    cx: int,
+    cy: int,
+    rx: int,
+    ry: int,
+    ramp: tuple[tuple[int, int, int, int], ...],
+    split: int,
+) -> list[tuple[int, int]]:
+    points = ellipse_pixels(cx, cy, rx, ry)
+    canvas.blit(volume(points, cx, cy, ramp, split))
+    return points
+
+def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
+    if rx < 1 or ry < 1:
         return []
-    y_min = min(point[1] for point in points)
-    y_max = max(point[1] for point in points)
-    drawn = []
-    count = len(points)
-    for y in range(y_min, y_max + 1):
-        crossings = _scanline_crossings(points, count, y)
-        crossings.sort()
-        pair = 0
-        while pair + 1 < len(crossings):
-            left = crossings[pair]
-            right = crossings[pair + 1]
-            for x in range(left, right + 1):
-                drawn.append((x, y))
-            pair += 2
-    return drawn
+    rx2 = rx * rx
+    ry2 = ry * ry
+    points = []
+    for y in range(cy - ry, cy + ry + 1):
+        delta_y = y - cy
+        for x in range(cx - rx, cx + rx + 1):
+            delta_x = x - cx
+            if delta_x * delta_x * ry2 + delta_y * delta_y * rx2 <= rx2 * ry2:
+                points.append((x, y))
+    return points
 
 def volume(
     points: list[tuple[int, int]],
@@ -136,19 +143,6 @@ def volume(
             base -= 1
         painted[(x, y)] = ramp[last - base]
     return painted
-
-def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> list[int]:
-    crossings = []
-    for index in range(count):
-        start_x, start_y = points[index]
-        end_x, end_y = points[(index + 1) % count]
-        if start_y == end_y:
-            continue
-        low, high = (start_y, end_y) if start_y < end_y else (end_y, start_y)
-        if y < low or y >= high:
-            continue
-        crossings.append(start_x + (end_x - start_x) * (y - start_y) // (end_y - start_y))
-    return crossings
 
 def paint_eye(
     canvas: Canvas,
@@ -225,16 +219,6 @@ def draw_bat(palette: Palette) -> Canvas:
     canvas.put(52, 22, palette.white)
     return canvas
 
-def spark(
-    canvas: Canvas,
-    points: list[tuple[int, int]],
-    color: tuple[int, int, int, int],
-    mod: int,
-) -> None:
-    for x, y in points:
-        if (x * 7 + y * 13) % mod == 0:
-            canvas.put(x, y, color)
-
 def blit_poly(
     canvas: Canvas,
     corners: list[tuple[int, int]],
@@ -245,6 +229,38 @@ def blit_poly(
     points = polygon_pixels(corners)
     canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
     return points
+
+def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    if len(points) < 3:
+        return []
+    y_min = min(point[1] for point in points)
+    y_max = max(point[1] for point in points)
+    drawn = []
+    count = len(points)
+    for y in range(y_min, y_max + 1):
+        crossings = _scanline_crossings(points, count, y)
+        crossings.sort()
+        pair = 0
+        while pair + 1 < len(crossings):
+            left = crossings[pair]
+            right = crossings[pair + 1]
+            for x in range(left, right + 1):
+                drawn.append((x, y))
+            pair += 2
+    return drawn
+
+def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> list[int]:
+    crossings = []
+    for index in range(count):
+        start_x, start_y = points[index]
+        end_x, end_y = points[(index + 1) % count]
+        if start_y == end_y:
+            continue
+        low, high = (start_y, end_y) if start_y < end_y else (end_y, start_y)
+        if y < low or y >= high:
+            continue
+        crossings.append(start_x + (end_x - start_x) * (y - start_y) // (end_y - start_y))
+    return crossings
 
 def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> None:
     canvas.fill(ellipse_pixels(x, y, radius, radius), palette.purple_dark)
@@ -273,6 +289,30 @@ def capsule_pixels(start_x: int, start_y: int, end_x: int, end_y: int, radius: i
         for x in range(min_x, max_x + 1):
             if _near_segment(x, y, start_x, start_y, end_x, end_y, vector_x, vector_y, length2, radius2):
                 points.append((x, y))
+    return points
+
+def spark(
+    canvas: Canvas,
+    points: list[tuple[int, int]],
+    color: tuple[int, int, int, int],
+    mod: int,
+) -> None:
+    for x, y in points:
+        if (x * 7 + y * 13) % mod == 0:
+            canvas.put(x, y, color)
+
+def blit_capsule(
+    canvas: Canvas,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    radius: int,
+    ramp: tuple[tuple[int, int, int, int], ...],
+    split: int,
+) -> list[tuple[int, int]]:
+    points = capsule_pixels(start_x, start_y, end_x, end_y, radius)
+    canvas.blit(volume(points, (start_x + end_x) // 2, (start_y + end_y) // 2, ramp, split))
     return points
 
 def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
@@ -315,33 +355,6 @@ def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
     canvas.fill(ellipse_pixels(cx + 1, sole - 3, half - 2, 2), palette.leather_dark)
     canvas.fill([(x, sole) for x in range(cx - half, cx + half + 1)], palette.ink_warm)
     canvas.put(cx - half + 2, sole - 1, palette.leather_hi)
-
-def blit_capsule(
-    canvas: Canvas,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int,
-    radius: int,
-    ramp: tuple[tuple[int, int, int, int], ...],
-    split: int,
-) -> list[tuple[int, int]]:
-    points = capsule_pixels(start_x, start_y, end_x, end_y, radius)
-    canvas.blit(volume(points, (start_x + end_x) // 2, (start_y + end_y) // 2, ramp, split))
-    return points
-
-def blit_ellipse(
-    canvas: Canvas,
-    cx: int,
-    cy: int,
-    rx: int,
-    ry: int,
-    ramp: tuple[tuple[int, int, int, int], ...],
-    split: int,
-) -> list[tuple[int, int]]:
-    points = ellipse_pixels(cx, cy, rx, ry)
-    canvas.blit(volume(points, cx, cy, ramp, split))
-    return points
 
 def draw_goblin(palette: Palette) -> Canvas:
     canvas = clipping_canvas(80, 112)
@@ -615,6 +628,10 @@ def crown_spike(
     canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
     canvas.put(cx, tip_y + 1, palette.brass_hi)
 
+def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
+    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
+    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
+
 def draw_arrow(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
     head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
@@ -649,23 +666,6 @@ def draw_arrow(palette: Palette) -> Canvas:
     canvas.put(8, 45, palette.ink_warm)
     add_outline(canvas, palette.ink)
     return canvas
-
-def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
-    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
-    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
-
-def draw_all(palette: Palette) -> dict[str, Canvas]:
-    return {
-        "slime": draw_slime(palette),
-        "bat": draw_bat(palette),
-        "goblin": draw_goblin(palette),
-        "skeleton": draw_skeleton(palette),
-        "zombie": draw_zombie(palette),
-        "king_slime": draw_king(palette),
-        "arrow": draw_arrow(palette),
-        "slime_bolt": draw_bolt(palette),
-        "slime_blob": draw_blob(palette),
-    }
 
 def draw_bolt(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
