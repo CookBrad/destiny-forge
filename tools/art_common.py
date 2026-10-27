@@ -137,3 +137,88 @@ def translate_pixels(pixels: dict[Point, Color], offset_x: int, offset_y: int) -
         return dict(pixels)
     return {(x + offset_x, y + offset_y): color for (x, y), color in pixels.items()}
 
+
+def clipping_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
+    return Canvas(width, height, fill)
+
+
+def rejecting_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
+    return RejectingCanvas(width, height, fill)
+
+
+class Canvas:
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        fill: Color = CLEAR,
+    ) -> None:
+        self.width = width
+        self.height = height
+        self.pixels = [fill] * (width * height)
+
+    def image(self) -> Image.Image:
+        image = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+        image.putdata(self.pixels)
+        return image
+
+    def fill(self, points: list[Point], color: Color) -> None:
+        for x, y in points:
+            self.put(x, y, color)
+
+    def fill_rect(self, start_x: int, start_y: int, end_x: int, end_y: int, color: Color) -> None:
+        for y in range(start_y, end_y):
+            for x in range(start_x, end_x):
+                self.put(x, y, color)
+
+    def blit(self, shaded_pixels: dict[Point, Color]) -> None:
+        for (x, y), color in shaded_pixels.items():
+            self.put(x, y, color)
+
+    def put(self, x: int, y: int, color: Color) -> None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return
+        self.store_opaque(x, y, color)
+
+    def store_opaque(self, x: int, y: int, color: Color) -> None:
+        if color[3] not in (0, 255):
+            raise SystemExit("partial alpha")
+        self.pixels[y * self.width + x] = color
+
+    def read(self, x: int, y: int) -> Color | None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return None
+        color = self.pixels[y * self.width + x]
+        if color[3] == 0:
+            return None
+        return color
+
+    def opaque_at(self, x: int, y: int) -> bool:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        return self.pixels[y * self.width + x][3] == 255
+
+    def __getitem__(self, y: int) -> _Row:
+        return _Row(self, y)
+
+
+class RejectingCanvas(Canvas):
+    def put(self, x: int, y: int, color: Color) -> None:
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            raise ValueError(f"pixel outside the icon: {(x, y)}")
+        self.store_opaque(x, y, color)
+
+
+class _Row:
+    def __init__(self, canvas: Canvas, y: int) -> None:
+        self._canvas = canvas
+        self._y = y
+
+    def __getitem__(self, x: int) -> Color | None:
+        return self._canvas.read(x, self._y)
+
+    def __setitem__(self, x: int, color: Color | None) -> None:
+        if color is None:
+            self._canvas.put(x, self._y, CLEAR)
+            return
+        self._canvas.put(x, self._y, color)
