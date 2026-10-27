@@ -222,6 +222,87 @@ class _Row:
             self._canvas.put(x, self._y, CLEAR)
             return
         self._canvas.put(x, self._y, color)
+def hunter_palette(allowed: set[Color]) -> Palette:
+    colors: dict[str, Color | tuple[Color, ...]] = {}
+    colors.update(signed_hunter_colors(allowed))
+    colors.update(signed_hunter_ramps(colors))
+    return palette_from_colors(colors)
+
+
+def signed_hunter_colors(allowed: set[Color]) -> dict[str, Color]:
+    def take(red: int, green: int, blue: int) -> Color:
+        return require_opaque_color((red, green, blue, 255), allowed)
+
+    return {
+        "ink": take(0, 0, 0),
+        "ink_warm": take(32, 23, 21),
+        "leather_shadow": take(36, 21, 13),
+        "leather_deep": take(43, 23, 15),
+        "leather_soot": take(54, 30, 20),
+        "leather_dark": take(55, 31, 21),
+        "leather_md": take(63, 35, 23),
+        "leather_above_mid": take(67, 38, 25),
+        "leather": take(74, 41, 26),
+        "leather_fold": take(76, 43, 28),
+        "leather_light": take(97, 55, 35),
+        "leather_above_light": take(98, 56, 35),
+        "leather_hi": take(107, 64, 33),
+        "skin_dark": take(149, 92, 47),
+        "skin_md": take(187, 119, 69),
+        "skin": take(222, 152, 98),
+        "skin_warm": take(217, 150, 99),
+        "skin_light": take(252, 187, 127),
+        "brass_shadow": take(161, 103, 26),
+        "brass_md": take(167, 108, 29),
+        "brass_dark": take(203, 141, 45),
+        "brass": take(226, 166, 64),
+        "brass_light": take(244, 172, 13),
+        "brass_hi": take(251, 214, 119),
+        "gel_shadow": take(3, 40, 43),
+        "gel_deep": take(0, 64, 69),
+        "gel_well": take(0, 76, 81),
+        "gel_pool": take(0, 97, 106),
+        "gel_tide": take(2, 118, 129),
+        "gel_sea": take(4, 126, 133),
+        "gel_foam": take(40, 137, 138),
+        "gel_mid": take(42, 140, 147),
+        "gel_kelp": take(39, 150, 147),
+        "gel_lagoon": take(42, 161, 166),
+        "gel_dark": take(45, 170, 152),
+        "gel": take(3, 190, 174),
+        "gel_core": take(0, 210, 211),
+        "gel_light": take(0, 213, 215),
+        "gel_bright": take(0, 229, 227),
+        "gel_hi": take(0, 251, 250),
+        "gel_hot": take(166, 253, 254),
+        "sage_shadow": take(7, 35, 33),
+        "sage_mid": take(28, 103, 99),
+        "sage_dark": take(67, 94, 77),
+        "sage": take(80, 127, 100),
+        "sage_light": take(84, 122, 95),
+        "purple_dark": take(108, 21, 120),
+        "purple": take(184, 118, 200),
+        "purple_light": take(244, 136, 254),
+        "steel_deep": take(13, 13, 13),
+        "steel_void": take(16, 16, 16),
+        "steel_shadow": take(22, 22, 26),
+        "steel_dark": take(38, 38, 43),
+        "steel": take(48, 48, 53),
+        "steel_cloth": take(37, 36, 37),
+        "steel_mid": take(135, 133, 137),
+        "steel_light": take(168, 168, 169),
+        "bone_shadow": take(126, 126, 116),
+        "bone_dust": take(148, 154, 143),
+        "bone_dark": take(150, 149, 144),
+        "bone_md": take(174, 172, 175),
+        "bone_mid": take(179, 178, 182),
+        "bone": take(245, 244, 243),
+        "bone_light": take(255, 255, 255),
+        "dead_dark": take(52, 36, 31),
+        "dead": take(54, 37, 32),
+        "white": take(255, 255, 255),
+    }
+
 
 def require_opaque_color(color: Color, allowed: set[Color] | None = None) -> Color:
     if color[3] not in (0, 255):
@@ -229,6 +310,123 @@ def require_opaque_color(color: Color, allowed: set[Color] | None = None) -> Col
     if allowed is not None and color not in allowed:
         raise SystemExit(f"color {color} is not in the signed hunter")
     return color
+
+
+def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]]:
+    gel_ramp = (
+        colors["gel_shadow"],
+        colors["gel_deep"],
+        colors["gel_well"],
+        colors["gel_pool"],
+        colors["gel_tide"],
+        colors["gel_sea"],
+        colors["gel_foam"],
+        colors["gel_mid"],
+        colors["gel_kelp"],
+        colors["gel_lagoon"],
+        colors["gel_dark"],
+        colors["gel"],
+        colors["gel_core"],
+        colors["gel_light"],
+        colors["gel_bright"],
+        colors["gel_hi"],
+    )
+    gel_under = gel_ramp[:8]
+    gel_body = gel_ramp[4:13]
+    gel_shine = gel_ramp[10:]
+    sage_ramp = (
+        colors["sage_shadow"],
+        colors["sage_dark"],
+        colors["sage_mid"],
+        colors["sage"],
+        colors["sage_light"],
+    )
+    leather_ramp = (
+        colors["leather_shadow"],
+        colors["leather_deep"],
+        colors["leather_soot"],
+        colors["leather_dark"],
+        colors["leather_md"],
+        colors["leather_above_mid"],
+        colors["leather"],
+        colors["leather_fold"],
+        colors["leather_light"],
+        colors["leather_above_light"],
+        colors["leather_hi"],
+    )
+    brass_ramp = (
+        colors["brass_shadow"],
+        colors["brass_md"],
+        colors["brass_dark"],
+        colors["brass"],
+        colors["brass_light"],
+        colors["brass_hi"],
+    )
+    bone_ramp = (
+        colors["bone_shadow"],
+        colors["bone_dark"],
+        colors["bone_dust"],
+        colors["bone_md"],
+        colors["bone_mid"],
+        colors["bone"],
+        colors["bone_light"],
+    )
+    bone_form = (
+        colors["bone_shadow"],
+        colors["bone_dark"],
+        colors["bone_dust"],
+        colors["bone_md"],
+        colors["bone_mid"],
+    )
+    steel_ramp = (
+        colors["steel_deep"],
+        colors["steel_void"],
+        colors["steel_shadow"],
+        colors["steel_cloth"],
+        colors["steel_dark"],
+        colors["steel"],
+    )
+    wing_ramp = steel_ramp
+    dead_ramp = (
+        colors["dead_dark"],
+        colors["dead"],
+        colors["steel_mid"],
+        colors["bone_dust"],
+        colors["steel_light"],
+        colors["bone_md"],
+    )
+    skin_ramp = (
+        colors["skin_dark"],
+        colors["skin_md"],
+        colors["skin_warm"],
+        colors["skin"],
+        colors["skin_light"],
+    )
+    cloth_ramp = (
+        colors["steel_deep"],
+        colors["steel_void"],
+        colors["steel_shadow"],
+        colors["steel_cloth"],
+        colors["steel_dark"],
+        colors["steel"],
+        colors["steel_mid"],
+    )
+    return {
+        "gel_ramp": gel_ramp,
+        "gel_under": gel_under,
+        "gel_body": gel_body,
+        "gel_shine": gel_shine,
+        "sage_ramp": sage_ramp,
+        "leather_ramp": leather_ramp,
+        "brass_ramp": brass_ramp,
+        "bone_ramp": bone_ramp,
+        "bone_form": bone_form,
+        "steel_ramp": steel_ramp,
+        "wing_ramp": wing_ramp,
+        "dead_ramp": dead_ramp,
+        "skin_ramp": skin_ramp,
+        "cloth_ramp": cloth_ramp,
+    }
 
 
 def palette_from_colors(colors: dict[str, Color | tuple[Color, ...]]) -> Palette:

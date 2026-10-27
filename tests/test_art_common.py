@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 import hashlib
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from art_common import (
     clipping_canvas,
     composite_images,
     composite_layers,
+    hunter_palette,
     light_contour,
     load_pinned_colors,
     outline_layer,
@@ -24,6 +26,8 @@ from art_common import (
     rejecting_canvas,
     require_opaque_color,
     require_sha256,
+    signed_hunter_colors,
+    signed_hunter_ramps,
     translate_pixels,
 )
 
@@ -33,6 +37,15 @@ BLUE = (0, 0, 200, 255)
 GREEN = (0, 180, 0, 255)
 PARTIAL = (1, 2, 3, 128)
 
+def _signed_colors() -> set[tuple[int, int, int, int]]:
+    root = Path(__file__).resolve().parents[1]
+    folder = root / "assets" / "source" / "hunter_signed"
+    digests = {
+        "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
+        "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
+        "knight_attack_side.png": "ca089a0e93524161f020d9ef91f736e330d36f3530749b8296e918b088620b04",
+    }
+    return load_pinned_colors(folder, digests)
 
 def test_pack_strip_places_each_frame_in_its_own_cell() -> None:
     image = pack_strip([{(0, 1): RED}, {(2, 0): BLUE}], 4, 3)
@@ -249,6 +262,27 @@ def test_opaque_at_is_true_only_for_a_fully_opaque_pixel() -> None:
     assert canvas.opaque_at(0, 0) is True
     assert canvas.opaque_at(1, 0) is False
     assert canvas.opaque_at(-1, 0) is False
+def test_hunter_palette_builds_the_signed_ramps() -> None:
+    palette = hunter_palette(_signed_colors())
+    assert palette.ink == (0, 0, 0, 255)
+    assert palette.leather_above_mid == (67, 38, 25, 255)
+    assert palette.leather_above_light == (98, 56, 35, 255)
+    assert palette.gel_under == palette.gel_ramp[:8]
+    assert palette.gel_body == palette.gel_ramp[4:13]
+    assert palette.gel_shine == palette.gel_ramp[10:]
+    assert palette.wing_ramp == palette.steel_ramp
+    assert palette.white == (255, 255, 255, 255)
+    assert len(palette.leather_ramp) == 11
+def test_hunter_palette_ignores_an_extra_signed_color() -> None:
+    allowed = _signed_colors()
+    allowed.add((1, 2, 3, 255))
+    palette = hunter_palette(allowed)
+    assert palette.gel_hot == (166, 253, 254, 255)
+def test_hunter_palette_rejects_a_missing_signed_color() -> None:
+    allowed = _signed_colors()
+    allowed.remove((166, 253, 254, 255))
+    with pytest.raises(SystemExit, match=r"color \(166, 253, 254, 255\) is not in the signed hunter"):
+        hunter_palette(allowed)
 def test_require_opaque_color_returns_an_opaque_color() -> None:
     assert require_opaque_color(RED) == RED
 def test_require_opaque_color_accepts_a_fully_transparent_color_with_no_allow_list() -> None:
@@ -259,6 +293,14 @@ def test_require_opaque_color_rejects_partial_alpha() -> None:
 def test_require_opaque_color_rejects_a_color_missing_from_the_allow_list() -> None:
     with pytest.raises(SystemExit, match=r"color \(200, 0, 0, 255\) is not in the signed hunter"):
         require_opaque_color(RED, {BLUE})
+def test_palette_is_frozen_after_construction() -> None:
+    palette = hunter_palette(_signed_colors())
+    with pytest.raises(FrozenInstanceError):
+        palette.ink = RED
+def test_two_palettes_with_the_same_fields_are_equal() -> None:
+    first = hunter_palette(_signed_colors())
+    second = hunter_palette(_signed_colors())
+    assert first == second
 def test_palette_does_not_carry_an_unused_leather_rim() -> None:
     assert "leather_rim" not in Palette.__dataclass_fields__
 def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
@@ -310,6 +352,41 @@ def test_require_sha256_rejects_a_different_digest(tmp_path: Path) -> None:
     path.write_text("signed", encoding="utf-8")
     with pytest.raises(SystemExit, match="note.txt hash"):
         require_sha256(path, "f" * 64)
+def test_signed_hunter_colors_uses_the_signed_dark_purple() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    assert colors["purple_dark"] == (108, 21, 120, 255)
+def test_signed_hunter_colors_ignores_an_extra_allowed_color() -> None:
+    allowed = _signed_colors()
+    allowed.add((9, 9, 9, 255))
+    assert signed_hunter_colors(allowed)["purple_light"] == (244, 136, 254, 255)
+def test_signed_hunter_colors_rejects_a_missing_dark_purple() -> None:
+    allowed = _signed_colors()
+    allowed.remove((108, 21, 120, 255))
+    with pytest.raises(SystemExit, match="not in the signed hunter"):
+        signed_hunter_colors(allowed)
+def test_signed_hunter_ramps_copies_the_steel_ramp_onto_the_wing() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    ramps = signed_hunter_ramps(colors)
+    assert ramps["gel_ramp"][0] == colors["gel_shadow"]
+    assert ramps["wing_ramp"] == ramps["steel_ramp"]
+def test_signed_hunter_ramps_keeps_the_gel_slices_inside_the_ramp() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    ramps = signed_hunter_ramps(colors)
+    assert ramps["gel_under"] == ramps["gel_ramp"][:8]
+    assert ramps["gel_shine"] == ramps["gel_ramp"][10:]
+def test_signed_hunter_ramps_rejects_a_missing_color() -> None:
+    with pytest.raises(KeyError):
+        signed_hunter_ramps({})
+def test_palette_from_colors_returns_the_dark_purple_field() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    colors.update(signed_hunter_ramps(colors))
+    assert palette_from_colors(colors).purple_dark == colors["purple_dark"]
 def test_palette_from_colors_rejects_an_empty_mapping() -> None:
     with pytest.raises(TypeError):
         palette_from_colors({})
+def test_palette_from_colors_rejects_an_unknown_field() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    colors.update(signed_hunter_ramps(colors))
+    colors["leather_rim"] = colors["ink"]
+    with pytest.raises(TypeError):
+        palette_from_colors(colors)
