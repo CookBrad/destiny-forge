@@ -26,31 +26,6 @@ BAYER4 = (
     (15, 7, 13, 5),
 )
 
-class Canvas:
-    def __init__(self, width: int, height: int) -> None:
-        self.width = width
-        self.height = height
-        self.pixels = [(0, 0, 0, 0)] * (width * height)
-
-    def put(self, x: int, y: int, color: tuple[int, int, int, int]) -> None:
-        if color[3] not in (0, 255):
-            raise SystemExit("partial alpha")
-        if 0 <= x < self.width and 0 <= y < self.height:
-            self.pixels[y * self.width + x] = color
-
-    def fill(self, points: list[tuple[int, int]], color: tuple[int, int, int, int]) -> None:
-        for x, y in points:
-            self.put(x, y, color)
-
-    def blit(self, shaded_pixels: dict[tuple[int, int], tuple[int, int, int, int]]) -> None:
-        for (x, y), color in shaded_pixels.items():
-            self.put(x, y, color)
-
-    def opaque_at(self, x: int, y: int) -> bool:
-        if not (0 <= x < self.width and 0 <= y < self.height):
-            return False
-        return self.pixels[y * self.width + x][3] == 255
-
 def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
     if rx < 1 or ry < 1:
         return []
@@ -194,24 +169,6 @@ def volume(
             base -= 1
         painted[(x, y)] = ramp[last - base]
     return painted
-
-def add_cast_rim(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
-    width = canvas.width
-    height = canvas.height
-    rim: list[tuple[int, int]] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for delta_x, delta_y in ((1, 0), (0, 1), (1, 1)):
-                nx = x + delta_x
-                ny = y + delta_y
-                if not (0 <= nx < width and 0 <= ny < height) or canvas.pixels[ny * width + nx][3] == 0:
-                    rim.append((x, y))
-                    break
-    for x, y in rim:
-        canvas.put(x, y, color)
 
 def spark(
     canvas: Canvas,
