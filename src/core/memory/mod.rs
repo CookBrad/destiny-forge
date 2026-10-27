@@ -18,4 +18,6 @@ pub use profile::{
 };
 pub use settings::GameSettings;
 pub use storage::save_root_display;
+#[cfg(test)]
+pub(crate) use storage::{lock_profile_files, profile_path};
 pub use sync::{activate_profile, apply_profile_to_runtime};

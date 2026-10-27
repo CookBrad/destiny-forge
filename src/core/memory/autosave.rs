@@ -165,8 +165,7 @@ mod tests {
     const SAVED_DAY: u32 = 18;
 
     fn lock_save_slot() -> std::sync::MutexGuard<'static, ()> {
-        static SLOT: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        SLOT.lock().unwrap()
+        super::super::storage::lock_profile_files()
     }
 
     #[test]
