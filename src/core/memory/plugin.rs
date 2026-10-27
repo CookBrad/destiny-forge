@@ -46,3 +46,31 @@ impl Plugin for MemoryPlugin {
             .add_systems(Last, flush_saves_on_exit);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::audio::AudioSettings;
+    use crate::combat::SkillBindings;
+    use crate::core::day_cycle::{DayClock, ToolEnergy};
+    use crate::core::season::{CalendarRules, Season};
+
+    #[test]
+    fn memory_plugin_starts_an_empty_wallet() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .add_plugins(MemoryPlugin);
+        app.update();
+
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 0);
+        assert_eq!(wallet.sparks.0, 0);
+    }
+}
