@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from __future__ import annotations
 
 import sys
@@ -7,57 +6,56 @@ from pathlib import Path
 
 from PIL import Image, PngImagePlugin
 
+from art_common import Canvas, add_outline, light_contour, rejecting_canvas, require_opaque_color
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "assets" / "ui" / "skills"
 SIZE = 32
 
-OUTLINE = (16, 10, 14, 255)
-RIM_LIT = (196, 176, 140, 255)
+OUTLINE = require_opaque_color((16, 10, 14, 255))
+RIM_LIT = require_opaque_color((196, 176, 140, 255))
 
-STEEL_LIGHT = (232, 240, 248, 255)
-STEEL = (168, 180, 194, 255)
-STEEL_DARK = (74, 86, 98, 255)
+STEEL_LIGHT = require_opaque_color((232, 240, 248, 255))
+STEEL = require_opaque_color((168, 180, 194, 255))
+STEEL_DARK = require_opaque_color((74, 86, 98, 255))
 
-CYAN = (57, 214, 255, 255)
-CYAN_DARK = (18, 104, 128, 255)
+CYAN = require_opaque_color((57, 214, 255, 255))
+CYAN_DARK = require_opaque_color((18, 104, 128, 255))
 
-PURPLE = (214, 75, 255, 255)
-PURPLE_DARK = (122, 34, 176, 255)
+PURPLE = require_opaque_color((214, 75, 255, 255))
+PURPLE_DARK = require_opaque_color((122, 34, 176, 255))
 
-BRASS_LIGHT = (244, 214, 140, 255)
-BRASS = (198, 158, 84, 255)
-BRASS_DARK = (122, 88, 40, 255)
+BRASS_LIGHT = require_opaque_color((244, 214, 140, 255))
+BRASS = require_opaque_color((198, 158, 84, 255))
+BRASS_DARK = require_opaque_color((122, 88, 40, 255))
 
-LEATHER_LIGHT = (196, 138, 82, 255)
-LEATHER = (122, 78, 48, 255)
-LEATHER_DARK = (74, 44, 24, 255)
-SOLE = (36, 28, 26, 255)
+LEATHER_LIGHT = require_opaque_color((196, 138, 82, 255))
+LEATHER = require_opaque_color((122, 78, 48, 255))
+LEATHER_DARK = require_opaque_color((74, 44, 24, 255))
+SOLE = require_opaque_color((36, 28, 26, 255))
 
-IRON_LIGHT = (158, 152, 144, 255)
-IRON = (96, 92, 88, 255)
-IRON_DARK = (52, 48, 46, 255)
+IRON_LIGHT = require_opaque_color((158, 152, 144, 255))
+IRON = require_opaque_color((96, 92, 88, 255))
+IRON_DARK = require_opaque_color((52, 48, 46, 255))
 
 ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
-KING = tuple((delta_x, delta_y) for delta_y in (-1, 0, 1) for delta_x in (-1, 0, 1) if delta_x or delta_y)
 
 IRON_TONES = {IRON_LIGHT, IRON, IRON_DARK}
 BRASS_TONES = {BRASS_LIGHT, BRASS, BRASS_DARK}
 
-def new_canvas() -> list[list[tuple[int, int, int, int] | None]]:
-    return [[None] * SIZE for _ in range(SIZE)]
+def new_canvas() -> Canvas:
+    return rejecting_canvas(SIZE, SIZE)
 
 def put(
-    canvas: list[list[tuple[int, int, int, int] | None]],
+    canvas: Canvas,
     x: int,
     y: int,
     color: tuple[int, int, int, int],
 ) -> None:
-    if not (0 <= x < SIZE and 0 <= y < SIZE):
-        raise ValueError(f"pixel outside the icon: {(x, y)}")
-    canvas[y][x] = color
+    canvas.put(x, y, color)
 
 def fills_span(
-    canvas: list[list[tuple[int, int, int, int] | None]],
+    canvas: Canvas,
     y: int,
     start_x: int,
     end_x: int,
@@ -67,45 +65,21 @@ def fills_span(
         put(canvas, x, y, color)
 
 def neighbor(
-    canvas: list[list[tuple[int, int, int, int] | None]], x: int, y: int, delta_x: int, delta_y: int
+    canvas: Canvas, x: int, y: int, delta_x: int, delta_y: int
 ) -> tuple[int, int, int, int] | None:
     nx, ny = x + delta_x, y + delta_y
     if 0 <= nx < SIZE and 0 <= ny < SIZE:
         return canvas[ny][nx]
     return None
 
-def touches_empty(
-    canvas: list[list[tuple[int, int, int, int] | None]], x: int, y: int
-) -> bool:
+def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
     return any(neighbor(canvas, x, y, delta_x, delta_y) is None for delta_x, delta_y in ORTHO)
 
-def add_outline(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    extra: list[tuple[int, int]] = []
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if canvas[y][x] is not None:
-                continue
-            if any(neighbor(canvas, x, y, delta_x, delta_y) is not None for delta_x, delta_y in KING):
-                extra.append((x, y))
-    for x, y in extra:
-        canvas[y][x] = OUTLINE
-
-def shade_outline(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    lit: list[tuple[int, int]] = []
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if canvas[y][x] != OUTLINE:
-                continue
-            above_empty = neighbor(canvas, x, y, 0, -1) is None
-            left_empty = neighbor(canvas, x, y, -1, 0) is None
-            below_empty = neighbor(canvas, x, y, 0, 1) is None
-            if above_empty or (left_empty and not below_empty):
-                lit.append((x, y))
-    for x, y in lit:
-        canvas[y][x] = RIM_LIT
+def shade_outline(canvas: Canvas) -> None:
+    light_contour(canvas, OUTLINE, RIM_LIT)
 
 def recolor_rim(
-    canvas: list[list[tuple[int, int, int, int] | None]],
+    canvas: Canvas,
     lit: tuple[int, int, int, int],
     mid: tuple[int, int, int, int],
     shadow: tuple[int, int, int, int],
@@ -128,7 +102,7 @@ def recolor_rim(
         else:
             canvas[y][x] = mid
 
-def paint_sword(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_sword(canvas: Canvas) -> None:
     put(canvas, 15, 3, STEEL_LIGHT)
     put(canvas, 16, 3, STEEL)
     put(canvas, 14, 4, STEEL_LIGHT)
@@ -186,7 +160,7 @@ def shield_spans() -> list[tuple[int, int, int]]:
     )
     return spans
 
-def paint_shield(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_shield(canvas: Canvas) -> None:
     for y, start_x, end_x in shield_spans():
         for x in range(start_x, end_x + 1):
             shade = x + y
@@ -220,11 +194,12 @@ def paint_shield(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     for x, y in ((11, 11), (20, 11), (12, 16), (19, 18)):
         if canvas[y][x] in IRON_TONES:
             canvas[y][x] = IRON_DARK
+
     for x, y in ((10, 10), (21, 10)):
         if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DARK}:
             canvas[y][x] = BRASS_LIGHT
 
-def stamp_boss(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def stamp_boss(canvas: Canvas) -> None:
     center_x, center_y = 15, 14
     for delta_y in range(-4, 5):
         for delta_x in range(-4, 5):
@@ -243,7 +218,7 @@ def stamp_boss(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         if y % 2 == 0 and canvas[y][15] in IRON_TONES:
             canvas[y][15] = CYAN
 
-def paint_boot(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_boot(canvas: Canvas) -> None:
     spans = [
         (6, 17, 24, LEATHER_LIGHT),
         (7, 16, 25, LEATHER),
@@ -283,7 +258,7 @@ def paint_boot(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         if y < 16:
             canvas[y][29] = BRASS_DARK
 
-def paint_boot_trail(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_boot_trail(canvas: Canvas) -> None:
     streaks = (
         (2, 8, CYAN_DARK),
         (3, 8, CYAN),
@@ -326,7 +301,7 @@ def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, 
         x += 1
     return sorted(points)
 
-def paint_wand(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_wand(canvas: Canvas) -> None:
     diamond = {
         6: range(16, 18),
         7: range(15, 19),
@@ -337,6 +312,7 @@ def paint_wand(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
     }
     for y, xs in diamond.items():
         for x in xs:
+
             color = PURPLE_DARK if x + y >= 28 else PURPLE
             put(canvas, x, y, color)
     put(canvas, 15, 7, STEEL_LIGHT)
@@ -353,10 +329,11 @@ def paint_wand(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
         put(canvas, x, 28, BRASS_DARK)
     put(canvas, 16, 28, CYAN_DARK)
 
-def paint_wand_orbit(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
+def paint_wand_orbit(canvas: Canvas) -> None:
     for x, y in circle_pixels(16, 10, 8):
         if y >= 13 or canvas[y][x] is not None:
             continue
+
         if x >= 20 and y <= 8:
             color = PURPLE
         elif x + y < 20:
@@ -365,18 +342,12 @@ def paint_wand_orbit(canvas: list[list[tuple[int, int, int, int] | None]]) -> No
             color = CYAN_DARK
         put(canvas, x, y, color)
 
-def finish_body(canvas: list[list[tuple[int, int, int, int] | None]]) -> None:
-    add_outline(canvas)
+def finish_body(canvas: Canvas) -> None:
+    outline_icon(canvas)
     shade_outline(canvas)
 
-def to_image(canvas: list[list[tuple[int, int, int, int] | None]]) -> Image.Image:
-    image = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    for y in range(SIZE):
-        for x in range(SIZE):
-            color = canvas[y][x]
-            if color is not None:
-                image.putpixel((x, y), color)
-    return image
+def to_image(canvas: Canvas) -> Image.Image:
+    return canvas.image()
 
 def draw_sword() -> Image.Image:
     canvas = new_canvas()
@@ -509,6 +480,9 @@ def main() -> None:
         )
         print(ascii_preview(image))
         print()
+
+def outline_icon(canvas: Canvas) -> None:
+    add_outline(canvas, OUTLINE)
 
 if __name__ == "__main__":
     main()
