@@ -3,27 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use super::super::day_cycle::DayPhase;
 use super::super::state::GameState;
-use super::autosave::{debounced_autosave, queue_autosave, ProfileDirty};
+use super::autosave::ProfileDirty;
 use super::profile::{bank_playtime, PlayerProfile};
-use super::sync::capture_profile_from_runtime;
 
 #[derive(Resource, Default)]
 pub(super) struct BankedPlaytimeSeconds(pub u64);
-
-pub(super) fn add_save_header_systems(app: &mut App) {
-    app.init_resource::<BankedPlaytimeSeconds>()
-        .add_systems(
-            Update,
-            (
-                accrue_playtime,
-                mark_profile_dirty_when_a_second_is_banked,
-                capture_profile_from_runtime,
-                queue_autosave,
-                debounced_autosave,
-            )
-                .chain(),
-        );
-}
 
 pub(super) fn accrue_playtime(
     time: Res<Time>,
@@ -119,26 +103,117 @@ mod tests {
     }
 
     #[test]
-    fn playing_three_quarters_of_a_second_then_half_a_second_banks_one_and_marks_dirty() {
+    fn playing_three_quarters_of_a_second_then_half_a_second_banks_one_second() {
         let mut app = app_recording_playtime(GameState::Overworld);
         set_frame_milliseconds(&mut app, 750);
+        app.update();
+        let stored = stored_playtime(&app);
+        assert_eq!(stored.seconds, 0);
+        assert_eq!(stored.fraction, 0.75);
+        set_frame_milliseconds(&mut app, 500);
+        app.update();
+        let stored = stored_playtime(&app);
+        assert_eq!(stored.seconds, 1);
+        assert_eq!(stored.fraction, 0.25);
+    }
+
+    #[test]
+    fn playing_three_quarters_of_a_second_then_half_a_second_marks_the_profile_dirty() {
+        let mut app = app_recording_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 750);
+        app.update();
+        assert!(!stored_playtime(&app).dirty);
+        set_frame_milliseconds(&mut app, 500);
+        app.update();
+        assert!(stored_playtime(&app).dirty);
+    }
+
+    #[test]
+    fn playing_banks_one_second() {
+        let mut app = app_recording_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 1500);
+        app.update();
+        let stored = stored_playtime(&app);
+        assert_eq!(stored.seconds, 1);
+        assert_eq!(stored.fraction, 0.5);
+    }
+
+    #[test]
+    fn playing_marks_the_profile_dirty() {
+        let mut app = app_recording_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 1500);
+        app.update();
+        assert!(stored_playtime(&app).dirty);
+    }
+
+    #[test]
+    fn half_a_second_of_play_does_not_mark_the_profile_dirty() {
+        let mut app = app_recording_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 500);
+        app.update();
+        let stored = stored_playtime(&app);
+        assert_eq!(stored.seconds, 0);
+        assert_eq!(stored.fraction, 0.5);
+        assert!(!stored.dirty);
+    }
+
+    #[test]
+    fn accrue_playtime_banks_one_second() {
+        let mut app = app_accruing_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 1500);
+        app.update();
+        let stored = stored_playtime(&app);
+        assert_eq!(stored.seconds, 1);
+        assert_eq!(stored.fraction, 0.5);
+    }
+
+    #[test]
+    fn accrue_playtime_leaves_the_profile_clean() {
+        let mut app = app_accruing_playtime(GameState::Overworld);
+        set_frame_milliseconds(&mut app, 1500);
+        app.update();
+        assert!(!stored_playtime(&app).dirty);
+    }
+
+    #[test]
+    fn a_banked_second_marks_the_profile_dirty() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(BankedPlaytimeSeconds(1))
+            .add_systems(Update, mark_profile_dirty_when_a_second_is_banked);
+        app.update();
+        assert!(app.world().resource::<ProfileDirty>().0);
+    }
+
+    #[test]
+    fn the_title_screen_does_not_accrue_playtime() {
+        let mut app = app_recording_playtime(GameState::Title);
+        set_frame_milliseconds(&mut app, 1500);
         app.update();
         assert_eq!(
             stored_playtime(&app),
             StoredPlaytime {
                 seconds: 0,
-                fraction: 0.75,
+                fraction: 0.0,
                 dirty: false,
             }
         );
-        set_frame_milliseconds(&mut app, 500);
+    }
+
+    #[test]
+    fn entering_the_title_screen_clears_a_stale_banked_second() {
+        let mut app = app_recording_playtime(GameState::Title);
+        app.insert_resource(BankedPlaytimeSeconds(4));
+        set_frame_milliseconds(&mut app, 1500);
         app.update();
+        assert_eq!(app.world().resource::<BankedPlaytimeSeconds>().0, 0);
         assert_eq!(
             stored_playtime(&app),
             StoredPlaytime {
-                seconds: 1,
-                fraction: 0.25,
-                dirty: true,
+                seconds: 0,
+                fraction: 0.0,
+                dirty: false,
             }
         );
     }
@@ -184,51 +259,6 @@ mod tests {
         dirty: bool,
     }
 
-    #[test]
-    fn playing_banks_one_second_and_marks_the_profile_dirty() {
-        let mut app = app_recording_playtime(GameState::Overworld);
-        set_frame_milliseconds(&mut app, 1500);
-        app.update();
-        assert_eq!(
-            stored_playtime(&app),
-            StoredPlaytime {
-                seconds: 1,
-                fraction: 0.5,
-                dirty: true,
-            }
-        );
-    }
-
-    #[test]
-    fn half_a_second_of_play_does_not_mark_the_profile_dirty() {
-        let mut app = app_recording_playtime(GameState::Overworld);
-        set_frame_milliseconds(&mut app, 500);
-        app.update();
-        assert_eq!(
-            stored_playtime(&app),
-            StoredPlaytime {
-                seconds: 0,
-                fraction: 0.5,
-                dirty: false,
-            }
-        );
-    }
-
-    #[test]
-    fn accrue_playtime_banks_one_second_and_leaves_the_profile_clean() {
-        let mut app = app_accruing_playtime(GameState::Overworld);
-        set_frame_milliseconds(&mut app, 1500);
-        app.update();
-        assert_eq!(
-            stored_playtime(&app),
-            StoredPlaytime {
-                seconds: 1,
-                fraction: 0.5,
-                dirty: false,
-            }
-        );
-    }
-
     fn app_accruing_playtime(state: GameState) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
@@ -243,31 +273,5 @@ mod tests {
         set_frame_milliseconds(&mut app, 0);
         app.update();
         app
-    }
-
-    #[test]
-    fn a_banked_second_marks_the_profile_dirty() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .insert_resource(ProfileDirty::default())
-            .insert_resource(BankedPlaytimeSeconds(1))
-            .add_systems(Update, mark_profile_dirty_when_a_second_is_banked);
-        app.update();
-        assert!(app.world().resource::<ProfileDirty>().0);
-    }
-
-    #[test]
-    fn the_title_screen_does_not_accrue_playtime() {
-        let mut app = app_recording_playtime(GameState::Title);
-        set_frame_milliseconds(&mut app, 1500);
-        app.update();
-        assert_eq!(
-            stored_playtime(&app),
-            StoredPlaytime {
-                seconds: 0,
-                fraction: 0.0,
-                dirty: false,
-            }
-        );
     }
 }

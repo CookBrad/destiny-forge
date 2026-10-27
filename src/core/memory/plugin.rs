@@ -3,11 +3,14 @@ use bevy::prelude::*;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::autosave::{flush_saves_on_exit, ProfileDirty};
+use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
+use super::header::{
+    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, BankedPlaytimeSeconds,
+};
 use super::profile::ActiveProfile;
 use super::storage::load_settings;
-use super::sync::hydrate_runtime_from_memory;
+use super::sync::{capture_profile_from_runtime, hydrate_runtime_from_memory};
 
 fn runtime_profile_while_save_is_blocked() -> super::profile::PlayerProfile {
     super::profile::PlayerProfile::default()
@@ -17,25 +20,42 @@ pub struct MemoryPlugin;
 
 impl Plugin for MemoryPlugin {
     fn build(&self, app: &mut App) {
-        let global = load_settings();
-        let active = ActiveProfile(global.last_active_profile);
-        let mut autosave_block = ProfileAutosaveBlock::default();
-        let profile = load_profile_for_slot(active.index(), &mut autosave_block)
-            .unwrap_or_else(|_| runtime_profile_while_save_is_blocked());
+        if !app
+            .world()
+            .contains_resource::<super::profile::PlayerProfile>()
+        {
+            let global = load_settings();
+            let active = ActiveProfile(global.last_active_profile);
+            let mut autosave_block = ProfileAutosaveBlock::default();
+            let profile = load_profile_for_slot(active.index(), &mut autosave_block)
+                .unwrap_or_else(|_| runtime_profile_while_save_is_blocked());
 
-        app.insert_resource(autosave_block)
-            .insert_resource(global)
-            .insert_resource(active)
-            .insert_resource(profile)
-            .insert_resource(Inventory::default())
-            .insert_resource(Loadout::default())
-            .insert_resource(WorldProgress::default())
+            app.insert_resource(autosave_block)
+                .insert_resource(global)
+                .insert_resource(active)
+                .insert_resource(profile)
+                .insert_resource(Inventory::default())
+                .insert_resource(Loadout::default())
+                .insert_resource(WorldProgress::default());
+        }
+        app
             // DayClock / ToolEnergy are init'd in CorePlugin (after MemoryPlugin wiring).
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
+            .init_resource::<BankedPlaytimeSeconds>()
             .add_systems(Startup, hydrate_runtime_from_memory)
+            .add_systems(
+                Update,
+                (
+                    accrue_playtime,
+                    mark_profile_dirty_when_a_second_is_banked,
+                    capture_profile_from_runtime,
+                    queue_autosave,
+                    debounced_autosave,
+                )
+                    .chain(),
+            )
             .add_systems(Last, flush_saves_on_exit);
-        super::header::add_save_header_systems(app);
     }
 }
 
@@ -53,6 +73,12 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(State::new(GameState::Title))
+            .insert_resource(ProfileAutosaveBlock::default())
+            .insert_resource(ActiveProfile::default())
+            .insert_resource(super::super::profile::PlayerProfile::default())
+            .insert_resource(Inventory::default())
+            .insert_resource(Loadout::default())
+            .insert_resource(WorldProgress::default())
             .init_resource::<AudioSettings>()
             .init_resource::<SkillBindings>()
             .init_resource::<DayClock>()
