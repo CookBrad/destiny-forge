@@ -547,6 +547,72 @@ mod tests {
     }
 
     #[test]
+    fn apply_restores_the_wallet() {
+        let mut restored = Wallet {
+            gold: 9,
+            sparks: DestinySpark(8),
+        };
+        restore_wallet(
+            Wallet {
+                gold: 40,
+                sparks: DestinySpark(2),
+            },
+            &mut restored,
+        );
+        assert_eq!(restored.gold, 40);
+        assert_eq!(restored.sparks.amount(), 2);
+
+        restored = Wallet {
+            gold: 9,
+            sparks: DestinySpark(8),
+        };
+        restore_wallet(Wallet::default(), &mut restored);
+        assert_eq!(restored, Wallet::default());
+
+        restored = Wallet::default();
+        restore_wallet(
+            Wallet {
+                gold: u32::MAX,
+                sparks: DestinySpark(u32::MAX),
+            },
+            &mut restored,
+        );
+        assert_eq!(restored.gold, u32::MAX);
+        assert_eq!(restored.sparks.amount(), u32::MAX);
+    }
+
+    fn restore_wallet(saved: Wallet, restored: &mut Wallet) {
+        let profile = PlayerProfile {
+            wallet: saved,
+            ..PlayerProfile::default()
+        };
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        let mut progress = WorldProgress::default();
+        let mut day_clock = DayClock::default();
+        let mut tool_energy = ToolEnergy::default();
+        let mut audio = AudioSettings::default();
+        let mut bindings = SkillBindings::default();
+        let mut season = Season::Spring;
+        let rules = CalendarRules::load();
+        apply_profile_to_runtime(
+            &profile,
+            &mut ProfileApply {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                audio: &mut audio,
+                bindings: &mut bindings,
+                season: &mut season,
+                rules: &rules,
+                wallet: restored,
+            },
+        );
+    }
+
+    #[test]
     fn capture_reads_the_wallet_from_the_runtime() {
         let seen = see_capture(
             Wallet {
