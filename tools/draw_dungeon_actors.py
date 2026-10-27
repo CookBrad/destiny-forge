@@ -262,13 +262,6 @@ def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> li
         crossings.append(start_x + (end_x - start_x) * (y - start_y) // (end_y - start_y))
     return crossings
 
-def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> None:
-    canvas.fill(ellipse_pixels(x, y, radius, radius), palette.purple_dark)
-    inner = max(1, radius - 1)
-    canvas.fill(ellipse_pixels(x, y, inner, inner), palette.purple)
-    canvas.put(x - 1, y - 1, palette.purple_light)
-    canvas.put(x, y, palette.purple_light)
-
 def chain(points: list[tuple[int, int]], radius: int) -> list[tuple[int, int]]:
     drawn: list[tuple[int, int]] = []
     for start, end in zip(points, points[1:]):
@@ -290,36 +283,6 @@ def capsule_pixels(start_x: int, start_y: int, end_x: int, end_y: int, radius: i
             if _near_segment(x, y, start_x, start_y, end_x, end_y, vector_x, vector_y, length2, radius2):
                 points.append((x, y))
     return points
-
-def spark(
-    canvas: Canvas,
-    points: list[tuple[int, int]],
-    color: tuple[int, int, int, int],
-    mod: int,
-) -> None:
-    for x, y in points:
-        if (x * 7 + y * 13) % mod == 0:
-            canvas.put(x, y, color)
-
-def blit_capsule(
-    canvas: Canvas,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int,
-    radius: int,
-    ramp: tuple[tuple[int, int, int, int], ...],
-    split: int,
-) -> list[tuple[int, int]]:
-    points = capsule_pixels(start_x, start_y, end_x, end_y, radius)
-    canvas.blit(volume(points, (start_x + end_x) // 2, (start_y + end_y) // 2, ramp, split))
-    return points
-
-def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
-    canvas.put(x, y, palette.brass_dark)
-    canvas.put(x + 1, y, palette.brass)
-    canvas.put(x, y + 1, palette.brass)
-    canvas.put(x + 1, y + 1, palette.brass_hi)
 
 def _near_segment(
     x: int,
@@ -349,12 +312,36 @@ def _near_segment(
     distance_squared_numerator = (wx * wx + wy * wy) * length2 - dot * dot
     return distance_squared_numerator <= radius2 * length2
 
-def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
-    sole = canvas.height - 1
-    canvas.fill(ellipse_pixels(cx, sole - 2, half, 3), palette.leather_deep)
-    canvas.fill(ellipse_pixels(cx + 1, sole - 3, half - 2, 2), palette.leather_dark)
-    canvas.fill([(x, sole) for x in range(cx - half, cx + half + 1)], palette.ink_warm)
-    canvas.put(cx - half + 2, sole - 1, palette.leather_hi)
+def spark(
+    canvas: Canvas,
+    points: list[tuple[int, int]],
+    color: tuple[int, int, int, int],
+    mod: int,
+) -> None:
+    for x, y in points:
+        if (x * 7 + y * 13) % mod == 0:
+            canvas.put(x, y, color)
+
+def blit_capsule(
+    canvas: Canvas,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    radius: int,
+    ramp: tuple[tuple[int, int, int, int], ...],
+    split: int,
+) -> list[tuple[int, int]]:
+    points = capsule_pixels(start_x, start_y, end_x, end_y, radius)
+    canvas.blit(volume(points, (start_x + end_x) // 2, (start_y + end_y) // 2, ramp, split))
+    return points
+
+def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> None:
+    canvas.fill(ellipse_pixels(x, y, radius, radius), palette.purple_dark)
+    inner = max(1, radius - 1)
+    canvas.fill(ellipse_pixels(x, y, inner, inner), palette.purple)
+    canvas.put(x - 1, y - 1, palette.purple_light)
+    canvas.put(x, y, palette.purple_light)
 
 def draw_goblin(palette: Palette) -> Canvas:
     canvas = clipping_canvas(80, 112)
@@ -421,6 +408,19 @@ def stitch(canvas: Canvas, points: list[tuple[int, int]], color: tuple[int, int,
     for index, (x, y) in enumerate(points):
         if index % 3 != 2:
             canvas.put(x, y, color)
+
+def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
+    canvas.put(x, y, palette.brass_dark)
+    canvas.put(x + 1, y, palette.brass)
+    canvas.put(x, y + 1, palette.brass)
+    canvas.put(x + 1, y + 1, palette.brass_hi)
+
+def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
+    sole = canvas.height - 1
+    canvas.fill(ellipse_pixels(cx, sole - 2, half, 3), palette.leather_deep)
+    canvas.fill(ellipse_pixels(cx + 1, sole - 3, half - 2, 2), palette.leather_dark)
+    canvas.fill([(x, sole) for x in range(cx - half, cx + half + 1)], palette.ink_warm)
+    canvas.put(cx - half + 2, sole - 1, palette.leather_hi)
 
 def draw_skeleton(palette: Palette) -> Canvas:
     canvas = clipping_canvas(64, 144)
