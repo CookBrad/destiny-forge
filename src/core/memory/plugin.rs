@@ -46,3 +46,44 @@ impl Plugin for MemoryPlugin {
             .add_systems(Last, flush_saves_on_exit);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::audio::AudioSettings;
+    use crate::combat::SkillBindings;
+    use crate::core::day_cycle::{DayClock, ToolEnergy};
+    use crate::core::season::{CalendarRules, Season};
+
+    use super::super::storage::{lock_save_root_for_test, set_save_root_for_test};
+
+    #[test]
+    fn memory_plugin_starts_an_empty_wallet() {
+        let _gate = lock_save_root_for_test();
+        let root = std::env::temp_dir().join(format!(
+            "destiny_forge_plugin_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("profiles")).unwrap();
+        set_save_root_for_test(Some(root.clone()));
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .add_plugins(MemoryPlugin);
+        app.update();
+
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 0);
+        assert_eq!(wallet.sparks.0, 0);
+        set_save_root_for_test(None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}
