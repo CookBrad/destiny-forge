@@ -175,3 +175,113 @@ pub fn apply_enemy_contact_damage(
         cooldown.0 = Timer::from_seconds(0.0, TimerMode::Once);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dungeon::{player_half_extents, DungeonPlayer, EnemyContactDamage, EnemyHitbox};
+    use crate::graphics::TILE;
+    use crate::player::Loadout;
+
+    #[test]
+    fn an_overlapping_enemy_deals_contact_damage() {
+        let mut app = contact_app();
+        let power = EnemyContactDamage(crate::dungeon::EnemyKind::Skeleton.projectile_damage());
+        let dealt = damage_amount(power.0, Loadout::default().total_defense());
+        let starting = dealt + dealt;
+        app.world_mut().spawn(hunter(starting));
+        app.world_mut().spawn((
+            Transform::default(),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(power.0),
+            power,
+        ));
+        app.add_systems(Update, apply_enemy_contact_damage);
+        app.update();
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        let flashed = app
+            .world_mut()
+            .query::<&PlayerHitFlash>()
+            .iter(app.world())
+            .len();
+        assert_eq!(health, starting - dealt);
+        assert_eq!(flashed, 1);
+    }
+
+    fn contact_app() -> App {
+        let mut app = App::new();
+        app.insert_resource(Time::<()>::default());
+        app.insert_resource(Loadout::default());
+        app.add_event::<CombatSfx>();
+        app
+    }
+
+    fn hunter(health: f32) -> impl Bundle {
+        (
+            DungeonPlayer,
+            Transform::default(),
+            Health::new(health),
+            ContactDamageCooldown::default(),
+            super::super::player_block::PlayerBlock::default(),
+        )
+    }
+
+    #[test]
+    fn an_enemy_a_tile_past_the_hunter_does_not_deal_contact_damage() {
+        let mut app = contact_app();
+        let power = crate::dungeon::EnemyKind::Skeleton.projectile_damage();
+        let starting = power + power;
+        app.world_mut().spawn(hunter(starting));
+        app.world_mut().spawn((
+            Transform::from_xyz(player_half_extents().x + TILE, 0.0, 0.0),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(power),
+            EnemyContactDamage(power),
+        ));
+        app.add_systems(Update, apply_enemy_contact_damage);
+        app.update();
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        let flashed = app
+            .world_mut()
+            .query::<&PlayerHitFlash>()
+            .iter(app.world())
+            .len();
+        assert_eq!(health, starting);
+        assert_eq!(flashed, 0);
+    }
+
+    #[test]
+    fn a_dead_hunter_does_not_take_contact_damage() {
+        let mut app = contact_app();
+        let power = crate::dungeon::EnemyKind::Skeleton.projectile_damage();
+        app.world_mut().spawn(hunter(0.0));
+        app.world_mut().spawn((
+            Transform::default(),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(power),
+            EnemyContactDamage(power),
+        ));
+        app.add_systems(Update, apply_enemy_contact_damage);
+        app.update();
+        let health = app
+            .world_mut()
+            .query_filtered::<&Health, With<DungeonPlayer>>()
+            .single(app.world())
+            .current;
+        let flashed = app
+            .world_mut()
+            .query::<&PlayerHitFlash>()
+            .iter(app.world())
+            .len();
+        assert_eq!(health, 0.0);
+        assert_eq!(flashed, 0);
+    }
+}
