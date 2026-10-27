@@ -29,19 +29,6 @@ BAYER4 = (
 import hashlib
 NEIGHBORS = tuple((delta_x, delta_y) for delta_y in (-1, 0, 1) for delta_x in (-1, 0, 1) if delta_x or delta_y)
 
-def reject_resample_names() -> None:
-    text = Path(__file__).read_text(encoding="utf-8")
-    banned = (
-        "res" + "ize",
-        "thumb" + "nail",
-        "trans" + "form",
-        "aff" + "ine",
-        "quant" + "ize",
-    )
-    for word in banned:
-        if word in text:
-            raise SystemExit(f"draw script must not mention {word}")
-
 def load_allowed_colors() -> set[tuple[int, int, int, int]]:
     allowed: set[tuple[int, int, int, int]] = set()
     for name, digest in SIGNED_SHA256.items():
@@ -543,7 +530,7 @@ def crown_spike(
     canvas.put(cx, tip_y + 1, palette.brass_hi)
 
 def draw_slime(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 64)
+    canvas = clipping_canvas(64, 64)
     blit_ellipse(canvas, 33, 42, 23, 20, palette.gel_under, 10)
     blit_ellipse(canvas, 32, 36, 21, 18, palette.gel_body, 10)
     blit_ellipse(canvas, 32, 16, 7, 10, palette.gel_body, 5)
@@ -568,7 +555,7 @@ def draw_slime(palette: Palette) -> Canvas:
     return canvas
 
 def draw_blob(palette: Palette) -> Canvas:
-    canvas = Canvas(32, 32)
+    canvas = clipping_canvas(32, 32)
     blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
     blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
     canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
@@ -581,7 +568,7 @@ def draw_blob(palette: Palette) -> Canvas:
     return canvas
 
 def draw_bolt(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
     tail: list[tuple[int, int]] = []
     for y in range(15, 46):
@@ -604,7 +591,7 @@ def draw_bolt(palette: Palette) -> Canvas:
     return canvas
 
 def draw_arrow(palette: Palette) -> Canvas:
-    canvas = Canvas(16, 48)
+    canvas = clipping_canvas(16, 48)
     head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
     canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
     canvas.put(8, 2, palette.brass_hi)
@@ -639,7 +626,7 @@ def draw_arrow(palette: Palette) -> Canvas:
     return canvas
 
 def draw_bat(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 48)
+    canvas = clipping_canvas(96, 48)
     blit_poly(
         canvas,
         [(46, 24), (22, 7), (6, 13), (16, 22), (40, 26)],
@@ -700,7 +687,7 @@ def draw_bat(palette: Palette) -> Canvas:
     return canvas
 
 def draw_goblin(palette: Palette) -> Canvas:
-    canvas = Canvas(80, 112)
+    canvas = clipping_canvas(80, 112)
     blit_poly(canvas, [(44, 26), (24, 10), (30, 22), (48, 32)], (32, 18), palette.leather_ramp, 6)
     canvas.fill(polygon_pixels([(42, 24), (28, 14), (44, 28)]), palette.purple_dark)
     canvas.put(30, 16, palette.purple)
@@ -761,7 +748,7 @@ def draw_goblin(palette: Palette) -> Canvas:
     return canvas
 
 def draw_skeleton(palette: Palette) -> Canvas:
-    canvas = Canvas(64, 144)
+    canvas = clipping_canvas(64, 144)
     bow = chain([(20, 28), (10, 50), (8, 74), (12, 98), (22, 116)], 3)
     canvas.blit(volume(bow, 10, 70, palette.brass_ramp, 12))
     canvas.fill(capsule_pixels(18, 36, 18, 108, 1), palette.leather_deep)
@@ -817,7 +804,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
     return canvas
 
 def draw_zombie(palette: Palette) -> Canvas:
-    canvas = Canvas(96, 128)
+    canvas = clipping_canvas(96, 128)
     blit_capsule(canvas, 40, 54, 18, 98, 6, palette.dead_ramp, 10)
     coat = blit_poly(
         canvas,
@@ -878,7 +865,7 @@ def draw_zombie(palette: Palette) -> Canvas:
     return canvas
 
 def draw_king(palette: Palette) -> Canvas:
-    canvas = Canvas(192, 192)
+    canvas = clipping_canvas(192, 192)
     blit_ellipse(canvas, 98, 164, 80, 26, palette.gel_under, 14)
     blit_ellipse(canvas, 96, 114, 66, 58, palette.gel_under, 20)
     blit_ellipse(canvas, 92, 104, 58, 50, palette.gel_body, 18)
@@ -1050,9 +1037,9 @@ def output_paths() -> dict[str, Path]:
     }
 
 def main() -> None:
-    reject_resample_names()
-    allowed = load_allowed_colors()
-    palette = Palette(allowed)
+    reject_resample_names(Path(__file__))
+    allowed = load_pinned_colors(SIGNED, SIGNED_SHA256)
+    palette = hunter_palette(allowed)
     sheets = draw_all(palette)
     check_all(sheets, allowed)
     for name, path in output_paths().items():
