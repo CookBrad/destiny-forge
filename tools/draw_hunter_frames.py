@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
 OUT = ROOT / "assets" / "player" / "combat"
 
-CELL_W = 343
-CELL_H = 160
+CELL_WIDTH = 343
+CELL_HEIGHT = 160
 FOOT_X = 81.5
 FOOT_ROW = 158
 ATTACK_SOLE_ROW = 159
@@ -64,28 +64,28 @@ class Sprite:
     def copy(self) -> Sprite:
         return Sprite(self.pixels)
 
-    def paste(self, other: Sprite, dx: int = 0, dy: int = 0) -> Sprite:
+    def paste(self, other: Sprite, delta_x: int = 0, delta_y: int = 0) -> Sprite:
         for (x, y), color in other.pixels.items():
-            self.pixels[(x + dx, y + dy)] = color
+            self.pixels[(x + delta_x, y + delta_y)] = color
         return self
 
-    def shift(self, dx: int, dy: int) -> Sprite:
-        if dx == 0 and dy == 0:
+    def shift(self, delta_x: int, delta_y: int) -> Sprite:
+        if delta_x == 0 and delta_y == 0:
             return self.copy()
-        return Sprite({(x + dx, y + dy): color for (x, y), color in self.pixels.items()})
+        return Sprite({(x + delta_x, y + delta_y): color for (x, y), color in self.pixels.items()})
 
-    def crop(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
+    def crop(self, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
         kept = {}
         for (x, y), color in self.pixels.items():
-            if x0 <= x < x1 and y0 <= y < y1:
-                kept[(x - x0, y - y0)] = color
+            if start_x <= x < end_x and start_y <= y < end_y:
+                kept[(x - start_x, y - start_y)] = color
         return Sprite(kept)
 
-    def erase_rect(self, x0: int, y0: int, x1: int, y1: int) -> Sprite:
+    def erase_rect(self, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
         self.pixels = {
             (x, y): color
             for (x, y), color in self.pixels.items()
-            if not (x0 <= x < x1 and y0 <= y < y1)
+            if not (start_x <= x < end_x and start_y <= y < end_y)
         }
         return self
 
@@ -104,10 +104,10 @@ class Sprite:
             raise SystemExit("empty sprite")
         return min(xs), min(ys), max(xs), max(ys)
 
-    def contained(self, dx: int = 0, dy: int = 0) -> None:
+    def contained(self, delta_x: int = 0, delta_y: int = 0) -> None:
         for x, y in self.pixels:
-            xx, yy = x + dx, y + dy
-            if not (0 <= xx < CELL_W and 0 <= yy < CELL_H):
+            xx, yy = x + delta_x, y + delta_y
+            if not (0 <= xx < CELL_WIDTH and 0 <= yy < CELL_HEIGHT):
                 raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
 
 def sprite_from_image(image: Image.Image) -> Sprite:
@@ -133,7 +133,7 @@ def load_sheet(name: str) -> Sprite:
     return sprite_from_image(image)
 
 def cell_of(sheet: Sprite, index: int) -> Sprite:
-    return sheet.crop(index * CELL_W, 0, (index + 1) * CELL_W, CELL_H)
+    return sheet.crop(index * CELL_WIDTH, 0, (index + 1) * CELL_WIDTH, CELL_HEIGHT)
 
 def is_hot_blade(color: tuple[int, int, int, int]) -> bool:
     red, green, blue, alpha = color
@@ -174,9 +174,9 @@ def flood_blade(sprite: Sprite) -> set[tuple[int, int]]:
     stack = list(seeds)
     while stack:
         x, y = stack.pop()
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                nxt = (x + dx, y + dy)
+        for delta_y in (-1, 0, 1):
+            for delta_x in (-1, 0, 1):
+                nxt = (x + delta_x, y + delta_y)
                 if nxt in seen or nxt not in sprite.pixels:
                     continue
                 if is_hot_blade(sprite.pixels[nxt]):
@@ -188,17 +188,17 @@ def without_blade(sprite: Sprite, halo: int = 4) -> Sprite:
     blade = flood_blade(sprite)
     drop = set(blade)
     for x, y in blade:
-        for dy in range(-halo, halo + 1):
-            for dx in range(-halo, halo + 1):
-                if dx * dx + dy * dy > halo * halo:
+        for delta_y in range(-halo, halo + 1):
+            for delta_x in range(-halo, halo + 1):
+                if delta_x * delta_x + delta_y * delta_y > halo * halo:
                     continue
-                point = (x + dx, y + dy)
+                point = (x + delta_x, y + delta_y)
                 color = sprite.pixels.get(point)
                 if color is None or point in drop:
                     continue
                 if is_skin(color) or is_yellow_mark(color) or is_purple(color):
                     continue
-                if is_brown(color) and dx * dx + dy * dy > 5:
+                if is_brown(color) and delta_x * delta_x + delta_y * delta_y > 5:
                     continue
                 drop.add(point)
     return Sprite({point: color for point, color in sprite.pixels.items() if point not in drop})
@@ -224,8 +224,8 @@ def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float])
     )
 
     def forward(x: float, y: float) -> tuple[float, float]:
-        dx, dy = x - px, y - py
-        return (cosine * dx - sine * dy + px, sine * dx + cosine * dy + py)
+        delta_x, delta_y = x - px, y - py
+        return (cosine * delta_x - sine * delta_y + px, sine * delta_x + cosine * delta_y + py)
 
     placed = [forward(x, y) for x, y in corners]
     min_x = math.floor(min(point[0] for point in placed)) - 1
@@ -235,9 +235,9 @@ def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float])
     out: dict[tuple[int, int], tuple[int, int, int, int]] = {}
     for y in range(min_y, max_y + 1):
         for x in range(min_x, max_x + 1):
-            dx, dy = x - px, y - py
-            src_x = iround(cosine * dx + sine * dy + px)
-            src_y = iround(-sine * dx + cosine * dy + py)
+            delta_x, delta_y = x - px, y - py
+            src_x = iround(cosine * delta_x + sine * delta_y + px)
+            src_y = iround(-sine * delta_x + cosine * delta_y + py)
             color = sprite.pixels.get((src_x, src_y))
             if color is not None:
                 out[(x, y)] = color
@@ -372,8 +372,8 @@ def bridge_vertical_gaps(leg: Sprite, limit: int = 8) -> Sprite:
                 leg.pixels[(x, y)] = color
     return leg
 
-def leg_column(idle: Sprite, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-    return bridge_vertical_gaps(idle.crop(x0, y0, x1, y1))
+def leg_column(idle: Sprite, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
+    return bridge_vertical_gaps(idle.crop(start_x, start_y, end_x, end_y))
 
 def swing_from_hip(leg: Sprite, degrees_clockwise: float, hip_x: float, hip_y: float) -> Sprite:
     pivot = top_center(leg)
@@ -406,15 +406,15 @@ def widen_sole(sprite: Sprite, toward_right: bool) -> None:
 
 def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
     row, center = stance_contact(sprite)
-    dy = target_row - row
-    moved = sprite.shift(0, dy)
+    delta_y = target_row - row
+    moved = sprite.shift(0, delta_y)
     for _ in range(4):
         _row, center = stance_contact(moved)
         delta = target_x - center
         if abs(delta - round(delta)) < 1e-6:
-            dx = iround(delta)
-            moved = moved.shift(dx, 0)
-            return moved, dx, dy
+            delta_x = iround(delta)
+            moved = moved.shift(delta_x, 0)
+            return moved, delta_x, delta_y
         widen_sole(moved, toward_right=delta > 0)
     raise SystemExit(f"contact {center} cannot reach {target_x}")
 
@@ -424,8 +424,8 @@ def require_inside(sprite: Sprite) -> None:
 def plant_on_foot(sprite: Sprite, target_x: float = FOOT_X, target_row: int = FOOT_ROW) -> Sprite:
     current = sprite.copy()
     for _ in range(5):
-        moved, _dx, _dy = shift_contact_to(current, target_x, target_row)
-        overflow = [point for point in moved.pixels if not (0 <= point[0] < CELL_W and 0 <= point[1] < CELL_H)]
+        moved, _delta_x, _delta_y = shift_contact_to(current, target_x, target_row)
+        overflow = [point for point in moved.pixels if not (0 <= point[0] < CELL_WIDTH and 0 <= point[1] < CELL_HEIGHT)]
         if not overflow:
             return moved
         for point in overflow:
@@ -451,16 +451,16 @@ def same_pixels(a: Sprite, b: Sprite) -> bool:
 
 def build_run_parts(idle: Sprite) -> dict:
     body = without_blade(idle)
-    body.erase_rect(0, 0, CAPE_TRIM_X, CELL_H)
-    body.erase_rect(58, 130, 86, CELL_H)
-    body.erase_rect(88, 126, 122, CELL_H)
+    body.erase_rect(0, 0, CAPE_TRIM_X, CELL_HEIGHT)
+    body.erase_rect(58, 130, 86, CELL_HEIGHT)
+    body.erase_rect(88, 126, 122, CELL_HEIGHT)
     chest = chest_pin_x(body)
     chest_y = 78.0
     leaned = rotate(body, RUN_LEAN_DEG, (chest, chest_y))
     leaned = leaned.shift(0, 2)
     min_x = min(x for x, _ in leaned.pixels)
     if min_x < 4:
-        leaned.erase_rect(min_x, 0, 4, CELL_H)
+        leaned.erase_rect(min_x, 0, 4, CELL_HEIGHT)
     rear = leg_column(idle, 62, 116, 82, 160)
     front = leg_column(idle, 90, 112, 116, 160)
     sword = blade_only(idle)
@@ -475,14 +475,14 @@ def _sole(leg: Sprite) -> tuple[float, int]:
 
 def _seat_leg(leg: Sprite, plant: bool, chest: float) -> Sprite:
     center, sole = _sole(leg)
-    dx = iround(chest - center) if plant else 0
-    dy = iround(FOOT_ROW - sole) if plant else min(0, FOOT_ROW - sole)
-    if plant and abs((chest - center) - dx) > 1e-6:
+    delta_x = iround(chest - center) if plant else 0
+    delta_y = iround(FOOT_ROW - sole) if plant else min(0, FOOT_ROW - sole)
+    if plant and abs((chest - center) - delta_x) > 1e-6:
         widen_sole(leg, toward_right=(chest - center) > 0)
         center, sole = _sole(leg)
-        dx = iround(chest - center)
-        dy = iround(FOOT_ROW - sole)
-    return leg.shift(dx, dy)
+        delta_x = iround(chest - center)
+        delta_y = iround(FOOT_ROW - sole)
+    return leg.shift(delta_x, delta_y)
 
 def compose_run_frame(parts: dict, pose: dict) -> Sprite:
     chest = parts["chest"]
@@ -520,10 +520,10 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
     if cape_limit > 0:
         for frame in frames:
             frame.erase_if(lambda x, y, _color, limit=cape_limit: x < limit)
-    planted, dx, dy = shift_contact_to(frames[0], FOOT_X, FOOT_ROW)
+    planted, delta_x, delta_y = shift_contact_to(frames[0], FOOT_X, FOOT_ROW)
     frames[0] = planted
     for index in range(1, len(frames)):
-        frames[index] = frames[index].shift(dx, dy)
+        frames[index] = frames[index].shift(delta_x, delta_y)
     row, center = stance_contact(frames[4])
     if row == FOOT_ROW and abs(center - FOOT_X) > 1e-6 and abs((FOOT_X - center) - round(FOOT_X - center)) > 1e-6:
         widen_sole(frames[4], toward_right=(FOOT_X - center) > 0)
@@ -532,10 +532,10 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
             frames[4] = frames[4].shift(iround(FOOT_X - center), 0)
     for index, frame in enumerate(frames):
         left, top, right, bottom = frame.bounds()
-        if left < 0 or top < 0 or right >= CELL_W or bottom >= CELL_H:
+        if left < 0 or top < 0 or right >= CELL_WIDTH or bottom >= CELL_HEIGHT:
             raise SystemExit(
                 f"run frame {index} bbox {left},{top}-{right},{bottom} "
-                f"after shift {dx},{dy} leaves the cell"
+                f"after shift {delta_x},{delta_y} leaves the cell"
             )
     return frames
 
@@ -579,13 +579,13 @@ def attack_hand(sprite: Sprite) -> tuple[float, float]:
     return (max(x for x, _ in cluster) - 2, max(y for _, y in cluster) + 8)
 
 def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: int) -> Sprite:
-    rear_box = sprite.crop(0, 136, 48, CELL_H)
-    front_box = sprite.crop(80, 136, 140, CELL_H)
+    rear_box = sprite.crop(0, 136, 48, CELL_HEIGHT)
+    front_box = sprite.crop(80, 136, 140, CELL_HEIGHT)
     if not rear_box.pixels or not front_box.pixels:
         return sprite
     cleared = sprite.copy()
-    cleared.erase_rect(0, 136, 50, CELL_H)
-    cleared.erase_rect(80, 136, 140, CELL_H)
+    cleared.erase_rect(0, 136, 50, CELL_HEIGHT)
+    cleared.erase_rect(80, 136, 140, CELL_HEIGHT)
     rear_center, rear_sole = bottom_band(rear_box)
     front_center, front_sole = bottom_band(front_box)
     cleared.paste(rear_box, iround(rear_x - rear_center), sole_row - rear_sole)
@@ -610,7 +610,7 @@ def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite
     return between, recover
 
 def _inside_cell(sprite: Sprite) -> bool:
-    return all(0 <= x < CELL_W and 0 <= y < CELL_H for x, y in sprite.pixels)
+    return all(0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT for x, y in sprite.pixels)
 
 def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: float) -> Sprite:
     hand = attack_hand(body)
@@ -650,8 +650,8 @@ def nudge_chest_x(sprite: Sprite) -> Sprite:
 
 def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body = idle.copy()
-    body.erase_rect(58, 130, 86, CELL_H)
-    body.erase_rect(88, 126, 122, CELL_H)
+    body.erase_rect(58, 130, 86, CELL_HEIGHT)
+    body.erase_rect(88, 126, 122, CELL_HEIGHT)
     chest = chest_pin_x(body)
     tucked_rear = swing_from_hip(rear, 68, chest - 2, 112)
     tucked_front = swing_from_hip(front, -46, chest + 14, 110)
@@ -669,11 +669,11 @@ def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     center = (left + right) / 2
     if abs(center - FOOT_X) > 2:
         frame = frame.shift(iround(FOOT_X - center), 0)
-        frame.erase_if(lambda x, y, _color: not (0 <= x < CELL_W and 0 <= y < CELL_H))
+        frame.erase_if(lambda x, y, _color: not (0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT))
     require_inside(frame)
     return frame
 
-def lift_cape(sprite: Sprite, dy: int) -> Sprite:
+def lift_cape(sprite: Sprite, delta_y: int) -> Sprite:
     tail = {
         (x, y): color
         for (x, y), color in sprite.pixels.items()
@@ -689,13 +689,13 @@ def lift_cape(sprite: Sprite, dy: int) -> Sprite:
         }
     )
     for (x, y), color in tail.items():
-        kept.pixels[(x, y + dy)] = color
+        kept.pixels[(x, y + delta_y)] = color
     return kept
 
 def build_fall(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body = lift_cape(idle, -18)
-    body.erase_rect(58, 130, 86, CELL_H)
-    body.erase_rect(88, 126, 122, CELL_H)
+    body.erase_rect(58, 130, 86, CELL_HEIGHT)
+    body.erase_rect(88, 126, 122, CELL_HEIGHT)
     chest = chest_pin_x(body)
     back = swing_from_hip(rear, 10, chest - 2, 122)
     fore = swing_from_hip(front, -4, chest + 10, 122)
@@ -711,8 +711,8 @@ def build_death(idle: Sprite, rear: Sprite, front: Sprite) -> tuple[Sprite, Spri
 
 def _death_stagger(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body = without_blade(idle)
-    body.erase_rect(58, 126, 86, CELL_H)
-    body.erase_rect(88, 122, 122, CELL_H)
+    body.erase_rect(58, 126, 86, CELL_HEIGHT)
+    body.erase_rect(88, 122, 122, CELL_HEIGHT)
     chest = chest_pin_x(body)
     tipped = rotate(body, -12.0, (chest, 120)).shift(0, 8)
     sword, pivot = aim_blade(blade_only(idle), 48.0, 46)
@@ -743,7 +743,7 @@ def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     hand_x = chest + 28
     frame.paste(place_aimed(sword, pivot, (hand_x, 118)))
     frame.erase_if(
-        lambda x, y, _c: x < -24 or x >= CELL_W + 24 or y < -8 or y >= CELL_H + 8
+        lambda x, y, _c: x < -24 or x >= CELL_WIDTH + 24 or y < -8 or y >= CELL_HEIGHT + 8
     )
     return plant_on_foot(frame)
 
@@ -757,16 +757,16 @@ def blit(image: Image.Image, sprite: Sprite, origin_x: int) -> None:
         pixels[xx, yy] = color
 
 def sheet_image(sprites: list[Sprite]) -> Image.Image:
-    image = Image.new("RGBA", (CELL_W * len(sprites), CELL_H), (0, 0, 0, 0))
+    image = Image.new("RGBA", (CELL_WIDTH * len(sprites), CELL_HEIGHT), (0, 0, 0, 0))
     for index, sprite in enumerate(sprites):
-        blit(image, sprite, index * CELL_W)
+        blit(image, sprite, index * CELL_WIDTH)
     return image
 
 def save_png(image: Image.Image, path: Path) -> None:
     image.save(path, format="PNG", compress_level=9)
 
 def cell_pixels(image: Image.Image, index: int) -> Sprite:
-    crop = image.crop((index * CELL_W, 0, (index + 1) * CELL_W, CELL_H))
+    crop = image.crop((index * CELL_WIDTH, 0, (index + 1) * CELL_WIDTH, CELL_HEIGHT))
     return sprite_from_image(crop)
 
 def assert_cell_equal(image: Image.Image, index: int, signed: Sprite, label: str) -> None:
@@ -811,8 +811,8 @@ def check_run(frames: list[Sprite]) -> None:
             raise SystemExit(f"run frames {index - 1} and {index} are identical")
     if same_pixels(frames[0], frames[4]):
         raise SystemExit("run contacts are the same drawing")
-    def boot_side_mass(frame: Sprite, x0: int, x1: int) -> int:
-        return sum(1 for x, y in frame.pixels if x0 <= x < x1 and y > 120)
+    def boot_side_mass(frame: Sprite, start_x: int, end_x: int) -> int:
+        return sum(1 for x, y in frame.pixels if start_x <= x < end_x and y > 120)
 
     if boot_side_mass(frames[0], 40, 82) == boot_side_mass(frames[4], 40, 82):
         pass
