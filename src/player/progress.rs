@@ -3,17 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::dungeon::DungeonProgress;
 
-#[derive(Resource, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldProgress {
     pub boss_defeated_floor_1: bool,
-}
-
-impl Default for WorldProgress {
-    fn default() -> Self {
-        Self {
-            boss_defeated_floor_1: false,
-        }
-    }
 }
 
 impl WorldProgress {

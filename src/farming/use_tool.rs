@@ -1,5 +1,4 @@
-//! Use the equipped homestead tool (keys 1–4) on a nearby crop plot.
-
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::core::{PlayerProfile, ProfileDirty, ToolEnergy};
@@ -58,18 +57,30 @@ fn grant_if_missing(inventory: &mut Inventory, material: MaterialId, amount: u32
     }
 }
 
+#[derive(SystemParam)]
+pub(crate) struct HomesteadToolUse<'w, 's> {
+    energy: ResMut<'w, ToolEnergy>,
+    inventory: ResMut<'w, Inventory>,
+    dirty: ResMut<'w, ProfileDirty>,
+    profile: ResMut<'w, PlayerProfile>,
+    plots: Query<'w, 's, &'static mut CropPlot>,
+}
+
 pub fn use_homestead_tool(
     actions: Res<ActionState>,
     inventory_open: Res<InventoryWindowOpen>,
     forge_open: Res<ForgeWindowOpen>,
     equipped: Res<EquippedTool>,
-    mut energy: ResMut<ToolEnergy>,
-    mut inventory: ResMut<Inventory>,
-    mut dirty: ResMut<ProfileDirty>,
-    mut profile: ResMut<PlayerProfile>,
     player: Query<(&Transform, &PlayerFacing), With<OverworldPlayer>>,
-    mut plots: Query<&mut CropPlot>,
+    tool_use: HomesteadToolUse,
 ) {
+    let HomesteadToolUse {
+        mut energy,
+        mut inventory,
+        mut dirty,
+        mut profile,
+        mut plots,
+    } = tool_use;
     if inventory_open.0 || forge_open.0 {
         return;
     }
