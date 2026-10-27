@@ -23,6 +23,7 @@ from art_common import (
     pack_strip,
     palette_from_colors,
     paste_pixels,
+    reject_resample_names,
     rejecting_canvas,
     require_opaque_color,
     require_sha256,
@@ -352,6 +353,19 @@ def test_require_sha256_rejects_a_different_digest(tmp_path: Path) -> None:
     path.write_text("signed", encoding="utf-8")
     with pytest.raises(SystemExit, match="note.txt hash"):
         require_sha256(path, "f" * 64)
+def test_reject_resample_names_accepts_a_script_that_avoids_banned_words(tmp_path: Path) -> None:
+    path = tmp_path / "draw.py"
+    path.write_text("def draw():\n    return 1\n", encoding="utf-8")
+    reject_resample_names(path)
+def test_reject_resample_names_accepts_the_banned_pieces_when_they_are_written_apart(tmp_path: Path) -> None:
+    path = tmp_path / "draw.py"
+    path.write_text('word = "res" + "ize"\n', encoding="utf-8")
+    reject_resample_names(path)
+def test_reject_resample_names_rejects_a_script_that_mentions_a_banned_word(tmp_path: Path) -> None:
+    path = tmp_path / "draw.py"
+    path.write_text('name = "resize"\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="draw script must not mention resize"):
+        reject_resample_names(path)
 def test_signed_hunter_colors_uses_the_signed_dark_purple() -> None:
     colors = signed_hunter_colors(_signed_colors())
     assert colors["purple_dark"] == (108, 21, 120, 255)
