@@ -64,14 +64,16 @@ pub fn debounced_autosave(
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
-        &wallet,
+        &super::sync::ProfileCapture {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+            wallet: &wallet,
+        },
         &mut profile,
     );
     match save_profile(active.index(), &profile) {
@@ -99,14 +101,16 @@ pub fn flush_saves_on_exit(
     }
 
     snapshot_profile(
-        &inventory,
-        &loadout,
-        &progress,
-        &day_clock,
-        &tool_energy,
-        &audio,
-        &bindings,
-        &wallet,
+        &super::sync::ProfileCapture {
+            inventory: &inventory,
+            loadout: &loadout,
+            progress: &progress,
+            day_clock: &day_clock,
+            tool_energy: &tool_energy,
+            audio: &audio,
+            bindings: &bindings,
+            wallet: &wallet,
+        },
         &mut profile,
     );
     if let Err(error) = save_profile(active.index(), &profile) {
