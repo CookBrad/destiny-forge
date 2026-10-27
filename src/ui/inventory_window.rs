@@ -909,6 +909,7 @@ pub fn sync_inventory_display(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::player::DestinySpark;
     use bevy::ecs::system::RunSystemOnce;
 
     fn app_with_two_stews_and_e_pressed(game: GameState) -> App {
@@ -996,6 +997,137 @@ mod tests {
         assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
         assert_eq!(currency_marks(&mut app), vec!["$", "*"]);
     }
+
+    #[test]
+    fn inventory_footer_shows_the_wallet() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 120,
+                sparks: DestinySpark(7),
+            });
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "120");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "7");
+    }
+
+    #[test]
+    fn open_inventory_footer_tracks_wallet_changes() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 1,
+                sparks: DestinySpark(2),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .add_systems(Update, sync_inventory_wallet_footer);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        {
+            let mut wallet = app.world_mut().resource_mut::<Wallet>();
+            wallet.gold = 9;
+            wallet.sparks = DestinySpark(3);
+        }
+        app.update();
+
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "9");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "3");
+    }
+
+    #[test]
+    fn pressing_i_opens_the_inventory_footer_with_the_wallet() {
+        let mut app = toggle_app_with_forge_closed(Wallet {
+            gold: 250,
+            sparks: DestinySpark(4),
+        });
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        assert!(app.world().resource::<InventoryWindowOpen>().0);
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
+    }
+
+    #[test]
+    fn pressing_i_again_closes_the_inventory() {
+        let mut app = toggle_app_with_forge_closed(Wallet::default());
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        app.update();
+        assert!(!app.world().resource::<InventoryWindowOpen>().0);
+        let mut windows = app.world_mut().query::<&InventoryWindow>();
+        assert_eq!(windows.iter(app.world()).count(), 0);
+    }
+
+    #[test]
+    fn pressing_i_while_the_forge_is_open_leaves_the_inventory_closed() {
+        let mut app = toggle_app_with_forge_open(Wallet::default());
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        assert!(!app.world().resource::<InventoryWindowOpen>().0);
+    }
+
+    #[test]
+    fn a_closed_inventory_keeps_the_footer_text_it_already_showed() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 1,
+                sparks: DestinySpark(2),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .add_systems(Update, sync_inventory_wallet_footer);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        app.world_mut().resource_mut::<InventoryWindowOpen>().0 = false;
+        {
+            let mut wallet = app.world_mut().resource_mut::<Wallet>();
+            wallet.gold = 9;
+            wallet.sparks = DestinySpark(3);
+        }
+        app.update();
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "1");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "2");
+    }
+
+    #[test]
+    fn loadout_change_rebuilds_the_open_inventory() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 250,
+                sparks: DestinySpark(4),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .insert_resource(InventorySelectedSlot(0))
+            .insert_resource(State::new(GameState::Overworld))
+            .add_systems(Update, rebuild_inventory_on_loadout_change);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        let first = app
+            .world_mut()
+            .query_filtered::<Entity, With<InventoryWindow>>()
+            .single(app.world());
+        app.world_mut().resource_mut::<Loadout>().food_buff = Some(MaterialId::PotatoStew);
+        app.update();
+        let rebuilt = app
+            .world_mut()
+            .query_filtered::<Entity, With<InventoryWindow>>()
+            .single(app.world());
+        assert_ne!(rebuilt, first);
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
+    }
+
     fn spawn_inventory_with_wallet(mut commands: Commands, inventory: Res<Inventory>, loadout: Res<Loadout>, wallet: Res<Wallet>) {
         spawn_inventory_window(&mut commands, &inventory, &loadout, LoadoutSwapAccess::Hub, 0, &wallet);
     }
@@ -1006,5 +1138,33 @@ mod tests {
         let mut labels: Vec<_> = app.world_mut().query_filtered::<&Text, With<InventoryCurrencyMark>>().iter(app.world()).map(|text| text.0.clone()).collect();
         labels.sort();
         labels
+    }
+
+    fn toggle_app_with_forge_closed(wallet: Wallet) -> App {
+        inventory_toggle_app(wallet, crate::ui::forge_window::ForgeWindowOpen(false))
+    }
+
+    fn toggle_app_with_forge_open(wallet: Wallet) -> App {
+        inventory_toggle_app(wallet, crate::ui::forge_window::ForgeWindowOpen(true))
+    }
+
+    fn inventory_toggle_app(wallet: Wallet, forge: crate::ui::forge_window::ForgeWindowOpen) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(crate::input::action_state_after_pressing(&[], &[]))
+            .insert_resource(forge)
+            .insert_resource(InventoryWindowOpen(false))
+            .insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(wallet)
+            .insert_resource(InventorySelectedSlot(0))
+            .insert_resource(State::new(GameState::Overworld))
+            .add_systems(Update, toggle_inventory_window);
+        app
+    }
+
+    fn press(app: &mut App, keys: &[KeyCode]) {
+        app.world_mut()
+            .insert_resource(crate::input::action_state_after_pressing(keys, &[]));
     }
 }
