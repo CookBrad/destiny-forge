@@ -109,12 +109,6 @@ def _near_segment(
     distance_squared_numerator = (wx * wx + wy * wy) * length2 - dot * dot
     return distance_squared_numerator <= radius2 * length2
 
-def chain(points: list[tuple[int, int]], radius: int) -> list[tuple[int, int]]:
-    drawn: list[tuple[int, int]] = []
-    for start, end in zip(points, points[1:]):
-        drawn.extend(capsule_pixels(start[0], start[1], end[0], end[1], radius))
-    return drawn
-
 def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
     if len(points) < 3:
         return []
@@ -133,6 +127,50 @@ def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
                 drawn.append((x, y))
             pair += 2
     return drawn
+
+def volume(
+    points: list[tuple[int, int]],
+    cx: int,
+    cy: int,
+    ramp: tuple[tuple[int, int, int, int], ...],
+    split: int,
+) -> dict[tuple[int, int], tuple[int, int, int, int]]:
+    if not points:
+        return {}
+    stops = len(ramp)
+    if stops == 1:
+        return {point: ramp[0] for point in points}
+    last = stops - 1
+    offset = max(split, 4)
+    lamp_x = cx - offset
+    lamp_y = cy - offset
+    distances = []
+    for x, y in points:
+        delta_x = x - lamp_x
+        delta_y = y - lamp_y
+        distances.append(delta_x * delta_x + delta_y * delta_y)
+    nearest = min(distances)
+    span = max(distances) - nearest
+    painted = {}
+    if span <= 0:
+        mid = ramp[last // 2]
+        for x, y in points:
+            painted[(x, y)] = mid
+        return painted
+    for (x, y), dist in zip(points, distances):
+        away = (dist - nearest) * last
+        base = away // (span + 1)
+        rem = away % (span + 1)
+        threshold = BAYER4[y & 3][x & 3]
+        if rem * 16 > (span + 1) * threshold and base < last:
+            base += 1
+        pick = (x * 13 + y * 29) % 17
+        if pick == 0 and base < last:
+            base += 1
+        elif pick == 1 and base > 0:
+            base -= 1
+        painted[(x, y)] = ramp[last - base]
+    return painted
 
 def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> list[int]:
     crossings = []
@@ -208,50 +246,6 @@ def draw_bat(palette: Palette) -> Canvas:
     canvas.put(52, 22, palette.white)
     return canvas
 
-def volume(
-    points: list[tuple[int, int]],
-    cx: int,
-    cy: int,
-    ramp: tuple[tuple[int, int, int, int], ...],
-    split: int,
-) -> dict[tuple[int, int], tuple[int, int, int, int]]:
-    if not points:
-        return {}
-    stops = len(ramp)
-    if stops == 1:
-        return {point: ramp[0] for point in points}
-    last = stops - 1
-    offset = max(split, 4)
-    lamp_x = cx - offset
-    lamp_y = cy - offset
-    distances = []
-    for x, y in points:
-        delta_x = x - lamp_x
-        delta_y = y - lamp_y
-        distances.append(delta_x * delta_x + delta_y * delta_y)
-    nearest = min(distances)
-    span = max(distances) - nearest
-    painted = {}
-    if span <= 0:
-        mid = ramp[last // 2]
-        for x, y in points:
-            painted[(x, y)] = mid
-        return painted
-    for (x, y), dist in zip(points, distances):
-        away = (dist - nearest) * last
-        base = away // (span + 1)
-        rem = away % (span + 1)
-        threshold = BAYER4[y & 3][x & 3]
-        if rem * 16 > (span + 1) * threshold and base < last:
-            base += 1
-        pick = (x * 13 + y * 29) % 17
-        if pick == 0 and base < last:
-            base += 1
-        elif pick == 1 and base > 0:
-            base -= 1
-        painted[(x, y)] = ramp[last - base]
-    return painted
-
 def spark(
     canvas: Canvas,
     points: list[tuple[int, int]],
@@ -282,6 +276,12 @@ def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> 
     canvas.fill(ellipse_pixels(x, y, inner, inner), palette.purple)
     canvas.put(x - 1, y - 1, palette.purple_light)
     canvas.put(x, y, palette.purple_light)
+
+def chain(points: list[tuple[int, int]], radius: int) -> list[tuple[int, int]]:
+    drawn: list[tuple[int, int]] = []
+    for start, end in zip(points, points[1:]):
+        drawn.extend(capsule_pixels(start[0], start[1], end[0], end[1], radius))
+    return drawn
 
 def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
     canvas.put(x, y, palette.brass_dark)
@@ -576,45 +576,9 @@ def draw_king(palette: Palette) -> Canvas:
     canvas.put(144, 10, palette.brass_light)
     return canvas
 
-def draw_arrow(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(16, 48)
-    head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
-    canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
-    canvas.put(8, 2, palette.brass_hi)
-    canvas.put(7, 3, palette.brass_light)
-    canvas.put(4, 7, palette.brass_shadow)
-    canvas.put(12, 7, palette.brass_dark)
-    canvas.put(8, 9, palette.brass)
-    for y in range(11, 34):
-        left = palette.leather_shadow if y % 2 == 0 else palette.leather_deep
-        right = palette.leather_md if y % 2 == 0 else palette.leather
-        canvas.put(6, y, palette.ink_warm)
-        canvas.put(7, y, left)
-        canvas.put(8, y, right)
-        canvas.put(9, y, palette.leather_hi if (y + 8) % 4 == 0 else palette.leather_dark)
-    canvas.put(7, 18, palette.brass_dark)
-    canvas.put(8, 18, palette.brass)
-    canvas.put(7, 19, palette.brass_md)
-    canvas.put(8, 19, palette.brass_hi)
-    for step, y in enumerate(range(30, 44)):
-        inset = step // 3
-        left = 6 - inset
-        right = 9 + inset
-        canvas.put(left, y, palette.bone_dark if step % 2 else palette.bone_shadow)
-        canvas.put(left - 1, y, palette.bone_md)
-        canvas.put(right, y, palette.bone if step % 2 else palette.bone_mid)
-        canvas.put(right + 1, y, palette.steel_light)
-    canvas.put(7, 44, palette.leather_deep)
-    canvas.put(8, 44, palette.leather)
-    canvas.put(7, 45, palette.ink_warm)
-    canvas.put(8, 45, palette.ink_warm)
-    add_outline(canvas, palette.ink)
-    return canvas
-
-def png_bytes(image: Image.Image) -> bytes:
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG", compress_level=9)
-    return buffer.getvalue()
+def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
+    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
+    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
 def crown_spike(
     canvas: Canvas,
@@ -645,17 +609,6 @@ def crown_spike(
     canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
     canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
     canvas.put(cx, tip_y + 1, palette.brass_hi)
-
-def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
-    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
-    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
-
-def save_png(image: Image.Image, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    first = png_bytes(image)
-    path.write_bytes(first)
-    if png_bytes(Image.open(path).convert("RGBA")) != first:
-        raise SystemExit(f"{path.name} did not round-trip")
 
 def draw_bolt(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
@@ -691,6 +644,41 @@ def draw_blob(palette: Palette) -> Canvas:
     add_cast_rim(canvas, palette.gel_shadow)
     add_outline(canvas, palette.ink)
     canvas.put(10, 10, palette.white)
+    return canvas
+
+def draw_arrow(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(16, 48)
+    head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
+    canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
+    canvas.put(8, 2, palette.brass_hi)
+    canvas.put(7, 3, palette.brass_light)
+    canvas.put(4, 7, palette.brass_shadow)
+    canvas.put(12, 7, palette.brass_dark)
+    canvas.put(8, 9, palette.brass)
+    for y in range(11, 34):
+        left = palette.leather_shadow if y % 2 == 0 else palette.leather_deep
+        right = palette.leather_md if y % 2 == 0 else palette.leather
+        canvas.put(6, y, palette.ink_warm)
+        canvas.put(7, y, left)
+        canvas.put(8, y, right)
+        canvas.put(9, y, palette.leather_hi if (y + 8) % 4 == 0 else palette.leather_dark)
+    canvas.put(7, 18, palette.brass_dark)
+    canvas.put(8, 18, palette.brass)
+    canvas.put(7, 19, palette.brass_md)
+    canvas.put(8, 19, palette.brass_hi)
+    for step, y in enumerate(range(30, 44)):
+        inset = step // 3
+        left = 6 - inset
+        right = 9 + inset
+        canvas.put(left, y, palette.bone_dark if step % 2 else palette.bone_shadow)
+        canvas.put(left - 1, y, palette.bone_md)
+        canvas.put(right, y, palette.bone if step % 2 else palette.bone_mid)
+        canvas.put(right + 1, y, palette.steel_light)
+    canvas.put(7, 44, palette.leather_deep)
+    canvas.put(8, 44, palette.leather)
+    canvas.put(7, 45, palette.ink_warm)
+    canvas.put(8, 45, palette.ink_warm)
+    add_outline(canvas, palette.ink)
     return canvas
 
 def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int, int, int, int]]]:
@@ -797,6 +785,18 @@ def main() -> None:
     check_all(sheets, allowed)
     for name, path in output_paths().items():
         save_png(to_image(sheets[name]), path)
+
+def save_png(image: Image.Image, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    first = png_bytes(image)
+    path.write_bytes(first)
+    if png_bytes(Image.open(path).convert("RGBA")) != first:
+        raise SystemExit(f"{path.name} did not round-trip")
+
+def png_bytes(image: Image.Image) -> bytes:
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", compress_level=9)
+    return buffer.getvalue()
 
 def to_image(canvas: Canvas) -> Image.Image:
     image = Image.new("RGBA", (canvas.width, canvas.height), (0, 0, 0, 0))
