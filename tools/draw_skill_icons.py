@@ -43,8 +43,37 @@ ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
 IRON_TONES = {IRON_LIGHT, IRON, IRON_DARK}
 BRASS_TONES = {BRASS_LIGHT, BRASS, BRASS_DARK}
 
-def new_canvas() -> Canvas:
-    return rejecting_canvas(SIZE, SIZE)
+def main() -> None:
+    check = "--check" in sys.argv
+    icons = {
+        "short_wep.png": draw_sword(),
+        "shield.png": draw_shield(),
+        "boot.png": draw_boot(),
+        "wand.png": draw_wand(),
+    }
+    payloads = [list(image.getdata()) for image in icons.values()]
+    if len({tuple(payload) for payload in payloads}) != len(icons):
+        raise SystemExit("skill icons are not unique")
+
+    for name, image in icons.items():
+        verify(image, name)
+        dest = OUT_DIR / name
+        if check:
+            if not dest.is_file():
+                raise SystemExit(f"missing {dest}")
+            existing = Image.open(dest).convert("RGBA")
+            verify(existing, name)
+            if list(existing.getdata()) != list(image.getdata()):
+                raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
+        else:
+            save_png(image, dest)
+        min_x, min_y, max_x, max_y = glyph_box(image)
+        print(
+            f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
+            f"at ({min_x},{min_y})-({max_x},{max_y})"
+        )
+        print(ascii_preview(image))
+        print()
 
 def put(
     canvas: Canvas,
@@ -53,6 +82,9 @@ def put(
     color: tuple[int, int, int, int],
 ) -> None:
     canvas.put(x, y, color)
+
+def new_canvas() -> Canvas:
+    return rejecting_canvas(SIZE, SIZE)
 
 def fills_span(
     canvas: Canvas,
@@ -108,35 +140,14 @@ def neighbor(
         return canvas[ny][nx]
     return None
 
+def outline_icon(canvas: Canvas) -> None:
+    add_outline(canvas, OUTLINE)
+
 def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
     return any(neighbor(canvas, x, y, delta_x, delta_y) is None for delta_x, delta_y in ORTHO)
 
 def shade_outline(canvas: Canvas) -> None:
     light_contour(canvas, OUTLINE, RIM_LIT)
-
-def recolor_rim(
-    canvas: Canvas,
-    lit: tuple[int, int, int, int],
-    mid: tuple[int, int, int, int],
-    shadow: tuple[int, int, int, int],
-) -> None:
-    edge = [
-        (x, y)
-        for y in range(SIZE)
-        for x in range(SIZE)
-        if canvas[y][x] is not None and touches_empty(canvas, x, y)
-    ]
-    for x, y in edge:
-        above_empty = neighbor(canvas, x, y, 0, -1) is None
-        left_empty = neighbor(canvas, x, y, -1, 0) is None
-        below_empty = neighbor(canvas, x, y, 0, 1) is None
-        right_empty = neighbor(canvas, x, y, 1, 0) is None
-        if above_empty or (left_empty and not right_empty and not below_empty):
-            canvas[y][x] = lit
-        elif below_empty or right_empty:
-            canvas[y][x] = shadow
-        else:
-            canvas[y][x] = mid
 
 def shield_spans() -> list[tuple[int, int, int]]:
     spans = [
@@ -237,46 +248,29 @@ def paint_boot_trail(canvas: Canvas) -> None:
         if canvas[y][x] is None:
             put(canvas, x, y, color)
 
-def paint_wand(canvas: Canvas) -> None:
-    diamond = {
-        6: range(16, 18),
-        7: range(15, 19),
-        8: range(14, 20),
-        9: range(14, 20),
-        10: range(15, 19),
-        11: range(16, 18),
-    }
-    for y, xs in diamond.items():
-        for x in xs:
-
-            color = PURPLE_DARK if x + y >= 28 else PURPLE
-            put(canvas, x, y, color)
-    put(canvas, 15, 7, STEEL_LIGHT)
-
-    for x in range(14, 19):
-        put(canvas, x, 12, BRASS_LIGHT if x < 17 else BRASS)
-        put(canvas, x, 13, BRASS_DARK)
-    for y in range(14, 27):
-        put(canvas, 15, y, BRASS_LIGHT)
-        put(canvas, 16, y, BRASS)
-        put(canvas, 17, y, BRASS_DARK)
-    for x in range(14, 19):
-        put(canvas, x, 27, BRASS_LIGHT if x < 17 else BRASS)
-        put(canvas, x, 28, BRASS_DARK)
-    put(canvas, 16, 28, CYAN_DARK)
-
-def paint_wand_orbit(canvas: Canvas) -> None:
-    for x, y in circle_pixels(16, 10, 8):
-        if y >= 13 or canvas[y][x] is not None:
-            continue
-
-        if x >= 20 and y <= 8:
-            color = PURPLE
-        elif x + y < 20:
-            color = CYAN
+def recolor_rim(
+    canvas: Canvas,
+    lit: tuple[int, int, int, int],
+    mid: tuple[int, int, int, int],
+    shadow: tuple[int, int, int, int],
+) -> None:
+    edge = [
+        (x, y)
+        for y in range(SIZE)
+        for x in range(SIZE)
+        if canvas[y][x] is not None and touches_empty(canvas, x, y)
+    ]
+    for x, y in edge:
+        above_empty = neighbor(canvas, x, y, 0, -1) is None
+        left_empty = neighbor(canvas, x, y, -1, 0) is None
+        below_empty = neighbor(canvas, x, y, 0, 1) is None
+        right_empty = neighbor(canvas, x, y, 1, 0) is None
+        if above_empty or (left_empty and not right_empty and not below_empty):
+            canvas[y][x] = lit
+        elif below_empty or right_empty:
+            canvas[y][x] = shadow
         else:
-            color = CYAN_DARK
-        put(canvas, x, y, color)
+            canvas[y][x] = mid
 
 def finish_body(canvas: Canvas) -> None:
     outline_icon(canvas)
@@ -350,6 +344,47 @@ def draw_wand() -> Image.Image:
     finish_body(canvas)
     paint_wand_orbit(canvas)
     return to_image(canvas)
+
+def paint_wand(canvas: Canvas) -> None:
+    diamond = {
+        6: range(16, 18),
+        7: range(15, 19),
+        8: range(14, 20),
+        9: range(14, 20),
+        10: range(15, 19),
+        11: range(16, 18),
+    }
+    for y, xs in diamond.items():
+        for x in xs:
+
+            color = PURPLE_DARK if x + y >= 28 else PURPLE
+            put(canvas, x, y, color)
+    put(canvas, 15, 7, STEEL_LIGHT)
+
+    for x in range(14, 19):
+        put(canvas, x, 12, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 13, BRASS_DARK)
+    for y in range(14, 27):
+        put(canvas, 15, y, BRASS_LIGHT)
+        put(canvas, 16, y, BRASS)
+        put(canvas, 17, y, BRASS_DARK)
+    for x in range(14, 19):
+        put(canvas, x, 27, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 28, BRASS_DARK)
+    put(canvas, 16, 28, CYAN_DARK)
+
+def paint_wand_orbit(canvas: Canvas) -> None:
+    for x, y in circle_pixels(16, 10, 8):
+        if y >= 13 or canvas[y][x] is not None:
+            continue
+
+        if x >= 20 and y <= 8:
+            color = PURPLE
+        elif x + y < 20:
+            color = CYAN
+        else:
+            color = CYAN_DARK
+        put(canvas, x, y, color)
 
 def glyph_box(image: Image.Image) -> tuple[int, int, int, int]:
     pixels = image.load()
@@ -448,41 +483,6 @@ def ascii_preview(image: Image.Image) -> str:
                 chars.append(legend.get(pixel, "?"))
         rows.append("".join(chars).rstrip())
     return "\n".join(rows)
-
-def main() -> None:
-    check = "--check" in sys.argv
-    icons = {
-        "short_wep.png": draw_sword(),
-        "shield.png": draw_shield(),
-        "boot.png": draw_boot(),
-        "wand.png": draw_wand(),
-    }
-    payloads = [list(image.getdata()) for image in icons.values()]
-    if len({tuple(payload) for payload in payloads}) != len(icons):
-        raise SystemExit("skill icons are not unique")
-
-    for name, image in icons.items():
-        verify(image, name)
-        dest = OUT_DIR / name
-        if check:
-            if not dest.is_file():
-                raise SystemExit(f"missing {dest}")
-            existing = Image.open(dest).convert("RGBA")
-            verify(existing, name)
-            if list(existing.getdata()) != list(image.getdata()):
-                raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
-        else:
-            save_png(image, dest)
-        min_x, min_y, max_x, max_y = glyph_box(image)
-        print(
-            f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
-            f"at ({min_x},{min_y})-({max_x},{max_y})"
-        )
-        print(ascii_preview(image))
-        print()
-
-def outline_icon(canvas: Canvas) -> None:
-    add_outline(canvas, OUTLINE)
 
 if __name__ == "__main__":
     main()
