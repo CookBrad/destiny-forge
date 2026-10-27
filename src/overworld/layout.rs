@@ -491,3 +491,75 @@ pub struct Bed;
 
 #[derive(Component)]
 pub struct OverworldGrid;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Component)]
+    struct RoofTile;
+
+    #[test]
+    fn a_roof_row_places_one_tile_on_every_column_in_range() {
+        let min_tx = 1;
+        let max_tx = 4;
+        let tile_y = 2;
+        let roof_z = 2.0;
+        let color = Color::srgb(0.45, 0.22, 0.16);
+        let tiles = roof_tiles(min_tx, max_tx, tile_y, roof_z, color);
+        let expected: Vec<Vec3> = (min_tx..max_tx)
+            .map(|tx| world_transform(tile_center(tx, tile_y), roof_z).translation)
+            .collect();
+        assert_eq!(tiles.len(), expected.len());
+        for (translation, tile_color) in &tiles {
+            assert_eq!(*tile_color, color);
+            assert!(expected.contains(translation));
+        }
+        assert_eq!(tiles.len(), (max_tx - min_tx) as usize);
+    }
+
+    fn roof_tiles(
+        min_tx: u32,
+        max_tx: u32,
+        tile_y: u32,
+        roof_z: f32,
+        color: Color,
+    ) -> Vec<(Vec3, Color)> {
+        let mut app = App::new();
+        app.add_systems(Update, move |mut commands: Commands| {
+            spawn_native_roof_row(
+                &mut commands,
+                NativeRoofRow {
+                    image: Handle::default(),
+                    color,
+                    min_tx,
+                    max_tx,
+                    tile_y,
+                    z: roof_z,
+                },
+                |entity| {
+                    entity.insert(RoofTile);
+                },
+            );
+        });
+        app.update();
+        let mut tiles = Vec::new();
+        let mut drawn = app.world_mut().query::<(&Sprite, &Transform, &RoofTile)>();
+        for (sprite, transform, _) in drawn.iter(app.world()) {
+            tiles.push((transform.translation, sprite.color));
+        }
+        tiles
+    }
+
+    #[test]
+    fn an_empty_roof_range_places_no_tiles() {
+        let tiles = roof_tiles(3, 3, 1, 2.0, Color::WHITE);
+        assert_eq!(tiles.len(), 0);
+    }
+
+    #[test]
+    fn a_reversed_roof_range_places_no_tiles() {
+        let tiles = roof_tiles(5, 2, 1, 2.0, Color::WHITE);
+        assert_eq!(tiles.len(), 0);
+    }
+}
