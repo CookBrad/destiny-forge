@@ -88,23 +88,6 @@ def write_cutout_pieces() -> None:
 
 
 
-def shade(color: tuple[int, int, int, int], delta: int) -> tuple[int, int, int, int]:
-    red, green, blue, alpha = color
-    return (
-        clamp_channel(red + delta),
-        clamp_channel(green + delta),
-        clamp_channel(blue + delta),
-        alpha,
-    )
-
-def hash2(x: int, y: int, salt: int = 0) -> int:
-    value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
-    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
-    return (value ^ (value >> 16)) & 0xFF
-
-def clamp_channel(value: int) -> int:
-    return 0 if value < 0 else 255 if value > 255 else value
-
 def draw_wall() -> Canvas:
     canvas = clipping_canvas(WALL_PATTERN, WALL_PATTERN, MORTAR_DARK)
     stones = (shade(GRAY, -10), shade(GRAY_DARK, 4), shade(GRAY, -18), shade(GRAY_DARK, -4))
@@ -146,6 +129,23 @@ def draw_wall() -> Canvas:
     rivet(canvas, 105, 108)
     rivet(canvas, 117, 108)
     return canvas
+
+def shade(color: tuple[int, int, int, int], delta: int) -> tuple[int, int, int, int]:
+    red, green, blue, alpha = color
+    return (
+        clamp_channel(red + delta),
+        clamp_channel(green + delta),
+        clamp_channel(blue + delta),
+        alpha,
+    )
+
+def clamp_channel(value: int) -> int:
+    return 0 if value < 0 else 255 if value > 255 else value
+
+def hash2(x: int, y: int, salt: int = 0) -> int:
+    value = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
+    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (value ^ (value >> 16)) & 0xFF
 
 def bevel_wrapped_block(
     canvas: Canvas,
