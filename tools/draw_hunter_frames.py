@@ -118,6 +118,26 @@ def main() -> None:
         print(f"{label} chest {chest_pin_x(frame):.2f} sole {center:.1f}@{row} tip {tip}")
     print("jump/fall/death written")
 
+def load_sheet(name: str) -> Sprite:
+    path = SIGNED / name
+    require_sha256(path, SIGNED_SHA256[name])
+    image = Image.open(path).convert("RGBA")
+    return sprite_from_image(image)
+
+def sprite_from_image(image: Image.Image) -> Sprite:
+    pixels = image.load()
+    width, height = image.size
+    kept = {}
+    for y in range(height):
+        for x in range(width):
+            red, green, blue, alpha = pixels[x, y]
+            if alpha == 0:
+                continue
+            if alpha != 255:
+                raise SystemExit(f"partial alpha at {x},{y}")
+            kept[(x, y)] = (red, green, blue, 255)
+    return Sprite(kept)
+
 class Sprite:
     def __init__(self, pixels: dict[Point, Color] | None = None) -> None:
         self.pixels = {} if pixels is None else dict(pixels)
@@ -167,26 +187,6 @@ class Sprite:
             xx, yy = x + delta_x, y + delta_y
             if not (0 <= xx < width and 0 <= yy < height):
                 raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
-
-def sprite_from_image(image: Image.Image) -> Sprite:
-    pixels = image.load()
-    width, height = image.size
-    kept = {}
-    for y in range(height):
-        for x in range(width):
-            red, green, blue, alpha = pixels[x, y]
-            if alpha == 0:
-                continue
-            if alpha != 255:
-                raise SystemExit(f"partial alpha at {x},{y}")
-            kept[(x, y)] = (red, green, blue, 255)
-    return Sprite(kept)
-
-def load_sheet(name: str) -> Sprite:
-    path = SIGNED / name
-    require_sha256(path, SIGNED_SHA256[name])
-    image = Image.open(path).convert("RGBA")
-    return sprite_from_image(image)
 
 def cell_of(sheet: Sprite, index: int) -> Sprite:
     return sheet.crop(index * CELL_WIDTH, 0, (index + 1) * CELL_WIDTH, CELL_HEIGHT)
@@ -293,28 +293,6 @@ def blade_only(sprite: Sprite) -> Sprite:
     blade = flood_blade(sprite)
     return Sprite({point: sprite.pixels[point] for point in blade})
 
-def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
-    for _ in range(passes):
-        extra = {}
-        if not sprite.pixels:
-            break
-        xs = [x for x, _ in sprite.pixels]
-        ys = [y for _, y in sprite.pixels]
-        for y in range(min(ys) - 1, max(ys) + 2):
-            for x in range(min(xs) - 1, max(xs) + 2):
-                if (x, y) in sprite.pixels or (x, y) in extra:
-                    continue
-                left = sprite.pixels.get((x - 1, y))
-                right = sprite.pixels.get((x + 1, y))
-                up = sprite.pixels.get((x, y - 1))
-                down = sprite.pixels.get((x, y + 1))
-                if left is not None and right is not None:
-                    extra[(x, y)] = left
-                elif up is not None and down is not None:
-                    extra[(x, y)] = up
-        sprite.pixels.update(extra)
-    return sprite
-
 def long_runs(xs: list[int]) -> list[tuple[int, int]]:
     if not xs:
         return []
@@ -418,8 +396,52 @@ def blade_tip(blade: Sprite, pivot: tuple[float, float]) -> tuple[int, int]:
     px, py = pivot
     return max(blade.pixels, key=lambda point: math.hypot(point[0] - px, point[1] - py))
 
+def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
+    for _ in range(passes):
+        extra = {}
+        if not sprite.pixels:
+            break
+        xs = [x for x, _ in sprite.pixels]
+        ys = [y for _, y in sprite.pixels]
+        for y in range(min(ys) - 1, max(ys) + 2):
+            for x in range(min(xs) - 1, max(xs) + 2):
+                if (x, y) in sprite.pixels or (x, y) in extra:
+                    continue
+                left = sprite.pixels.get((x - 1, y))
+                right = sprite.pixels.get((x + 1, y))
+                up = sprite.pixels.get((x, y - 1))
+                down = sprite.pixels.get((x, y + 1))
+                if left is not None and right is not None:
+                    extra[(x, y)] = left
+                elif up is not None and down is not None:
+                    extra[(x, y)] = up
+        sprite.pixels.update(extra)
+    return sprite
+
 def place_aimed(aimed: Sprite, pivot: tuple[float, float], hand: tuple[float, float]) -> Sprite:
     return aimed.shift(round_half_up(hand[0] - pivot[0]), round_half_up(hand[1] - pivot[1]))
+
+def compose_run_frame(parts: dict, pose: dict) -> Sprite:
+    chest = parts["chest"]
+    body = parts["body"].shift(0, pose["bob"])
+    hip_y = 118
+    rear = swing_from_hip(parts["rear"], pose["rear_deg"], chest - 4, hip_y)
+    front = swing_from_hip(parts["front"], pose["front_deg"], chest + 10, hip_y)
+    rear = seat_planted_leg(rear, chest) if pose["plant"] == "rear" else seat_lifted_leg(rear)
+    front = seat_planted_leg(front, chest) if pose["plant"] == "front" else seat_lifted_leg(front)
+    rear_foot, _sole = bottom_band(rear)
+    front_foot, _sole = bottom_band(front)
+    frame = body.copy()
+    if rear_foot <= front_foot:
+        frame.paste(rear)
+        frame.paste(front)
+    else:
+        frame.paste(front)
+        frame.paste(rear)
+    hand = sword_hand(body)
+    aimed, pivot = aim_low_blade(parts["sword"], RUN_SWORD_DEG, RUN_SWORD_LENGTH)
+    frame.paste(place_aimed(aimed, pivot, (hand[0] + 2, hand[1] - 8)))
+    return frame
 
 def top_center(sprite: Sprite) -> tuple[float, float]:
     min_y = min(y for _, y in sprite.pixels)
@@ -516,28 +538,6 @@ def _sole(leg: Sprite) -> tuple[float, int]:
     except SystemExit:
         return bottom_band(leg)
 
-def compose_run_frame(parts: dict, pose: dict) -> Sprite:
-    chest = parts["chest"]
-    body = parts["body"].shift(0, pose["bob"])
-    hip_y = 118
-    rear = swing_from_hip(parts["rear"], pose["rear_deg"], chest - 4, hip_y)
-    front = swing_from_hip(parts["front"], pose["front_deg"], chest + 10, hip_y)
-    rear = seat_planted_leg(rear, chest) if pose["plant"] == "rear" else seat_lifted_leg(rear)
-    front = seat_planted_leg(front, chest) if pose["plant"] == "front" else seat_lifted_leg(front)
-    rear_foot, _sole = bottom_band(rear)
-    front_foot, _sole = bottom_band(front)
-    frame = body.copy()
-    if rear_foot <= front_foot:
-        frame.paste(rear)
-        frame.paste(front)
-    else:
-        frame.paste(front)
-        frame.paste(rear)
-    hand = sword_hand(body)
-    aimed, pivot = aim_low_blade(parts["sword"], RUN_SWORD_DEG, RUN_SWORD_LENGTH)
-    frame.paste(place_aimed(aimed, pivot, (hand[0] + 2, hand[1] - 8)))
-    return frame
-
 def attack_hand(sprite: Sprite) -> tuple[float, float]:
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
     if not points:
@@ -545,6 +545,18 @@ def attack_hand(sprite: Sprite) -> tuple[float, float]:
     right = max(x for x, _ in points)
     cluster = [(x, y) for x, y in points if x >= right - 16]
     return (max(x for x, _ in cluster) - 2, max(y for _, y in cluster) + 8)
+
+def aim_from_pivot(
+    blade: Sprite,
+    pivot: tuple[float, float],
+    degrees_above_horizontal: float,
+    length: float,
+) -> tuple[Sprite, tuple[float, float]]:
+    tip = blade_tip(blade, pivot)
+    current = math.degrees(math.atan2(-(tip[1] - pivot[1]), tip[0] - pivot[0]))
+    turned = rotate(blade, current - degrees_above_horizontal, pivot)
+    aimed = shorten(turned, pivot, length)
+    return aimed, pivot
 
 def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: int) -> Sprite:
     rear_box = sprite.crop(0, 136, 48, CELL_HEIGHT)
@@ -664,30 +676,6 @@ def _death_stagger(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     fore = swing_from_hip(front, -16, chest + 12, 136)
     frame = tipped.copy().paste(back).paste(fore)
     frame.paste(place_aimed(sword, pivot, (hand[0], hand[1] - 4)))
-    return plant_on_foot(frame)
-
-def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
-    del rear, front
-    raw = without_blade(idle)
-    chest = chest_pin_x(raw)
-    upper = Sprite({point: color for point, color in raw.pixels.items() if point[1] < 114})
-    lower = Sprite({point: color for point, color in raw.pixels.items() if point[1] >= 102})
-    folded = rotate(upper, -52.0, (chest, 108))
-    left, top, right, bottom = folded.bounds()
-    folded = folded.shift(
-        round_half_up(chest - (left + right) / 2),
-        round_half_up(104 - bottom),
-    )
-    left, top, _right, _bottom = folded.bounds()
-    if top < 0:
-        folded = folded.shift(0, -top)
-    frame = lower.copy().paste(folded)
-    sword, pivot = aim_low_blade(blade_only(idle), 24.0, 36)
-    hand_x = chest + 28
-    frame.paste(place_aimed(sword, pivot, (hand_x, 118)))
-    frame.erase_if(
-        lambda x, y, _c: x < -24 or x >= CELL_WIDTH + 24 or y < -8 or y >= CELL_HEIGHT + 8
-    )
     return plant_on_foot(frame)
 
 def sheet_image(sprites: list[Sprite]) -> Image.Image:
@@ -864,6 +852,30 @@ def widen_sole_toward_right(sprite: Sprite) -> None:
     contact_row, _left, right = widest_sole(sprite)
     sprite.pixels[(right + 1, contact_row)] = sprite.pixels[(right, contact_row)]
 
+def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
+    del rear, front
+    raw = without_blade(idle)
+    chest = chest_pin_x(raw)
+    upper = Sprite({point: color for point, color in raw.pixels.items() if point[1] < 114})
+    lower = Sprite({point: color for point, color in raw.pixels.items() if point[1] >= 102})
+    folded = rotate(upper, -52.0, (chest, 108))
+    left, top, right, bottom = folded.bounds()
+    folded = folded.shift(
+        round_half_up(chest - (left + right) / 2),
+        round_half_up(104 - bottom),
+    )
+    left, top, _right, _bottom = folded.bounds()
+    if top < 0:
+        folded = folded.shift(0, -top)
+    frame = lower.copy().paste(folded)
+    sword, pivot = aim_low_blade(blade_only(idle), 24.0, 36)
+    hand_x = chest + 28
+    frame.paste(place_aimed(sword, pivot, (hand_x, 118)))
+    frame.erase_if(
+        lambda x, y, _c: x < -24 or x >= CELL_WIDTH + 24 or y < -8 or y >= CELL_HEIGHT + 8
+    )
+    return plant_on_foot(frame)
+
 def widest_sole(sprite: Sprite) -> tuple[int, int, int]:
     contact_row, _ = stance_contact(sprite)
     xs = sorted(x for x, y in sprite.pixels if y == contact_row)
@@ -902,18 +914,6 @@ def aim_low_blade(
     length: float,
 ) -> tuple[Sprite, tuple[float, float]]:
     return aim_from_pivot(blade, blade_base_low(blade), degrees_above_horizontal, length)
-
-def aim_from_pivot(
-    blade: Sprite,
-    pivot: tuple[float, float],
-    degrees_above_horizontal: float,
-    length: float,
-) -> tuple[Sprite, tuple[float, float]]:
-    tip = blade_tip(blade, pivot)
-    current = math.degrees(math.atan2(-(tip[1] - pivot[1]), tip[0] - pivot[0]))
-    turned = rotate(blade, current - degrees_above_horizontal, pivot)
-    aimed = shorten(turned, pivot, length)
-    return aimed, pivot
 
 def blade_base_low(blade: Sprite) -> tuple[float, float]:
     max_y = max(y for _, y in blade.pixels)
