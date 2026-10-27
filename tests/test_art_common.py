@@ -16,12 +16,14 @@ from art_common import (
     composite_images,
     composite_layers,
     light_contour,
+    load_pinned_colors,
     outline_layer,
     pack_strip,
     palette_from_colors,
     paste_pixels,
     rejecting_canvas,
     require_opaque_color,
+    require_sha256,
     translate_pixels,
 )
 
@@ -268,6 +270,46 @@ def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
 def test_palette_rejects_construction_without_its_fields() -> None:
     with pytest.raises(TypeError):
         Palette()
+def test_load_pinned_colors_keeps_opaque_pixels_and_skips_clear_ones(tmp_path: Path) -> None:
+    path = tmp_path / "swatch.png"
+    image = Image.new("RGBA", (2, 1), CLEAR)
+    image.putpixel((1, 0), RED)
+    image.save(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    allowed = load_pinned_colors(tmp_path, {"swatch.png": digest})
+    assert allowed == {RED}
+def test_load_pinned_colors_of_a_fully_clear_image_is_an_empty_set(tmp_path: Path) -> None:
+    path = tmp_path / "clear.png"
+    Image.new("RGBA", (1, 1), CLEAR).save(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert load_pinned_colors(tmp_path, {"clear.png": digest}) == set()
+def test_load_pinned_colors_rejects_partial_alpha(tmp_path: Path) -> None:
+    path = tmp_path / "partial.png"
+    image = Image.new("RGBA", (1, 1), PARTIAL)
+    image.save(path)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    with pytest.raises(SystemExit, match="partial alpha in partial.png"):
+        load_pinned_colors(tmp_path, {"partial.png": digest})
+def test_load_pinned_colors_rejects_a_hash_that_does_not_match(tmp_path: Path) -> None:
+    path = tmp_path / "swatch.png"
+    Image.new("RGBA", (1, 1), RED).save(path)
+    with pytest.raises(SystemExit, match="swatch.png hash"):
+        load_pinned_colors(tmp_path, {"swatch.png": "0" * 64})
+def test_require_sha256_accepts_the_digest_of_the_file(tmp_path: Path) -> None:
+    path = tmp_path / "note.txt"
+    path.write_bytes(b"signed")
+    digest = hashlib.sha256(b"signed").hexdigest()
+    require_sha256(path, digest)
+def test_require_sha256_accepts_the_digest_of_an_empty_file(tmp_path: Path) -> None:
+    path = tmp_path / "empty.txt"
+    path.write_bytes(b"")
+    digest = hashlib.sha256(b"").hexdigest()
+    require_sha256(path, digest)
+def test_require_sha256_rejects_a_different_digest(tmp_path: Path) -> None:
+    path = tmp_path / "note.txt"
+    path.write_text("signed", encoding="utf-8")
+    with pytest.raises(SystemExit, match="note.txt hash"):
+        require_sha256(path, "f" * 64)
 def test_palette_from_colors_rejects_an_empty_mapping() -> None:
     with pytest.raises(TypeError):
         palette_from_colors({})
