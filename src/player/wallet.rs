@@ -30,7 +30,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_wallet_starts_with_zero_gold_and_zero_sparks() {
+    fn new_wallet_starts_empty() {
         let wallet = Wallet::default();
         assert_eq!(wallet.gold, 0);
         assert_eq!(wallet.sparks.amount(), 0);
@@ -38,7 +38,7 @@ mod tests {
     }
 
     #[test]
-    fn wallet_keeps_the_largest_gold_and_spark_amounts() {
+    fn wallet_holds_the_largest_amounts() {
         let wallet = Wallet {
             gold: u32::MAX,
             sparks: DestinySpark(u32::MAX),
@@ -48,7 +48,7 @@ mod tests {
     }
 
     #[test]
-    fn wallet_round_trips_gold_and_sparks_through_save_text() {
+    fn wallet_round_trips_through_save_text() {
         let wallet = Wallet {
             gold: 250,
             sparks: DestinySpark(4),
