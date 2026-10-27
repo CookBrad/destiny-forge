@@ -52,33 +52,6 @@ TORCH_H = 64
 CHAIN_W = 16
 CHAIN_H = 160
 
-class Canvas:
-    def __init__(self, width: int, height: int, fill: tuple[int, int, int, int] = CLEAR) -> None:
-        self.width = width
-        self.height = height
-        self.pixels = [fill] * (width * height)
-
-    def put(self, x: int, y: int, color: tuple[int, int, int, int]) -> None:
-        if 0 <= x < self.width and 0 <= y < self.height:
-            self.pixels[y * self.width + x] = color
-
-    def fill_rect(
-        self,
-        start_x: int,
-        start_y: int,
-        end_x: int,
-        end_y: int,
-        color: tuple[int, int, int, int],
-    ) -> None:
-        for y in range(start_y, end_y):
-            for x in range(start_x, end_x):
-                self.put(x, y, color)
-
-    def image(self) -> Image.Image:
-        image = Image.new("RGBA", (self.width, self.height))
-        image.putdata(self.pixels)
-        return image
-
 def clamp_channel(value: int) -> int:
     return 0 if value < 0 else 255 if value > 255 else value
 
@@ -499,20 +472,6 @@ def draw_ground_slam() -> Canvas:
 def save(canvas: Canvas, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     canvas.image().save(path, format="PNG", optimize=False)
-
-def assert_size(path: Path, width: int, height: int, opaque: bool) -> None:
-    image = Image.open(path)
-    if image.size != (width, height):
-        raise SystemExit(f"{path} is {image.size}, expected {(width, height)}")
-    if image.mode != "RGBA":
-        raise SystemExit(f"{path} mode {image.mode}, expected RGBA")
-    alphas = {pixel[3] for pixel in image.getdata()}
-    if opaque and alphas != {255}:
-        raise SystemExit(f"{path} is not fully opaque: {sorted(alphas)[:6]}")
-    if not opaque and 0 not in alphas:
-        raise SystemExit(f"{path} has no transparent pixel")
-    if not opaque and 255 not in alphas:
-        raise SystemExit(f"{path} has no opaque pixel")
 def main() -> None:
     write_opaque_pieces()
     write_cutout_pieces()
