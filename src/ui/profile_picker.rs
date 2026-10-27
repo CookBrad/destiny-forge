@@ -132,3 +132,114 @@ pub fn begin_profile_run(index: u8, run: &mut ProfileRun) -> bool {
     );
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::player::DestinySpark;
+
+    #[derive(Resource, Default)]
+    struct StartResult(bool);
+
+    #[test]
+    fn starting_the_active_profile_copies_its_wallet_into_the_runtime() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 18,
+                sparks: DestinySpark(5),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = open_profile_run_app(profile, Wallet::default());
+        app.add_systems(Update, start_active_profile);
+        app.update();
+        assert!(app.world().resource::<StartResult>().0);
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 18);
+        assert_eq!(wallet.sparks.amount(), 5);
+    }
+
+    #[test]
+    fn starting_a_blocked_profile_leaves_the_runtime_wallet_unchanged() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 9,
+                sparks: DestinySpark(1),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = blocked_profile_run_app(
+            profile,
+            Wallet {
+                gold: 1,
+                sparks: DestinySpark(0),
+            },
+        );
+        app.add_systems(Update, start_active_profile);
+        app.update();
+        assert!(!app.world().resource::<StartResult>().0);
+        assert_eq!(app.world().resource::<Wallet>().gold, 1);
+    }
+
+    #[test]
+    fn an_index_past_the_last_slot_starts_that_slot() {
+        let profile = PlayerProfile {
+            wallet: Wallet {
+                gold: 6,
+                sparks: DestinySpark(0),
+            },
+            ..PlayerProfile::default()
+        };
+        let mut app = open_profile_run_app(profile, Wallet::default());
+        app.world_mut().resource_mut::<ActiveProfile>().0 = PROFILE_COUNT - 1;
+        app.add_systems(Update, start_past_the_last_slot);
+        app.update();
+        assert!(app.world().resource::<StartResult>().0);
+        assert_eq!(app.world().resource::<Wallet>().gold, 6);
+        assert_eq!(app.world().resource::<ActiveProfile>().0, PROFILE_COUNT - 1);
+    }
+
+    fn start_active_profile(mut run: ProfileRun, mut result: ResMut<StartResult>) {
+        result.0 = begin_profile_run(0, &mut run);
+    }
+
+    fn start_past_the_last_slot(mut run: ProfileRun, mut result: ResMut<StartResult>) {
+        result.0 = begin_profile_run(99, &mut run);
+    }
+
+    fn open_profile_run_app(profile: PlayerProfile, wallet: Wallet) -> App {
+        profile_run_app_with_block(profile, wallet, ProfileAutosaveBlock::default())
+    }
+
+    fn blocked_profile_run_app(profile: PlayerProfile, wallet: Wallet) -> App {
+        let mut block = ProfileAutosaveBlock::default();
+        block.block(0);
+        profile_run_app_with_block(profile, wallet, block)
+    }
+
+    fn profile_run_app_with_block(
+        profile: PlayerProfile,
+        wallet: Wallet,
+        block: ProfileAutosaveBlock,
+    ) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(Inventory::default())
+            .insert_resource(Loadout::default())
+            .insert_resource(WorldProgress::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::Spring)
+            .insert_resource(CalendarRules::load())
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(wallet)
+            .insert_resource(ActiveProfile(0))
+            .insert_resource(profile)
+            .insert_resource(GameSettings::default())
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(block)
+            .insert_resource(StartResult::default());
+        app
+    }
+}
