@@ -64,6 +64,42 @@ def fills_span(
     for x in range(start_x, end_x + 1):
         put(canvas, x, y, color)
 
+def paint_sword(canvas: Canvas) -> None:
+    put(canvas, 15, 3, STEEL_LIGHT)
+    put(canvas, 16, 3, STEEL)
+    put(canvas, 14, 4, STEEL_LIGHT)
+    put(canvas, 15, 4, STEEL)
+    put(canvas, 16, 4, STEEL_DARK)
+    put(canvas, 17, 4, STEEL)
+    for y in range(5, 18):
+        put(canvas, 13, y, STEEL_LIGHT)
+        put(canvas, 14, y, STEEL)
+        put(canvas, 15, y, STEEL_DARK)
+        put(canvas, 16, y, STEEL)
+        put(canvas, 17, y, CYAN if 7 <= y <= 16 else STEEL)
+    put(canvas, 17, 17, STEEL_DARK)
+
+    for x in range(7, 25):
+        put(canvas, x, 18, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 19, BRASS if x < 18 else BRASS_DARK)
+        put(canvas, x, 20, BRASS_DARK)
+    put(canvas, 15, 19, PURPLE)
+    put(canvas, 16, 19, PURPLE_DARK)
+    put(canvas, 14, 19, BRASS_LIGHT)
+
+    for y in range(21, 27):
+        band = y in (22, 24)
+        put(canvas, 13, y, LEATHER_LIGHT if not band else LEATHER_DARK)
+        put(canvas, 14, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 15, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 16, y, LEATHER_DARK)
+        put(canvas, 17, y, LEATHER_DARK)
+
+    for x in range(12, 19):
+        put(canvas, x, 27, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 28, BRASS if x < 16 else BRASS_DARK)
+    put(canvas, 15, 28, CYAN)
+
 def neighbor(
     canvas: Canvas, x: int, y: int, delta_x: int, delta_y: int
 ) -> tuple[int, int, int, int] | None:
@@ -101,42 +137,6 @@ def recolor_rim(
             canvas[y][x] = shadow
         else:
             canvas[y][x] = mid
-
-def paint_sword(canvas: Canvas) -> None:
-    put(canvas, 15, 3, STEEL_LIGHT)
-    put(canvas, 16, 3, STEEL)
-    put(canvas, 14, 4, STEEL_LIGHT)
-    put(canvas, 15, 4, STEEL)
-    put(canvas, 16, 4, STEEL_DARK)
-    put(canvas, 17, 4, STEEL)
-    for y in range(5, 18):
-        put(canvas, 13, y, STEEL_LIGHT)
-        put(canvas, 14, y, STEEL)
-        put(canvas, 15, y, STEEL_DARK)
-        put(canvas, 16, y, STEEL)
-        put(canvas, 17, y, CYAN if 7 <= y <= 16 else STEEL)
-    put(canvas, 17, 17, STEEL_DARK)
-
-    for x in range(7, 25):
-        put(canvas, x, 18, BRASS_LIGHT if x < 16 else BRASS)
-        put(canvas, x, 19, BRASS if x < 18 else BRASS_DARK)
-        put(canvas, x, 20, BRASS_DARK)
-    put(canvas, 15, 19, PURPLE)
-    put(canvas, 16, 19, PURPLE_DARK)
-    put(canvas, 14, 19, BRASS_LIGHT)
-
-    for y in range(21, 27):
-        band = y in (22, 24)
-        put(canvas, 13, y, LEATHER_LIGHT if not band else LEATHER_DARK)
-        put(canvas, 14, y, LEATHER_DARK if band else LEATHER)
-        put(canvas, 15, y, LEATHER_DARK if band else LEATHER)
-        put(canvas, 16, y, LEATHER_DARK)
-        put(canvas, 17, y, LEATHER_DARK)
-
-    for x in range(12, 19):
-        put(canvas, x, 27, BRASS_LIGHT if x < 16 else BRASS)
-        put(canvas, x, 28, BRASS if x < 16 else BRASS_DARK)
-    put(canvas, 15, 28, CYAN)
 
 def shield_spans() -> list[tuple[int, int, int]]:
     spans = [
@@ -218,46 +218,6 @@ def stamp_boss(canvas: Canvas) -> None:
         if y % 2 == 0 and canvas[y][15] in IRON_TONES:
             canvas[y][15] = CYAN
 
-def paint_boot(canvas: Canvas) -> None:
-    spans = [
-        (6, 17, 24, LEATHER_LIGHT),
-        (7, 16, 25, LEATHER),
-        (8, 16, 25, LEATHER),
-        (9, 16, 25, LEATHER),
-        (10, 16, 25, LEATHER),
-        (11, 16, 25, LEATHER),
-        (12, 15, 26, LEATHER),
-        (13, 14, 27, LEATHER),
-        (14, 13, 29, LEATHER),
-        (15, 12, 29, LEATHER),
-        (16, 11, 28, LEATHER),
-        (17, 10, 27, LEATHER_DARK),
-        (18, 9, 26, SOLE),
-        (19, 9, 17, SOLE),
-        (20, 9, 16, SOLE),
-        (21, 10, 15, SOLE),
-    ]
-    for y, start_x, end_x, color in spans:
-        fills_span(canvas, y, start_x, end_x, color)
-    for y in (7, 8):
-        fills_span(canvas, y, 19, 22, SOLE)
-    for y in range(7, 12):
-        canvas[y][16] = LEATHER_LIGHT
-        canvas[y][25] = LEATHER_DARK
-    for y in range(9, 12):
-        for x in range(19, 23):
-            canvas[y][x] = BRASS_LIGHT if y == 9 or x == 19 else BRASS
-    put(canvas, 20, 10, BRASS_DARK)
-    put(canvas, 21, 10, CYAN)
-    for x in (16, 18, 24):
-        if canvas[12][x] == LEATHER:
-            canvas[12][x] = PURPLE
-    for y in range(14, 17):
-        canvas[y][27] = BRASS_LIGHT
-        canvas[y][28] = BRASS
-        if y < 16:
-            canvas[y][29] = BRASS_DARK
-
 def paint_boot_trail(canvas: Canvas) -> None:
     streaks = (
         (2, 8, CYAN_DARK),
@@ -276,30 +236,6 @@ def paint_boot_trail(canvas: Canvas) -> None:
     for x, y, color in streaks:
         if canvas[y][x] is None:
             put(canvas, x, y, color)
-
-def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, int]]:
-    points: set[tuple[int, int]] = set()
-    x, y, decision = 0, radius, 3 - 2 * radius
-
-    def plot(offset_x: int, offset_y: int) -> None:
-        points.add((center_x + offset_x, center_y + offset_y))
-        points.add((center_x - offset_x, center_y + offset_y))
-        points.add((center_x + offset_x, center_y - offset_y))
-        points.add((center_x - offset_x, center_y - offset_y))
-        points.add((center_x + offset_y, center_y + offset_x))
-        points.add((center_x - offset_y, center_y + offset_x))
-        points.add((center_x + offset_y, center_y - offset_x))
-        points.add((center_x - offset_y, center_y - offset_x))
-
-    while x <= y:
-        plot(x, y)
-        if decision < 0:
-            decision += 4 * x + 6
-        else:
-            decision += 4 * (x - y) + 10
-            y -= 1
-        x += 1
-    return sorted(points)
 
 def paint_wand(canvas: Canvas) -> None:
     diamond = {
@@ -354,6 +290,46 @@ def draw_sword() -> Image.Image:
     paint_sword(canvas)
     finish_body(canvas)
     return to_image(canvas)
+
+def paint_boot(canvas: Canvas) -> None:
+    spans = [
+        (6, 17, 24, LEATHER_LIGHT),
+        (7, 16, 25, LEATHER),
+        (8, 16, 25, LEATHER),
+        (9, 16, 25, LEATHER),
+        (10, 16, 25, LEATHER),
+        (11, 16, 25, LEATHER),
+        (12, 15, 26, LEATHER),
+        (13, 14, 27, LEATHER),
+        (14, 13, 29, LEATHER),
+        (15, 12, 29, LEATHER),
+        (16, 11, 28, LEATHER),
+        (17, 10, 27, LEATHER_DARK),
+        (18, 9, 26, SOLE),
+        (19, 9, 17, SOLE),
+        (20, 9, 16, SOLE),
+        (21, 10, 15, SOLE),
+    ]
+    for y, start_x, end_x, color in spans:
+        fills_span(canvas, y, start_x, end_x, color)
+    for y in (7, 8):
+        fills_span(canvas, y, 19, 22, SOLE)
+    for y in range(7, 12):
+        canvas[y][16] = LEATHER_LIGHT
+        canvas[y][25] = LEATHER_DARK
+    for y in range(9, 12):
+        for x in range(19, 23):
+            canvas[y][x] = BRASS_LIGHT if y == 9 or x == 19 else BRASS
+    put(canvas, 20, 10, BRASS_DARK)
+    put(canvas, 21, 10, CYAN)
+    for x in (16, 18, 24):
+        if canvas[12][x] == LEATHER:
+            canvas[12][x] = PURPLE
+    for y in range(14, 17):
+        canvas[y][27] = BRASS_LIGHT
+        canvas[y][28] = BRASS
+        if y < 16:
+            canvas[y][29] = BRASS_DARK
 
 def draw_shield() -> Image.Image:
     canvas = new_canvas()
@@ -410,6 +386,30 @@ def verify(image: Image.Image, name: str) -> None:
         raise SystemExit(f"{name} glyph is too small: {(min_x, min_y, max_x, max_y)}")
     if min_x < 1 or min_y < 1 or max_x > SIZE - 2 or max_y > SIZE - 2:
         raise SystemExit(f"{name} glyph touches the canvas edge {(min_x, min_y, max_x, max_y)}")
+
+def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, int]]:
+    points: set[tuple[int, int]] = set()
+    x, y, decision = 0, radius, 3 - 2 * radius
+
+    def plot(offset_x: int, offset_y: int) -> None:
+        points.add((center_x + offset_x, center_y + offset_y))
+        points.add((center_x - offset_x, center_y + offset_y))
+        points.add((center_x + offset_x, center_y - offset_y))
+        points.add((center_x - offset_x, center_y - offset_y))
+        points.add((center_x + offset_y, center_y + offset_x))
+        points.add((center_x - offset_y, center_y + offset_x))
+        points.add((center_x + offset_y, center_y - offset_x))
+        points.add((center_x - offset_y, center_y - offset_x))
+
+    while x <= y:
+        plot(x, y)
+        if decision < 0:
+            decision += 4 * x + 6
+        else:
+            decision += 4 * (x - y) + 10
+            y -= 1
+        x += 1
+    return sorted(points)
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
