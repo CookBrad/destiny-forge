@@ -77,6 +77,8 @@ pub fn flush_saves_on_exit(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
     use crate::audio::AudioSettings;
     use crate::combat::SkillBindings;
@@ -85,13 +87,13 @@ mod tests {
     use crate::items::Inventory;
     use crate::player::{DestinySpark, Loadout, Wallet, WorldProgress};
 
-    use super::super::autosave_block::ProfileAutosaveBlock;
-    use super::super::storage::load_profile;
+    use super::super::storage::{load_profile, lock_save_root_for_test, set_save_root_for_test};
+
+    static NEXT_SAVE_DIR: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn debounced_autosave_writes_the_wallet_after_the_delay() {
-        let _lock = SaveDirectoryLock::acquire("debounce-write");
-        let mut app = autosave_app(Wallet {
+        let (_root, mut app) = autosave_app(Wallet {
             gold: 8,
             sparks: DestinySpark(1),
         });
@@ -106,7 +108,7 @@ mod tests {
 
     #[test]
     fn debounced_autosave_waits_while_the_timer_is_running() {
-        let mut app = autosave_app(Wallet {
+        let (_root, mut app) = autosave_app(Wallet {
             gold: 8,
             sparks: DestinySpark(1),
         });
@@ -118,7 +120,7 @@ mod tests {
 
     #[test]
     fn debounced_autosave_skips_a_clean_profile() {
-        let mut app = autosave_app(Wallet::default());
+        let (_root, mut app) = autosave_app(Wallet::default());
         app.world_mut().resource_mut::<ProfileDirty>().0 = false;
         finish_timer(&mut app);
         app.add_systems(Update, debounced_autosave);
@@ -132,7 +134,7 @@ mod tests {
 
     #[test]
     fn debounced_autosave_skips_a_blocked_profile() {
-        let mut app = autosave_app(Wallet {
+        let (_root, mut app) = autosave_app(Wallet {
             gold: 8,
             sparks: DestinySpark(1),
         });
@@ -148,8 +150,7 @@ mod tests {
 
     #[test]
     fn flush_saves_on_exit_writes_the_wallet() {
-        let _lock = SaveDirectoryLock::acquire("flush-write");
-        let mut app = autosave_app(Wallet {
+        let (_root, mut app) = autosave_app(Wallet {
             gold: 21,
             sparks: DestinySpark(5),
         });
@@ -163,7 +164,7 @@ mod tests {
 
     #[test]
     fn flush_saves_on_exit_skips_a_clean_profile() {
-        let mut app = autosave_app(Wallet::default());
+        let (_root, mut app) = autosave_app(Wallet::default());
         app.world_mut().resource_mut::<ProfileDirty>().0 = false;
         app.add_systems(Update, flush_saves_on_exit);
         app.update();
@@ -175,7 +176,7 @@ mod tests {
 
     #[test]
     fn flush_saves_on_exit_skips_a_blocked_profile() {
-        let mut app = autosave_app(Wallet {
+        let (_root, mut app) = autosave_app(Wallet {
             gold: 21,
             sparks: DestinySpark(5),
         });
@@ -188,7 +189,8 @@ mod tests {
         assert_eq!(app.world().resource::<PlayerProfile>().wallet.gold, 0);
     }
 
-    fn autosave_app(wallet: Wallet) -> App {
+    fn autosave_app(wallet: Wallet) -> (TempSaveRoot, App) {
+        let root = TempSaveRoot::acquire();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(PlayerProfile::default())
@@ -206,7 +208,7 @@ mod tests {
             .insert_resource(ProfileDirty(true))
             .insert_resource(AutosaveTimer::default())
             .insert_resource(ProfileAutosaveBlock::default());
-        app
+        (root, app)
     }
 
     fn finish_timer(app: &mut App) {
@@ -214,32 +216,30 @@ mod tests {
         timer.0 = Timer::from_seconds(0.0, TimerMode::Once);
     }
 
-    struct SaveDirectoryLock;
+    struct TempSaveRoot {
+        root: std::path::PathBuf,
+        _gate: std::sync::MutexGuard<'static, ()>,
+    }
 
-    impl SaveDirectoryLock {
-        fn acquire(label: &str) -> Self {
-            let path = std::env::temp_dir().join("destiny_forge_wallet_save_lock");
-            loop {
-                if std::fs::create_dir(&path).is_ok() {
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(20));
-            }
+    impl TempSaveRoot {
+        fn acquire() -> Self {
+            let gate = lock_save_root_for_test();
+            let n = NEXT_SAVE_DIR.fetch_add(1, Ordering::Relaxed);
             let root = std::env::temp_dir().join(format!(
-                "destiny_forge_wallet_{label}_{}",
+                "destiny_forge_autosave_{}_{n}",
                 std::process::id()
             ));
             let _ = std::fs::remove_dir_all(&root);
-            std::fs::create_dir_all(&root).unwrap();
-            std::env::set_var("XDG_DATA_HOME", &root);
-            Self
+            std::fs::create_dir_all(root.join("profiles")).unwrap();
+            set_save_root_for_test(Some(root.clone()));
+            Self { root, _gate: gate }
         }
     }
 
-    impl Drop for SaveDirectoryLock {
+    impl Drop for TempSaveRoot {
         fn drop(&mut self) {
-            let _ =
-                std::fs::remove_dir(std::env::temp_dir().join("destiny_forge_wallet_save_lock"));
+            set_save_root_for_test(None);
+            let _ = std::fs::remove_dir_all(&self.root);
         }
     }
 }
