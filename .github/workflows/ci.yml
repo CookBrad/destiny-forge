@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings -A dead_code"
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   test:
@@ -34,3 +34,10 @@ jobs:
 
       - name: cargo test
         run: cargo test --locked --bin destiny_forge
+
+      - name: Python draw helper tests
+        run: |
+          sudo apt-get install -y --no-install-recommends python3-venv
+          python3 -m venv .venv
+          .venv/bin/pip install 'pillow==12.3.0' pytest
+          .venv/bin/pytest tests -q
