@@ -220,6 +220,40 @@ def is_skin(color: tuple[int, int, int, int]) -> bool:
         and blue < 160
     )
 
+def build_run_cycle(idle: Sprite) -> list[Sprite]:
+    parts = build_run_parts(idle)
+    frames = [compose_run_frame(parts, pose) for pose in RUN_POSES]
+    for frame in frames:
+
+        try:
+            row, _center = stance_contact(frame)
+        except SystemExit:
+            continue
+        frame.erase_if(lambda x, y, _color, sole=row: y > sole)
+    _, center = stance_contact(frames[0])
+    cape_limit = math.floor(center - FOOT_X)
+    if cape_limit > 0:
+        for frame in frames:
+            frame.erase_if(lambda x, y, _color, limit=cape_limit: x < limit)
+    planted, delta_x, delta_y = shift_contact_to(frames[0], FOOT_X, FOOT_ROW)
+    frames[0] = planted
+    for index in range(1, len(frames)):
+        frames[index] = frames[index].shift(delta_x, delta_y)
+    row, center = stance_contact(frames[4])
+    if row == FOOT_ROW and abs(center - FOOT_X) > 1e-6 and abs((FOOT_X - center) - round(FOOT_X - center)) > 1e-6:
+        widen_sole_by_delta(frames[4], FOOT_X - center)
+        _, center = stance_contact(frames[4])
+        if abs(center - FOOT_X) <= 2 and abs((FOOT_X - center) - round(FOOT_X - center)) < 1e-6:
+            frames[4] = frames[4].shift(round_half_up(FOOT_X - center), 0)
+    for index, frame in enumerate(frames):
+        left, top, right, bottom = frame.bounds()
+        if left < 0 or top < 0 or right >= CELL_WIDTH or bottom >= CELL_HEIGHT:
+            raise SystemExit(
+                f"run frame {index} bbox {left},{top}-{right},{bottom} "
+                f"after shift {delta_x},{delta_y} leaves the cell"
+            )
+    return frames
+
 def flood_blade(sprite: Sprite) -> set[tuple[int, int]]:
     seeds = [point for point, color in sprite.pixels.items() if is_hot_blade(color)]
     seen = set(seeds)
@@ -504,40 +538,6 @@ def compose_run_frame(parts: dict, pose: dict) -> Sprite:
     frame.paste(place_aimed(aimed, pivot, (hand[0] + 2, hand[1] - 8)))
     return frame
 
-def build_run_cycle(idle: Sprite) -> list[Sprite]:
-    parts = build_run_parts(idle)
-    frames = [compose_run_frame(parts, pose) for pose in RUN_POSES]
-    for frame in frames:
-
-        try:
-            row, _center = stance_contact(frame)
-        except SystemExit:
-            continue
-        frame.erase_if(lambda x, y, _color, sole=row: y > sole)
-    _, center = stance_contact(frames[0])
-    cape_limit = math.floor(center - FOOT_X)
-    if cape_limit > 0:
-        for frame in frames:
-            frame.erase_if(lambda x, y, _color, limit=cape_limit: x < limit)
-    planted, delta_x, delta_y = shift_contact_to(frames[0], FOOT_X, FOOT_ROW)
-    frames[0] = planted
-    for index in range(1, len(frames)):
-        frames[index] = frames[index].shift(delta_x, delta_y)
-    row, center = stance_contact(frames[4])
-    if row == FOOT_ROW and abs(center - FOOT_X) > 1e-6 and abs((FOOT_X - center) - round(FOOT_X - center)) > 1e-6:
-        widen_sole_by_delta(frames[4], FOOT_X - center)
-        _, center = stance_contact(frames[4])
-        if abs(center - FOOT_X) <= 2 and abs((FOOT_X - center) - round(FOOT_X - center)) < 1e-6:
-            frames[4] = frames[4].shift(round_half_up(FOOT_X - center), 0)
-    for index, frame in enumerate(frames):
-        left, top, right, bottom = frame.bounds()
-        if left < 0 or top < 0 or right >= CELL_WIDTH or bottom >= CELL_HEIGHT:
-            raise SystemExit(
-                f"run frame {index} bbox {left},{top}-{right},{bottom} "
-                f"after shift {delta_x},{delta_y} leaves the cell"
-            )
-    return frames
-
 def attack_hand(sprite: Sprite) -> tuple[float, float]:
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
     if not points:
@@ -579,31 +579,6 @@ def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite
 
 def _inside_cell(sprite: Sprite) -> bool:
     return all(0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT for x, y in sprite.pixels)
-
-def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: float) -> Sprite:
-    hand = attack_hand(body)
-    best = None
-    for length in range(36, 140):
-        aimed, pivot = aim_left_blade(thrust_blade, angle, length)
-        placed = place_aimed(aimed, pivot, hand)
-        if not _inside_cell(placed):
-            continue
-        blade_xs = [x for (x, _y), color in placed.pixels.items() if is_hot_blade(color)]
-        if not blade_xs:
-            continue
-        tip = max(blade_xs)
-        score = abs(tip - tip_x)
-        if best is None or score < best[0]:
-            best = (score, placed, tip, length)
-        if tip >= tip_x:
-            break
-    if best is None:
-        raise SystemExit(f"attack sword at {angle}° from {hand} does not fit")
-    frame = body.copy().paste(best[1])
-
-    frame.erase_if(lambda x, y, color: y > 140 and is_hot_blade(color))
-    frame = nudge_chest_x(frame)
-    return frame
 
 def nudge_chest_x(sprite: Sprite) -> Sprite:
     moved = sprite
@@ -730,6 +705,31 @@ def assert_cell_equal(image: Image.Image, index: int, signed: Sprite, label: str
     if got.pixels != signed.pixels:
         raise SystemExit(f"{label} cell {index} is not the signed cell")
 
+def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: float) -> Sprite:
+    hand = attack_hand(body)
+    best = None
+    for length in range(36, 140):
+        aimed, pivot = aim_left_blade(thrust_blade, angle, length)
+        placed = place_aimed(aimed, pivot, hand)
+        if not _inside_cell(placed):
+            continue
+        blade_xs = [x for (x, _y), color in placed.pixels.items() if is_hot_blade(color)]
+        if not blade_xs:
+            continue
+        tip = max(blade_xs)
+        score = abs(tip - tip_x)
+        if best is None or score < best[0]:
+            best = (score, placed, tip, length)
+        if tip >= tip_x:
+            break
+    if best is None:
+        raise SystemExit(f"attack sword at {angle}° from {hand} does not fit")
+    frame = body.copy().paste(best[1])
+
+    frame.erase_if(lambda x, y, color: y > 140 and is_hot_blade(color))
+    frame = nudge_chest_x(frame)
+    return frame
+
 def assert_palette(sprite: Sprite, allowed: set[tuple[int, int, int, int]], label: str) -> None:
     for point, color in sprite.pixels.items():
         if color[3] not in (0, 255):
@@ -751,22 +751,6 @@ def assert_laterality(sprite: Sprite, label: str) -> None:
     cape = [x for (x, y), color in sprite.pixels.items() if is_brown(color) and y > 70]
     if not cape or min(cape) > pin - 10:
         raise SystemExit(f"{label} cape does not trail image-left")
-
-def check_run(frames: list[Sprite]) -> None:
-    if len(frames) != 8:
-        raise SystemExit("run cycle is not 8 frames")
-    for index in (0, 4):
-        row, center = stance_contact(frames[index])
-        if row != FOOT_ROW or abs(center - FOOT_X) > 1e-6:
-            raise SystemExit(f"run frame {index} contact {center}@{row} != {FOOT_X}@{FOOT_ROW}")
-    for index, frame in enumerate(frames):
-        width = opaque_width(frame)
-        if width > 210:
-            raise SystemExit(f"run frame {index} width {width} pops past the lean")
-        if index > 0 and same_pixels(frame, frames[index - 1]):
-            raise SystemExit(f"run frames {index - 1} and {index} are identical")
-    if same_pixels(frames[0], frames[4]):
-        raise SystemExit("run contacts are the same drawing")
 
 def check_attack(between: Sprite, recover: Sprite) -> None:
     for label, frame, tip_target in (("between", between, 220), ("recover", recover, 180)):
@@ -845,6 +829,31 @@ def seat_planted_leg(leg: Sprite, chest: float) -> Sprite:
         delta_y = round_half_up(FOOT_ROW - sole)
     return leg.shift(delta_x, delta_y)
 
+def plant_contact(
+    sprite: Sprite,
+    target_x: float,
+    target_row: int,
+    cell_width: int,
+    cell_height: int,
+) -> Sprite:
+    current = sprite.copy()
+    for _ in range(5):
+        moved, _delta_x, _delta_y = shift_contact_to(current, target_x, target_row)
+        overflow = [
+            point
+            for point in moved.pixels
+            if not (0 <= point[0] < cell_width and 0 <= point[1] < cell_height)
+        ]
+        if not overflow:
+            return moved
+        for point in overflow:
+            del moved.pixels[point]
+        row, center = stance_contact(moved)
+        if row == target_row and abs(center - target_x) < 1e-6:
+            return moved
+        current = moved
+    raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
+
 def widen_sole_by_delta(sprite: Sprite, delta: float) -> None:
     if delta > 0:
         widen_sole_toward_right(sprite)
@@ -862,6 +871,22 @@ def widest_sole(sprite: Sprite) -> tuple[int, int, int]:
     runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
     left, right = runs[0]
     return contact_row, left, right
+
+def check_run(frames: list[Sprite]) -> None:
+    if len(frames) != 8:
+        raise SystemExit("run cycle is not 8 frames")
+    for index in (0, 4):
+        row, center = stance_contact(frames[index])
+        if row != FOOT_ROW or abs(center - FOOT_X) > 1e-6:
+            raise SystemExit(f"run frame {index} contact {center}@{row} != {FOOT_X}@{FOOT_ROW}")
+    for index, frame in enumerate(frames):
+        width = opaque_width(frame)
+        if width > 210:
+            raise SystemExit(f"run frame {index} width {width} pops past the lean")
+        if index > 0 and same_pixels(frame, frames[index - 1]):
+            raise SystemExit(f"run frames {index - 1} and {index} are identical")
+    if same_pixels(frames[0], frames[4]):
+        raise SystemExit("run contacts are the same drawing")
 
 def widen_sole_toward_left(sprite: Sprite) -> None:
     contact_row, left, _right = widest_sole(sprite)
@@ -973,31 +998,6 @@ def blade_base_left(blade: Sprite) -> tuple[float, float]:
     min_x = min(x for x, _ in blade.pixels)
     ys = [y for x, y in blade.pixels if x <= min_x + 2]
     return float(min_x), (min(ys) + max(ys)) / 2
-
-def plant_contact(
-    sprite: Sprite,
-    target_x: float,
-    target_row: int,
-    cell_width: int,
-    cell_height: int,
-) -> Sprite:
-    current = sprite.copy()
-    for _ in range(5):
-        moved, _delta_x, _delta_y = shift_contact_to(current, target_x, target_row)
-        overflow = [
-            point
-            for point in moved.pixels
-            if not (0 <= point[0] < cell_width and 0 <= point[1] < cell_height)
-        ]
-        if not overflow:
-            return moved
-        for point in overflow:
-            del moved.pixels[point]
-        row, center = stance_contact(moved)
-        if row == target_row and abs(center - target_x) < 1e-6:
-            return moved
-        current = moved
-    raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
 
 if __name__ == "__main__":
     main()
