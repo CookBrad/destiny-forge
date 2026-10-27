@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings -A dead_code"
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   test:
