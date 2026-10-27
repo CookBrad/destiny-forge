@@ -81,34 +81,6 @@ def draw_slime(palette: Palette) -> Canvas:
     canvas.put(26, 22, palette.gel_hi)
     return canvas
 
-def _near_segment(
-    x: int,
-    y: int,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int,
-    vector_x: int,
-    vector_y: int,
-    length2: int,
-    radius2: int,
-) -> bool:
-    if length2 == 0:
-        delta_x = x - start_x
-        delta_y = y - start_y
-        return delta_x * delta_x + delta_y * delta_y <= radius2
-    wx = x - start_x
-    wy = y - start_y
-    dot = wx * vector_x + wy * vector_y
-    if dot <= 0:
-        return wx * wx + wy * wy <= radius2
-    if dot >= length2:
-        delta_x = x - end_x
-        delta_y = y - end_y
-        return delta_x * delta_x + delta_y * delta_y <= radius2
-    distance_squared_numerator = (wx * wx + wy * wy) * length2 - dot * dot
-    return distance_squared_numerator <= radius2 * length2
-
 def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
     if len(points) < 3:
         return []
@@ -256,6 +228,17 @@ def spark(
         if (x * 7 + y * 13) % mod == 0:
             canvas.put(x, y, color)
 
+def blit_poly(
+    canvas: Canvas,
+    corners: list[tuple[int, int]],
+    lamp: tuple[int, int],
+    ramp: tuple[tuple[int, int, int, int], ...],
+    split: int,
+) -> list[tuple[int, int]]:
+    points = polygon_pixels(corners)
+    canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
+    return points
+
 def paint_eye(
     canvas: Canvas,
     x: int,
@@ -289,6 +272,34 @@ def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
     canvas.put(x, y + 1, palette.brass)
     canvas.put(x + 1, y + 1, palette.brass_hi)
 
+def _near_segment(
+    x: int,
+    y: int,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    vector_x: int,
+    vector_y: int,
+    length2: int,
+    radius2: int,
+) -> bool:
+    if length2 == 0:
+        delta_x = x - start_x
+        delta_y = y - start_y
+        return delta_x * delta_x + delta_y * delta_y <= radius2
+    wx = x - start_x
+    wy = y - start_y
+    dot = wx * vector_x + wy * vector_y
+    if dot <= 0:
+        return wx * wx + wy * wy <= radius2
+    if dot >= length2:
+        delta_x = x - end_x
+        delta_y = y - end_y
+        return delta_x * delta_x + delta_y * delta_y <= radius2
+    distance_squared_numerator = (wx * wx + wy * wy) * length2 - dot * dot
+    return distance_squared_numerator <= radius2 * length2
+
 def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
     sole = canvas.height - 1
     canvas.fill(ellipse_pixels(cx, sole - 2, half, 3), palette.leather_deep)
@@ -321,17 +332,6 @@ def blit_ellipse(
 ) -> list[tuple[int, int]]:
     points = ellipse_pixels(cx, cy, rx, ry)
     canvas.blit(volume(points, cx, cy, ramp, split))
-    return points
-
-def blit_poly(
-    canvas: Canvas,
-    corners: list[tuple[int, int]],
-    lamp: tuple[int, int],
-    ramp: tuple[tuple[int, int, int, int], ...],
-    split: int,
-) -> list[tuple[int, int]]:
-    points = polygon_pixels(corners)
-    canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
     return points
 
 def draw_goblin(palette: Palette) -> Canvas:
@@ -576,40 +576,6 @@ def draw_king(palette: Palette) -> Canvas:
     canvas.put(144, 10, palette.brass_light)
     return canvas
 
-def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
-    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
-    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
-
-def crown_spike(
-    canvas: Canvas,
-    cx: int,
-    tip_y: int,
-    base_y: int,
-    half_base: int,
-    palette: Palette,
-) -> None:
-    mid_y = (tip_y + base_y) // 2
-    waist = max(3, half_base - 4)
-    outline = [
-        (cx, tip_y),
-        (cx - 3, tip_y + 8),
-        (cx - 2, tip_y + 16),
-        (cx - waist, mid_y),
-        (cx - half_base, base_y),
-        (cx + half_base, base_y),
-        (cx + waist, mid_y),
-        (cx + 2, tip_y + 16),
-        (cx + 3, tip_y + 8),
-    ]
-    ridge = (cx, mid_y)
-    left_face = polygon_pixels(outline[:5] + [ridge])
-    right_face = polygon_pixels([outline[0], ridge] + outline[5:])
-    canvas.blit(volume(left_face, cx - 6, tip_y + 18, palette.brass_ramp[:4], 8))
-    canvas.blit(volume(right_face, cx + 4, tip_y + 14, palette.brass_ramp[2:], 8))
-    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
-    canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
-    canvas.put(cx, tip_y + 1, palette.brass_hi)
-
 def draw_bolt(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
     blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
@@ -645,6 +611,40 @@ def draw_blob(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     canvas.put(10, 10, palette.white)
     return canvas
+
+def crown_spike(
+    canvas: Canvas,
+    cx: int,
+    tip_y: int,
+    base_y: int,
+    half_base: int,
+    palette: Palette,
+) -> None:
+    mid_y = (tip_y + base_y) // 2
+    waist = max(3, half_base - 4)
+    outline = [
+        (cx, tip_y),
+        (cx - 3, tip_y + 8),
+        (cx - 2, tip_y + 16),
+        (cx - waist, mid_y),
+        (cx - half_base, base_y),
+        (cx + half_base, base_y),
+        (cx + waist, mid_y),
+        (cx + 2, tip_y + 16),
+        (cx + 3, tip_y + 8),
+    ]
+    ridge = (cx, mid_y)
+    left_face = polygon_pixels(outline[:5] + [ridge])
+    right_face = polygon_pixels([outline[0], ridge] + outline[5:])
+    canvas.blit(volume(left_face, cx - 6, tip_y + 18, palette.brass_ramp[:4], 8))
+    canvas.blit(volume(right_face, cx + 4, tip_y + 14, palette.brass_ramp[2:], 8))
+    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
+    canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
+    canvas.put(cx, tip_y + 1, palette.brass_hi)
+
+def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
+    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
+    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
 def draw_arrow(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
@@ -702,31 +702,6 @@ def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int
         colors.add(color)
     return count, min_x, min_y, max_x, max_y, colors
 
-def require_sheet(
-    name: str,
-    canvas: Canvas,
-    allowed: set[tuple[int, int, int, int]],
-    min_opaque: int,
-    touch_bottom: bool,
-    touch_top: bool,
-    min_span_x: int,
-    min_span_y: int,
-) -> None:
-    count, min_x, min_y, max_x, max_y, colors = opaque_stats(canvas)
-    if count < min_opaque:
-        raise SystemExit(f"{name} has only {count} opaque pixels")
-    invented = colors - allowed
-    if invented:
-        raise SystemExit(f"{name} invented {next(iter(invented))}")
-    if touch_bottom and max_y != canvas.height - 1:
-        raise SystemExit(f"{name} sole ends on row {max_y}")
-    if touch_top and min_y > 1:
-        raise SystemExit(f"{name} top row is {min_y}")
-    if max_x - min_x < min_span_x:
-        raise SystemExit(f"{name} span x is {max_x - min_x}")
-    if max_y - min_y < min_span_y:
-        raise SystemExit(f"{name} span y is {max_y - min_y}")
-
 def draw_all(palette: Palette) -> dict[str, Canvas]:
     return {
         "slime": draw_slime(palette),
@@ -763,6 +738,31 @@ def check_all(sheets: dict[str, Canvas], allowed: set[tuple[int, int, int, int]]
         raise SystemExit("two actors share a silhouette")
     if sheets["arrow"].pixels == sheets["slime_bolt"].pixels:
         raise SystemExit("arrow and slime bolt match")
+
+def require_sheet(
+    name: str,
+    canvas: Canvas,
+    allowed: set[tuple[int, int, int, int]],
+    min_opaque: int,
+    touch_bottom: bool,
+    touch_top: bool,
+    min_span_x: int,
+    min_span_y: int,
+) -> None:
+    count, min_x, min_y, max_x, max_y, colors = opaque_stats(canvas)
+    if count < min_opaque:
+        raise SystemExit(f"{name} has only {count} opaque pixels")
+    invented = colors - allowed
+    if invented:
+        raise SystemExit(f"{name} invented {next(iter(invented))}")
+    if touch_bottom and max_y != canvas.height - 1:
+        raise SystemExit(f"{name} sole ends on row {max_y}")
+    if touch_top and min_y > 1:
+        raise SystemExit(f"{name} top row is {min_y}")
+    if max_x - min_x < min_span_x:
+        raise SystemExit(f"{name} span x is {max_x - min_x}")
+    if max_y - min_y < min_span_y:
+        raise SystemExit(f"{name} span y is {max_y - min_y}")
 
 def output_paths() -> dict[str, Path]:
     return {
