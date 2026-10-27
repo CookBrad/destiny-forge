@@ -27,11 +27,31 @@ impl ProfileLoadError {
     }
 }
 
+#[cfg(test)]
+static SAVE_ROOT_GATE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+static SAVE_ROOT_OVERRIDE: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
 pub fn save_root() -> PathBuf {
+    #[cfg(test)]
+    if let Some(root) = SAVE_ROOT_OVERRIDE.lock().unwrap().clone() {
+        return root;
+    }
     directories::ProjectDirs::from(APP_QUALIFIER, APP_ORG, APP_NAME)
         .expect("valid application directories")
         .data_local_dir()
         .to_path_buf()
+}
+
+#[cfg(test)]
+pub(crate) fn set_save_root_for_test(root: Option<PathBuf>) {
+    *SAVE_ROOT_OVERRIDE.lock().unwrap() = root;
+}
+
+#[cfg(test)]
+pub(crate) fn lock_save_root_for_test() -> std::sync::MutexGuard<'static, ()> {
+    SAVE_ROOT_GATE.lock().unwrap()
 }
 
 pub fn settings_path() -> PathBuf {
