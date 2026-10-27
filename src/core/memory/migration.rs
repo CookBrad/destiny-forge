@@ -152,14 +152,14 @@ fn force_slot_quality_normal(slot: &mut RonValue) {
 }
 
 fn migrate_profile_to_v9(profile: &mut RonValue) {
-    let header = blank_save_header(profile);
+    let header = build_header_from_flat_fields(profile);
     insert_field_if_missing(profile, "header", header);
     remove_field(profile, "name");
     remove_field(profile, "calendar_day");
     remove_field(profile, "day_phase");
 }
 
-fn blank_save_header(profile: &RonValue) -> RonValue {
+fn build_header_from_flat_fields(profile: &RonValue) -> RonValue {
     let name = copied_field_or_fallback(profile, "name", RonValue::String(String::new()));
     let calendar_day = copied_field_or_fallback(profile, "calendar_day", RonValue::Integer(1));
     let day_phase =
@@ -538,7 +538,7 @@ mod tests {
     }
 
     #[test]
-    fn version_8_save_fills_a_blank_header_and_keeps_the_silver_stack() {
+    fn version_8_save_builds_a_header_from_flat_fields_and_keeps_the_silver_stack() {
         let profile = profile_from_ron(V8_PROFILE).unwrap();
         assert_eq!(profile.version, PROFILE_VERSION);
         assert_eq!(profile.header.name, "Hearth");
@@ -581,6 +581,30 @@ mod tests {
         assert_eq!(profile.header.playtime_seconds, 0);
         assert_eq!(profile.header.calendar.calendar_day, 18);
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+    }
+
+    #[test]
+    fn version_8_save_with_a_list_name_stores_an_empty_header_name() {
+        let text = V8_PROFILE.replace("name:\"Hearth\",\n", "name:[\"Hearth\"],\n");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 18);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
+        assert_eq!(profile.header.location, SaveLocation::Homestead);
+        assert_eq!(profile.header.gold, 0);
+    }
+
+    #[test]
+    fn version_8_save_missing_calendar_day_stores_header_day_one() {
+        let text = V8_PROFILE.replace("calendar_day:18,\n", "");
+        let profile = profile_from_ron(&text).unwrap();
+        assert_eq!(profile.header.name, "Hearth");
+        assert_eq!(profile.header.playtime_seconds, 0);
+        assert_eq!(profile.header.calendar.calendar_day, 1);
+        assert_eq!(profile.header.calendar.day_phase, DayPhase::Evening);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
     }
