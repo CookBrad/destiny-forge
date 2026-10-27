@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""In-house dungeon actors at the art-direction canvases.
-
-Pixel-authored at 1×. Every opaque RGBA is copied from a signed hunter
-cell. Re-running writes the same bytes. One cell per file.
-
-Slime green is not in the signed sheets. Gel uses the sword cyan and the
-few sage pixels that are. King Slime is a crowned body, not a big slime.
-"""
 
 from __future__ import annotations
 
@@ -21,8 +13,6 @@ SIGNED = ROOT / "assets" / "source" / "hunter_signed"
 ENEMIES = ROOT / "assets" / "dungeon" / "enemies"
 PROJECTILES = ROOT / "assets" / "dungeon" / "projectiles"
 
-# Same pins as tools/draw_hunter_frames.py. The script stops if those
-# bytes move, so a new actor cannot be painted from the wrong palette.
 SIGNED_SHA256 = {
     "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
     "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
@@ -37,10 +27,7 @@ BAYER4 = (
     (15, 7, 13, 5),
 )
 
-
 def reject_resample_names() -> None:
-    """Stop if this file names a resample call. Tokens are split so the
-    check can see them without the source containing the joined word."""
     text = Path(__file__).read_text(encoding="utf-8")
     banned = (
         "res" + "ize",
@@ -52,7 +39,6 @@ def reject_resample_names() -> None:
     for word in banned:
         if word in text:
             raise SystemExit(f"draw script must not mention {word}")
-
 
 def load_allowed_colors() -> set[tuple[int, int, int, int]]:
     allowed: set[tuple[int, int, int, int]] = set()
@@ -69,7 +55,6 @@ def load_allowed_colors() -> set[tuple[int, int, int, int]]:
                 raise SystemExit(f"partial alpha in {name}")
             allowed.add((red, green, blue, 255))
     return allowed
-
 
 class Palette:
     def __init__(self, allowed: set[tuple[int, int, int, int]]) -> None:
@@ -215,7 +200,6 @@ class Palette:
             self.steel,
         )
         self.wing_ramp = self.steel_ramp
-        # Pallid gray, not the coat brown. Signed sheets have no corpse green.
         self.dead_ramp = (
             self.dead_dk,
             self.dead,
@@ -234,7 +218,6 @@ class Palette:
             self.steel,
             self.steel_mid,
         )
-
 
 class Canvas:
     def __init__(self, width: int, height: int) -> None:
@@ -261,7 +244,6 @@ class Canvas:
             return False
         return self.pixels[y * self.width + x][3] == 255
 
-
 def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
     if rx < 1 or ry < 1:
         return []
@@ -275,7 +257,6 @@ def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
             if dx * dx * ry2 + dy * dy * rx2 <= rx2 * ry2:
                 points.append((x, y))
     return points
-
 
 def capsule_pixels(x0: int, y0: int, x1: int, y1: int, radius: int) -> list[tuple[int, int]]:
     min_x = min(x0, x1) - radius
@@ -292,7 +273,6 @@ def capsule_pixels(x0: int, y0: int, x1: int, y1: int, radius: int) -> list[tupl
             if _near_segment(x, y, x0, y0, x1, y1, vx, vy, length2, radius2):
                 points.append((x, y))
     return points
-
 
 def _near_segment(
     x: int,
@@ -322,13 +302,11 @@ def _near_segment(
     dist2_num = (wx * wx + wy * wy) * length2 - dot * dot
     return dist2_num <= radius2 * length2
 
-
 def chain(points: list[tuple[int, int]], radius: int) -> list[tuple[int, int]]:
     drawn: list[tuple[int, int]] = []
     for start, end in zip(points, points[1:]):
         drawn.extend(capsule_pixels(start[0], start[1], end[0], end[1], radius))
     return drawn
-
 
 def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
     if len(points) < 3:
@@ -349,7 +327,6 @@ def polygon_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
             pair += 2
     return drawn
 
-
 def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> list[int]:
     crossings = []
     for index in range(count):
@@ -363,11 +340,9 @@ def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> li
         crossings.append(x0 + (x1 - x0) * (y - y0) // (y1 - y0))
     return crossings
 
-
 def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
     inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
     return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
-
 
 def volume(
     points: list[tuple[int, int]],
@@ -376,7 +351,6 @@ def volume(
     ramp: tuple[tuple[int, int, int, int], ...],
     split: int,
 ) -> dict[tuple[int, int], tuple[int, int, int, int]]:
-    """Lamp up and left of center. Neighboring ramp stops cluster together."""
     if not points:
         return {}
     stops = len(ramp)
@@ -414,9 +388,7 @@ def volume(
         painted[(x, y)] = ramp[last - base]
     return painted
 
-
 def add_outline(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
-    """1 px contour just outside the body so the silhouette stays readable."""
     width = canvas.width
     height = canvas.height
     extra: list[tuple[int, int]] = []
@@ -433,9 +405,7 @@ def add_outline(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
     for x, y in extra:
         canvas.put(x, y, color)
 
-
 def add_cast_rim(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
-    """Shadow-side inner contour (right and down). Leaves the lit edge to volume."""
     width = canvas.width
     height = canvas.height
     rim: list[tuple[int, int]] = []
@@ -453,7 +423,6 @@ def add_cast_rim(canvas: Canvas, color: tuple[int, int, int, int]) -> None:
     for x, y in rim:
         canvas.put(x, y, color)
 
-
 def spark(
     canvas: Canvas,
     points: list[tuple[int, int]],
@@ -463,7 +432,6 @@ def spark(
     for x, y in points:
         if (x * 7 + y * 13) % mod == 0:
             canvas.put(x, y, color)
-
 
 def paint_eye(
     canvas: Canvas,
@@ -479,7 +447,6 @@ def paint_eye(
     canvas.put(x - 1, y - 1, palette.white)
     canvas.put(x, y - 1, palette.white)
 
-
 def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> None:
     canvas.fill(ellipse_pixels(x, y, radius, radius), palette.purple_dk)
     inner = max(1, radius - 1)
@@ -487,13 +454,11 @@ def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> 
     canvas.put(x - 1, y - 1, palette.purple_lt)
     canvas.put(x, y, palette.purple_lt)
 
-
 def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
     canvas.put(x, y, palette.brass_dk)
     canvas.put(x + 1, y, palette.brass)
     canvas.put(x, y + 1, palette.brass)
     canvas.put(x + 1, y + 1, palette.brass_hi)
-
 
 def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
     sole = canvas.height - 1
@@ -501,7 +466,6 @@ def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
     canvas.fill(ellipse_pixels(cx + 1, sole - 3, half - 2, 2), palette.leather_dk)
     canvas.fill([(x, sole) for x in range(cx - half, cx + half + 1)], palette.ink_warm)
     canvas.put(cx - half + 2, sole - 1, palette.leather_hi)
-
 
 def blit_capsule(
     canvas: Canvas,
@@ -517,7 +481,6 @@ def blit_capsule(
     canvas.blit(volume(points, (x0 + x1) // 2, (y0 + y1) // 2, ramp, split))
     return points
 
-
 def blit_ellipse(
     canvas: Canvas,
     cx: int,
@@ -531,7 +494,6 @@ def blit_ellipse(
     canvas.blit(volume(points, cx, cy, ramp, split))
     return points
 
-
 def blit_poly(
     canvas: Canvas,
     corners: list[tuple[int, int]],
@@ -543,12 +505,10 @@ def blit_poly(
     canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
     return points
 
-
 def stitch(canvas: Canvas, points: list[tuple[int, int]], color: tuple[int, int, int, int]) -> None:
     for index, (x, y) in enumerate(points):
         if index % 3 != 2:
             canvas.put(x, y, color)
-
 
 def crown_spike(
     canvas: Canvas,
@@ -558,7 +518,6 @@ def crown_spike(
     half_base: int,
     palette: Palette,
 ) -> None:
-    """Waisted gold spear with a shadow face and a lit face."""
     mid_y = (tip_y + base_y) // 2
     waist = max(3, half_base - 4)
     outline = [
@@ -580,7 +539,6 @@ def crown_spike(
     canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
     canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_lt)
     canvas.put(cx, tip_y + 1, palette.brass_hi)
-
 
 def draw_slime(palette: Palette) -> Canvas:
     canvas = Canvas(64, 64)
@@ -607,7 +565,6 @@ def draw_slime(palette: Palette) -> Canvas:
     canvas.put(26, 22, palette.gel_hi)
     return canvas
 
-
 def draw_blob(palette: Palette) -> Canvas:
     canvas = Canvas(32, 32)
     blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
@@ -620,7 +577,6 @@ def draw_blob(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     canvas.put(10, 10, palette.white)
     return canvas
-
 
 def draw_bolt(palette: Palette) -> Canvas:
     canvas = Canvas(16, 48)
@@ -644,7 +600,6 @@ def draw_bolt(palette: Palette) -> Canvas:
     canvas.put(8, 6, palette.gel_hi)
     add_outline(canvas, palette.ink)
     return canvas
-
 
 def draw_arrow(palette: Palette) -> Canvas:
     canvas = Canvas(16, 48)
@@ -680,7 +635,6 @@ def draw_arrow(palette: Palette) -> Canvas:
     canvas.put(8, 45, palette.ink_warm)
     add_outline(canvas, palette.ink)
     return canvas
-
 
 def draw_bat(palette: Palette) -> Canvas:
     canvas = Canvas(96, 48)
@@ -743,7 +697,6 @@ def draw_bat(palette: Palette) -> Canvas:
     canvas.put(52, 22, palette.white)
     return canvas
 
-
 def draw_goblin(palette: Palette) -> Canvas:
     canvas = Canvas(80, 112)
     blit_poly(canvas, [(44, 26), (24, 10), (30, 22), (48, 32)], (32, 18), palette.leather_ramp, 6)
@@ -805,7 +758,6 @@ def draw_goblin(palette: Palette) -> Canvas:
     spark(canvas, duster + flap, palette.leather_hi, 17)
     return canvas
 
-
 def draw_skeleton(palette: Palette) -> Canvas:
     canvas = Canvas(64, 144)
     bow = chain([(20, 28), (10, 50), (8, 74), (12, 98), (22, 116)], 3)
@@ -861,7 +813,6 @@ def draw_skeleton(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     canvas.put(45, 16, palette.gel_hot)
     return canvas
-
 
 def draw_zombie(palette: Palette) -> Canvas:
     canvas = Canvas(96, 128)
@@ -924,7 +875,6 @@ def draw_zombie(palette: Palette) -> Canvas:
     spark(canvas, coat, palette.leather_hi, 23)
     return canvas
 
-
 def draw_king(palette: Palette) -> Canvas:
     canvas = Canvas(192, 192)
     blit_ellipse(canvas, 98, 164, 80, 26, palette.gel_under, 14)
@@ -984,18 +934,15 @@ def draw_king(palette: Palette) -> Canvas:
     canvas.put(144, 10, palette.brass_lt)
     return canvas
 
-
 def to_image(canvas: Canvas) -> Image.Image:
     image = Image.new("RGBA", (canvas.width, canvas.height), (0, 0, 0, 0))
     image.putdata(canvas.pixels)
     return image
 
-
 def png_bytes(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG", compress_level=9)
     return buffer.getvalue()
-
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1003,7 +950,6 @@ def save_png(image: Image.Image, path: Path) -> None:
     path.write_bytes(first)
     if png_bytes(Image.open(path).convert("RGBA")) != first:
         raise SystemExit(f"{path.name} did not round-trip")
-
 
 def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int, int, int, int]]]:
     count = 0
@@ -1025,7 +971,6 @@ def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int
         max_y = max(max_y, y)
         colors.add(color)
     return count, min_x, min_y, max_x, max_y, colors
-
 
 def require_sheet(
     name: str,
@@ -1052,7 +997,6 @@ def require_sheet(
     if max_y - min_y < min_span_y:
         raise SystemExit(f"{name} span y is {max_y - min_y}")
 
-
 def draw_all(palette: Palette) -> dict[str, Canvas]:
     return {
         "slime": draw_slime(palette),
@@ -1065,7 +1009,6 @@ def draw_all(palette: Palette) -> dict[str, Canvas]:
         "slime_bolt": draw_bolt(palette),
         "slime_blob": draw_blob(palette),
     }
-
 
 def check_all(sheets: dict[str, Canvas], allowed: set[tuple[int, int, int, int]]) -> None:
     expected = {
@@ -1091,7 +1034,6 @@ def check_all(sheets: dict[str, Canvas], allowed: set[tuple[int, int, int, int]]
     if sheets["arrow"].pixels == sheets["slime_bolt"].pixels:
         raise SystemExit("arrow and slime bolt match")
 
-
 def output_paths() -> dict[str, Path]:
     return {
         "slime": ENEMIES / "slime.png",
@@ -1105,7 +1047,6 @@ def output_paths() -> dict[str, Path]:
         "slime_blob": PROJECTILES / "slime_blob.png",
     }
 
-
 def main() -> None:
     reject_resample_names()
     allowed = load_allowed_colors()
@@ -1114,7 +1055,6 @@ def main() -> None:
     check_all(sheets, allowed)
     for name, path in output_paths().items():
         save_png(to_image(sheets[name]), path)
-
 
 if __name__ == "__main__":
     main()
