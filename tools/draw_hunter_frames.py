@@ -969,5 +969,134 @@ def main() -> None:
         print(f"{label} chest {chest_pin_x(frame):.2f} sole {center:.1f}@{row} tip {tip}")
     print("jump/fall/death written")
 
+def colors_used(*groups: dict[Point, Color]) -> set[Color]:
+    colors: set[Color] = set()
+    for group in groups:
+        colors.update(group.values())
+    return colors
+
+def round_half_up(value: float) -> int:
+    return int(math.floor(value + 0.5))
+
+def seat_planted_leg(leg: Sprite, chest: float) -> Sprite:
+    center, sole = _sole(leg)
+    delta_x = round_half_up(chest - center)
+    delta_y = round_half_up(FOOT_ROW - sole)
+    if abs((chest - center) - delta_x) > 1e-6:
+        widen_sole_by_delta(leg, chest - center)
+        center, sole = _sole(leg)
+        delta_x = round_half_up(chest - center)
+        delta_y = round_half_up(FOOT_ROW - sole)
+    return leg.shift(delta_x, delta_y)
+
+def widen_sole_by_delta(sprite: Sprite, delta: float) -> None:
+    if delta > 0:
+        widen_sole_toward_right(sprite)
+    else:
+        widen_sole_toward_left(sprite)
+
+def widen_sole_toward_right(sprite: Sprite) -> None:
+    contact_row, _left, right = widest_sole(sprite)
+    sprite.pixels[(right + 1, contact_row)] = sprite.pixels[(right, contact_row)]
+
+def widest_sole(sprite: Sprite) -> tuple[int, int, int]:
+    contact_row, _ = stance_contact(sprite)
+    xs = sorted(x for x, y in sprite.pixels if y == contact_row)
+    runs = long_runs(xs)
+    runs.sort(key=lambda run: (run[1] - run[0], -run[0]), reverse=True)
+    left, right = runs[0]
+    return contact_row, left, right
+
+def widen_sole_toward_left(sprite: Sprite) -> None:
+    contact_row, left, _right = widest_sole(sprite)
+    sprite.pixels[(left - 1, contact_row)] = sprite.pixels[(left, contact_row)]
+
+def seat_lifted_leg(leg: Sprite) -> Sprite:
+    _center, sole = _sole(leg)
+    return leg.shift(0, min(0, FOOT_ROW - sole))
+
+def aim_low_blade(
+    blade: Sprite,
+    degrees_above_horizontal: float,
+    length: float,
+) -> tuple[Sprite, tuple[float, float]]:
+    return aim_from_pivot(blade, blade_base_low(blade), degrees_above_horizontal, length)
+
+def aim_from_pivot(
+    blade: Sprite,
+    pivot: tuple[float, float],
+    degrees_above_horizontal: float,
+    length: float,
+) -> tuple[Sprite, tuple[float, float]]:
+    tip = blade_tip(blade, pivot)
+    current = math.degrees(math.atan2(-(tip[1] - pivot[1]), tip[0] - pivot[0]))
+    turned = rotate(blade, current - degrees_above_horizontal, pivot)
+    aimed = shorten(turned, pivot, length)
+    return aimed, pivot
+
+def blade_base_low(blade: Sprite) -> tuple[float, float]:
+    max_y = max(y for _, y in blade.pixels)
+    xs = [x for x, y in blade.pixels if y >= max_y - 1]
+    return (min(xs) + max(xs)) / 2, float(max_y)
+
+def shave_right_chest_edge(sprite: Sprite) -> None:
+    drop_chest_column(sprite, max(chest_column(sprite)))
+
+def drop_chest_column(sprite: Sprite, edge: int) -> None:
+    victims = [
+        (x, y)
+        for (x, y), color in sprite.pixels.items()
+        if x == edge and 50 <= y <= 96 and not is_hot_blade(color)
+    ]
+    for point in victims:
+        del sprite.pixels[point]
+
+def chest_column(sprite: Sprite) -> list[int]:
+    return [
+        x
+        for (x, y), color in sprite.pixels.items()
+        if 50 <= y <= 96 and not is_hot_blade(color)
+    ]
+
+def shave_left_chest_edge(sprite: Sprite) -> None:
+    drop_chest_column(sprite, min(chest_column(sprite)))
+
+def aim_left_blade(
+    blade: Sprite,
+    degrees_above_horizontal: float,
+    length: float,
+) -> tuple[Sprite, tuple[float, float]]:
+    return aim_from_pivot(blade, blade_base_left(blade), degrees_above_horizontal, length)
+
+def blade_base_left(blade: Sprite) -> tuple[float, float]:
+    min_x = min(x for x, _ in blade.pixels)
+    ys = [y for x, y in blade.pixels if x <= min_x + 2]
+    return float(min_x), (min(ys) + max(ys)) / 2
+
+def plant_contact(
+    sprite: Sprite,
+    target_x: float,
+    target_row: int,
+    cell_width: int,
+    cell_height: int,
+) -> Sprite:
+    current = sprite.copy()
+    for _ in range(5):
+        moved, _delta_x, _delta_y = shift_contact_to(current, target_x, target_row)
+        overflow = [
+            point
+            for point in moved.pixels
+            if not (0 <= point[0] < cell_width and 0 <= point[1] < cell_height)
+        ]
+        if not overflow:
+            return moved
+        for point in overflow:
+            del moved.pixels[point]
+        row, center = stance_contact(moved)
+        if row == target_row and abs(center - target_x) < 1e-6:
+            return moved
+        current = moved
+    raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
+
 if __name__ == "__main__":
     main()
