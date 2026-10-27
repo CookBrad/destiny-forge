@@ -479,19 +479,23 @@ mod tests {
         let mut dirty = ProfileDirty::default();
         let started = activate_profile(
             index,
-            &inventory,
-            &loadout,
-            &progress,
-            &day_clock,
-            &tool_energy,
-            &audio,
-            &bindings,
-            &wallet,
-            &mut active,
-            profile,
-            &mut global,
-            &mut dirty,
-            autosave_block,
+            &ProfileCapture {
+                inventory: &inventory,
+                loadout: &loadout,
+                progress: &progress,
+                day_clock: &day_clock,
+                tool_energy: &tool_energy,
+                audio: &audio,
+                bindings: &bindings,
+                wallet: &wallet,
+            },
+            &mut ProfileSession {
+                active: &mut active,
+                profile,
+                global: &mut global,
+                dirty: &mut dirty,
+                autosave_block,
+            },
         );
         (started, active)
     }
