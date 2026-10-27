@@ -100,6 +100,7 @@ Zones, transitions, persistence, menus.
 | 62 | House interior / bed for sleep | ✅ [PR #68](https://github.com/CookBrad/destiny-forge/pull/68) |
 | 63 | Landmarks: mine entrance + fishing dock | ⬜ |
 | 64 | Pause menu + key rebinding polish | ⬜ |
+| 101 | SAV-05 namespaced save header | 🔧 [#101](https://github.com/CookBrad/destiny-forge/issues/101) |
 
 ---
 
