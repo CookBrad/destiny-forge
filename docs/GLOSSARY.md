@@ -210,6 +210,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Rebind | `Rebind` | Binding that moves a Lock to another skill. |
 | Weapon tree | `WeaponTree` | An upgrade path of weapons within one weapon family. |
 | Armor slot | `ArmorSlot` | Helm, Mail, Gauntlets, Greaves or Coil. |
+| Armor piece | `ArmorPiece` | One worn piece: Helm, Mail, Gauntlets or Greaves. |
 | Armor set | `ArmorSet` | A family of armor pieces sharing a set skill. |
 | Hearth Meal | `HearthMeal` | A pre-hunt meal that gives one daily buff. |
 | Food buff | `FoodBuff` | A timed bonus from eating food. |
