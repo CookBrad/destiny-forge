@@ -553,5 +553,92 @@ def main() -> None:
         assert_size(path, width, height, opaque)
         print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
 
+def write_opaque_pieces() -> None:
+    pieces = (
+        (draw_wall(), ENV / "wall.png", WALL_PATTERN, WALL_PATTERN),
+        (draw_floor(), ENV / "floor_ground.png", GROUND_PATTERN_W, TILE_PX),
+        (draw_ground_fill(), ENV / "ground_fill.png", GROUND_PATTERN_W, GROUND_PATTERN_W),
+        (draw_ceiling_beam(), ENV / "ceiling_beam.png", GROUND_PATTERN_W, TILE_PX),
+        (draw_platform(), ENV / "floor_platform.png", GROUND_PATTERN_W, TILE_PX),
+        (draw_pit(), ENV / "floor_pit.png", GROUND_PATTERN_W, GROUND_PATTERN_W),
+    )
+    for canvas, path, width, height in pieces:
+        save_checked_piece(canvas, path, width, height)
+        assert_fully_opaque(path, width, height)
+        print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
+
+
+def write_cutout_pieces() -> None:
+    pieces = (
+        (draw_ladder(), ENV / "floor_ladder.png", LADDER_W, LADDER_H),
+        (draw_stake(), ENV / "pit_stake.png", STAKE_W, STAKE_H),
+        (draw_lip(), ENV / "pit_lip.png", LIP_W, LIP_H),
+        (draw_pillar(), ENV / "pillar.png", PILLAR_W, PILLAR_H),
+        (draw_torch(), ENV / "torch.png", TORCH_W, TORCH_H),
+        (draw_chain(), ENV / "chain.png", CHAIN_W, CHAIN_H),
+        (draw_ground_slam(), VFX / "ground_slam.png", 96, 24),
+    )
+    for canvas, path, width, height in pieces:
+        save_checked_piece(canvas, path, width, height)
+        assert_cutout(path, width, height)
+        print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
+
+
+
+def bevel_wrapped_block(
+    canvas: Canvas,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    base: tuple[int, int, int, int],
+) -> None:
+    for y in range(start_y, end_y):
+        for x in range(start_x, end_x):
+            canvas.put(x % canvas.width, y % canvas.height, beveled_color(x, y, start_x, start_y, end_x, end_y, base))
+
+def beveled_color(
+    x: int,
+    y: int,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    base: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    color = shade(base, speck(x, y))
+    if y < start_y + 2 or x < start_x + 2:
+        color = shade(color, 20 if (y == start_y or x == start_x) else 10)
+    if y >= end_y - 2 or x >= end_x - 2:
+        color = shade(color, -24 if (y == end_y - 1 or x == end_x - 1) else -12)
+    return color
+def save_checked_piece(canvas: Canvas, path: Path, width: int, height: int) -> None:
+    if (canvas.width, canvas.height) != (width, height):
+        raise SystemExit(f"canvas {path.name} is {(canvas.width, canvas.height)}")
+    save(canvas, path)
+
+
+def assert_fully_opaque(path: Path, width: int, height: int) -> None:
+    alphas = alpha_values(path, width, height)
+    if alphas != {255}:
+        raise SystemExit(f"{path} is not fully opaque: {sorted(alphas)[:6]}")
+
+
+def assert_cutout(path: Path, width: int, height: int) -> None:
+    alphas = alpha_values(path, width, height)
+    if 0 not in alphas:
+        raise SystemExit(f"{path} has no transparent pixel")
+    if 255 not in alphas:
+        raise SystemExit(f"{path} has no opaque pixel")
+
+
+def alpha_values(path: Path, width: int, height: int) -> set[int]:
+    image = Image.open(path)
+    if image.size != (width, height):
+        raise SystemExit(f"{path} is {image.size}, expected {(width, height)}")
+    if image.mode != "RGBA":
+        raise SystemExit(f"{path} mode {image.mode}, expected RGBA")
+    return {pixel[3] for pixel in image.getdata()}
+
 if __name__ == "__main__":
     main()
