@@ -163,11 +163,18 @@ fn toggle_label(enabled: bool) -> &'static str {
     }
 }
 
+pub(crate) type AudioToggleClicks<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Interaction, &'static AudioToggleButton),
+    (Changed<Interaction>, With<Button>),
+>;
+
 pub fn handle_pause_audio_input(
     actions: Res<ActionState>,
     mut settings: ResMut<AudioSettings>,
     mut profile_dirty: ResMut<ProfileDirty>,
-    mut toggles: Query<(&Interaction, &AudioToggleButton), (Changed<Interaction>, With<Button>)>,
+    mut toggles: AudioToggleClicks,
     mut sliders: Query<(&Interaction, &RelativeCursorPosition, &AudioSliderTrack), With<Button>>,
 ) {
     for (interaction, toggle) in &mut toggles {
