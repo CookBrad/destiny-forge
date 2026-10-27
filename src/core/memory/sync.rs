@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -14,19 +15,45 @@ use super::settings::GameSettings;
 use super::storage::{save_profile, save_root_display, save_settings};
 use super::ProfileDirty;
 
+#[derive(SystemParam)]
+pub(crate) struct HydratedRuntime<'w> {
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    season: ResMut<'w, Season>,
+}
+
+#[derive(SystemParam)]
+pub(crate) struct CapturedRuntime<'w> {
+    audio: Res<'w, AudioSettings>,
+    bindings: Res<'w, SkillBindings>,
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    progress: Res<'w, WorldProgress>,
+    day_clock: Res<'w, DayClock>,
+    tool_energy: Res<'w, ToolEnergy>,
+}
+
 pub fn hydrate_runtime_from_memory(
     profile: Res<PlayerProfile>,
     active: Res<ActiveProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
+    runtime: HydratedRuntime,
     rules: Res<CalendarRules>,
 ) {
+    let HydratedRuntime {
+        mut audio,
+        mut bindings,
+        mut inventory,
+        mut loadout,
+        mut progress,
+        mut day_clock,
+        mut tool_energy,
+        mut season,
+    } = runtime;
     apply_profile_to_runtime(
         &profile,
         &mut inventory,
@@ -52,17 +79,19 @@ pub fn hydrate_runtime_from_memory(
 }
 
 pub fn capture_profile_from_runtime(
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
+    runtime: CapturedRuntime,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
+    let CapturedRuntime {
+        audio,
+        bindings,
+        inventory,
+        loadout,
+        progress,
+        day_clock,
+        tool_energy,
+    } = runtime;
     if !audio.is_changed()
         && !bindings.is_changed()
         && !inventory.is_changed()
