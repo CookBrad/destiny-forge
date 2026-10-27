@@ -831,4 +831,19 @@ mod tests {
         assert!(!app.world().resource::<ProfileDirty>().0);
         assert_eq!(saved_profile(&app).wallet.gold, 3);
     }
+
+    #[test]
+    fn hydrate_fails_when_the_wallet_is_missing() {
+        let mut app = app_holding(PlayerProfile::default(), Wallet::default());
+        app.world_mut().remove_resource::<Wallet>();
+        app.add_systems(Update, hydrate_runtime_from_memory);
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| app.update()))
+            .expect_err("hydrate panics");
+        let message = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .unwrap();
+        assert!(message.contains("Wallet"));
+    }
 }
