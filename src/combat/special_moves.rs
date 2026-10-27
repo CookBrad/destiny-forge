@@ -300,15 +300,7 @@ pub fn start_player_special_moves(
         return;
     }
 
-    let sign = animation.facing.signum();
-    let facing = if sign.is_nan() || sign < -1.0 {
-        -1.0
-    } else if sign > 1.0 {
-        1.0
-    } else {
-        sign
-    };
-    let direction = if facing == 0.0 { 1.0 } else { facing };
+    let direction = charge_direction_from_facing(animation.facing);
     let duration = match kind {
         SpecialMoveKind::Charge => CHARGE_SECS,
         SpecialMoveKind::Spin => SPIN_SECS,
@@ -328,6 +320,14 @@ pub fn start_player_special_moves(
         SpecialMoveKind::Charge => CombatSfx::Charge,
         SpecialMoveKind::Spin | SpecialMoveKind::Thrust => CombatSfx::Spin,
     });
+}
+
+fn charge_direction_from_facing(facing: f32) -> f32 {
+    if facing.is_nan() {
+        -1.0
+    } else {
+        facing.signum()
+    }
 }
 
 pub fn tick_player_special_moves(
@@ -626,6 +626,26 @@ mod tests {
             special_for_weapon(WeaponKind::IronSword, SkillKind::Spin),
             Some(SpecialMoveKind::Spin)
         );
+    }
+
+    #[test]
+    fn a_positive_facing_becomes_a_rightward_charge() {
+        assert_eq!(charge_direction_from_facing(1.0), 1.0);
+    }
+
+    #[test]
+    fn a_negative_facing_becomes_a_leftward_charge() {
+        assert_eq!(charge_direction_from_facing(-1.0), -1.0);
+    }
+
+    #[test]
+    fn a_zero_facing_becomes_a_rightward_charge() {
+        assert_eq!(charge_direction_from_facing(0.0), 1.0);
+    }
+
+    #[test]
+    fn an_undefined_facing_becomes_a_leftward_charge() {
+        assert_eq!(charge_direction_from_facing(f32::NAN), -1.0);
     }
 
     #[test]
