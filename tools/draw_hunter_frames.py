@@ -203,9 +203,19 @@ def cell_of(sheet: Sprite, index: int) -> Sprite:
 def leg_column(idle: Sprite, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
     return bridge_vertical_gaps(idle.crop(start_x, start_y, end_x, end_y))
 
-def is_yellow_mark(color: tuple[int, int, int, int]) -> bool:
-    red, green, blue, alpha = color
-    return alpha == 255 and red > 170 and green > 130 and blue < 90 and red > blue + 70
+def bridge_vertical_gaps(leg: Sprite, limit: int = 8) -> Sprite:
+    columns: dict[int, list[int]] = {}
+    for x, y in leg.pixels:
+        columns.setdefault(x, []).append(y)
+    for x, ys in columns.items():
+        ordered = sorted(ys)
+        for top, bottom in zip(ordered, ordered[1:]):
+            if bottom - top <= 1 or bottom - top > limit:
+                continue
+            color = leg.pixels[(x, bottom)]
+            for y in range(top + 1, bottom):
+                leg.pixels[(x, y)] = color
+    return leg
 
 def build_run_cycle(idle: Sprite) -> list[Sprite]:
     parts = build_run_parts(idle)
@@ -315,13 +325,17 @@ def is_skin(color: tuple[int, int, int, int]) -> bool:
         and blue < 160
     )
 
-def is_brown(color: tuple[int, int, int, int]) -> bool:
+def is_yellow_mark(color: tuple[int, int, int, int]) -> bool:
     red, green, blue, alpha = color
-    return alpha == 255 and red > 45 and red > green and green > blue + 4 and red > blue + 18 and blue < 90
+    return alpha == 255 and red > 170 and green > 130 and blue < 90 and red > blue + 70
 
 def is_purple(color: tuple[int, int, int, int]) -> bool:
     red, green, blue, alpha = color
     return alpha == 255 and red > 90 and blue > 120 and green < 110 and blue > green + 30
+
+def is_brown(color: tuple[int, int, int, int]) -> bool:
+    red, green, blue, alpha = color
+    return alpha == 255 and red > 45 and red > green and green > blue + 4 and red > blue + 18 and blue < 90
 
 def chest_pin_x(sprite: Sprite) -> float:
     xs = [
@@ -332,9 +346,6 @@ def chest_pin_x(sprite: Sprite) -> float:
     if not xs:
         raise SystemExit("no chest pixels")
     return (min(xs) + max(xs)) / 2
-
-def round_half_up(value: float) -> int:
-    return int(math.floor(value + 0.5))
 
 def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float]) -> Sprite:
     if abs(degrees_clockwise) < 0.05 or not sprite.pixels:
@@ -372,6 +383,9 @@ def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float])
                 out[(x, y)] = color
     return fill_cracks(Sprite(out))
 
+def round_half_up(value: float) -> int:
+    return int(math.floor(value + 0.5))
+
 def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
     for _ in range(passes):
         extra = {}
@@ -394,6 +408,10 @@ def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
         sprite.pixels.update(extra)
     return sprite
 
+def blade_only(sprite: Sprite) -> Sprite:
+    blade = flood_blade(sprite)
+    return Sprite({point: sprite.pixels[point] for point in blade})
+
 def compose_run_frame(parts: dict, pose: dict) -> Sprite:
     chest = parts["chest"]
     body = parts["body"].shift(0, pose["bob"])
@@ -415,24 +433,6 @@ def compose_run_frame(parts: dict, pose: dict) -> Sprite:
     aimed, pivot = aim_low_blade(parts["sword"], RUN_SWORD_DEG, RUN_SWORD_LENGTH)
     frame.paste(place_aimed(aimed, pivot, (hand[0] + 2, hand[1] - 8)))
     return frame
-
-def blade_only(sprite: Sprite) -> Sprite:
-    blade = flood_blade(sprite)
-    return Sprite({point: sprite.pixels[point] for point in blade})
-
-def bridge_vertical_gaps(leg: Sprite, limit: int = 8) -> Sprite:
-    columns: dict[int, list[int]] = {}
-    for x, y in leg.pixels:
-        columns.setdefault(x, []).append(y)
-    for x, ys in columns.items():
-        ordered = sorted(ys)
-        for top, bottom in zip(ordered, ordered[1:]):
-            if bottom - top <= 1 or bottom - top > limit:
-                continue
-            color = leg.pixels[(x, bottom)]
-            for y in range(top + 1, bottom):
-                leg.pixels[(x, y)] = color
-    return leg
 
 def swing_from_hip(leg: Sprite, degrees_clockwise: float, hip_x: float, hip_y: float) -> Sprite:
     pivot = top_center(leg)
@@ -519,13 +519,13 @@ def widest_sole(sprite: Sprite) -> tuple[int, int, int]:
     left, right = runs[0]
     return contact_row, left, right
 
-def seat_lifted_leg(leg: Sprite) -> Sprite:
-    _center, sole = _sole(leg)
-    return leg.shift(0, min(0, FOOT_ROW - sole))
-
 def widen_sole_toward_left(sprite: Sprite) -> None:
     contact_row, left, _right = widest_sole(sprite)
     sprite.pixels[(left - 1, contact_row)] = sprite.pixels[(left, contact_row)]
+
+def seat_lifted_leg(leg: Sprite) -> Sprite:
+    _center, sole = _sole(leg)
+    return leg.shift(0, min(0, FOOT_ROW - sole))
 
 def sword_hand(sprite: Sprite) -> tuple[float, float]:
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color) and y > 70]
@@ -581,6 +581,20 @@ def blade_base_low(blade: Sprite) -> tuple[float, float]:
 def place_aimed(aimed: Sprite, pivot: tuple[float, float], hand: tuple[float, float]) -> Sprite:
     return aimed.shift(round_half_up(hand[0] - pivot[0]), round_half_up(hand[1] - pivot[1]))
 
+def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
+    row, _center = stance_contact(sprite)
+    delta_y = target_row - row
+    moved = sprite.shift(0, delta_y)
+    for _ in range(4):
+        _, center = stance_contact(moved)
+        delta = target_x - center
+        if abs(delta - round(delta)) < 1e-6:
+            delta_x = round_half_up(delta)
+            moved = moved.shift(delta_x, 0)
+            return moved, delta_x, delta_y
+        widen_sole_by_delta(moved, delta)
+    raise SystemExit(f"contact {center} cannot reach {target_x}")
+
 def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite]:
     body = align_chest_and_sole(without_blade(chamber), ATTACK_SOLE_ROW)
     between_body = reposition_boots(body, 60, 112, ATTACK_SOLE_ROW)
@@ -597,20 +611,6 @@ def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite
     require_inside(between)
     require_inside(recover)
     return between, recover
-
-def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
-    row, _center = stance_contact(sprite)
-    delta_y = target_row - row
-    moved = sprite.shift(0, delta_y)
-    for _ in range(4):
-        _, center = stance_contact(moved)
-        delta = target_x - center
-        if abs(delta - round(delta)) < 1e-6:
-            delta_x = round_half_up(delta)
-            moved = moved.shift(delta_x, 0)
-            return moved, delta_x, delta_y
-        widen_sole_by_delta(moved, delta)
-    raise SystemExit(f"contact {center} cannot reach {target_x}")
 
 def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
     moved = sprite
@@ -653,6 +653,9 @@ def chest_column(sprite: Sprite) -> list[int]:
         if 50 <= y <= 96 and not is_hot_blade(color)
     ]
 
+def shave_left_chest_edge(sprite: Sprite) -> None:
+    drop_chest_column(sprite, min(chest_column(sprite)))
+
 def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: int) -> Sprite:
     rear_box = sprite.crop(0, 136, 48, CELL_HEIGHT)
     front_box = sprite.crop(80, 136, 140, CELL_HEIGHT)
@@ -666,9 +669,6 @@ def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: in
     cleared.paste(rear_box, round_half_up(rear_x - rear_center), sole_row - rear_sole)
     cleared.paste(front_box, round_half_up(front_x - front_center), sole_row - front_sole)
     return cleared
-
-def shave_left_chest_edge(sprite: Sprite) -> None:
-    drop_chest_column(sprite, min(chest_column(sprite)))
 
 def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: float) -> Sprite:
     hand = attack_hand(body)
@@ -715,6 +715,9 @@ def blade_base_left(blade: Sprite) -> tuple[float, float]:
     ys = [y for x, y in blade.pixels if x <= min_x + 2]
     return float(min_x), (min(ys) + max(ys)) / 2
 
+def _inside_cell(sprite: Sprite) -> bool:
+    return all(0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT for x, y in sprite.pixels)
+
 def nudge_chest_x(sprite: Sprite) -> Sprite:
     moved = sprite
     for _ in range(6):
@@ -729,9 +732,6 @@ def nudge_chest_x(sprite: Sprite) -> Sprite:
         else:
             shave_left_chest_edge(moved)
     raise SystemExit(f"chest pin stuck at {chest_pin_x(moved)}")
-
-def _inside_cell(sprite: Sprite) -> bool:
-    return all(0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT for x, y in sprite.pixels)
 
 def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body = idle.copy()
@@ -790,6 +790,9 @@ def lift_cape(sprite: Sprite, delta_y: int) -> Sprite:
         kept.pixels[(x, y + delta_y)] = color
     return kept
 
+def plant_on_foot(sprite: Sprite, target_x: float = FOOT_X, target_row: int = FOOT_ROW) -> Sprite:
+    return plant_contact(sprite, target_x, target_row, CELL_WIDTH, CELL_HEIGHT)
+
 def plant_contact(
     sprite: Sprite,
     target_x: float,
@@ -814,9 +817,6 @@ def plant_contact(
             return moved
         current = moved
     raise SystemExit(f"foot point {target_x},{target_row} clips the cell")
-
-def plant_on_foot(sprite: Sprite, target_x: float = FOOT_X, target_row: int = FOOT_ROW) -> Sprite:
-    return plant_contact(sprite, target_x, target_row, CELL_WIDTH, CELL_HEIGHT)
 
 def build_death(idle: Sprite, rear: Sprite, front: Sprite) -> tuple[Sprite, Sprite]:
     stagger = _death_stagger(idle, rear, front)
