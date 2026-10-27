@@ -51,14 +51,14 @@ class Canvas:
 
     def fill_rect(
         self,
-        x0: int,
+        start_x: int,
         start_y: int,
         end_x: int,
         end_y: int,
         color: tuple[int, int, int, int],
     ) -> None:
         for y in range(start_y, end_y):
-            for x in range(x0, end_x):
+            for x in range(start_x, end_x):
                 self.put(x, y, color)
 
     def image(self) -> Image.Image:
@@ -101,7 +101,7 @@ def hash2(x: int, y: int, salt: int = 0) -> int:
 
 def bevel_block(
     canvas: Canvas,
-    x0: int,
+    start_x: int,
     start_y: int,
     end_x: int,
     end_y: int,
@@ -109,10 +109,10 @@ def bevel_block(
     wrap: bool = False,
 ) -> None:
     for y in range(start_y, end_y):
-        for x in range(x0, end_x):
+        for x in range(start_x, end_x):
             color = shade(base, speck(x, y))
-            if y < start_y + 2 or x < x0 + 2:
-                color = shade(color, 20 if (y == start_y or x == x0) else 10)
+            if y < start_y + 2 or x < start_x + 2:
+                color = shade(color, 20 if (y == start_y or x == start_x) else 10)
             if y >= end_y - 2 or x >= end_x - 2:
                 color = shade(color, -24 if (y == end_y - 1 or x == end_x - 1) else -12)
             if wrap:
@@ -139,22 +139,22 @@ def draw_wall() -> Canvas:
         start_y = course * WALL_BRICK_HEIGHT
         offset = WALL_BRICK_WIDTH // 2 if course % 2 else 0
         for brick in range(WALL_PATTERN // WALL_BRICK_WIDTH + 1):
-            x0 = brick * WALL_BRICK_WIDTH - offset
+            start_x = brick * WALL_BRICK_WIDTH - offset
             pick = hash2(brick, course, 3)
             base = stones[pick % 4] if pick > 20 else shade(BROWN_DARK, -10)
             bevel_block(
                 canvas,
-                x0 + 1,
+                start_x + 1,
                 start_y + 1,
-                x0 + WALL_BRICK_WIDTH - 1,
+                start_x + WALL_BRICK_WIDTH - 1,
                 start_y + WALL_BRICK_HEIGHT - 1,
                 base,
                 wrap=True,
             )
             if pick % 9 == 0:
                 for d in range(4):
-                    canvas.put((x0 + 1 + d) % WALL_PATTERN, start_y + 1, MORTAR_DARK)
-                    canvas.put((x0 + 1) % WALL_PATTERN, start_y + 1 + d, MORTAR_DARK)
+                    canvas.put((start_x + 1 + d) % WALL_PATTERN, start_y + 1, MORTAR_DARK)
+                    canvas.put((start_x + 1) % WALL_PATTERN, start_y + 1 + d, MORTAR_DARK)
     for y in range(0, WALL_PATTERN, WALL_BRICK_HEIGHT):
         for x in range(WALL_PATTERN):
             canvas.put(x, y, MORTAR if (x // 4) % 3 else MORTAR_DARK)
@@ -178,15 +178,15 @@ GROUND_PATTERN_W = 128
 def draw_floor() -> Canvas:
     canvas = Canvas(GROUND_PATTERN_W, TILE_PX, MORTAR_DARK)
     for slab in range(GROUND_PATTERN_W // SLAB_WIDTH):
-        x0 = slab * SLAB_WIDTH
+        start_x = slab * SLAB_WIDTH
         base = BROWN if slab % 2 == 0 else shade(BROWN_DARK, 12)
-        bevel_block(canvas, x0 + 1, 4, x0 + SLAB_WIDTH - 1, TILE_PX - 1, base)
-        rivet(canvas, x0 + 6, 9)
-        rivet(canvas, x0 + SLAB_WIDTH - 8, 9)
-        for x in range(x0 + 14, x0 + SLAB_WIDTH - 14):
+        bevel_block(canvas, start_x + 1, 4, start_x + SLAB_WIDTH - 1, TILE_PX - 1, base)
+        rivet(canvas, start_x + 6, 9)
+        rivet(canvas, start_x + SLAB_WIDTH - 8, 9)
+        for x in range(start_x + 14, start_x + SLAB_WIDTH - 14):
             canvas.put(x, 20, BLUE_DARK if x % 6 else BLUE)
-        canvas.put(x0 + 14, 19, BLUE)
-        canvas.put(x0 + SLAB_WIDTH - 15, 21, BLUE)
+        canvas.put(start_x + 14, 19, BLUE)
+        canvas.put(start_x + SLAB_WIDTH - 15, 21, BLUE)
     for x in range(GROUND_PATTERN_W):
         canvas.put(x, 0, BRASS_LIGHT if x % 16 else BRASS)
         canvas.put(x, 1, BRASS)
@@ -201,10 +201,10 @@ def draw_ground_fill() -> Canvas:
     for course in range(GROUND_PATTERN_W // 32):
         offset = 32 if course % 2 else 0
         for block in range(GROUND_PATTERN_W // SLAB_WIDTH + 1):
-            x0 = block * SLAB_WIDTH - offset
+            start_x = block * SLAB_WIDTH - offset
             pick = hash2(block, course, 11)
             base = (BROWN_DEEP, shade(BROWN_DEEP, -10), shade(GRAY_DARK, -6))[pick % 3]
-            bevel_block(canvas, x0 + 1, course * 32 + 1, x0 + SLAB_WIDTH - 1, course * 32 + 31, base, wrap=True)
+            bevel_block(canvas, start_x + 1, course * 32 + 1, start_x + SLAB_WIDTH - 1, course * 32 + 31, base, wrap=True)
     crack(canvas, ((20, 40), (28, 48), (36, 49), (44, 58)), PURPLE_DARK, PURPLE_DARK)
     crack(canvas, ((90, 100), (96, 104), (104, 104), (110, 112)), BLUE_DARK, BLUE_DARK)
     return canvas
@@ -232,9 +232,9 @@ def draw_ceiling_beam() -> Canvas:
 def draw_platform() -> Canvas:
     canvas = Canvas(GROUND_PATTERN_W, TILE_PX, CLEAR)
     for bay in range(GROUND_PATTERN_W // SLAB_WIDTH):
-        x0 = bay * SLAB_WIDTH
-        canvas.fill_rect(x0, 0, x0 + SLAB_WIDTH, TILE_PX, IRON_DARK)
-        for x in range(x0, x0 + SLAB_WIDTH):
+        start_x = bay * SLAB_WIDTH
+        canvas.fill_rect(start_x, 0, start_x + SLAB_WIDTH, TILE_PX, IRON_DARK)
+        for x in range(start_x, start_x + SLAB_WIDTH):
             canvas.put(x, 0, PURPLE_LIGHT)
             canvas.put(x, 1, PURPLE)
             canvas.put(x, 2, PURPLE_DARK)
@@ -244,18 +244,18 @@ def draw_platform() -> Canvas:
                 canvas.put(x, y, shade(IRON, -6 if y < TILE_PX - 1 else -30))
         for step in range(TILE_PX - 14):
             for delta_x in (0, 1, 2):
-                left = x0 + 4 + step * (SLAB_WIDTH - 8) // (TILE_PX - 14) + delta_x
-                right = x0 + SLAB_WIDTH - 5 - step * (SLAB_WIDTH - 8) // (TILE_PX - 14) - delta_x
+                left = start_x + 4 + step * (SLAB_WIDTH - 8) // (TILE_PX - 14) + delta_x
+                right = start_x + SLAB_WIDTH - 5 - step * (SLAB_WIDTH - 8) // (TILE_PX - 14) - delta_x
                 canvas.put(left, 8 + step, GRAY if delta_x == 0 else GRAY_DARK)
                 canvas.put(right, 8 + step, GRAY if delta_x == 0 else GRAY_DARK)
         for y in range(3, TILE_PX):
             for delta_x, color in ((0, BRASS_LIGHT), (1, BRASS), (2, BRASS), (3, BRASS_DARK)):
-                canvas.put(x0 + delta_x, y, color)
-        rivet(canvas, x0 + 1, 5)
-        rivet(canvas, x0 + 1, TILE_PX - 5)
-        canvas.put(x0 + SLAB_WIDTH // 2, 17, BLUE_LIGHT)
-        canvas.put(x0 + SLAB_WIDTH // 2 - 1, 17, BLUE)
-        canvas.put(x0 + SLAB_WIDTH // 2 + 1, 17, BLUE)
+                canvas.put(start_x + delta_x, y, color)
+        rivet(canvas, start_x + 1, 5)
+        rivet(canvas, start_x + 1, TILE_PX - 5)
+        canvas.put(start_x + SLAB_WIDTH // 2, 17, BLUE_LIGHT)
+        canvas.put(start_x + SLAB_WIDTH // 2 - 1, 17, BLUE)
+        canvas.put(start_x + SLAB_WIDTH // 2 + 1, 17, BLUE)
     return canvas
 
 def draw_pit() -> Canvas:
@@ -264,10 +264,10 @@ def draw_pit() -> Canvas:
         for x in range(GROUND_PATTERN_W):
             streak = 8 if (x // 4) % 9 == 2 else 0
             canvas.put(x, y, shade(VOID, streak + speck(x, y) // 3))
-    for x0 in (22, 88):
+    for start_x in (22, 88):
         for y in range(GROUND_PATTERN_W):
             wobble = (y // 16) % 2
-            canvas.put(x0 + wobble, y, BLUE_DARK if y % 12 else BLUE)
+            canvas.put(start_x + wobble, y, BLUE_DARK if y % 12 else BLUE)
     for start_y in (40, 104):
         for x in range(23, 89):
             canvas.put(x, start_y, PURPLE_DARK if x % 10 else PURPLE)
