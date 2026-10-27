@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from __future__ import annotations
 
 import hashlib
@@ -8,6 +7,16 @@ import shutil
 from pathlib import Path
 
 from PIL import Image
+
+from art_common import (
+    Color,
+    Point,
+    pack_strip,
+    paste_pixels,
+    reject_resample_names,
+    require_sha256,
+    translate_pixels,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
@@ -18,7 +27,6 @@ CELL_HEIGHT = 160
 FOOT_X = 81.5
 FOOT_ROW = 158
 ATTACK_SOLE_ROW = 159
-
 SIGNED_SHA256 = {
     "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
     "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
