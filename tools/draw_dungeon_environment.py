@@ -1,43 +1,56 @@
 #!/usr/bin/env python3
-
 from __future__ import annotations
-
 from pathlib import Path
-
 from PIL import Image
-
+from art_common import CLEAR, Canvas, clipping_canvas, require_opaque_color
 ROOT = Path(__file__).resolve().parents[1]
 ENV = ROOT / "assets" / "dungeon" / "environment"
 VFX = ROOT / "assets" / "dungeon" / "vfx"
-
-INK = (16, 14, 20, 255)
-MORTAR = (54, 42, 36, 255)
-MORTAR_DARK = (32, 26, 28, 255)
-BROWN = (118, 82, 54, 255)
-BROWN_LIGHT = (156, 114, 74, 255)
-BROWN_DARK = (74, 50, 34, 255)
-BROWN_DEEP = (52, 36, 28, 255)
-GRAY = (68, 66, 76, 255)
-GRAY_LIGHT = (104, 102, 114, 255)
-GRAY_DARK = (40, 38, 48, 255)
-IRON = (48, 46, 56, 255)
-IRON_DARK = (30, 28, 38, 255)
-BRASS = (214, 164, 70, 255)
-BRASS_LIGHT = (246, 214, 128, 255)
-BRASS_DARK = (132, 90, 36, 255)
-PURPLE = (186, 70, 255, 255)
-PURPLE_LIGHT = (230, 170, 255, 255)
-PURPLE_DARK = (96, 28, 150, 255)
-BLUE = (70, 220, 255, 255)
-BLUE_LIGHT = (186, 246, 255, 255)
-BLUE_DARK = (22, 86, 170, 255)
-VOID = (8, 6, 14, 255)
-VOID_MID = (14, 12, 26, 255)
-RED = (214, 48, 24, 255)
-RED_DARK = (112, 18, 14, 255)
-ORANGE = (255, 132, 36, 255)
-YELLOW = (255, 214, 96, 255)
-CLEAR = (0, 0, 0, 0)
+INK = require_opaque_color((16, 14, 20, 255))
+MORTAR = require_opaque_color((54, 42, 36, 255))
+MORTAR_DARK = require_opaque_color((32, 26, 28, 255))
+BROWN = require_opaque_color((118, 82, 54, 255))
+BROWN_LIGHT = require_opaque_color((156, 114, 74, 255))
+BROWN_DARK = require_opaque_color((74, 50, 34, 255))
+BROWN_DEEP = require_opaque_color((52, 36, 28, 255))
+GRAY = require_opaque_color((68, 66, 76, 255))
+GRAY_LIGHT = require_opaque_color((104, 102, 114, 255))
+GRAY_DARK = require_opaque_color((40, 38, 48, 255))
+IRON = require_opaque_color((48, 46, 56, 255))
+IRON_DARK = require_opaque_color((30, 28, 38, 255))
+BRASS = require_opaque_color((214, 164, 70, 255))
+BRASS_LIGHT = require_opaque_color((246, 214, 128, 255))
+BRASS_DARK = require_opaque_color((132, 90, 36, 255))
+PURPLE = require_opaque_color((186, 70, 255, 255))
+PURPLE_LIGHT = require_opaque_color((230, 170, 255, 255))
+PURPLE_DARK = require_opaque_color((96, 28, 150, 255))
+BLUE = require_opaque_color((70, 220, 255, 255))
+BLUE_LIGHT = require_opaque_color((186, 246, 255, 255))
+BLUE_DARK = require_opaque_color((22, 86, 170, 255))
+VOID = require_opaque_color((8, 6, 14, 255))
+VOID_MID = require_opaque_color((14, 12, 26, 255))
+RED = require_opaque_color((214, 48, 24, 255))
+RED_DARK = require_opaque_color((112, 18, 14, 255))
+ORANGE = require_opaque_color((255, 132, 36, 255))
+YELLOW = require_opaque_color((255, 214, 96, 255))
+TILE_PX = 32
+WALL_BRICK_WIDTH = 32
+WALL_BRICK_HEIGHT = 16
+WALL_PATTERN = 256
+SLAB_WIDTH = 64
+GROUND_PATTERN_W = 128
+LADDER_W = 64
+LADDER_H = 256
+STAKE_W = 24
+STAKE_H = 112
+LIP_W = 24
+LIP_H = 96
+PILLAR_W = 64
+PILLAR_H = 512
+TORCH_W = 32
+TORCH_H = 64
+CHAIN_W = 16
+CHAIN_H = 160
 
 class Canvas:
     def __init__(self, width: int, height: int, fill: tuple[int, int, int, int] = CLEAR) -> None:
