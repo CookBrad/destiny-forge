@@ -188,6 +188,9 @@ class Sprite:
             if not (0 <= xx < width and 0 <= yy < height):
                 raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
 
+def palette_of(*sheets: Sprite) -> set[tuple[int, int, int, int]]:
+    return colors_used(*(sheet.pixels for sheet in sheets))
+
 def cell_of(sheet: Sprite, index: int) -> Sprite:
     return sheet.crop(index * CELL_WIDTH, 0, (index + 1) * CELL_WIDTH, CELL_HEIGHT)
 
@@ -316,21 +319,6 @@ def is_skin(color: tuple[int, int, int, int]) -> bool:
         and red - green < 100
         and blue < 160
     )
-
-def long_runs(xs: list[int]) -> list[tuple[int, int]]:
-    if not xs:
-        return []
-    ordered = sorted(set(xs))
-    runs: list[tuple[int, int]] = []
-    start = previous = ordered[0]
-    for x in ordered[1:]:
-        if x == previous + 1:
-            previous = x
-            continue
-        runs.append((start, previous))
-        start = previous = x
-    runs.append((start, previous))
-    return [(a, b) for a, b in runs if b - a + 1 >= 8]
 
 def shorten(sprite: Sprite, pivot: tuple[float, float], length: float) -> Sprite:
     px, py = pivot
@@ -472,10 +460,32 @@ def top_center(sprite: Sprite) -> tuple[float, float]:
 def leg_column(idle: Sprite, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
     return bridge_vertical_gaps(idle.crop(start_x, start_y, end_x, end_y))
 
+def _sole(leg: Sprite) -> tuple[float, int]:
+    try:
+        row, center = stance_contact(leg)
+        return center, row
+    except SystemExit:
+        return bottom_band(leg)
+
 def swing_from_hip(leg: Sprite, degrees_clockwise: float, hip_x: float, hip_y: float) -> Sprite:
     pivot = top_center(leg)
     swung = rotate(leg, degrees_clockwise, pivot) if abs(degrees_clockwise) >= 1 else leg.copy()
     return swung.shift(round_half_up(hip_x - pivot[0]), round_half_up(hip_y - pivot[1]))
+
+def long_runs(xs: list[int]) -> list[tuple[int, int]]:
+    if not xs:
+        return []
+    ordered = sorted(set(xs))
+    runs: list[tuple[int, int]] = []
+    start = previous = ordered[0]
+    for x in ordered[1:]:
+        if x == previous + 1:
+            previous = x
+            continue
+        runs.append((start, previous))
+        start = previous = x
+    runs.append((start, previous))
+    return [(a, b) for a, b in runs if b - a + 1 >= 8]
 
 def stance_contact(sprite: Sprite) -> tuple[int, float]:
     by_row: dict[int, list[int]] = {}
@@ -519,13 +529,20 @@ def widest_sole(sprite: Sprite) -> tuple[int, int, int]:
     left, right = runs[0]
     return contact_row, left, right
 
+def seat_lifted_leg(leg: Sprite) -> Sprite:
+    _center, sole = _sole(leg)
+    return leg.shift(0, min(0, FOOT_ROW - sole))
+
 def widen_sole_toward_left(sprite: Sprite) -> None:
     contact_row, left, _right = widest_sole(sprite)
     sprite.pixels[(left - 1, contact_row)] = sprite.pixels[(left, contact_row)]
 
-def seat_lifted_leg(leg: Sprite) -> Sprite:
-    _center, sole = _sole(leg)
-    return leg.shift(0, min(0, FOOT_ROW - sole))
+def aim_low_blade(
+    blade: Sprite,
+    degrees_above_horizontal: float,
+    length: float,
+) -> tuple[Sprite, tuple[float, float]]:
+    return aim_from_pivot(blade, blade_base_low(blade), degrees_above_horizontal, length)
 
 def sword_hand(sprite: Sprite) -> tuple[float, float]:
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color) and y > 70]
@@ -540,8 +557,20 @@ def sword_hand(sprite: Sprite) -> tuple[float, float]:
         sum(y for _, y in cluster) / len(cluster),
     )
 
+def blade_tip(blade: Sprite, pivot: tuple[float, float]) -> tuple[int, int]:
+    px, py = pivot
+    return max(blade.pixels, key=lambda point: math.hypot(point[0] - px, point[1] - py))
+
 def require_inside(sprite: Sprite) -> None:
     sprite.require_opaque_pixels_inside(0, 0, width=CELL_WIDTH, height=CELL_HEIGHT)
+
+def blade_base_low(blade: Sprite) -> tuple[float, float]:
+    max_y = max(y for _, y in blade.pixels)
+    xs = [x for x, y in blade.pixels if y >= max_y - 1]
+    return (min(xs) + max(xs)) / 2, float(max_y)
+
+def place_aimed(aimed: Sprite, pivot: tuple[float, float], hand: tuple[float, float]) -> Sprite:
+    return aimed.shift(round_half_up(hand[0] - pivot[0]), round_half_up(hand[1] - pivot[1]))
 
 def plant_on_foot(sprite: Sprite, target_x: float = FOOT_X, target_row: int = FOOT_ROW) -> Sprite:
     return plant_contact(sprite, target_x, target_row, CELL_WIDTH, CELL_HEIGHT)
@@ -558,31 +587,22 @@ def aim_from_pivot(
     aimed = shorten(turned, pivot, length)
     return aimed, pivot
 
-def palette_of(*sheets: Sprite) -> set[tuple[int, int, int, int]]:
-    return colors_used(*(sheet.pixels for sheet in sheets))
-
-def blade_tip(blade: Sprite, pivot: tuple[float, float]) -> tuple[int, int]:
-    px, py = pivot
-    return max(blade.pixels, key=lambda point: math.hypot(point[0] - px, point[1] - py))
-
-def blade_base_low(blade: Sprite) -> tuple[float, float]:
-    max_y = max(y for _, y in blade.pixels)
-    xs = [x for x, y in blade.pixels if y >= max_y - 1]
-    return (min(xs) + max(xs)) / 2, float(max_y)
-
-def opaque_width(sprite: Sprite) -> int:
-    left, _top, right, _bottom = sprite.bounds()
-    return right - left + 1
-
-def same_pixels(a: Sprite, b: Sprite) -> bool:
-    return a.pixels == b.pixels
-
-def _sole(leg: Sprite) -> tuple[float, int]:
-    try:
-        row, center = stance_contact(leg)
-        return center, row
-    except SystemExit:
-        return bottom_band(leg)
+def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite]:
+    body = align_chest_and_sole(without_blade(chamber), ATTACK_SOLE_ROW)
+    between_body = reposition_boots(body, 60, 112, ATTACK_SOLE_ROW)
+    recover_body = reposition_boots(body, 72, 100, ATTACK_SOLE_ROW)
+    thrust_blade = Sprite(
+        {
+            point: color
+            for point, color in thrust.pixels.items()
+            if is_hot_blade(color) and point[0] >= 220
+        }
+    )
+    between = _attack_with_sword(between_body, thrust_blade, 40.0, 220)
+    recover = _attack_with_sword(recover_body, thrust_blade, 54.0, 180)
+    require_inside(between)
+    require_inside(recover)
+    return between, recover
 
 def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[Sprite, int, int]:
     row, _center = stance_contact(sprite)
@@ -598,13 +618,8 @@ def shift_contact_to(sprite: Sprite, target_x: float, target_row: int) -> tuple[
         widen_sole_by_delta(moved, delta)
     raise SystemExit(f"contact {center} cannot reach {target_x}")
 
-def attack_hand(sprite: Sprite) -> tuple[float, float]:
-    points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
-    if not points:
-        return sword_hand(sprite)
-    right = max(x for x, _ in points)
-    cluster = [(x, y) for x, y in points if x >= right - 16]
-    return (max(x for x, _ in cluster) - 2, max(y for _, y in cluster) + 8)
+def shave_right_chest_edge(sprite: Sprite) -> None:
+    drop_chest_column(sprite, max(chest_column(sprite)))
 
 def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
     moved = sprite
@@ -639,28 +654,8 @@ def reposition_boots(sprite: Sprite, rear_x: float, front_x: float, sole_row: in
     cleared.paste(front_box, round_half_up(front_x - front_center), sole_row - front_sole)
     return cleared
 
-def place_aimed(aimed: Sprite, pivot: tuple[float, float], hand: tuple[float, float]) -> Sprite:
-    return aimed.shift(round_half_up(hand[0] - pivot[0]), round_half_up(hand[1] - pivot[1]))
-
 def shave_left_chest_edge(sprite: Sprite) -> None:
     drop_chest_column(sprite, min(chest_column(sprite)))
-
-def build_attack_frames(chamber: Sprite, thrust: Sprite) -> tuple[Sprite, Sprite]:
-    body = align_chest_and_sole(without_blade(chamber), ATTACK_SOLE_ROW)
-    between_body = reposition_boots(body, 60, 112, ATTACK_SOLE_ROW)
-    recover_body = reposition_boots(body, 72, 100, ATTACK_SOLE_ROW)
-    thrust_blade = Sprite(
-        {
-            point: color
-            for point, color in thrust.pixels.items()
-            if is_hot_blade(color) and point[0] >= 220
-        }
-    )
-    between = _attack_with_sword(between_body, thrust_blade, 40.0, 220)
-    recover = _attack_with_sword(recover_body, thrust_blade, 54.0, 180)
-    require_inside(between)
-    require_inside(recover)
-    return between, recover
 
 def build_death(idle: Sprite, rear: Sprite, front: Sprite) -> tuple[Sprite, Sprite]:
     stagger = _death_stagger(idle, rear, front)
@@ -694,12 +689,25 @@ def _attack_with_sword(body: Sprite, thrust_blade: Sprite, angle: float, tip_x: 
     frame = nudge_chest_x(frame)
     return frame
 
+def attack_hand(sprite: Sprite) -> tuple[float, float]:
+    points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
+    if not points:
+        return sword_hand(sprite)
+    right = max(x for x, _ in points)
+    cluster = [(x, y) for x, y in points if x >= right - 16]
+    return (max(x for x, _ in cluster) - 2, max(y for _, y in cluster) + 8)
+
 def aim_left_blade(
     blade: Sprite,
     degrees_above_horizontal: float,
     length: float,
 ) -> tuple[Sprite, tuple[float, float]]:
     return aim_from_pivot(blade, blade_base_left(blade), degrees_above_horizontal, length)
+
+def blade_base_left(blade: Sprite) -> tuple[float, float]:
+    min_x = min(x for x, _ in blade.pixels)
+    ys = [y for x, y in blade.pixels if x <= min_x + 2]
+    return float(min_x), (min(ys) + max(ys)) / 2
 
 def _inside_cell(sprite: Sprite) -> bool:
     return all(0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT for x, y in sprite.pixels)
@@ -833,13 +841,6 @@ def check_attack(between: Sprite, recover: Sprite) -> None:
     if same_pixels(between, recover):
         raise SystemExit("attack in-betweens match")
 
-def aim_low_blade(
-    blade: Sprite,
-    degrees_above_horizontal: float,
-    length: float,
-) -> tuple[Sprite, tuple[float, float]]:
-    return aim_from_pivot(blade, blade_base_low(blade), degrees_above_horizontal, length)
-
 def _death_stagger(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     body = without_blade(idle)
     body.erase_rect(58, 126, 86, CELL_HEIGHT)
@@ -871,6 +872,13 @@ def check_run(frames: list[Sprite]) -> None:
     if same_pixels(frames[0], frames[4]):
         raise SystemExit("run contacts are the same drawing")
 
+def opaque_width(sprite: Sprite) -> int:
+    left, _top, right, _bottom = sprite.bounds()
+    return right - left + 1
+
+def same_pixels(a: Sprite, b: Sprite) -> bool:
+    return a.pixels == b.pixels
+
 def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     del rear, front
     raw = without_blade(idle)
@@ -895,9 +903,6 @@ def _death_crumple(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     )
     return plant_on_foot(frame)
 
-def shave_right_chest_edge(sprite: Sprite) -> None:
-    drop_chest_column(sprite, max(chest_column(sprite)))
-
 def drop_chest_column(sprite: Sprite, edge: int) -> None:
     victims = [
         (x, y)
@@ -918,6 +923,21 @@ def check_ground_pin(frame: Sprite, label: str) -> None:
     row, center = stance_contact(frame)
     if row != FOOT_ROW or abs(center - FOOT_X) > 1e-6:
         raise SystemExit(f"{label} contact {center}@{row} != {FOOT_X}@{FOOT_ROW}")
+
+def assert_laterality(sprite: Sprite, label: str) -> None:
+    pin = chest_pin_x(sprite)
+    yellow = [x for (x, _y), color in sprite.pixels.items() if is_yellow_mark(color)]
+    purple = [x for (x, _y), color in sprite.pixels.items() if is_purple(color)]
+    blade_xs = [x for (x, _y), color in sprite.pixels.items() if is_hot_blade(color)]
+    if len(yellow) < 12:
+        raise SystemExit(f"{label} lost the chest mark ({len(yellow)} px)")
+    if not purple or min(purple) > pin:
+        raise SystemExit(f"{label} purple cable is not on the image-left arm")
+    if not blade_xs or max(blade_xs) < pin + 8:
+        raise SystemExit(f"{label} sword is not in the image-right hand")
+    cape = [x for (x, y), color in sprite.pixels.items() if is_brown(color) and y > 70]
+    if not cape or min(cape) > pin - 10:
+        raise SystemExit(f"{label} cape does not trail image-left")
 
 def write_outputs(
     idle_sheet: Sprite,
@@ -963,26 +983,6 @@ def write_outputs(
     idle_hash = hashlib.sha256(idle_dst.read_bytes()).hexdigest()
     if idle_hash != SIGNED_SHA256["knight_idle_side.png"]:
         raise SystemExit("idle gameplay file is not the signed bytes")
-
-def assert_laterality(sprite: Sprite, label: str) -> None:
-    pin = chest_pin_x(sprite)
-    yellow = [x for (x, _y), color in sprite.pixels.items() if is_yellow_mark(color)]
-    purple = [x for (x, _y), color in sprite.pixels.items() if is_purple(color)]
-    blade_xs = [x for (x, _y), color in sprite.pixels.items() if is_hot_blade(color)]
-    if len(yellow) < 12:
-        raise SystemExit(f"{label} lost the chest mark ({len(yellow)} px)")
-    if not purple or min(purple) > pin:
-        raise SystemExit(f"{label} purple cable is not on the image-left arm")
-    if not blade_xs or max(blade_xs) < pin + 8:
-        raise SystemExit(f"{label} sword is not in the image-right hand")
-    cape = [x for (x, y), color in sprite.pixels.items() if is_brown(color) and y > 70]
-    if not cape or min(cape) > pin - 10:
-        raise SystemExit(f"{label} cape does not trail image-left")
-
-def blade_base_left(blade: Sprite) -> tuple[float, float]:
-    min_x = min(x for x, _ in blade.pixels)
-    ys = [y for x, y in blade.pixels if x <= min_x + 2]
-    return float(min_x), (min(ys) + max(ys)) / 2
 
 def sheet_image(sprites: list[Sprite]) -> Image.Image:
     return pack_strip(sprites, CELL_WIDTH, CELL_HEIGHT)
