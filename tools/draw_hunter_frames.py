@@ -259,42 +259,6 @@ def blade_only(sprite: Sprite) -> Sprite:
     blade = flood_blade(sprite)
     return Sprite({point: sprite.pixels[point] for point in blade})
 
-def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float]) -> Sprite:
-    if abs(degrees_clockwise) < 0.05 or not sprite.pixels:
-        return sprite.copy()
-    radians = math.radians(degrees_clockwise)
-    cosine = math.cos(radians)
-    sine = math.sin(radians)
-    px, py = pivot
-    xs = [x for x, _ in sprite.pixels]
-    ys = [y for _, y in sprite.pixels]
-    corners = (
-        (min(xs), min(ys)),
-        (max(xs), min(ys)),
-        (min(xs), max(ys)),
-        (max(xs), max(ys)),
-    )
-
-    def forward(x: float, y: float) -> tuple[float, float]:
-        delta_x, delta_y = x - px, y - py
-        return (cosine * delta_x - sine * delta_y + px, sine * delta_x + cosine * delta_y + py)
-
-    placed = [forward(x, y) for x, y in corners]
-    min_x = math.floor(min(point[0] for point in placed)) - 1
-    max_x = math.ceil(max(point[0] for point in placed)) + 1
-    min_y = math.floor(min(point[1] for point in placed)) - 1
-    max_y = math.ceil(max(point[1] for point in placed)) + 1
-    out: dict[tuple[int, int], tuple[int, int, int, int]] = {}
-    for y in range(min_y, max_y + 1):
-        for x in range(min_x, max_x + 1):
-            delta_x, delta_y = x - px, y - py
-            src_x = round_half_up(cosine * delta_x + sine * delta_y + px)
-            src_y = round_half_up(-sine * delta_x + cosine * delta_y + py)
-            color = sprite.pixels.get((src_x, src_y))
-            if color is not None:
-                out[(x, y)] = color
-    return fill_cracks(Sprite(out))
-
 def fill_cracks(sprite: Sprite, passes: int = 2) -> Sprite:
     for _ in range(passes):
         extra = {}
@@ -379,6 +343,42 @@ def shorten(sprite: Sprite, pivot: tuple[float, float], length: float) -> Sprite
     if not kept:
         raise SystemExit("shorten removed the sprite")
     return Sprite(kept)
+
+def rotate(sprite: Sprite, degrees_clockwise: float, pivot: tuple[float, float]) -> Sprite:
+    if abs(degrees_clockwise) < 0.05 or not sprite.pixels:
+        return sprite.copy()
+    radians = math.radians(degrees_clockwise)
+    cosine = math.cos(radians)
+    sine = math.sin(radians)
+    px, py = pivot
+    xs = [x for x, _ in sprite.pixels]
+    ys = [y for _, y in sprite.pixels]
+    corners = (
+        (min(xs), min(ys)),
+        (max(xs), min(ys)),
+        (min(xs), max(ys)),
+        (max(xs), max(ys)),
+    )
+
+    def forward(x: float, y: float) -> tuple[float, float]:
+        delta_x, delta_y = x - px, y - py
+        return (cosine * delta_x - sine * delta_y + px, sine * delta_x + cosine * delta_y + py)
+
+    placed = [forward(x, y) for x, y in corners]
+    min_x = math.floor(min(point[0] for point in placed)) - 1
+    max_x = math.ceil(max(point[0] for point in placed)) + 1
+    min_y = math.floor(min(point[1] for point in placed)) - 1
+    max_y = math.ceil(max(point[1] for point in placed)) + 1
+    out: dict[tuple[int, int], tuple[int, int, int, int]] = {}
+    for y in range(min_y, max_y + 1):
+        for x in range(min_x, max_x + 1):
+            delta_x, delta_y = x - px, y - py
+            src_x = round_half_up(cosine * delta_x + sine * delta_y + px)
+            src_y = round_half_up(-sine * delta_x + cosine * delta_y + py)
+            color = sprite.pixels.get((src_x, src_y))
+            if color is not None:
+                out[(x, y)] = color
+    return fill_cracks(Sprite(out))
 
 def blade_tip(blade: Sprite, pivot: tuple[float, float]) -> tuple[int, int]:
     px, py = pivot
@@ -538,25 +538,6 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
             )
     return frames
 
-def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
-    moved = sprite
-    row, _center = stance_contact(moved)
-    moved = moved.shift(0, sole_row - row)
-    for _ in range(6):
-        pin = chest_pin_x(moved)
-        delta = FOOT_X - pin
-        if abs(delta) < 1e-6:
-            require_inside(moved)
-            return moved
-        if abs(delta - round(delta)) < 1e-6:
-            moved = moved.shift(round_half_up(delta), 0)
-            continue
-        if delta < 0:
-            shave_right_chest_edge(moved)
-        else:
-            shave_left_chest_edge(moved)
-    raise SystemExit(f"chest pin stuck at {chest_pin_x(moved)}")
-
 def attack_hand(sprite: Sprite) -> tuple[float, float]:
     points = [(x, y) for (x, y), color in sprite.pixels.items() if is_skin(color)]
     if not points:
@@ -668,6 +649,25 @@ def build_fall(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
     fore = swing_from_hip(front, -4, chest + 10, 122)
     frame = body.copy().paste(back).paste(fore)
     return plant_on_foot(frame)
+
+def align_chest_and_sole(sprite: Sprite, sole_row: int) -> Sprite:
+    moved = sprite
+    row, _center = stance_contact(moved)
+    moved = moved.shift(0, sole_row - row)
+    for _ in range(6):
+        pin = chest_pin_x(moved)
+        delta = FOOT_X - pin
+        if abs(delta) < 1e-6:
+            require_inside(moved)
+            return moved
+        if abs(delta - round(delta)) < 1e-6:
+            moved = moved.shift(round_half_up(delta), 0)
+            continue
+        if delta < 0:
+            shave_right_chest_edge(moved)
+        else:
+            shave_left_chest_edge(moved)
+    raise SystemExit(f"chest pin stuck at {chest_pin_x(moved)}")
 
 def build_death(idle: Sprite, rear: Sprite, front: Sprite) -> tuple[Sprite, Sprite]:
     stagger = _death_stagger(idle, rear, front)
@@ -825,51 +825,6 @@ def check_ground_pin(frame: Sprite, label: str) -> None:
     if row != FOOT_ROW or abs(center - FOOT_X) > 1e-6:
         raise SystemExit(f"{label} contact {center}@{row} != {FOOT_X}@{FOOT_ROW}")
 
-def write_outputs(
-    idle_sheet: Sprite,
-    run_sheet: Sprite,
-    attack_sheet: Sprite,
-    run_frames: list[Sprite],
-    between: Sprite,
-    recover: Sprite,
-    jump: Sprite,
-    fall: Sprite,
-    stagger: Sprite,
-    crumple: Sprite,
-) -> None:
-    idle_src = SIGNED / "knight_idle_side.png"
-    idle_dst = OUT / "knight_idle_side.png"
-    shutil.copyfile(idle_src, idle_dst)
-
-    run_image = sheet_image([cell_of(run_sheet, 0), *run_frames])
-    attack_image = sheet_image(
-        [cell_of(attack_sheet, 0), between, cell_of(attack_sheet, 2), recover]
-    )
-    assert_cell_equal(run_image, 0, cell_of(run_sheet, 0), "run")
-    assert_cell_equal(attack_image, 0, cell_of(attack_sheet, 0), "attack")
-    assert_cell_equal(attack_image, 2, cell_of(attack_sheet, 2), "attack")
-    save_png(run_image, OUT / "knight_run_side.png")
-    save_png(attack_image, OUT / "knight_attack_side.png")
-    save_png(sheet_image([jump]), OUT / "knight_jump_side.png")
-    save_png(sheet_image([fall]), OUT / "knight_fall_side.png")
-    save_png(sheet_image([stagger, crumple]), OUT / "knight_death_side.png")
-
-    expected = {
-        "knight_idle_side.png": (1372, 160),
-        "knight_run_side.png": (3087, 160),
-        "knight_attack_side.png": (1372, 160),
-        "knight_jump_side.png": (343, 160),
-        "knight_fall_side.png": (343, 160),
-        "knight_death_side.png": (686, 160),
-    }
-    for name, (width, height) in expected.items():
-        image = Image.open(OUT / name)
-        if image.size != (width, height):
-            raise SystemExit(f"{name} size {image.size} != {(width, height)}")
-    idle_hash = hashlib.sha256(idle_dst.read_bytes()).hexdigest()
-    if idle_hash != SIGNED_SHA256["knight_idle_side.png"]:
-        raise SystemExit("idle gameplay file is not the signed bytes")
-
 def colors_used(*groups: dict[Point, Color]) -> set[Color]:
     colors: set[Color] = set()
     for group in groups:
@@ -958,6 +913,51 @@ def chest_column(sprite: Sprite) -> list[int]:
         for (x, y), color in sprite.pixels.items()
         if 50 <= y <= 96 and not is_hot_blade(color)
     ]
+
+def write_outputs(
+    idle_sheet: Sprite,
+    run_sheet: Sprite,
+    attack_sheet: Sprite,
+    run_frames: list[Sprite],
+    between: Sprite,
+    recover: Sprite,
+    jump: Sprite,
+    fall: Sprite,
+    stagger: Sprite,
+    crumple: Sprite,
+) -> None:
+    idle_src = SIGNED / "knight_idle_side.png"
+    idle_dst = OUT / "knight_idle_side.png"
+    shutil.copyfile(idle_src, idle_dst)
+
+    run_image = sheet_image([cell_of(run_sheet, 0), *run_frames])
+    attack_image = sheet_image(
+        [cell_of(attack_sheet, 0), between, cell_of(attack_sheet, 2), recover]
+    )
+    assert_cell_equal(run_image, 0, cell_of(run_sheet, 0), "run")
+    assert_cell_equal(attack_image, 0, cell_of(attack_sheet, 0), "attack")
+    assert_cell_equal(attack_image, 2, cell_of(attack_sheet, 2), "attack")
+    save_png(run_image, OUT / "knight_run_side.png")
+    save_png(attack_image, OUT / "knight_attack_side.png")
+    save_png(sheet_image([jump]), OUT / "knight_jump_side.png")
+    save_png(sheet_image([fall]), OUT / "knight_fall_side.png")
+    save_png(sheet_image([stagger, crumple]), OUT / "knight_death_side.png")
+
+    expected = {
+        "knight_idle_side.png": (1372, 160),
+        "knight_run_side.png": (3087, 160),
+        "knight_attack_side.png": (1372, 160),
+        "knight_jump_side.png": (343, 160),
+        "knight_fall_side.png": (343, 160),
+        "knight_death_side.png": (686, 160),
+    }
+    for name, (width, height) in expected.items():
+        image = Image.open(OUT / name)
+        if image.size != (width, height):
+            raise SystemExit(f"{name} size {image.size} != {(width, height)}")
+    idle_hash = hashlib.sha256(idle_dst.read_bytes()).hexdigest()
+    if idle_hash != SIGNED_SHA256["knight_idle_side.png"]:
+        raise SystemExit("idle gameplay file is not the signed bytes")
 
 def shave_left_chest_edge(sprite: Sprite) -> None:
     drop_chest_column(sprite, min(chest_column(sprite)))
