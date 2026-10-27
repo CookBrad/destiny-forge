@@ -537,3 +537,16 @@ def require_sha256(path: Path, digest: str) -> None:
     if actual != digest:
         raise SystemExit(f"{path.name} hash {actual} != pinned source")
 
+
+def reject_resample_names(source: Path) -> None:
+    text = source.read_text(encoding="utf-8")
+    banned = (
+        "res" + "ize",
+        "thumb" + "nail",
+        "trans" + "form",
+        "aff" + "ine",
+        "quant" + "ize",
+    )
+    for word in banned:
+        if word in text:
+            raise SystemExit(f"draw script must not mention {word}")
