@@ -49,6 +49,75 @@ RUN_SWORD_DEG = 16.0
 RUN_SWORD_LENGTH = 58
 CAPE_TRIM_X = 18
 
+def main() -> None:
+    reject_resample_names(Path(__file__))
+    idle_sheet = load_sheet("knight_idle_side.png")
+    run_sheet = load_sheet("knight_run_side.png")
+    attack_sheet = load_sheet("knight_attack_side.png")
+    allowed = palette_of(idle_sheet, run_sheet, attack_sheet)
+
+    idle = cell_of(idle_sheet, 0)
+    chamber = cell_of(attack_sheet, 0)
+    thrust = cell_of(attack_sheet, 2)
+    rear = leg_column(idle, 62, 116, 82, 160)
+    front = leg_column(idle, 90, 112, 116, 160)
+
+    run_frames = build_run_cycle(idle)
+    between, recover = build_attack_frames(chamber, thrust)
+    jump = build_jump(idle, rear, front)
+    fall = build_fall(idle, rear, front)
+    stagger, crumple = build_death(idle, rear, front)
+
+    check_run(run_frames)
+    check_attack(between, recover)
+    check_jump(jump)
+    check_ground_pin(fall, "fall")
+    check_ground_pin(stagger, "death stagger")
+    check_ground_pin(crumple, "death crumple")
+
+    fresh = (
+        [(f"run {index}", frame) for index, frame in enumerate(run_frames)]
+        + [("between", between), ("recover", recover), ("jump", jump), ("fall", fall)]
+        + [("stagger", stagger), ("crumple", crumple)]
+    )
+    for label, frame in fresh:
+        assert_palette(frame, allowed, label)
+        assert_laterality(frame, label)
+
+    if same_pixels(between, cell_of(attack_sheet, 0)) or same_pixels(recover, cell_of(attack_sheet, 2)):
+        raise SystemExit("attack in-between copied a signed cell")
+    if same_pixels(jump, idle) or same_pixels(fall, idle):
+        raise SystemExit("jump or fall matches idle")
+    if same_pixels(stagger, crumple):
+        raise SystemExit("death cells match")
+
+    write_outputs(
+        idle_sheet,
+        run_sheet,
+        attack_sheet,
+        run_frames,
+        between,
+        recover,
+        jump,
+        fall,
+        stagger,
+        crumple,
+    )
+
+    print("run contacts:")
+    for index, frame in enumerate(run_frames):
+        row, center = stance_contact(frame)
+        left, top, right, bottom = frame.bounds()
+        print(
+            f"  {index} contact {center:.2f}@{row} width {right - left + 1} "
+            f"bbox {left},{top}-{right},{bottom} chest {chest_pin_x(frame):.1f}"
+        )
+    for label, frame in (("between", between), ("recover", recover)):
+        row, center = stance_contact(frame)
+        tip = max(x for (x, _y), color in frame.pixels.items() if is_hot_blade(color))
+        print(f"{label} chest {chest_pin_x(frame):.2f} sole {center:.1f}@{row} tip {tip}")
+    print("jump/fall/death written")
+
 class Sprite:
     def __init__(self, pixels: dict[Point, Color] | None = None) -> None:
         self.pixels = {} if pixels is None else dict(pixels)
@@ -137,10 +206,6 @@ def is_yellow_mark(color: tuple[int, int, int, int]) -> bool:
 def is_purple(color: tuple[int, int, int, int]) -> bool:
     red, green, blue, alpha = color
     return alpha == 255 and red > 90 and blue > 120 and green < 110 and blue > green + 30
-
-def is_brown(color: tuple[int, int, int, int]) -> bool:
-    red, green, blue, alpha = color
-    return alpha == 255 and red > 45 and red > green and green > blue + 4 and red > blue + 18 and blue < 90
 
 def is_skin(color: tuple[int, int, int, int]) -> bool:
     red, green, blue, alpha = color
@@ -290,6 +355,10 @@ def bottom_band(sprite: Sprite) -> tuple[float, int]:
     if len(xs) < 2:
         xs = [x for x, y in sprite.pixels if y >= max_y - 1]
     return (min(xs) + max(xs)) / 2, max_y
+
+def is_brown(color: tuple[int, int, int, int]) -> bool:
+    red, green, blue, alpha = color
+    return alpha == 255 and red > 45 and red > green and green > blue + 4 and red > blue + 18 and blue < 90
 
 def chest_pin_x(sprite: Sprite) -> float:
     xs = [
@@ -570,33 +639,6 @@ def nudge_chest_x(sprite: Sprite) -> Sprite:
             shave_left_chest_edge(moved)
     raise SystemExit(f"chest pin stuck at {chest_pin_x(moved)}")
 
-def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
-    body = idle.copy()
-    body.erase_rect(58, 130, 86, CELL_HEIGHT)
-    body.erase_rect(88, 126, 122, CELL_HEIGHT)
-    chest = chest_pin_x(body)
-
-    tucked_rear = swing_from_hip(rear, 68, chest - 2, 112)
-    tucked_front = swing_from_hip(front, -46, chest + 14, 110)
-    frame = body.copy()
-    frame.paste(tucked_rear)
-    frame.paste(tucked_front)
-    lowest = max(y for _x, y in frame.pixels)
-
-    lift = lowest - (FOOT_ROW - 22)
-    if lift > 0:
-        tucked_rear = tucked_rear.shift(0, -lift)
-        tucked_front = tucked_front.shift(0, -lift)
-        frame = body.copy().paste(tucked_rear).paste(tucked_front)
-    frame.erase_if(lambda _x, y, _color: y >= FOOT_ROW or y < 0)
-    left, _top, right, _bottom = frame.bounds()
-    center = (left + right) / 2
-    if abs(center - FOOT_X) > 2:
-        frame = frame.shift(round_half_up(FOOT_X - center), 0)
-        frame.erase_if(lambda x, y, _color: not (0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT))
-    require_inside(frame)
-    return frame
-
 def lift_cape(sprite: Sprite, delta_y: int) -> Sprite:
     tail = {
         (x, y): color
@@ -751,6 +793,33 @@ def check_jump(frame: Sprite) -> None:
     if top < 0:
         raise SystemExit("jump head left the cell")
 
+def build_jump(idle: Sprite, rear: Sprite, front: Sprite) -> Sprite:
+    body = idle.copy()
+    body.erase_rect(58, 130, 86, CELL_HEIGHT)
+    body.erase_rect(88, 126, 122, CELL_HEIGHT)
+    chest = chest_pin_x(body)
+
+    tucked_rear = swing_from_hip(rear, 68, chest - 2, 112)
+    tucked_front = swing_from_hip(front, -46, chest + 14, 110)
+    frame = body.copy()
+    frame.paste(tucked_rear)
+    frame.paste(tucked_front)
+    lowest = max(y for _x, y in frame.pixels)
+
+    lift = lowest - (FOOT_ROW - 22)
+    if lift > 0:
+        tucked_rear = tucked_rear.shift(0, -lift)
+        tucked_front = tucked_front.shift(0, -lift)
+        frame = body.copy().paste(tucked_rear).paste(tucked_front)
+    frame.erase_if(lambda _x, y, _color: y >= FOOT_ROW or y < 0)
+    left, _top, right, _bottom = frame.bounds()
+    center = (left + right) / 2
+    if abs(center - FOOT_X) > 2:
+        frame = frame.shift(round_half_up(FOOT_X - center), 0)
+        frame.erase_if(lambda x, y, _color: not (0 <= x < CELL_WIDTH and 0 <= y < CELL_HEIGHT))
+    require_inside(frame)
+    return frame
+
 def check_ground_pin(frame: Sprite, label: str) -> None:
     row, center = stance_contact(frame)
     if row != FOOT_ROW or abs(center - FOOT_X) > 1e-6:
@@ -800,75 +869,6 @@ def write_outputs(
     idle_hash = hashlib.sha256(idle_dst.read_bytes()).hexdigest()
     if idle_hash != SIGNED_SHA256["knight_idle_side.png"]:
         raise SystemExit("idle gameplay file is not the signed bytes")
-
-def main() -> None:
-    reject_resample_names(Path(__file__))
-    idle_sheet = load_sheet("knight_idle_side.png")
-    run_sheet = load_sheet("knight_run_side.png")
-    attack_sheet = load_sheet("knight_attack_side.png")
-    allowed = palette_of(idle_sheet, run_sheet, attack_sheet)
-
-    idle = cell_of(idle_sheet, 0)
-    chamber = cell_of(attack_sheet, 0)
-    thrust = cell_of(attack_sheet, 2)
-    rear = leg_column(idle, 62, 116, 82, 160)
-    front = leg_column(idle, 90, 112, 116, 160)
-
-    run_frames = build_run_cycle(idle)
-    between, recover = build_attack_frames(chamber, thrust)
-    jump = build_jump(idle, rear, front)
-    fall = build_fall(idle, rear, front)
-    stagger, crumple = build_death(idle, rear, front)
-
-    check_run(run_frames)
-    check_attack(between, recover)
-    check_jump(jump)
-    check_ground_pin(fall, "fall")
-    check_ground_pin(stagger, "death stagger")
-    check_ground_pin(crumple, "death crumple")
-
-    fresh = (
-        [(f"run {index}", frame) for index, frame in enumerate(run_frames)]
-        + [("between", between), ("recover", recover), ("jump", jump), ("fall", fall)]
-        + [("stagger", stagger), ("crumple", crumple)]
-    )
-    for label, frame in fresh:
-        assert_palette(frame, allowed, label)
-        assert_laterality(frame, label)
-
-    if same_pixels(between, cell_of(attack_sheet, 0)) or same_pixels(recover, cell_of(attack_sheet, 2)):
-        raise SystemExit("attack in-between copied a signed cell")
-    if same_pixels(jump, idle) or same_pixels(fall, idle):
-        raise SystemExit("jump or fall matches idle")
-    if same_pixels(stagger, crumple):
-        raise SystemExit("death cells match")
-
-    write_outputs(
-        idle_sheet,
-        run_sheet,
-        attack_sheet,
-        run_frames,
-        between,
-        recover,
-        jump,
-        fall,
-        stagger,
-        crumple,
-    )
-
-    print("run contacts:")
-    for index, frame in enumerate(run_frames):
-        row, center = stance_contact(frame)
-        left, top, right, bottom = frame.bounds()
-        print(
-            f"  {index} contact {center:.2f}@{row} width {right - left + 1} "
-            f"bbox {left},{top}-{right},{bottom} chest {chest_pin_x(frame):.1f}"
-        )
-    for label, frame in (("between", between), ("recover", recover)):
-        row, center = stance_contact(frame)
-        tip = max(x for (x, _y), color in frame.pixels.items() if is_hot_blade(color))
-        print(f"{label} chest {chest_pin_x(frame):.2f} sole {center:.1f}@{row} tip {tip}")
-    print("jump/fall/death written")
 
 def colors_used(*groups: dict[Point, Color]) -> set[Color]:
     colors: set[Color] = set()
