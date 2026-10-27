@@ -417,14 +417,16 @@ mod tests {
         let audio = AudioSettings::default();
         let bindings = SkillBindings::default();
         snapshot_profile(
-            &inventory,
-            &loadout,
-            &progress,
-            &day_clock,
-            &tool_energy,
-            &audio,
-            &bindings,
-            wallet,
+            &ProfileCapture {
+                inventory: &inventory,
+                loadout: &loadout,
+                progress: &progress,
+                day_clock: &day_clock,
+                tool_energy: &tool_energy,
+                audio: &audio,
+                bindings: &bindings,
+                wallet,
+            },
             profile,
         );
     }
