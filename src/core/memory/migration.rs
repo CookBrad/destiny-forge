@@ -610,6 +610,20 @@ mod tests {
     }
 
     #[test]
+    fn version_8_migration_stores_the_header_without_flat_fields() {
+        let mut value = parse_ron_value(V8_PROFILE).unwrap();
+        migrate_profile_to_v9(&mut value);
+        let RonValue::Map(fields) = &value else {
+            panic!("version 8 profile is a map");
+        };
+        let names: Vec<&str> = fields.iter().map(|(name, _)| name.as_str()).collect();
+        assert!(names.contains(&"header"));
+        assert!(!names.contains(&"name"));
+        assert!(!names.contains(&"calendar_day"));
+        assert!(!names.contains(&"day_phase"));
+    }
+
+    #[test]
     fn version_9_migration_leaves_a_list_unchanged() {
         let mut value = RonValue::List(vec![RonValue::Integer(1)]);
         migrate_profile_to_v9(&mut value);
