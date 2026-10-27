@@ -37,7 +37,7 @@ pub(crate) struct ProfileRunGate<'w> {
 }
 
 impl ProfileRunGate<'_> {
-    fn begin(&mut self, index: u8) -> bool {
+    fn started_at(&mut self, index: u8) -> bool {
         begin_profile_run(
             index,
             &mut RuntimeProfile {
@@ -224,7 +224,7 @@ pub fn handle_title_profile_card_clicks(
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
     mut interactions: TitleProfileCardClicks,
-    mut run: ProfileRunGate,
+    mut profile_run: ProfileRunGate,
 ) {
     if rename.active.is_some() {
         return;
@@ -235,7 +235,7 @@ pub fn handle_title_profile_card_clicks(
             continue;
         }
 
-        if run.begin(card.index) {
+        if profile_run.started_at(card.index) {
             next_state.set(GameState::Overworld);
         }
     }
@@ -305,7 +305,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     actions: Res<ActionState>,
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut run: ProfileRunGate,
+    mut profile_run: ProfileRunGate,
 ) {
     if rename.active.is_some() {
         return;
@@ -315,7 +315,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         return;
     };
 
-    if run.begin(index) {
+    if profile_run.started_at(index) {
         next_state.set(GameState::Overworld);
     }
 }
@@ -510,5 +510,138 @@ mod rename_input_tests {
             Some("R".to_string())
         );
         assert_eq!(rename_buffer_after(&[KeyCode::Escape], "Ra"), None);
+    }
+}
+
+#[cfg(test)]
+mod run_gate_tests {
+    use bevy::prelude::*;
+
+    use crate::audio::AudioSettings;
+    use crate::combat::SkillBindings;
+    use crate::core::{
+        lock_profile_files, profile_path, ActiveProfile, CalendarRules, DayClock, GameSettings,
+        GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
+        PROFILE_COUNT,
+    };
+    use crate::input::action_state_after_pressing;
+    use crate::items::Inventory;
+    use crate::player::{Loadout, WorldProgress};
+
+    use super::{
+        handle_title_profile_card_clicks, handle_title_profile_keyboard_shortcuts,
+        ProfileRenameState, TitleProfileCard,
+    };
+
+    #[test]
+    fn a_pressed_card_starts_that_profile_run() {
+        let _files = lock_profile_files();
+        let _saved = RestoredProfiles::capture();
+        let index = 1;
+        let mut app = title_app(action_state_after_pressing(&[], &[]));
+        app.world_mut()
+            .spawn((Button, Interaction::Pressed, TitleProfileCard { index }));
+        app.add_systems(Update, handle_title_profile_card_clicks);
+        app.update();
+        assert_eq!(app.world().resource::<ActiveProfile>().index(), index);
+        assert!(matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Overworld)
+        ));
+    }
+
+    #[test]
+    fn a_digit_shortcut_starts_that_profile_run() {
+        let _files = lock_profile_files();
+        let _saved = RestoredProfiles::capture();
+        let mut app = title_app(action_state_after_pressing(&[KeyCode::Digit2], &[]));
+        app.add_systems(Update, handle_title_profile_keyboard_shortcuts);
+        app.update();
+        assert_eq!(app.world().resource::<ActiveProfile>().index(), 1);
+        assert!(matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Overworld)
+        ));
+    }
+
+    #[test]
+    fn an_out_of_range_card_starts_the_last_profile() {
+        let _files = lock_profile_files();
+        let _saved = RestoredProfiles::capture();
+        let mut app = title_app(action_state_after_pressing(&[], &[]));
+        app.world_mut().spawn((
+            Button,
+            Interaction::Pressed,
+            TitleProfileCard {
+                index: PROFILE_COUNT,
+            },
+        ));
+        app.add_systems(Update, handle_title_profile_card_clicks);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActiveProfile>().index(),
+            PROFILE_COUNT - 1
+        );
+        assert!(matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Overworld)
+        ));
+    }
+
+    struct RestoredProfiles {
+        slots: Vec<(std::path::PathBuf, Option<Vec<u8>>)>,
+    }
+
+    impl RestoredProfiles {
+        fn capture() -> Self {
+            let slots = (0..PROFILE_COUNT)
+                .map(|index| {
+                    let path = profile_path(index);
+                    let previous = std::fs::read(&path).ok();
+                    (path, previous)
+                })
+                .collect();
+            Self { slots }
+        }
+    }
+
+    impl Drop for RestoredProfiles {
+        fn drop(&mut self) {
+            for (path, previous) in &self.slots {
+                match previous {
+                    Some(bytes) => {
+                        if let Some(parent) = path.parent() {
+                            let _ = std::fs::create_dir_all(parent);
+                        }
+                        let _ = std::fs::write(path, bytes);
+                    }
+                    None => {
+                        let _ = std::fs::remove_file(path);
+                    }
+                }
+            }
+        }
+    }
+
+    fn title_app(actions: crate::input::ActionState) -> App {
+        let mut app = App::new();
+        app.insert_resource(actions)
+            .insert_resource(ProfileRenameState { active: None })
+            .insert_resource(Inventory::default())
+            .insert_resource(Loadout::default())
+            .insert_resource(WorldProgress::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .insert_resource(ActiveProfile::default())
+            .insert_resource(PlayerProfile::default())
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(GameSettings::default())
+            .insert_resource(ProfileDirty::default())
+            .insert_resource(ProfileAutosaveBlock::default())
+            .init_resource::<NextState<GameState>>();
+        app
     }
 }

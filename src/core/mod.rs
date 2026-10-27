@@ -14,6 +14,8 @@ pub use memory::{
     ProfileAutosaveBlock, ProfileDirty, ProfileNeedsAttention, ProfileSnapshot, ProfileSwitch,
     RuntimeProfile, SavedCropKind, SavedCropPlot, SavedPlotStage, PROFILE_COUNT,
 };
+#[cfg(test)]
+pub(crate) use memory::{lock_profile_files, profile_path};
 pub use plugin::CorePlugin;
 pub use season::{CalendarDate, CalendarRules, Season, SeasonRollover};
 pub use state::{DungeonPlayState, GameState};
