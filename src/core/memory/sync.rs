@@ -24,6 +24,40 @@ pub fn hydrate_runtime_from_memory(
     log_loaded_profile(&profile, active.index(), &runtime.day_clock);
 }
 
+#[derive(SystemParam)]
+pub(super) struct ProfileApplyInputs<'w> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    wallet: ResMut<'w, Wallet>,
+}
+
+impl ProfileApplyInputs<'_> {
+    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
+        apply_profile_to_runtime(
+            profile,
+            &mut ProfileApply {
+                inventory: &mut self.inventory,
+                loadout: &mut self.loadout,
+                progress: &mut self.progress,
+                day_clock: &mut self.day_clock,
+                tool_energy: &mut self.tool_energy,
+                audio: &mut self.audio,
+                bindings: &mut self.bindings,
+                season: &mut self.season,
+                rules: &self.rules,
+                wallet: &mut self.wallet,
+            },
+        );
+    }
+}
+
 fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
     info!(
         "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
@@ -128,7 +162,9 @@ pub fn activate_profile(
     }
 
     snapshot_profile(sources, session.profile);
-    save_profile_before_switch(session);
+    if save_profile_before_switch(session) {
+        session.dirty.0 = false;
+    }
 
     let Ok(loaded) = load_profile_for_slot(index, session.autosave_block) else {
         return false;
@@ -144,11 +180,13 @@ pub fn activate_profile(
     true
 }
 
-fn save_profile_before_switch(session: &mut ProfileSession<'_>) {
-    if let Err(error) = save_profile(session.active.index(), session.profile) {
-        warn!("Failed to save profile before switch: {error}");
-    } else {
-        session.dirty.0 = false;
+fn save_profile_before_switch(session: &ProfileSession<'_>) -> bool {
+    match save_profile(session.active.index(), session.profile) {
+        Ok(()) => true,
+        Err(error) => {
+            warn!("Failed to save profile before switch: {error}");
+            false
+        }
     }
 }
 
@@ -178,39 +216,6 @@ pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileAp
     profile.settings.apply_skill_bindings(runtime.bindings);
 }
 
-#[derive(SystemParam)]
-pub(super) struct ProfileApplyInputs<'w> {
-    inventory: ResMut<'w, Inventory>,
-    loadout: ResMut<'w, Loadout>,
-    progress: ResMut<'w, WorldProgress>,
-    day_clock: ResMut<'w, DayClock>,
-    tool_energy: ResMut<'w, ToolEnergy>,
-    audio: ResMut<'w, AudioSettings>,
-    bindings: ResMut<'w, SkillBindings>,
-    season: ResMut<'w, Season>,
-    rules: Res<'w, CalendarRules>,
-    wallet: ResMut<'w, Wallet>,
-}
-
-impl ProfileApplyInputs<'_> {
-    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
-        apply_profile_to_runtime(
-            profile,
-            &mut ProfileApply {
-                inventory: &mut self.inventory,
-                loadout: &mut self.loadout,
-                progress: &mut self.progress,
-                day_clock: &mut self.day_clock,
-                tool_energy: &mut self.tool_energy,
-                audio: &mut self.audio,
-                bindings: &mut self.bindings,
-                season: &mut self.season,
-                rules: &self.rules,
-                wallet: &mut self.wallet,
-            },
-        );
-    }
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -328,6 +333,19 @@ mod tests {
         let wallet = app.world().resource::<Wallet>();
         assert_eq!(wallet.gold, 40);
         assert_eq!(wallet.sparks, DestinySpark(2));
+    }
+
+    #[test]
+    fn hydrate_clamps_a_zero_calendar_day_to_day_one() {
+        let profile = PlayerProfile {
+            calendar_day: 0,
+            ..PlayerProfile::default()
+        };
+        let mut app = app_holding(profile, Wallet::default());
+        app.add_systems(Update, hydrate_runtime_from_memory);
+        app.update();
+        assert_eq!(app.world().resource::<DayClock>().calendar_day, 1);
+        assert_eq!(*app.world().resource::<Wallet>(), Wallet::default());
     }
 
     #[test]
