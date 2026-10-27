@@ -8,6 +8,7 @@ from PIL import Image
 
 from art_common import (
     CLEAR,
+    Palette,
     _frame_pixels,
     add_cast_rim,
     add_outline,
@@ -17,8 +18,10 @@ from art_common import (
     light_contour,
     outline_layer,
     pack_strip,
+    palette_from_colors,
     paste_pixels,
     rejecting_canvas,
+    require_opaque_color,
     translate_pixels,
 )
 
@@ -244,9 +247,27 @@ def test_opaque_at_is_true_only_for_a_fully_opaque_pixel() -> None:
     assert canvas.opaque_at(0, 0) is True
     assert canvas.opaque_at(1, 0) is False
     assert canvas.opaque_at(-1, 0) is False
+def test_require_opaque_color_returns_an_opaque_color() -> None:
+    assert require_opaque_color(RED) == RED
+def test_require_opaque_color_accepts_a_fully_transparent_color_with_no_allow_list() -> None:
+    assert require_opaque_color(CLEAR) == CLEAR
+def test_require_opaque_color_rejects_partial_alpha() -> None:
+    with pytest.raises(SystemExit, match="partial alpha"):
+        require_opaque_color(PARTIAL)
+def test_require_opaque_color_rejects_a_color_missing_from_the_allow_list() -> None:
+    with pytest.raises(SystemExit, match=r"color \(200, 0, 0, 255\) is not in the signed hunter"):
+        require_opaque_color(RED, {BLUE})
+def test_palette_does_not_carry_an_unused_leather_rim() -> None:
+    assert "leather_rim" not in Palette.__dataclass_fields__
 def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
     import art_common
 
     assert not hasattr(art_common, "contact_sheet")
     assert not hasattr(art_common, "place_on_pin")
     assert not hasattr(art_common, "Pin")
+def test_palette_rejects_construction_without_its_fields() -> None:
+    with pytest.raises(TypeError):
+        Palette()
+def test_palette_from_colors_rejects_an_empty_mapping() -> None:
+    with pytest.raises(TypeError):
+        palette_from_colors({})

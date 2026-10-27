@@ -222,3 +222,99 @@ class _Row:
             self._canvas.put(x, self._y, CLEAR)
             return
         self._canvas.put(x, self._y, color)
+
+def require_opaque_color(color: Color, allowed: set[Color] | None = None) -> Color:
+    if color[3] not in (0, 255):
+        raise SystemExit("partial alpha")
+    if allowed is not None and color not in allowed:
+        raise SystemExit(f"color {color} is not in the signed hunter")
+    return color
+
+
+def palette_from_colors(colors: dict[str, Color | tuple[Color, ...]]) -> Palette:
+    return Palette(**colors)
+
+@dataclass(frozen=True)
+class Palette:
+    ink: Color
+    ink_warm: Color
+    leather_shadow: Color
+    leather_deep: Color
+    leather_soot: Color
+    leather_dark: Color
+    leather_md: Color
+    leather_above_mid: Color
+    leather: Color
+    leather_fold: Color
+    leather_light: Color
+    leather_above_light: Color
+    leather_hi: Color
+    skin_dark: Color
+    skin_md: Color
+    skin: Color
+    skin_warm: Color
+    skin_light: Color
+    brass_shadow: Color
+    brass_md: Color
+    brass_dark: Color
+    brass: Color
+    brass_light: Color
+    brass_hi: Color
+    gel_shadow: Color
+    gel_deep: Color
+    gel_well: Color
+    gel_pool: Color
+    gel_tide: Color
+    gel_sea: Color
+    gel_foam: Color
+    gel_mid: Color
+    gel_kelp: Color
+    gel_lagoon: Color
+    gel_dark: Color
+    gel: Color
+    gel_core: Color
+    gel_light: Color
+    gel_bright: Color
+    gel_hi: Color
+    gel_hot: Color
+    sage_shadow: Color
+    sage_mid: Color
+    sage_dark: Color
+    sage: Color
+    sage_light: Color
+    purple_dark: Color
+    purple: Color
+    purple_light: Color
+    steel_deep: Color
+    steel_void: Color
+    steel_shadow: Color
+    steel_dark: Color
+    steel: Color
+    steel_cloth: Color
+    steel_mid: Color
+    steel_light: Color
+    bone_shadow: Color
+    bone_dust: Color
+    bone_dark: Color
+    bone_md: Color
+    bone_mid: Color
+    bone: Color
+    bone_light: Color
+    dead_dark: Color
+    dead: Color
+    white: Color
+    gel_ramp: tuple[Color, ...]
+    gel_under: tuple[Color, ...]
+    gel_body: tuple[Color, ...]
+    gel_shine: tuple[Color, ...]
+    sage_ramp: tuple[Color, ...]
+    leather_ramp: tuple[Color, ...]
+    brass_ramp: tuple[Color, ...]
+    bone_ramp: tuple[Color, ...]
+    bone_form: tuple[Color, ...]
+    steel_ramp: tuple[Color, ...]
+    wing_ramp: tuple[Color, ...]
+    dead_ramp: tuple[Color, ...]
+    skin_ramp: tuple[Color, ...]
+    cloth_ramp: tuple[Color, ...]
+
