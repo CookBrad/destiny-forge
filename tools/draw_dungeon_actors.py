@@ -126,6 +126,67 @@ def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> l
     inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
     return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
+def draw_bat(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(96, 48)
+    blit_poly(
+        canvas,
+        [(46, 24), (22, 7), (6, 13), (16, 22), (40, 26)],
+        (22, 14),
+        palette.wing_ramp[2:],
+        8,
+    )
+    blit_poly(
+        canvas,
+        [(40, 26), (16, 22), (3, 26), (16, 35), (40, 30)],
+        (20, 28),
+        palette.wing_ramp[:4],
+        8,
+    )
+    blit_poly(
+        canvas,
+        [(52, 22), (78, 5), (91, 12), (78, 20), (58, 24)],
+        (76, 12),
+        palette.wing_ramp[2:],
+        8,
+    )
+    blit_poly(
+        canvas,
+        [(58, 24), (78, 20), (93, 25), (78, 35), (58, 30)],
+        (80, 28),
+        palette.wing_ramp[:4],
+        8,
+    )
+    canvas.fill(chain([(44, 22), (18, 11), (8, 20)], 1), palette.purple_dark)
+    canvas.fill(chain([(46, 26), (12, 26), (18, 33)], 1), palette.purple)
+    canvas.fill(chain([(44, 24), (28, 18), (16, 22)], 1), palette.purple_light)
+    canvas.fill(chain([(54, 20), (80, 9), (88, 18)], 1), palette.purple)
+    canvas.fill(chain([(54, 26), (84, 24), (74, 33)], 1), palette.purple_dark)
+    canvas.fill(chain([(56, 23), (72, 16), (86, 20)], 1), palette.purple_light)
+    body = blit_ellipse(canvas, 49, 25, 11, 12, palette.leather_ramp, 7)
+    canvas.fill(ellipse_pixels(49, 28, 6, 5), palette.leather_deep)
+    spark(canvas, body, palette.leather_hi, 9)
+    blit_poly(canvas, [(42, 18), (37, 4), (48, 16)], (42, 10), palette.leather_ramp, 5)
+    blit_poly(canvas, [(54, 16), (59, 3), (63, 18)], (58, 10), palette.leather_ramp, 5)
+    canvas.fill(polygon_pixels([(42, 16), (39, 8), (46, 15)]), palette.purple_dark)
+    canvas.fill(polygon_pixels([(56, 15), (59, 7), (61, 16)]), palette.purple)
+    canvas.put(40, 9, palette.purple_light)
+    canvas.put(59, 8, palette.purple_light)
+    blit_capsule(canvas, 44, 34, 40, 41, 1, palette.bone_ramp, 3)
+    blit_capsule(canvas, 54, 34, 58, 41, 1, palette.bone_ramp, 3)
+    canvas.put(40, 41, palette.brass_dark)
+    canvas.put(58, 41, palette.brass)
+    paint_gem(canvas, 49, 30, palette, 2)
+    add_cast_rim(canvas, palette.ink_warm)
+    add_outline(canvas, palette.ink)
+    canvas.put(45, 23, palette.gel_hot)
+    canvas.put(46, 23, palette.ink)
+    canvas.put(45, 24, palette.gel_hi)
+    canvas.put(53, 23, palette.gel_hot)
+    canvas.put(54, 23, palette.ink)
+    canvas.put(44, 22, palette.white)
+    canvas.put(52, 22, palette.white)
+    return canvas
+
 def volume(
     points: list[tuple[int, int]],
     cx: int,
@@ -346,102 +407,6 @@ def draw_bolt(palette: Palette) -> Canvas:
     canvas.put(7, 7, palette.white)
     canvas.put(8, 6, palette.gel_hi)
     add_outline(canvas, palette.ink)
-    return canvas
-
-def draw_arrow(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(16, 48)
-    head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
-    canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
-    canvas.put(8, 2, palette.brass_hi)
-    canvas.put(7, 3, palette.brass_light)
-    canvas.put(4, 7, palette.brass_shadow)
-    canvas.put(12, 7, palette.brass_dark)
-    canvas.put(8, 9, palette.brass)
-    for y in range(11, 34):
-        left = palette.leather_shadow if y % 2 == 0 else palette.leather_deep
-        right = palette.leather_md if y % 2 == 0 else palette.leather
-        canvas.put(6, y, palette.ink_warm)
-        canvas.put(7, y, left)
-        canvas.put(8, y, right)
-        canvas.put(9, y, palette.leather_hi if (y + 8) % 4 == 0 else palette.leather_dark)
-    canvas.put(7, 18, palette.brass_dark)
-    canvas.put(8, 18, palette.brass)
-    canvas.put(7, 19, palette.brass_md)
-    canvas.put(8, 19, palette.brass_hi)
-    for step, y in enumerate(range(30, 44)):
-        inset = step // 3
-        left = 6 - inset
-        right = 9 + inset
-        canvas.put(left, y, palette.bone_dark if step % 2 else palette.bone_shadow)
-        canvas.put(left - 1, y, palette.bone_md)
-        canvas.put(right, y, palette.bone if step % 2 else palette.bone_mid)
-        canvas.put(right + 1, y, palette.steel_light)
-    canvas.put(7, 44, palette.leather_deep)
-    canvas.put(8, 44, palette.leather)
-    canvas.put(7, 45, palette.ink_warm)
-    canvas.put(8, 45, palette.ink_warm)
-    add_outline(canvas, palette.ink)
-    return canvas
-
-def draw_bat(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(96, 48)
-    blit_poly(
-        canvas,
-        [(46, 24), (22, 7), (6, 13), (16, 22), (40, 26)],
-        (22, 14),
-        palette.wing_ramp[2:],
-        8,
-    )
-    blit_poly(
-        canvas,
-        [(40, 26), (16, 22), (3, 26), (16, 35), (40, 30)],
-        (20, 28),
-        palette.wing_ramp[:4],
-        8,
-    )
-    blit_poly(
-        canvas,
-        [(52, 22), (78, 5), (91, 12), (78, 20), (58, 24)],
-        (76, 12),
-        palette.wing_ramp[2:],
-        8,
-    )
-    blit_poly(
-        canvas,
-        [(58, 24), (78, 20), (93, 25), (78, 35), (58, 30)],
-        (80, 28),
-        palette.wing_ramp[:4],
-        8,
-    )
-    canvas.fill(chain([(44, 22), (18, 11), (8, 20)], 1), palette.purple_dark)
-    canvas.fill(chain([(46, 26), (12, 26), (18, 33)], 1), palette.purple)
-    canvas.fill(chain([(44, 24), (28, 18), (16, 22)], 1), palette.purple_light)
-    canvas.fill(chain([(54, 20), (80, 9), (88, 18)], 1), palette.purple)
-    canvas.fill(chain([(54, 26), (84, 24), (74, 33)], 1), palette.purple_dark)
-    canvas.fill(chain([(56, 23), (72, 16), (86, 20)], 1), palette.purple_light)
-    body = blit_ellipse(canvas, 49, 25, 11, 12, palette.leather_ramp, 7)
-    canvas.fill(ellipse_pixels(49, 28, 6, 5), palette.leather_deep)
-    spark(canvas, body, palette.leather_hi, 9)
-    blit_poly(canvas, [(42, 18), (37, 4), (48, 16)], (42, 10), palette.leather_ramp, 5)
-    blit_poly(canvas, [(54, 16), (59, 3), (63, 18)], (58, 10), palette.leather_ramp, 5)
-    canvas.fill(polygon_pixels([(42, 16), (39, 8), (46, 15)]), palette.purple_dark)
-    canvas.fill(polygon_pixels([(56, 15), (59, 7), (61, 16)]), palette.purple)
-    canvas.put(40, 9, palette.purple_light)
-    canvas.put(59, 8, palette.purple_light)
-    blit_capsule(canvas, 44, 34, 40, 41, 1, palette.bone_ramp, 3)
-    blit_capsule(canvas, 54, 34, 58, 41, 1, palette.bone_ramp, 3)
-    canvas.put(40, 41, palette.brass_dark)
-    canvas.put(58, 41, palette.brass)
-    paint_gem(canvas, 49, 30, palette, 2)
-    add_cast_rim(canvas, palette.ink_warm)
-    add_outline(canvas, palette.ink)
-    canvas.put(45, 23, palette.gel_hot)
-    canvas.put(46, 23, palette.ink)
-    canvas.put(45, 24, palette.gel_hi)
-    canvas.put(53, 23, palette.gel_hot)
-    canvas.put(54, 23, palette.ink)
-    canvas.put(44, 22, palette.white)
-    canvas.put(52, 22, palette.white)
     return canvas
 
 def draw_goblin(palette: Palette) -> Canvas:
@@ -681,10 +646,40 @@ def draw_king(palette: Palette) -> Canvas:
     canvas.put(144, 10, palette.brass_light)
     return canvas
 
-def to_image(canvas: Canvas) -> Image.Image:
-    image = Image.new("RGBA", (canvas.width, canvas.height), (0, 0, 0, 0))
-    image.putdata(canvas.pixels)
-    return image
+def draw_arrow(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(16, 48)
+    head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
+    canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
+    canvas.put(8, 2, palette.brass_hi)
+    canvas.put(7, 3, palette.brass_light)
+    canvas.put(4, 7, palette.brass_shadow)
+    canvas.put(12, 7, palette.brass_dark)
+    canvas.put(8, 9, palette.brass)
+    for y in range(11, 34):
+        left = palette.leather_shadow if y % 2 == 0 else palette.leather_deep
+        right = palette.leather_md if y % 2 == 0 else palette.leather
+        canvas.put(6, y, palette.ink_warm)
+        canvas.put(7, y, left)
+        canvas.put(8, y, right)
+        canvas.put(9, y, palette.leather_hi if (y + 8) % 4 == 0 else palette.leather_dark)
+    canvas.put(7, 18, palette.brass_dark)
+    canvas.put(8, 18, palette.brass)
+    canvas.put(7, 19, palette.brass_md)
+    canvas.put(8, 19, palette.brass_hi)
+    for step, y in enumerate(range(30, 44)):
+        inset = step // 3
+        left = 6 - inset
+        right = 9 + inset
+        canvas.put(left, y, palette.bone_dark if step % 2 else palette.bone_shadow)
+        canvas.put(left - 1, y, palette.bone_md)
+        canvas.put(right, y, palette.bone if step % 2 else palette.bone_mid)
+        canvas.put(right + 1, y, palette.steel_light)
+    canvas.put(7, 44, palette.leather_deep)
+    canvas.put(8, 44, palette.leather)
+    canvas.put(7, 45, palette.ink_warm)
+    canvas.put(8, 45, palette.ink_warm)
+    add_outline(canvas, palette.ink)
+    return canvas
 
 def png_bytes(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
@@ -802,6 +797,11 @@ def main() -> None:
     check_all(sheets, allowed)
     for name, path in output_paths().items():
         save_png(to_image(sheets[name]), path)
+
+def to_image(canvas: Canvas) -> Image.Image:
+    image = Image.new("RGBA", (canvas.width, canvas.height), (0, 0, 0, 0))
+    image.putdata(canvas.pixels)
+    return image
 
 if __name__ == "__main__":
     main()
