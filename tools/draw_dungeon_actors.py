@@ -26,6 +26,15 @@ BAYER4 = (
     (15, 7, 13, 5),
 )
 
+def main() -> None:
+    reject_resample_names(Path(__file__))
+    allowed = load_pinned_colors(SIGNED, SIGNED_SHA256)
+    palette = hunter_palette(allowed)
+    sheets = draw_all(palette)
+    check_all(sheets, allowed)
+    for name, path in output_paths().items():
+        save_png(to_image(sheets[name]), path)
+
 def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
     if rx < 1 or ry < 1:
         return []
@@ -37,22 +46,6 @@ def ellipse_pixels(cx: int, cy: int, rx: int, ry: int) -> list[tuple[int, int]]:
         for x in range(cx - rx, cx + rx + 1):
             delta_x = x - cx
             if delta_x * delta_x * ry2 + delta_y * delta_y * rx2 <= rx2 * ry2:
-                points.append((x, y))
-    return points
-
-def capsule_pixels(start_x: int, start_y: int, end_x: int, end_y: int, radius: int) -> list[tuple[int, int]]:
-    min_x = min(start_x, end_x) - radius
-    max_x = max(start_x, end_x) + radius
-    min_y = min(start_y, end_y) - radius
-    max_y = max(start_y, end_y) + radius
-    vector_x = end_x - start_x
-    vector_y = end_y - start_y
-    length2 = vector_x * vector_x + vector_y * vector_y
-    radius2 = radius * radius
-    points = []
-    for y in range(min_y, max_y + 1):
-        for x in range(min_x, max_x + 1):
-            if _near_segment(x, y, start_x, start_y, end_x, end_y, vector_x, vector_y, length2, radius2):
                 points.append((x, y))
     return points
 
@@ -157,6 +150,20 @@ def _scanline_crossings(points: list[tuple[int, int]], count: int, y: int) -> li
         crossings.append(start_x + (end_x - start_x) * (y - start_y) // (end_y - start_y))
     return crossings
 
+def paint_eye(
+    canvas: Canvas,
+    x: int,
+    y: int,
+    palette: Palette,
+    iris: tuple[int, int, int, int],
+) -> None:
+    canvas.fill(ellipse_pixels(x, y, 3, 3), palette.white)
+    canvas.fill(ellipse_pixels(x, y, 2, 2), iris)
+    canvas.put(x + 1, y, palette.ink)
+    canvas.put(x + 1, y + 1, palette.ink)
+    canvas.put(x - 1, y - 1, palette.white)
+    canvas.put(x, y - 1, palette.white)
+
 def draw_bat(palette: Palette) -> Canvas:
     canvas = clipping_canvas(96, 48)
     blit_poly(
@@ -239,20 +246,6 @@ def blit_poly(
     canvas.blit(volume(points, lamp[0], lamp[1], ramp, split))
     return points
 
-def paint_eye(
-    canvas: Canvas,
-    x: int,
-    y: int,
-    palette: Palette,
-    iris: tuple[int, int, int, int],
-) -> None:
-    canvas.fill(ellipse_pixels(x, y, 3, 3), palette.white)
-    canvas.fill(ellipse_pixels(x, y, 2, 2), iris)
-    canvas.put(x + 1, y, palette.ink)
-    canvas.put(x + 1, y + 1, palette.ink)
-    canvas.put(x - 1, y - 1, palette.white)
-    canvas.put(x, y - 1, palette.white)
-
 def paint_gem(canvas: Canvas, x: int, y: int, palette: Palette, radius: int) -> None:
     canvas.fill(ellipse_pixels(x, y, radius, radius), palette.purple_dark)
     inner = max(1, radius - 1)
@@ -265,6 +258,22 @@ def chain(points: list[tuple[int, int]], radius: int) -> list[tuple[int, int]]:
     for start, end in zip(points, points[1:]):
         drawn.extend(capsule_pixels(start[0], start[1], end[0], end[1], radius))
     return drawn
+
+def capsule_pixels(start_x: int, start_y: int, end_x: int, end_y: int, radius: int) -> list[tuple[int, int]]:
+    min_x = min(start_x, end_x) - radius
+    max_x = max(start_x, end_x) + radius
+    min_y = min(start_y, end_y) - radius
+    max_y = max(start_y, end_y) + radius
+    vector_x = end_x - start_x
+    vector_y = end_y - start_y
+    length2 = vector_x * vector_x + vector_y * vector_y
+    radius2 = radius * radius
+    points = []
+    for y in range(min_y, max_y + 1):
+        for x in range(min_x, max_x + 1):
+            if _near_segment(x, y, start_x, start_y, end_x, end_y, vector_x, vector_y, length2, radius2):
+                points.append((x, y))
+    return points
 
 def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
     canvas.put(x, y, palette.brass_dark)
@@ -576,42 +585,6 @@ def draw_king(palette: Palette) -> Canvas:
     canvas.put(144, 10, palette.brass_light)
     return canvas
 
-def draw_bolt(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(16, 48)
-    blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
-    tail: list[tuple[int, int]] = []
-    for y in range(15, 46):
-        half = 4 - (y - 15) * 3 // 31
-        if half < 1:
-            half = 1
-        for x in range(8 - half, 9 + half):
-            tail.append((x, y))
-    canvas.blit(volume(tail, 8, 22, palette.gel_under, 6))
-    core: list[tuple[int, int]] = []
-    for y in range(8, 36):
-        core.append((8, y))
-        if y < 28:
-            core.append((7, y))
-    canvas.blit(volume(core, 8, 12, palette.gel_shine, 4))
-    canvas.fill(ellipse_pixels(8, 8, 2, 3), palette.gel_hot)
-    canvas.put(7, 7, palette.white)
-    canvas.put(8, 6, palette.gel_hi)
-    add_outline(canvas, palette.ink)
-    return canvas
-
-def draw_blob(palette: Palette) -> Canvas:
-    canvas = clipping_canvas(32, 32)
-    blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
-    blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
-    canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
-    canvas.fill(ellipse_pixels(16, 19, 4, 4), palette.gel_deep)
-    canvas.fill(ellipse_pixels(12, 12, 4, 3), palette.gel_bright)
-    canvas.fill(ellipse_pixels(11, 11, 2, 2), palette.gel_hot)
-    add_cast_rim(canvas, palette.gel_shadow)
-    add_outline(canvas, palette.ink)
-    canvas.put(10, 10, palette.white)
-    return canvas
-
 def crown_spike(
     canvas: Canvas,
     cx: int,
@@ -641,10 +614,6 @@ def crown_spike(
     canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
     canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_light)
     canvas.put(cx, tip_y + 1, palette.brass_hi)
-
-def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
-    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
-    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
 def draw_arrow(palette: Palette) -> Canvas:
     canvas = clipping_canvas(16, 48)
@@ -681,26 +650,9 @@ def draw_arrow(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     return canvas
 
-def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int, int, int, int]]]:
-    count = 0
-    min_x, min_y = canvas.width, canvas.height
-    max_x, max_y = 0, 0
-    colors: set[tuple[int, int, int, int]] = set()
-    for index, color in enumerate(canvas.pixels):
-        alpha = color[3]
-        if alpha == 0:
-            continue
-        if alpha != 255:
-            raise SystemExit("partial alpha")
-        x = index % canvas.width
-        y = index // canvas.width
-        count += 1
-        min_x = min(min_x, x)
-        min_y = min(min_y, y)
-        max_x = max(max_x, x)
-        max_y = max(max_y, y)
-        colors.add(color)
-    return count, min_x, min_y, max_x, max_y, colors
+def ring_pixels(cx: int, cy: int, rx: int, ry: int, rx_in: int, ry_in: int) -> list[tuple[int, int]]:
+    inner = set(ellipse_pixels(cx, cy, rx_in, ry_in))
+    return [point for point in ellipse_pixels(cx, cy, rx, ry) if point not in inner]
 
 def draw_all(palette: Palette) -> dict[str, Canvas]:
     return {
@@ -714,6 +666,42 @@ def draw_all(palette: Palette) -> dict[str, Canvas]:
         "slime_bolt": draw_bolt(palette),
         "slime_blob": draw_blob(palette),
     }
+
+def draw_bolt(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(16, 48)
+    blit_ellipse(canvas, 8, 10, 6, 7, palette.gel_body, 4)
+    tail: list[tuple[int, int]] = []
+    for y in range(15, 46):
+        half = 4 - (y - 15) * 3 // 31
+        if half < 1:
+            half = 1
+        for x in range(8 - half, 9 + half):
+            tail.append((x, y))
+    canvas.blit(volume(tail, 8, 22, palette.gel_under, 6))
+    core: list[tuple[int, int]] = []
+    for y in range(8, 36):
+        core.append((8, y))
+        if y < 28:
+            core.append((7, y))
+    canvas.blit(volume(core, 8, 12, palette.gel_shine, 4))
+    canvas.fill(ellipse_pixels(8, 8, 2, 3), palette.gel_hot)
+    canvas.put(7, 7, palette.white)
+    canvas.put(8, 6, palette.gel_hi)
+    add_outline(canvas, palette.ink)
+    return canvas
+
+def draw_blob(palette: Palette) -> Canvas:
+    canvas = clipping_canvas(32, 32)
+    blit_ellipse(canvas, 16, 18, 14, 12, palette.gel_under, 7)
+    blit_ellipse(canvas, 16, 15, 12, 11, palette.gel_body, 6)
+    canvas.blit(volume(ellipse_pixels(16, 21, 6, 5), 16, 22, palette.sage_ramp, 4))
+    canvas.fill(ellipse_pixels(16, 19, 4, 4), palette.gel_deep)
+    canvas.fill(ellipse_pixels(12, 12, 4, 3), palette.gel_bright)
+    canvas.fill(ellipse_pixels(11, 11, 2, 2), palette.gel_hot)
+    add_cast_rim(canvas, palette.gel_shadow)
+    add_outline(canvas, palette.ink)
+    canvas.put(10, 10, palette.white)
+    return canvas
 
 def check_all(sheets: dict[str, Canvas], allowed: set[tuple[int, int, int, int]]) -> None:
     expected = {
@@ -764,6 +752,27 @@ def require_sheet(
     if max_y - min_y < min_span_y:
         raise SystemExit(f"{name} span y is {max_y - min_y}")
 
+def opaque_stats(canvas: Canvas) -> tuple[int, int, int, int, int, set[tuple[int, int, int, int]]]:
+    count = 0
+    min_x, min_y = canvas.width, canvas.height
+    max_x, max_y = 0, 0
+    colors: set[tuple[int, int, int, int]] = set()
+    for index, color in enumerate(canvas.pixels):
+        alpha = color[3]
+        if alpha == 0:
+            continue
+        if alpha != 255:
+            raise SystemExit("partial alpha")
+        x = index % canvas.width
+        y = index // canvas.width
+        count += 1
+        min_x = min(min_x, x)
+        min_y = min(min_y, y)
+        max_x = max(max_x, x)
+        max_y = max(max_y, y)
+        colors.add(color)
+    return count, min_x, min_y, max_x, max_y, colors
+
 def output_paths() -> dict[str, Path]:
     return {
         "slime": ENEMIES / "slime.png",
@@ -776,15 +785,6 @@ def output_paths() -> dict[str, Path]:
         "slime_bolt": PROJECTILES / "slime_bolt.png",
         "slime_blob": PROJECTILES / "slime_blob.png",
     }
-
-def main() -> None:
-    reject_resample_names(Path(__file__))
-    allowed = load_pinned_colors(SIGNED, SIGNED_SHA256)
-    palette = hunter_palette(allowed)
-    sheets = draw_all(palette)
-    check_all(sheets, allowed)
-    for name, path in output_paths().items():
-        save_png(to_image(sheets[name]), path)
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
