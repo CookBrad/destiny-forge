@@ -19,8 +19,7 @@ use super::sprites::DungeonArt;
 pub use actors::{spawn_enemies, spawn_king_slime, spawn_player};
 pub use props::spawn_props;
 pub use terrain::{
-    spawn_backdrop, spawn_ceiling, spawn_ground, spawn_ladder_exit, spawn_pitfalls,
-    spawn_platform,
+    spawn_backdrop, spawn_ceiling, spawn_ground, spawn_ladder_exit, spawn_pitfalls, spawn_platform,
 };
 
 #[derive(Component)]
@@ -142,7 +141,7 @@ pub fn cleanup_dungeon(
 }
 
 #[derive(SystemParam)]
-pub(crate) struct RetryDungeonParams<'w, 's> {
+pub(crate) struct RetryDungeonParameters<'w, 's> {
     actions: Res<'w, ActionState>,
     layout: Option<Res<'w, DungeonLayout>>,
     loadout: Res<'w, Loadout>,
@@ -155,8 +154,8 @@ pub(crate) struct RetryDungeonParams<'w, 's> {
     next_play: ResMut<'w, NextState<crate::core::DungeonPlayState>>,
 }
 
-pub fn retry_dungeon(params: RetryDungeonParams) {
-    let RetryDungeonParams {
+pub fn retry_dungeon(parameters: RetryDungeonParameters) {
+    let RetryDungeonParameters {
         actions,
         layout,
         loadout,
@@ -167,7 +166,7 @@ pub fn retry_dungeon(params: RetryDungeonParams) {
         entities,
         parents,
         mut next_play,
-    } = params;
+    } = parameters;
     if retry_requested(&actions) {
         let seed = layout.as_deref().map(|layout| layout.seed);
         despawn_dungeon(&mut commands, &entities, &parents);
@@ -189,11 +188,16 @@ fn retry_requested(actions: &ActionState) -> bool {
 
 #[cfg(test)]
 mod retry_input_tests {
+    use bevy::asset::AssetPlugin;
     use bevy::prelude::*;
 
+    use crate::core::DungeonPlayState;
+    use crate::dungeon::DungeonPlayer;
     use crate::input::action_state_after_pressing;
 
-    use super::retry_requested;
+    use super::{generate_floor, retry_dungeon, retry_requested, DungeonEntity, DungeonLayout};
+
+    const DUNGEON_SEED: u64 = 1;
 
     #[test]
     fn enter_or_space_still_requests_a_retry() {
@@ -209,5 +213,88 @@ mod retry_input_tests {
             &[KeyCode::KeyE],
             &[]
         )));
+    }
+
+    #[test]
+    fn a_confirm_press_restarts_the_same_dungeon_seed() {
+        let floor = generate_floor(DUNGEON_SEED);
+        let width_tiles = floor.width_tiles;
+        let player_start_x = floor.player_start_x;
+        let mut app = retry_app(&[KeyCode::Enter]);
+        app.insert_resource(DungeonLayout {
+            seed: DUNGEON_SEED,
+            floor,
+        });
+        let marker = app.world_mut().spawn(DungeonEntity).id();
+        app.add_systems(Update, retry_dungeon);
+        app.update();
+        assert!(app.world().get::<DungeonEntity>(marker).is_none());
+        let layout = app.world().resource::<DungeonLayout>();
+        assert_eq!(layout.seed, DUNGEON_SEED);
+        assert_eq!(layout.floor.width_tiles, width_tiles);
+        assert_eq!(layout.floor.player_start_x, player_start_x);
+        assert!(matches!(
+            app.world().resource::<NextState<DungeonPlayState>>(),
+            NextState::Pending(DungeonPlayState::Running)
+        ));
+        assert_eq!(hunter_count(&mut app), 1);
+    }
+
+    fn retry_app(keys: &[KeyCode]) -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<Image>()
+            .insert_resource(action_state_after_pressing(keys, &[]))
+            .insert_resource(crate::player::Loadout::default())
+            .insert_resource(crate::player::WorldProgress::default())
+            .init_resource::<NextState<DungeonPlayState>>();
+        app
+    }
+
+    fn hunter_count(app: &mut App) -> usize {
+        app.world_mut()
+            .query::<&DungeonPlayer>()
+            .iter(app.world())
+            .count()
+    }
+
+    #[test]
+    fn an_unchanged_input_leaves_the_dungeon_in_place() {
+        let floor = generate_floor(DUNGEON_SEED);
+        let mut app = retry_app(&[]);
+        app.insert_resource(DungeonLayout {
+            seed: DUNGEON_SEED,
+            floor,
+        });
+        let marker = app.world_mut().spawn(DungeonEntity).id();
+        app.add_systems(Update, retry_dungeon);
+        app.update();
+        assert!(app.world().get::<DungeonEntity>(marker).is_some());
+        assert_eq!(app.world().resource::<DungeonLayout>().seed, DUNGEON_SEED);
+        assert!(matches!(
+            app.world().resource::<NextState<DungeonPlayState>>(),
+            NextState::Unchanged
+        ));
+        assert_eq!(hunter_count(&mut app), 0);
+    }
+
+    #[test]
+    fn a_key_that_is_not_retry_leaves_the_dungeon_in_place() {
+        let floor = generate_floor(DUNGEON_SEED);
+        let mut app = retry_app(&[KeyCode::KeyE]);
+        app.insert_resource(DungeonLayout {
+            seed: DUNGEON_SEED,
+            floor,
+        });
+        let marker = app.world_mut().spawn(DungeonEntity).id();
+        app.add_systems(Update, retry_dungeon);
+        app.update();
+        assert!(app.world().get::<DungeonEntity>(marker).is_some());
+        assert_eq!(app.world().resource::<DungeonLayout>().seed, DUNGEON_SEED);
+        assert!(matches!(
+            app.world().resource::<NextState<DungeonPlayState>>(),
+            NextState::Unchanged
+        ));
+        assert_eq!(hunter_count(&mut app), 0);
     }
 }
