@@ -11,8 +11,6 @@ const SLIME_FRAME_SECONDS: f32 = 0.14;
 const BAT_FRAME_SECONDS: f32 = 0.10;
 const KING_FRAME_SECONDS: f32 = 0.18;
 
-/// Slower than one world pixel per second counts as standing.
-/// That is the same deadzone the facing mirror already uses.
 const CLEAR_HORIZONTAL_SPEED: f32 = 1.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -48,29 +46,28 @@ pub fn enemy_cell_rect(frame: usize, cell: Vec2) -> Rect {
     }
 }
 
-pub(crate) type EnemySpriteQuery<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static Transform,
-        &'static SpriteCanvas,
-        &'static mut EnemyAnimation,
-        &'static mut Sprite,
-        Option<&'static EnemyKind>,
-        Option<&'static KingSlimeBoss>,
-    ),
-    Without<EnemyCorpse>,
->;
-
-pub fn animate_enemies(time: Res<Time>, mut enemies: EnemySpriteQuery) {
-    let dt = time.delta_secs();
+pub fn animate_enemies(
+    time: Res<Time>,
+    mut enemies: Query<
+        (
+            &Transform,
+            &SpriteCanvas,
+            &mut EnemyAnimation,
+            &mut Sprite,
+            Option<&EnemyKind>,
+            Option<&KingSlimeBoss>,
+        ),
+        Without<EnemyCorpse>,
+    >,
+) {
+    let delta_seconds = time.delta_secs();
     for (transform, canvas, mut animation, mut sprite, kind, boss) in &mut enemies {
         apply_enemy_frame(
             &mut animation,
             &mut sprite,
             transform.translation.x,
             canvas.size,
-            dt,
+            delta_seconds,
             kind.copied(),
             boss.is_some(),
         );
@@ -82,14 +79,14 @@ fn apply_enemy_frame(
     sprite: &mut Sprite,
     x: f32,
     cell: Vec2,
-    dt: f32,
+    delta_seconds: f32,
     kind: Option<EnemyKind>,
     boss: bool,
 ) {
     animation.playback = step_enemy_playback(
         animation.playback,
         x,
-        dt,
+        delta_seconds,
         frame_seconds(kind, boss),
         flaps_while_still(kind),
     );
@@ -114,20 +111,20 @@ fn flaps_while_still(kind: Option<EnemyKind>) -> bool {
 fn step_enemy_playback(
     playback: EnemyPlayback,
     x: f32,
-    dt: f32,
+    delta_seconds: f32,
     frame_seconds: f32,
     always_loop: bool,
 ) -> EnemyPlayback {
-    if dt <= 0.0 {
+    if delta_seconds <= 0.0 {
         return EnemyPlayback {
             prev_x: x,
             ..playback
         };
     }
 
-    let speed = (x - playback.prev_x) / dt;
+    let speed = (x - playback.prev_x) / delta_seconds;
     let looping = always_loop || speed.abs() > CLEAR_HORIZONTAL_SPEED;
-    let (frame, elapsed) = played_frame(playback, dt, frame_seconds, looping);
+    let (frame, elapsed) = played_frame(playback, delta_seconds, frame_seconds, looping);
     EnemyPlayback {
         frame,
         elapsed,
@@ -137,22 +134,22 @@ fn step_enemy_playback(
 
 fn played_frame(
     playback: EnemyPlayback,
-    dt: f32,
+    delta_seconds: f32,
     frame_seconds: f32,
     looping: bool,
 ) -> (usize, f32) {
     if !looping {
         return (0, 0.0);
     }
-    advance_frame(playback.frame, playback.elapsed, dt, frame_seconds)
+    advance_frame(playback.frame, playback.elapsed, delta_seconds, frame_seconds)
 }
 
-fn advance_frame(frame: usize, elapsed: f32, dt: f32, frame_seconds: f32) -> (usize, f32) {
+fn advance_frame(frame: usize, elapsed: f32, delta_seconds: f32, frame_seconds: f32) -> (usize, f32) {
     if frame_seconds <= 0.0 {
         return (frame % ENEMY_FRAME_COUNT, elapsed);
     }
 
-    let mut elapsed = elapsed + dt.max(0.0);
+    let mut elapsed = elapsed + delta_seconds.max(0.0);
     let mut frame = frame % ENEMY_FRAME_COUNT;
     while elapsed >= frame_seconds {
         elapsed -= frame_seconds;
