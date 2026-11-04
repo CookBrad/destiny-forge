@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::autosave::{
     debounced_autosave, flush_saves_on_exit, queue_autosave, AutosaveTimer, ProfileDirty,
@@ -43,7 +43,8 @@ fn insert_resources_from_the_save_folder(app: &mut App) {
         .insert_resource(profile)
         .insert_resource(Inventory::default())
         .insert_resource(Loadout::default())
-        .insert_resource(WorldProgress::default());
+        .insert_resource(WorldProgress::default())
+        .insert_resource(Wallet::default());
 }
 
 fn runtime_profile_while_save_is_blocked() -> PlayerProfile {
@@ -80,6 +81,25 @@ mod tests {
 
     use super::super::profile::PROFILE_VERSION;
     use super::super::settings::GameSettings;
+
+    #[test]
+    fn memory_plugin_starts_an_empty_wallet() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(GameState::Title))
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .add_plugins(MemoryPlugin);
+        app.update();
+
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 0);
+        assert_eq!(wallet.sparks.0, 0);
+    }
 
     #[test]
     fn memory_plugin_runs_one_update_with_a_blank_header() {
@@ -153,6 +173,8 @@ mod tests {
         assert_eq!(profile.header.playtime_seconds, 0);
         assert_eq!(profile.playtime_fraction, 0.0);
         assert_eq!(profile.header.gold, 0);
+        assert_eq!(profile.wallet.gold, 0);
+        assert_eq!(profile.wallet.sparks.0, 0);
         assert!(profile.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
     }
