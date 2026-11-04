@@ -83,6 +83,24 @@ mod tests {
     use super::super::settings::GameSettings;
 
     #[test]
+    fn memory_plugin_starts_an_empty_wallet() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .add_plugins(MemoryPlugin);
+        app.update();
+
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 0);
+        assert_eq!(wallet.sparks.0, 0);
+    }
+
+    #[test]
     fn memory_plugin_runs_one_update_with_a_blank_header() {
         let mut app = app_with_memory_plugin(PlayerProfile::default());
         app.update();
