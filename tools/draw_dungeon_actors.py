@@ -86,24 +86,24 @@ class Palette:
         self.leather_deep = take(43, 23, 15)
         self.leather_soot = take(54, 30, 20)
         self.leather_dk = take(55, 31, 21)
-        self.leather_mid = take(63, 35, 23)
+        self.leather_md = take(63, 35, 23)
         self.leather_mid2 = take(67, 38, 25)
         self.leather = take(74, 41, 26)
         self.leather_fold = take(76, 43, 28)
         self.leather_lt = take(97, 55, 35)
         self.leather_lt2 = take(98, 56, 35)
-        self.leather_highlight = take(107, 64, 33)
+        self.leather_hi = take(107, 64, 33)
         self.skin_dk = take(149, 92, 47)
-        self.skin_mid = take(187, 119, 69)
+        self.skin_md = take(187, 119, 69)
         self.skin = take(222, 152, 98)
         self.skin_warm = take(217, 150, 99)
         self.skin_lt = take(252, 187, 127)
         self.brass_shadow = take(161, 103, 26)
-        self.brass_mid = take(167, 108, 29)
+        self.brass_md = take(167, 108, 29)
         self.brass_dk = take(203, 141, 45)
         self.brass = take(226, 166, 64)
         self.brass_lt = take(244, 172, 13)
-        self.brass_highlight = take(251, 214, 119)
+        self.brass_hi = take(251, 214, 119)
         self.gel_shadow = take(3, 40, 43)
         self.gel_deep = take(0, 64, 69)
         self.gel_well = take(0, 76, 81)
@@ -119,7 +119,7 @@ class Palette:
         self.gel_core = take(0, 210, 211)
         self.gel_lt = take(0, 213, 215)
         self.gel_bright = take(0, 229, 227)
-        self.gel_highlight = take(0, 251, 250)
+        self.gel_hi = take(0, 251, 250)
         self.gel_hot = take(166, 253, 254)
         self.sage_shadow = take(7, 35, 33)
         self.sage_mid = take(28, 103, 99)
@@ -140,7 +140,7 @@ class Palette:
         self.bone_shadow = take(126, 126, 116)
         self.bone_dust = take(148, 154, 143)
         self.bone_dk = take(150, 149, 144)
-        self.bone_medium = take(174, 172, 175)
+        self.bone_md = take(174, 172, 175)
         self.bone_mid = take(179, 178, 182)
         self.bone = take(245, 244, 243)
         self.bone_lt = take(255, 255, 255)
@@ -163,7 +163,7 @@ class Palette:
             self.gel_core,
             self.gel_lt,
             self.gel_bright,
-            self.gel_highlight,
+            self.gel_hi,
         )
         self.gel_under = self.gel_ramp[:8]
         self.gel_body = self.gel_ramp[4:13]
@@ -174,27 +174,27 @@ class Palette:
             self.leather_deep,
             self.leather_soot,
             self.leather_dk,
-            self.leather_mid,
+            self.leather_md,
             self.leather_mid2,
             self.leather,
             self.leather_fold,
             self.leather_lt,
             self.leather_lt2,
-            self.leather_highlight,
+            self.leather_hi,
         )
         self.brass_ramp = (
             self.brass_shadow,
-            self.brass_mid,
+            self.brass_md,
             self.brass_dk,
             self.brass,
             self.brass_lt,
-            self.brass_highlight,
+            self.brass_hi,
         )
         self.bone_ramp = (
             self.bone_shadow,
             self.bone_dk,
             self.bone_dust,
-            self.bone_medium,
+            self.bone_md,
             self.bone_mid,
             self.bone,
             self.bone_lt,
@@ -203,7 +203,7 @@ class Palette:
             self.bone_shadow,
             self.bone_dk,
             self.bone_dust,
-            self.bone_medium,
+            self.bone_md,
             self.bone_mid,
         )
         self.steel_ramp = (
@@ -222,9 +222,9 @@ class Palette:
             self.steel_mid,
             self.bone_dust,
             self.steel_lt,
-            self.bone_medium,
+            self.bone_md,
         )
-        self.skin_ramp = (self.skin_dk, self.skin_mid, self.skin_warm, self.skin, self.skin_lt)
+        self.skin_ramp = (self.skin_dk, self.skin_md, self.skin_warm, self.skin, self.skin_lt)
         self.cloth_ramp = (
             self.steel_deep,
             self.steel_void,
@@ -492,7 +492,7 @@ def paint_rivet(canvas: Canvas, x: int, y: int, palette: Palette) -> None:
     canvas.put(x, y, palette.brass_dk)
     canvas.put(x + 1, y, palette.brass)
     canvas.put(x, y + 1, palette.brass)
-    canvas.put(x + 1, y + 1, palette.brass_highlight)
+    canvas.put(x + 1, y + 1, palette.brass_hi)
 
 
 def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
@@ -500,7 +500,7 @@ def plant_boot(canvas: Canvas, cx: int, palette: Palette, half: int) -> None:
     canvas.fill(ellipse_pixels(cx, sole - 2, half, 3), palette.leather_deep)
     canvas.fill(ellipse_pixels(cx + 1, sole - 3, half - 2, 2), palette.leather_dk)
     canvas.fill([(x, sole) for x in range(cx - half, cx + half + 1)], palette.ink_warm)
-    canvas.put(cx - half + 2, sole - 1, palette.leather_highlight)
+    canvas.put(cx - half + 2, sole - 1, palette.leather_hi)
 
 
 def blit_capsule(
@@ -577,9 +577,9 @@ def crown_spike(
     right_face = polygon_pixels([outline[0], ridge] + outline[5:])
     canvas.blit(volume(left_face, cx - 6, tip_y + 18, palette.brass_ramp[:4], 8))
     canvas.blit(volume(right_face, cx + 4, tip_y + 14, palette.brass_ramp[2:], 8))
-    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_highlight)
+    canvas.fill(capsule_pixels(cx, tip_y + 4, cx, base_y - 8, 1), palette.brass_hi)
     canvas.fill(ellipse_pixels(cx, tip_y + 3, 3, 3), palette.brass_lt)
-    canvas.put(cx, tip_y + 1, palette.brass_highlight)
+    canvas.put(cx, tip_y + 1, palette.brass_hi)
 
 
 def draw_slime(palette: Palette) -> Canvas:
@@ -604,7 +604,7 @@ def draw_slime(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     canvas.put(35, 34, palette.white)
     canvas.put(47, 35, palette.white)
-    canvas.put(26, 22, palette.gel_highlight)
+    canvas.put(26, 22, palette.gel_hi)
     return canvas
 
 
@@ -641,7 +641,7 @@ def draw_bolt(palette: Palette) -> Canvas:
     canvas.blit(volume(core, 8, 12, palette.gel_shine, 4))
     canvas.fill(ellipse_pixels(8, 8, 2, 3), palette.gel_hot)
     canvas.put(7, 7, palette.white)
-    canvas.put(8, 6, palette.gel_highlight)
+    canvas.put(8, 6, palette.gel_hi)
     add_outline(canvas, palette.ink)
     return canvas
 
@@ -650,28 +650,28 @@ def draw_arrow(palette: Palette) -> Canvas:
     canvas = Canvas(16, 48)
     head = polygon_pixels([(8, 1), (3, 8), (6, 8), (6, 11), (10, 11), (10, 8), (13, 8)])
     canvas.blit(volume(head, 7, 4, palette.brass_ramp, 4))
-    canvas.put(8, 2, palette.brass_highlight)
+    canvas.put(8, 2, palette.brass_hi)
     canvas.put(7, 3, palette.brass_lt)
     canvas.put(4, 7, palette.brass_shadow)
     canvas.put(12, 7, palette.brass_dk)
     canvas.put(8, 9, palette.brass)
     for y in range(11, 34):
         left = palette.leather_shadow if y % 2 == 0 else palette.leather_deep
-        right = palette.leather_mid if y % 2 == 0 else palette.leather
+        right = palette.leather_md if y % 2 == 0 else palette.leather
         canvas.put(6, y, palette.ink_warm)
         canvas.put(7, y, left)
         canvas.put(8, y, right)
-        canvas.put(9, y, palette.leather_highlight if (y + 8) % 4 == 0 else palette.leather_dk)
+        canvas.put(9, y, palette.leather_hi if (y + 8) % 4 == 0 else palette.leather_dk)
     canvas.put(7, 18, palette.brass_dk)
     canvas.put(8, 18, palette.brass)
-    canvas.put(7, 19, palette.brass_mid)
-    canvas.put(8, 19, palette.brass_highlight)
+    canvas.put(7, 19, palette.brass_md)
+    canvas.put(8, 19, palette.brass_hi)
     for step, y in enumerate(range(30, 44)):
         inset = step // 3
         left = 6 - inset
         right = 9 + inset
         canvas.put(left, y, palette.bone_dk if step % 2 else palette.bone_shadow)
-        canvas.put(left - 1, y, palette.bone_medium)
+        canvas.put(left - 1, y, palette.bone_md)
         canvas.put(right, y, palette.bone if step % 2 else palette.bone_mid)
         canvas.put(right + 1, y, palette.steel_lt)
     canvas.put(7, 44, palette.leather_deep)
@@ -720,7 +720,7 @@ def draw_bat(palette: Palette) -> Canvas:
     canvas.fill(chain([(56, 23), (72, 16), (86, 20)], 1), palette.purple_lt)
     body = blit_ellipse(canvas, 49, 25, 11, 12, palette.leather_ramp, 7)
     canvas.fill(ellipse_pixels(49, 28, 6, 5), palette.leather_deep)
-    spark(canvas, body, palette.leather_highlight, 9)
+    spark(canvas, body, palette.leather_hi, 9)
     blit_poly(canvas, [(42, 18), (37, 4), (48, 16)], (42, 10), palette.leather_ramp, 5)
     blit_poly(canvas, [(54, 16), (59, 3), (63, 18)], (58, 10), palette.leather_ramp, 5)
     canvas.fill(polygon_pixels([(42, 16), (39, 8), (46, 15)]), palette.purple_dk)
@@ -736,7 +736,7 @@ def draw_bat(palette: Palette) -> Canvas:
     add_outline(canvas, palette.ink)
     canvas.put(45, 23, palette.gel_hot)
     canvas.put(46, 23, palette.ink)
-    canvas.put(45, 24, palette.gel_highlight)
+    canvas.put(45, 24, palette.gel_hi)
     canvas.put(53, 23, palette.gel_hot)
     canvas.put(54, 23, palette.ink)
     canvas.put(44, 22, palette.white)
@@ -789,9 +789,9 @@ def draw_goblin(palette: Palette) -> Canvas:
     blit_capsule(canvas, 56, 52, 70, 64, 4, palette.skin_ramp, 6)
     blade = blit_capsule(canvas, 68, 64, 76, 38, 2, palette.brass_ramp, 6)
     canvas.fill(capsule_pixels(64, 64, 72, 66, 2), palette.brass_shadow)
-    canvas.fill(ellipse_pixels(76, 38, 2, 2), palette.brass_highlight)
+    canvas.fill(ellipse_pixels(76, 38, 2, 2), palette.brass_hi)
     canvas.put(75, 37, palette.white)
-    spark(canvas, blade, palette.brass_highlight, 5)
+    spark(canvas, blade, palette.brass_hi, 5)
     blit_capsule(canvas, 42, 86, 32, 106, 5, palette.leather_ramp, 8)
     blit_capsule(canvas, 54, 86, 64, 106, 5, palette.leather_ramp, 8)
     canvas.fill(capsule_pixels(34, 96, 30, 104, 1), palette.purple_dk)
@@ -802,7 +802,7 @@ def draw_goblin(palette: Palette) -> Canvas:
     paint_eye(canvas, 56, 30, palette, palette.purple)
     canvas.put(68, 34, palette.brass_lt)
     canvas.put(48, 34, palette.skin_dk)
-    spark(canvas, duster + flap, palette.leather_highlight, 17)
+    spark(canvas, duster + flap, palette.leather_hi, 17)
     return canvas
 
 
@@ -816,7 +816,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
     paint_rivet(canvas, 16, 70, palette)
     blit_poly(canvas, [(22, 38), (8, 52), (10, 88), (24, 70)], (14, 58), palette.leather_ramp, 8)
     blit_ellipse(canvas, 38, 21, 13, 14, palette.bone_form, 8)
-    canvas.blit(volume(ellipse_pixels(34, 15, 6, 5), 32, 13, (palette.bone_medium, palette.bone_mid, palette.bone), 3))
+    canvas.blit(volume(ellipse_pixels(34, 15, 6, 5), 32, 13, (palette.bone_md, palette.bone_mid, palette.bone), 3))
     blit_ellipse(canvas, 40, 33, 8, 5, palette.bone_form, 4)
     canvas.fill(ellipse_pixels(32, 18, 4, 5), palette.ink)
     canvas.fill(ellipse_pixels(44, 18, 4, 5), palette.ink)
@@ -827,7 +827,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
     canvas.put(33, 17, palette.steel_void)
     canvas.fill(ellipse_pixels(41, 34, 5, 2), palette.ink)
     canvas.put(38, 34, palette.bone_dk)
-    canvas.put(40, 34, palette.bone_medium)
+    canvas.put(40, 34, palette.bone_md)
     canvas.put(42, 34, palette.bone_dk)
     canvas.fill(capsule_pixels(28, 22, 34, 26, 1), palette.bone_shadow)
     canvas.fill(capsule_pixels(46, 22, 50, 26, 1), palette.bone_dk)
@@ -846,7 +846,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
     blit_capsule(canvas, 44, 48, 54, 76, 3, palette.bone_form, 6)
     canvas.fill(ellipse_pixels(14, 78, 3, 3), palette.brass_dk)
     canvas.fill(ellipse_pixels(54, 76, 3, 3), palette.brass)
-    canvas.put(54, 75, palette.brass_highlight)
+    canvas.put(54, 75, palette.brass_hi)
     blit_poly(canvas, [(26, 98), (46, 96), (50, 110), (22, 112)], (36, 104), palette.leather_ramp, 6)
     canvas.fill(ellipse_pixels(36, 104, 3, 3), palette.purple_dk)
     canvas.put(36, 103, palette.purple_lt)
@@ -854,7 +854,7 @@ def draw_skeleton(palette: Palette) -> Canvas:
     blit_capsule(canvas, 31, 110, 24, 134, 4, palette.bone_form, 6)
     blit_capsule(canvas, 41, 110, 50, 134, 4, palette.bone_form, 6)
     canvas.fill(ellipse_pixels(24, 134, 3, 3), palette.steel_dk)
-    canvas.fill(ellipse_pixels(50, 134, 3, 3), palette.brass_mid)
+    canvas.fill(ellipse_pixels(50, 134, 3, 3), palette.brass_md)
     plant_boot(canvas, 24, palette, 6)
     plant_boot(canvas, 50, palette, 6)
     add_cast_rim(canvas, palette.bone_shadow)
@@ -921,7 +921,7 @@ def draw_zombie(palette: Palette) -> Canvas:
     canvas.fill(ellipse_pixels(72, 32, 2, 2), palette.ink)
     canvas.put(72, 32, palette.sage)
     canvas.put(71, 31, palette.gel_hot)
-    spark(canvas, coat, palette.leather_highlight, 23)
+    spark(canvas, coat, palette.leather_hi, 23)
     return canvas
 
 
@@ -954,7 +954,7 @@ def draw_king(palette: Palette) -> Canvas:
     paint_gem(canvas, 140, 34, palette, 4)
     paint_gem(canvas, 78, 70, palette, 3)
     paint_gem(canvas, 114, 70, palette, 3)
-    canvas.put(140, 32, palette.brass_highlight)
+    canvas.put(140, 32, palette.brass_hi)
     canvas.fill(capsule_pixels(72, 90, 90, 102, 2), palette.purple_dk)
     canvas.fill(capsule_pixels(74, 88, 88, 100, 1), palette.purple)
     canvas.put(80, 92, palette.purple_lt)
@@ -970,17 +970,17 @@ def draw_king(palette: Palette) -> Canvas:
     blit_ellipse(canvas, 100, 98, 12, 12, palette.gel_body, 6)
     canvas.fill(ellipse_pixels(100, 98, 5, 5), palette.gel_hot)
     canvas.put(98, 94, palette.white)
-    canvas.put(97, 93, palette.gel_highlight)
+    canvas.put(97, 93, palette.gel_hi)
     paint_gem(canvas, 68, 84, palette, 7)
     canvas.fill(ellipse_pixels(138, 90, 7, 7), palette.gel_deep)
     canvas.fill(ellipse_pixels(138, 90, 3, 3), palette.gel_hot)
     canvas.put(136, 88, palette.white)
     canvas.fill(chain([(46, 86), (58, 104), (50, 122), (66, 136)], 1), palette.gel_hot)
-    canvas.fill(chain([(48, 88), (56, 106)], 1), palette.gel_highlight)
+    canvas.fill(chain([(48, 88), (56, 106)], 1), palette.gel_hi)
     canvas.fill([(x, 190) for x in range(32, 164)], palette.gel_deep)
     canvas.fill([(x, 191) for x in range(36, 160)], palette.gel_shadow)
     add_outline(canvas, palette.ink)
-    canvas.put(96, 2, palette.brass_highlight)
+    canvas.put(96, 2, palette.brass_hi)
     canvas.put(144, 10, palette.brass_lt)
     return canvas
 
