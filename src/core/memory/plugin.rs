@@ -86,6 +86,7 @@ mod tests {
     fn memory_plugin_starts_an_empty_wallet() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(GameState::Title))
             .insert_resource(AudioSettings::default())
             .insert_resource(SkillBindings::default())
             .insert_resource(DayClock::default())
