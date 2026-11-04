@@ -122,6 +122,34 @@ def bevel_block(
         for x in range(start_x, end_x):
             canvas.put(x, y, beveled_color(x, y, start_x, start_y, end_x, end_y, base))
 
+def bevel_wrapped_block(
+    canvas: Canvas,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    base: tuple[int, int, int, int],
+) -> None:
+    for y in range(start_y, end_y):
+        for x in range(start_x, end_x):
+            canvas.put(x % canvas.width, y % canvas.height, beveled_color(x, y, start_x, start_y, end_x, end_y, base))
+
+def beveled_color(
+    x: int,
+    y: int,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+    base: tuple[int, int, int, int],
+) -> tuple[int, int, int, int]:
+    color = shade(base, speck(x, y))
+    if y < start_y + 2 or x < start_x + 2:
+        color = shade(color, 20 if (y == start_y or x == start_x) else 10)
+    if y >= end_y - 2 or x >= end_x - 2:
+        color = shade(color, -24 if (y == end_y - 1 or x == end_x - 1) else -12)
+    return color
+
 def crack(canvas: Canvas, points: tuple[tuple[int, int], ...], color, glow) -> None:
     for (ax, ay), (bx, by) in zip(points, points[1:]):
         steps = max(abs(bx - ax), abs(by - ay), 1)
@@ -549,34 +577,6 @@ def write_cutout_pieces() -> None:
         print(f"wrote {path.relative_to(ROOT)} {width}x{height}")
 
 
-
-def bevel_wrapped_block(
-    canvas: Canvas,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int,
-    base: tuple[int, int, int, int],
-) -> None:
-    for y in range(start_y, end_y):
-        for x in range(start_x, end_x):
-            canvas.put(x % canvas.width, y % canvas.height, beveled_color(x, y, start_x, start_y, end_x, end_y, base))
-
-def beveled_color(
-    x: int,
-    y: int,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int,
-    base: tuple[int, int, int, int],
-) -> tuple[int, int, int, int]:
-    color = shade(base, speck(x, y))
-    if y < start_y + 2 or x < start_x + 2:
-        color = shade(color, 20 if (y == start_y or x == start_x) else 10)
-    if y >= end_y - 2 or x >= end_x - 2:
-        color = shade(color, -24 if (y == end_y - 1 or x == end_x - 1) else -12)
-    return color
 def save_checked_piece(canvas: Canvas, path: Path, width: int, height: int) -> None:
     if (canvas.width, canvas.height) != (width, height):
         raise SystemExit(f"canvas {path.name} is {(canvas.width, canvas.height)}")
