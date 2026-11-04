@@ -217,4 +217,46 @@ mod tests {
         assert_eq!(day_clock.calendar_day, 200);
         assert_eq!(season, Season::Winter);
     }
+
+    #[test]
+    fn a_resource_inserted_before_the_first_run_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_changed_after_the_first_run_is_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_added_then_changed_in_the_same_tick_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[derive(Resource, Default)]
+    struct WatchedValue(u32);
+
+    #[derive(Resource, Default)]
+    struct SeenChange(bool);
+
+    fn app_recording_hydration_changes() -> App {
+        let mut app = App::new();
+        app.init_resource::<WatchedValue>()
+            .init_resource::<SeenChange>()
+            .add_systems(Update, record_hydration_change);
+        app
+    }
+
+    fn record_hydration_change(watched: Res<WatchedValue>, mut seen: ResMut<SeenChange>) {
+        seen.0 = changed_after_hydration(&watched);
+    }
 }
