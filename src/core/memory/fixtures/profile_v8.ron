@@ -1,0 +1,13 @@
+(
+version:8,
+name:"Hearth",
+inventory:(slots:((material:Some(PickaxeTier2),quality:Normal,count:1),(material:Some(CopperOre),quality:Silver,count:12),(material:Some(IronOre),quality:Normal,count:7),(material:Some(RoastTurnip),quality:Normal,count:2),(material:Some(PotatoStew),quality:Normal,count:4),(material:Some(PickaxeTier1),quality:Normal,count:1),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:None,quality:Normal,count:0),(material:Some(IronScrap),quality:Normal,count:2))),
+loadout:(weapon:IronSword,armor:(head:None,chest:None,arms:None,legs:None),stash:(weapons:[RustySword],armor:[]),food_buff:Some(PotatoStew)),
+progress:(boss_defeated_floor_1:true),
+calendar_day:18,
+day_phase:Evening,
+tool_energy:55.0,
+crop_plots:[(tile_x:4,tile_y:2,stage:Growing(crop:Turnip,days:1,watered:true))],
+depleted_ore_node_ids:[3,9],
+settings:(audio:(music_enabled:true,music_volume:1.0,sfx_enabled:true,sfx_volume:1.0),skill_bindings:(Some(Attack),Some(Block),Some(Charge),Some(Spin),None,None,None,None,None)),
+)
