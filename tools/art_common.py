@@ -56,11 +56,11 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
 def add_outline(canvas: Canvas, color: Color) -> None:
     width = canvas.width
     height = canvas.height
-    extra: list[Point] = []
+    outline_points: list[Point] = []
     for y in range(height):
-        row = y * width
+        row_start = y * width
         for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
+            if canvas.pixels[row_start + x][3] == 0:
                 continue
             for column_step, row_step in NEIGHBORS_8:
                 neighbor_x = x + column_step
@@ -70,8 +70,8 @@ def add_outline(canvas: Canvas, color: Color) -> None:
                     and 0 <= neighbor_y < height
                     and canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
                 ):
-                    extra.append((neighbor_x, neighbor_y))
-    for x, y in extra:
+                    outline_points.append((neighbor_x, neighbor_y))
+    for x, y in outline_points:
         canvas.put(x, y, color)
 
 

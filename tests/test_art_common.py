@@ -8,7 +8,6 @@ from PIL import Image
 
 from art_common import (
     CLEAR,
-    _frame_pixels,
     add_outline,
     clipping_canvas,
     composite_images,
@@ -39,15 +38,22 @@ def test_pack_strip_of_an_empty_frame_list_is_a_zero_width_strip() -> None:
 def test_pack_strip_rejects_a_pixel_that_falls_outside_the_cell() -> None:
     with pytest.raises(SystemExit, match=r"blit clipped 4,0"):
         pack_strip([{(4, 0): RED}], 4, 2)
-def test_frame_pixels_returns_a_dictionary_unchanged() -> None:
-    frame = {(1, 2): RED}
-    assert _frame_pixels(frame) is frame
-def test_frame_pixels_reads_pixels_from_a_sprite_like_frame() -> None:
-    frame = type("Frame", (), {"pixels": {(0, 0): BLUE}})()
-    assert _frame_pixels(frame) == {(0, 0): BLUE}
-def test_frame_pixels_rejects_a_frame_with_no_pixel_map() -> None:
+def test_pack_strip_places_pixels_from_a_dictionary_frame() -> None:
+    image = pack_strip([{(0, 1): RED, (1, 0): BLUE}], 2, 2)
+    assert image.getpixel((0, 1)) == RED
+    assert image.getpixel((1, 0)) == BLUE
+    assert image.getpixel((0, 0)) == CLEAR
+    assert image.getpixel((1, 1)) == CLEAR
+def test_pack_strip_places_pixels_from_a_sprite_like_frame() -> None:
+    frame = type("Frame", (), {"pixels": {(0, 0): BLUE, (1, 1): GREEN}})()
+    image = pack_strip([frame], 2, 2)
+    assert image.getpixel((0, 0)) == BLUE
+    assert image.getpixel((1, 1)) == GREEN
+    assert image.getpixel((1, 0)) == CLEAR
+    assert image.getpixel((0, 1)) == CLEAR
+def test_pack_strip_rejects_a_frame_with_no_pixel_map() -> None:
     with pytest.raises(AttributeError):
-        _frame_pixels(type("Frame", (), {})())
+        pack_strip([type("Frame", (), {})()], 1, 1)
 def test_composite_layers_lets_a_later_layer_cover_an_earlier_pixel() -> None:
     image = composite_layers(2, 2, [{(0, 0): RED, (1, 1): BLUE}, {(0, 0): GREEN}])
     assert image.getpixel((0, 0)) == GREEN
@@ -128,3 +134,38 @@ def test_translate_pixels_with_a_zero_offset_returns_a_copy() -> None:
 def test_translate_pixels_rejects_a_missing_pixel_map() -> None:
     with pytest.raises(AttributeError):
         translate_pixels(None, 1, 0)
+def test_canvas_put_ignores_a_point_outside_the_canvas() -> None:
+    canvas = clipping_canvas(1, 1)
+    canvas.put(0, 0, RED)
+    canvas.put(-1, 0, BLUE)
+    canvas.put(0, -1, BLUE)
+    canvas.put(1, 0, BLUE)
+    canvas.put(0, 1, BLUE)
+    assert canvas.pixels == [RED]
+    assert canvas.read(0, 0) == RED
+def test_canvas_read_returns_none_for_a_clear_pixel() -> None:
+    canvas = clipping_canvas(2, 1)
+    canvas.put(0, 0, RED)
+    assert canvas.read(1, 0) is None
+    assert canvas.read(0, 0) == RED
+def test_canvas_read_returns_none_for_a_point_outside_the_canvas() -> None:
+    canvas = clipping_canvas(1, 1, RED)
+    assert canvas.read(0, 0) == RED
+    assert canvas.read(-1, 0) is None
+    assert canvas.read(0, -1) is None
+    assert canvas.read(1, 0) is None
+    assert canvas.read(0, 1) is None
+def test_canvas_opaque_at_returns_false_for_a_point_outside_the_canvas() -> None:
+    canvas = clipping_canvas(1, 1, RED)
+    assert canvas.opaque_at(0, 0) is True
+    assert canvas.opaque_at(-1, 0) is False
+    assert canvas.opaque_at(0, -1) is False
+    assert canvas.opaque_at(1, 0) is False
+    assert canvas.opaque_at(0, 1) is False
+def test_clipping_canvas_fills_the_canvas_with_the_given_color() -> None:
+    canvas = clipping_canvas(2, 2, GREEN)
+    assert canvas.pixels == [GREEN, GREEN, GREEN, GREEN]
+    assert canvas.read(0, 0) == GREEN
+    assert canvas.read(1, 0) == GREEN
+    assert canvas.read(0, 1) == GREEN
+    assert canvas.read(1, 1) == GREEN
