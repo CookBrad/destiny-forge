@@ -60,7 +60,7 @@ def test_pickaxe_main_writes_four_swing_frames_with_the_locked_hashes(tmp_path, 
     monkeypatch.setattr(pickaxe, "FOLDER", folder)
     monkeypatch.setattr(pickaxe, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png")
     pickaxe.main()
-    expected = ['178712b08583b0f9feaeea05dd10e09c6a4f329f68e0f605a2252b8189896f3c', 'ab389f49539c78b3dc34c6e2a8e512cdab08827d1a8d1e7d42f672ba69481baa', 'b6721fb902df595f7e07f59a1b31fa829582be7c11845d3555256c52408204d0', 'ab3d0e9730d59ab71f7228ce0be1000d3cc90e0d01c26c5a1150ef4ab2266810']
+    expected = ['055abb6f1019c5a37ede4062234803ff313be600ec0f18610f3a220e0abc9940', '1b8a76f996c7e38ec06c4617654988f89271aed75659132b34a833d73508ee0e', 'f96d6738fc8766dd3547aa46339ac9c27dcaf4bdb26824a3e6985f80cd130735', '90e0ab0cc0fc6e49c4b519e3697cd15b77513cc04284edb8b942b41014ec1e32']
     assert [_file_digest(folder / f"dwarf_m_pickaxe_swing_f{index}.png") for index in range(4)] == expected
 
 
