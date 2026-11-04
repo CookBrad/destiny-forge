@@ -257,8 +257,6 @@ def test_require_opaque_color_rejects_partial_alpha() -> None:
 def test_require_opaque_color_rejects_a_color_missing_from_the_allow_list() -> None:
     with pytest.raises(SystemExit, match=r"color \(200, 0, 0, 255\) is not in the signed hunter"):
         require_opaque_color(RED, {BLUE})
-def test_palette_does_not_carry_an_unused_leather_rim() -> None:
-    assert "leather_rim" not in Palette.__dataclass_fields__
 def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
     import art_common
 

@@ -242,24 +242,24 @@ class Palette:
     leather_deep: Color
     leather_soot: Color
     leather_dark: Color
-    leather_md: Color
+    leather_mid: Color
     leather_above_mid: Color
     leather: Color
     leather_fold: Color
     leather_light: Color
     leather_above_light: Color
-    leather_hi: Color
+    leather_highlight: Color
     skin_dark: Color
-    skin_md: Color
+    skin_mid: Color
     skin: Color
     skin_warm: Color
     skin_light: Color
     brass_shadow: Color
-    brass_md: Color
+    brass_mid: Color
     brass_dark: Color
     brass: Color
     brass_light: Color
-    brass_hi: Color
+    brass_highlight: Color
     gel_shadow: Color
     gel_deep: Color
     gel_well: Color
@@ -275,7 +275,7 @@ class Palette:
     gel_core: Color
     gel_light: Color
     gel_bright: Color
-    gel_hi: Color
+    gel_highlight: Color
     gel_hot: Color
     sage_shadow: Color
     sage_mid: Color
@@ -296,8 +296,8 @@ class Palette:
     bone_shadow: Color
     bone_dust: Color
     bone_dark: Color
-    bone_md: Color
     bone_mid: Color
+    bone_above_mid: Color
     bone: Color
     bone_light: Color
     dead_dark: Color
