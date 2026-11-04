@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""In-house dungeon actors at the art-direction canvases.
-
-Pixel-authored at 1×. Every opaque RGBA is copied from a signed hunter
-cell. Re-running writes the same bytes. One cell per file.
-
-Slime green is not in the signed sheets. Gel uses the sword cyan and the
-few sage pixels that are. King Slime is a crowned body, not a big slime.
-"""
 
 from __future__ import annotations
 
@@ -21,8 +13,6 @@ SIGNED = ROOT / "assets" / "source" / "hunter_signed"
 ENEMIES = ROOT / "assets" / "dungeon" / "enemies"
 PROJECTILES = ROOT / "assets" / "dungeon" / "projectiles"
 
-# Same pins as tools/draw_hunter_frames.py. The script stops if those
-# bytes move, so a new actor cannot be painted from the wrong palette.
 SIGNED_SHA256 = {
     "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
     "knight_run_side.png": "1e05a64f76044a614d8a080e234778ce8eab3c9bff819fa99de3e34b816466e7",
@@ -215,7 +205,6 @@ class Palette:
             self.steel,
         )
         self.wing_ramp = self.steel_ramp
-        # Pallid gray, not the coat brown. Signed sheets have no corpse green.
         self.dead_ramp = (
             self.dead_dark,
             self.dead,
