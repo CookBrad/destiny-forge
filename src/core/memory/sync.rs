@@ -62,13 +62,12 @@ pub fn capture_profile_from_runtime(
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
-    if !audio.is_changed()
-        && !bindings.is_changed()
-        && !inventory.is_changed()
-        && !loadout.is_changed()
-        && !progress.is_changed()
-        && !tool_energy.is_changed()
+    if !changed_after_hydration(&audio)
+        && !changed_after_hydration(&bindings)
+        && !changed_after_hydration(&inventory)
+        && !changed_after_hydration(&loadout)
+        && !changed_after_hydration(&progress)
+        && !changed_after_hydration(&tool_energy)
     {
         return;
     }
@@ -84,6 +83,10 @@ pub fn capture_profile_from_runtime(
         &mut profile,
     );
     dirty.mark();
+}
+
+fn changed_after_hydration<T: Resource>(resource: &Res<T>) -> bool {
+    resource.is_changed() && !resource.is_added()
 }
 
 pub fn snapshot_profile(
