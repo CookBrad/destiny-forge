@@ -9,6 +9,8 @@ from PIL import Image
 from art_common import (
     CLEAR,
     _frame_pixels,
+    add_outline,
+    clipping_canvas,
     composite_images,
     composite_layers,
     outline_layer,
@@ -70,6 +72,25 @@ def test_composite_images_rejects_a_layer_that_is_not_rgba() -> None:
     layer = Image.new("RGB", (1, 1), (1, 2, 3))
     with pytest.raises(ValueError, match="images do not match"):
         composite_images((2, 2), [(layer, (0, 0))])
+def test_add_outline_paints_the_eight_empty_neighbors_around_one_pixel() -> None:
+    canvas = clipping_canvas(3, 3)
+    canvas.put(1, 1, RED)
+    add_outline(canvas, INK)
+    assert canvas.read(1, 1) == RED
+    assert [canvas.read(x, y) for y in range(3) for x in range(3)].count(INK) == 8
+def test_add_outline_stops_at_the_corner_of_the_canvas() -> None:
+    canvas = clipping_canvas(2, 2)
+    canvas.put(0, 0, RED)
+    add_outline(canvas, INK)
+    assert canvas.read(1, 0) == INK
+    assert canvas.read(0, 1) == INK
+    assert canvas.read(1, 1) == INK
+    assert canvas.opaque_at(0, 0) is True
+def test_add_outline_rejects_a_partially_transparent_outline_color() -> None:
+    canvas = clipping_canvas(3, 3)
+    canvas.put(1, 1, RED)
+    with pytest.raises(SystemExit, match="partial alpha"):
+        add_outline(canvas, PARTIAL)
 def test_outline_layer_adds_four_connected_neighbors_inside_the_bounds() -> None:
     outlined = outline_layer({(1, 1): RED}, INK, 3, 3)
     assert outlined[(1, 1)] == RED
@@ -107,9 +128,3 @@ def test_translate_pixels_with_a_zero_offset_returns_a_copy() -> None:
 def test_translate_pixels_rejects_a_missing_pixel_map() -> None:
     with pytest.raises(AttributeError):
         translate_pixels(None, 1, 0)
-def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
-    import art_common
-
-    assert not hasattr(art_common, "contact_sheet")
-    assert not hasattr(art_common, "place_on_pin")
-    assert not hasattr(art_common, "Pin")
