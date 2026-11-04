@@ -75,50 +75,13 @@ def add_outline(canvas: Canvas, color: Color) -> None:
         canvas.put(x, y, color)
 
 
-def add_cast_rim(canvas: Canvas, color: Color) -> None:
-    width = canvas.width
-    height = canvas.height
-    rim: list[Point] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for column_step, row_step in ((1, 0), (0, 1), (1, 1)):
-                neighbor_x = x + column_step
-                neighbor_y = y + row_step
-                if (
-                    not (0 <= neighbor_x < width and 0 <= neighbor_y < height)
-                    or canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
-                ):
-                    rim.append((x, y))
-                    break
-    for x, y in rim:
-        canvas.put(x, y, color)
-
-
-def light_contour(canvas: Canvas, outline: Color, lit: Color) -> None:
-    caught: list[Point] = []
-    for y in range(canvas.height):
-        for x in range(canvas.width):
-            if canvas.read(x, y) != outline:
-                continue
-            above_empty = canvas.read(x, y - 1) is None
-            left_empty = canvas.read(x - 1, y) is None
-            below_empty = canvas.read(x, y + 1) is None
-            if above_empty or (left_empty and not below_empty):
-                caught.append((x, y))
-    for x, y in caught:
-        canvas.put(x, y, lit)
-
-
 def outline_layer(layer: dict[Point, Color], color: Color, width: int, height: int) -> dict[Point, Color]:
     outlined = dict(layer)
     for x, y in layer:
         for column_step, row_step in NEIGHBORS_4:
-            neighbour = (x + column_step, y + row_step)
-            if neighbour not in layer and 0 <= neighbour[0] < width and 0 <= neighbour[1] < height:
-                outlined[neighbour] = color
+            neighbor = (x + column_step, y + row_step)
+            if neighbor not in layer and 0 <= neighbor[0] < width and 0 <= neighbor[1] < height:
+                outlined[neighbor] = color
     return outlined
 
 

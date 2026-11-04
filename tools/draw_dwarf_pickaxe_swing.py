@@ -63,9 +63,9 @@ def outline_around(layer):
     outlined = dict(layer)
     for (x, y) in layer:
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            neighbour = (x + dx, y + dy)
-            if neighbour not in layer and 0 <= neighbour[0] < CANVAS_W and 0 <= neighbour[1] < CANVAS_H:
-                outlined[neighbour] = OUTLINE
+            neighbor = (x + dx, y + dy)
+            if neighbor not in layer and 0 <= neighbor[0] < CANVAS_W and 0 <= neighbor[1] < CANVAS_H:
+                outlined[neighbor] = OUTLINE
     return outlined
 
 
