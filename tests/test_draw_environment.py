@@ -28,6 +28,7 @@ CUTOUT_PIECE_REPORT = (
 )
 RED = (200, 0, 0, 255)
 BLUE = (0, 0, 200, 255)
+INK = (0, 0, 0, 255)
 PARTIAL = (1, 2, 3, 128)
 
 
@@ -83,6 +84,226 @@ def test_draw_wall_rejects_a_gray_value_that_is_not_a_color(monkeypatch: pytest.
         environment.draw_wall()
 
 
+def test_draw_floor_paints_the_locked_floor_canvas() -> None:
+    canvas = environment.draw_floor()
+    assert (canvas.width, canvas.height) == (128, 32)
+    assert _digest(canvas.pixels) == "38a5ba5af0b8dcf89744390e441723b703047988a56139916f1ca9fb0f659815"
+
+
+def test_draw_floor_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_floor().read(0, 0) == (214, 164, 70, 255)
+
+
+def test_draw_floor_rejects_a_brown_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "BROWN", 5)
+    with pytest.raises(TypeError):
+        environment.draw_floor()
+
+
+def test_draw_ground_fill_paints_the_locked_ground_fill_canvas() -> None:
+    canvas = environment.draw_ground_fill()
+    assert (canvas.width, canvas.height) == (128, 128)
+    assert _digest(canvas.pixels) == "5ffaca6fb8d0286f8ce22b855d6fbc7e4c39c6d89047a312fe80d1d080efe571"
+
+
+def test_draw_ground_fill_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_ground_fill().read(0, 0) == (16, 14, 20, 255)
+
+
+def test_draw_ground_fill_rejects_a_purple_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "PURPLE_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_ground_fill()
+
+
+def test_draw_ceiling_beam_paints_the_locked_ceiling_beam_canvas() -> None:
+    canvas = environment.draw_ceiling_beam()
+    assert (canvas.width, canvas.height) == (128, 32)
+    assert _digest(canvas.pixels) == "258454173e005ad5d90158b8ea3722e03b9004af8dafe97f0e881542223671f6"
+
+
+def test_draw_ceiling_beam_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_ceiling_beam().read(0, 0) == (50, 48, 58, 255)
+
+
+def test_draw_ceiling_beam_rejects_a_iron_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "IRON", 5)
+    with pytest.raises(TypeError):
+        environment.draw_ceiling_beam()
+
+
+def test_draw_platform_paints_the_locked_platform_canvas() -> None:
+    canvas = environment.draw_platform()
+    assert (canvas.width, canvas.height) == (128, 32)
+    assert _digest(canvas.pixels) == "77af776cfb64be50b9d2735f916f45e594fea6b1c89e4ed6079a784855dc89c1"
+
+
+def test_draw_platform_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_platform().read(0, 0) == (230, 170, 255, 255)
+
+
+def test_draw_platform_rejects_a_iron_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "IRON_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_platform()
+
+
+def test_draw_pit_paints_the_locked_pit_canvas() -> None:
+    canvas = environment.draw_pit()
+    assert (canvas.width, canvas.height) == (128, 128)
+    assert _digest(canvas.pixels) == "5d7b769bffa2b77ff790fef64a7d1a9afb472b110c283144651abfaa9a86dda4"
+
+
+def test_draw_pit_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_pit().read(0, 0) == (2, 0, 8, 255)
+
+
+def test_draw_pit_rejects_a_void_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "VOID", 5)
+    with pytest.raises(TypeError):
+        environment.draw_pit()
+
+
+def test_draw_ladder_paints_the_locked_ladder_canvas() -> None:
+    canvas = environment.draw_ladder()
+    assert (canvas.width, canvas.height) == (64, 256)
+    assert _digest(canvas.pixels) == "5de2d5267d5be02c235dff5afb32baaf830c40344e0f44b3b6101d7d497f7b43"
+
+
+def test_draw_ladder_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_ladder().read(0, 0) is None
+
+
+def test_draw_ladder_rejects_a_iron_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "IRON_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_ladder()
+
+
+def test_draw_stake_paints_the_locked_stake_canvas() -> None:
+    canvas = environment.draw_stake()
+    assert (canvas.width, canvas.height) == (24, 112)
+    assert _digest(canvas.pixels) == "942c14b4862bddeae0e1871995757436e1e6b5193d05f3b154e0550d60fd58ff"
+
+
+def test_draw_stake_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_stake().read(0, 0) is None
+
+
+def test_draw_stake_rejects_a_brass_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "BRASS_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_stake()
+
+
+def test_draw_lip_paints_the_locked_lip_canvas() -> None:
+    canvas = environment.draw_lip()
+    assert (canvas.width, canvas.height) == (24, 96)
+    assert _digest(canvas.pixels) == "00c04ef76b480b3674f0ac436c1c8575625ec0325bf3b1e1e19a0a81bbb8e05b"
+
+
+def test_draw_lip_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_lip().read(0, 0) == (214, 164, 70, 255)
+
+
+def test_draw_lip_rejects_a_brass_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "BRASS_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_lip()
+
+
+def test_draw_pillar_paints_the_locked_pillar_canvas() -> None:
+    canvas = environment.draw_pillar()
+    assert (canvas.width, canvas.height) == (64, 512)
+    assert _digest(canvas.pixels) == "3cd652fca2c3ccebec9791d5c50ca36e18d506738068f7ccbfdf2497561cdd1a"
+
+
+def test_draw_pillar_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_pillar().read(0, 0) == (48, 46, 56, 255)
+
+
+def test_draw_pillar_rejects_a_gray_dark_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "GRAY_DARK", 5)
+    with pytest.raises(TypeError):
+        environment.draw_pillar()
+
+
+def test_draw_torch_paints_the_locked_torch_canvas() -> None:
+    canvas = environment.draw_torch()
+    assert (canvas.width, canvas.height) == (32, 64)
+    assert _digest(canvas.pixels) == "a09fdee93972c6f1117599f7b850737e3250d4f8863d82725ddb3277fb44f82b"
+
+
+def test_draw_torch_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_torch().read(0, 0) is None
+
+
+def test_draw_torch_rejects_a_iron_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "IRON", 5)
+    with pytest.raises(TypeError):
+        environment.draw_torch()
+
+
+def test_draw_chain_paints_the_locked_chain_canvas() -> None:
+    canvas = environment.draw_chain()
+    assert (canvas.width, canvas.height) == (16, 160)
+    assert _digest(canvas.pixels) == "d499182935e370dde0b8bf651f2cb743977eb2ea75d5ce82fd74a5c877f7a359"
+
+
+def test_draw_chain_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_chain().read(0, 0) is None
+
+
+def test_draw_chain_rejects_a_brass_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "BRASS", 5)
+    with pytest.raises(TypeError):
+        environment.draw_chain()
+
+
+def test_draw_ground_slam_paints_the_locked_ground_slam_canvas() -> None:
+    canvas = environment.draw_ground_slam()
+    assert (canvas.width, canvas.height) == (96, 24)
+    assert _digest(canvas.pixels) == "6906edf663352dead57c29636b258d90cacef958f0021525fed1a2e28ed19227"
+
+
+def test_draw_ground_slam_keeps_the_locked_corner_pixel() -> None:
+    assert environment.draw_ground_slam().read(0, 0) is None
+
+
+def test_draw_ground_slam_rejects_a_orange_value_that_is_not_a_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(environment, "ORANGE", 5)
+    with pytest.raises(TypeError):
+        environment.draw_ground_slam()
+
+
+def test_speck_returns_the_dark_speck_on_the_origin() -> None:
+    assert environment.speck(0, 0) == -18
+
+
+def test_speck_returns_no_speck_when_the_cell_hash_misses() -> None:
+    assert environment.speck(1, 0) == 0
+    assert environment.speck(8, 8) == 0
+
+
+def test_speck_rejects_a_column_that_is_not_a_number() -> None:
+    with pytest.raises(TypeError):
+        environment.speck("column", 0)
+
+
+def test_hash2_returns_zero_at_the_origin() -> None:
+    assert environment.hash2(0, 0) == 0
+
+
+def test_hash2_changes_when_the_salt_changes_and_stays_in_a_byte() -> None:
+    assert environment.hash2(0, 0, 3) == 124
+    assert environment.hash2(400, 12, 1) == 201
+
+
+def test_hash2_rejects_a_missing_column() -> None:
+    with pytest.raises(TypeError):
+        environment.hash2(None, 0)
+
+
 def test_bevel_block_paints_a_six_by_six_block() -> None:
     canvas = clipping_canvas(6, 6)
     environment.bevel_block(canvas, 0, 0, 6, 6, environment.GRAY)
@@ -130,6 +351,23 @@ def test_bevel_wrapped_block_with_an_empty_range_leaves_the_fill() -> None:
 def test_bevel_wrapped_block_rejects_a_base_that_is_not_a_color() -> None:
     with pytest.raises(TypeError):
         environment.bevel_wrapped_block(clipping_canvas(2, 2), 0, 0, 1, 1, 5)
+
+
+def test_crack_paints_glow_on_every_third_step() -> None:
+    canvas = clipping_canvas(8, 8)
+    environment.crack(canvas, ((0, 0), (4, 0)), INK, RED)
+    assert [canvas.read(x, 0) for x in range(5)] == [(200, 0, 0, 255), (0, 0, 0, 255), (0, 0, 0, 255), (200, 0, 0, 255), (0, 0, 0, 255)]
+
+
+def test_crack_with_one_point_paints_nothing() -> None:
+    canvas = clipping_canvas(2, 2, BLUE)
+    environment.crack(canvas, ((0, 0),), INK, RED)
+    assert canvas.pixels == [BLUE, BLUE, BLUE, BLUE]
+
+
+def test_crack_rejects_points_that_are_missing() -> None:
+    with pytest.raises(TypeError):
+        environment.crack(clipping_canvas(2, 2), None, INK, RED)
 
 
 def test_clipping_canvas_ignores_a_pixel_drawn_outside_the_icon() -> None:
@@ -485,3 +723,4 @@ def test_alpha_values_rejects_the_wrong_size(tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as raised:
         environment.alpha_values(path, 2, 2)
     assert str(raised.value) == f"{path} is (1, 1), expected (2, 2)"
+
