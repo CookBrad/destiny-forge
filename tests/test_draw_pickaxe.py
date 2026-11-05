@@ -19,10 +19,6 @@ def _image_digest(image: Image.Image) -> str:
     return hashlib.sha256(image.tobytes()).hexdigest()
 
 
-def _file_digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def test_outline_around_adds_a_four_connected_outline():
     assert pickaxe.outline_around({(1, 1): pickaxe.WOOD}) == {(1, 1): (119, 92, 85, 255), (2, 1): (34, 34, 34, 255), (0, 1): (34, 34, 34, 255), (1, 2): (34, 34, 34, 255), (1, 0): (34, 34, 34, 255)}
 
@@ -60,8 +56,8 @@ def test_pickaxe_main_writes_four_swing_frames_with_the_locked_hashes(tmp_path, 
     monkeypatch.setattr(pickaxe, "FOLDER", folder)
     monkeypatch.setattr(pickaxe, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png")
     pickaxe.main()
-    expected = ['055abb6f1019c5a37ede4062234803ff313be600ec0f18610f3a220e0abc9940', '1b8a76f996c7e38ec06c4617654988f89271aed75659132b34a833d73508ee0e', 'f96d6738fc8766dd3547aa46339ac9c27dcaf4bdb26824a3e6985f80cd130735', '90e0ab0cc0fc6e49c4b519e3697cd15b77513cc04284edb8b942b41014ec1e32']
-    assert [_file_digest(folder / f"dwarf_m_pickaxe_swing_f{index}.png") for index in range(4)] == expected
+    expected = ['d0287d0d44fa92c322cbb8109149d5855a57024c45bf5e3e3fa23d2d70716247', '8a59363f6f64d17653788246b8367368f15dc9e87a5120db6c06a91aa256ca72', 'cd2c29cf2401cf8a2edfc009c8b0bcdb16ca74cb681357344486adaea2be1aa3', '3db929891a7031e9a3e417c07cf2a40fe9c190a5a358500ee16c9b02350e0e9c']
+    assert [_image_digest(Image.open(folder / f"dwarf_m_pickaxe_swing_f{index}.png")) for index in range(4)] == expected
 
 
 def test_pickaxe_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
