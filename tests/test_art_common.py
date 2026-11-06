@@ -379,3 +379,64 @@ def test_palette_from_colors_rejects_an_unknown_field() -> None:
     colors["leather_rim"] = colors["ink"]
     with pytest.raises(TypeError):
         palette_from_colors(colors)
+def test_signed_hunter_colors_names_the_mid_tones() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    assert colors["leather_mid"] == (63, 35, 23, 255)
+    assert colors["skin_mid"] == (187, 119, 69, 255)
+    assert colors["brass_mid"] == (167, 108, 29, 255)
+    assert colors["bone_mid"] == (174, 172, 175, 255)
+    assert colors["bone_above_mid"] == (179, 178, 182, 255)
+def test_signed_hunter_colors_names_the_highlights() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    assert colors["leather_highlight"] == (107, 64, 33, 255)
+    assert colors["brass_highlight"] == (251, 214, 119, 255)
+    assert colors["gel_highlight"] == (0, 251, 250, 255)
+def test_signed_hunter_colors_omits_the_short_mid_suffix() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    assert "leather_md" not in colors
+    assert "skin_md" not in colors
+    assert "brass_md" not in colors
+    assert "bone_md" not in colors
+def test_signed_hunter_colors_omits_the_short_highlight_suffix() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    assert "leather_hi" not in colors
+    assert "brass_hi" not in colors
+    assert "gel_hi" not in colors
+def test_palette_names_the_mid_tones() -> None:
+    palette = hunter_palette(_signed_colors())
+    assert palette.leather_mid == (63, 35, 23, 255)
+    assert palette.skin_mid == (187, 119, 69, 255)
+    assert palette.brass_mid == (167, 108, 29, 255)
+    assert palette.bone_mid == (174, 172, 175, 255)
+    assert palette.bone_above_mid == (179, 178, 182, 255)
+def test_palette_names_the_highlights() -> None:
+    palette = hunter_palette(_signed_colors())
+    assert palette.leather_highlight == (107, 64, 33, 255)
+    assert palette.brass_highlight == (251, 214, 119, 255)
+    assert palette.gel_highlight == (0, 251, 250, 255)
+def test_signed_hunter_ramps_place_the_leather_mid_tone() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    leather = signed_hunter_ramps(colors)["leather_ramp"]
+    assert leather[4] == colors["leather_mid"]
+    assert leather[-1] == colors["leather_highlight"]
+def test_signed_hunter_ramps_place_the_brass_mid_tone() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    brass = signed_hunter_ramps(colors)["brass_ramp"]
+    assert brass[1] == colors["brass_mid"]
+    assert brass[-1] == colors["brass_highlight"]
+def test_signed_hunter_ramps_place_the_bone_mid_tone() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    ramps = signed_hunter_ramps(colors)
+    assert ramps["bone_ramp"][3] == colors["bone_mid"]
+    assert ramps["bone_ramp"][4] == colors["bone_above_mid"]
+    assert ramps["bone_form"][3] == colors["bone_mid"]
+    assert ramps["bone_form"][4] == colors["bone_above_mid"]
+    assert ramps["dead_ramp"][-1] == colors["bone_mid"]
+def test_signed_hunter_ramps_place_the_skin_mid_tone() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    skin = signed_hunter_ramps(colors)["skin_ramp"]
+    assert skin[1] == colors["skin_mid"]
+def test_signed_hunter_ramps_end_on_the_gel_highlight() -> None:
+    colors = signed_hunter_colors(_signed_colors())
+    gel = signed_hunter_ramps(colors)["gel_ramp"]
+    assert gel[-1] == colors["gel_highlight"]
