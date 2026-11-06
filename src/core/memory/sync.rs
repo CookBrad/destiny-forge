@@ -62,13 +62,12 @@ pub fn capture_profile_from_runtime(
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    // Day phase/calendar are written to profile on phase advance + sleep (not every timer tick).
-    if !audio.is_changed()
-        && !bindings.is_changed()
-        && !inventory.is_changed()
-        && !loadout.is_changed()
-        && !progress.is_changed()
-        && !tool_energy.is_changed()
+    if !changed_after_hydration(&audio)
+        && !changed_after_hydration(&bindings)
+        && !changed_after_hydration(&inventory)
+        && !changed_after_hydration(&loadout)
+        && !changed_after_hydration(&progress)
+        && !changed_after_hydration(&tool_energy)
     {
         return;
     }
@@ -84,6 +83,10 @@ pub fn capture_profile_from_runtime(
         &mut profile,
     );
     dirty.mark();
+}
+
+fn changed_after_hydration<T: Resource>(resource: &Res<T>) -> bool {
+    resource.is_changed() && !resource.is_added()
 }
 
 pub fn snapshot_profile(
@@ -213,5 +216,47 @@ mod tests {
 
         assert_eq!(day_clock.calendar_day, 200);
         assert_eq!(season, Season::Winter);
+    }
+
+    #[test]
+    fn a_resource_inserted_before_the_first_run_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_changed_after_the_first_run_is_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_added_then_changed_in_the_same_tick_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[derive(Resource, Default)]
+    struct WatchedValue(u32);
+
+    #[derive(Resource, Default)]
+    struct SeenChange(bool);
+
+    fn app_recording_hydration_changes() -> App {
+        let mut app = App::new();
+        app.init_resource::<WatchedValue>()
+            .init_resource::<SeenChange>()
+            .add_systems(Update, record_hydration_change);
+        app
+    }
+
+    fn record_hydration_change(watched: Res<WatchedValue>, mut seen: ResMut<SeenChange>) {
+        seen.0 = changed_after_hydration(&watched);
     }
 }

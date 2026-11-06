@@ -56,11 +56,11 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
 def add_outline(canvas: Canvas, color: Color) -> None:
     width = canvas.width
     height = canvas.height
-    extra: list[Point] = []
+    outline_points: list[Point] = []
     for y in range(height):
-        row = y * width
+        row_start = y * width
         for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
+            if canvas.pixels[row_start + x][3] == 0:
                 continue
             for column_step, row_step in NEIGHBORS_8:
                 neighbor_x = x + column_step
@@ -70,55 +70,18 @@ def add_outline(canvas: Canvas, color: Color) -> None:
                     and 0 <= neighbor_y < height
                     and canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
                 ):
-                    extra.append((neighbor_x, neighbor_y))
-    for x, y in extra:
+                    outline_points.append((neighbor_x, neighbor_y))
+    for x, y in outline_points:
         canvas.put(x, y, color)
-
-
-def add_cast_rim(canvas: Canvas, color: Color) -> None:
-    width = canvas.width
-    height = canvas.height
-    rim: list[Point] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for column_step, row_step in ((1, 0), (0, 1), (1, 1)):
-                neighbor_x = x + column_step
-                neighbor_y = y + row_step
-                if (
-                    not (0 <= neighbor_x < width and 0 <= neighbor_y < height)
-                    or canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
-                ):
-                    rim.append((x, y))
-                    break
-    for x, y in rim:
-        canvas.put(x, y, color)
-
-
-def light_contour(canvas: Canvas, outline: Color, lit: Color) -> None:
-    caught: list[Point] = []
-    for y in range(canvas.height):
-        for x in range(canvas.width):
-            if canvas.read(x, y) != outline:
-                continue
-            above_empty = canvas.read(x, y - 1) is None
-            left_empty = canvas.read(x - 1, y) is None
-            below_empty = canvas.read(x, y + 1) is None
-            if above_empty or (left_empty and not below_empty):
-                caught.append((x, y))
-    for x, y in caught:
-        canvas.put(x, y, lit)
 
 
 def outline_layer(layer: dict[Point, Color], color: Color, width: int, height: int) -> dict[Point, Color]:
     outlined = dict(layer)
     for x, y in layer:
         for column_step, row_step in NEIGHBORS_4:
-            neighbour = (x + column_step, y + row_step)
-            if neighbour not in layer and 0 <= neighbour[0] < width and 0 <= neighbour[1] < height:
-                outlined[neighbour] = color
+            neighbor = (x + column_step, y + row_step)
+            if neighbor not in layer and 0 <= neighbor[0] < width and 0 <= neighbor[1] < height:
+                outlined[neighbor] = color
     return outlined
 
 
@@ -147,12 +110,7 @@ def rejecting_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
 
 
 class Canvas:
-    def __init__(
-        self,
-        width: int,
-        height: int,
-        fill: Color = CLEAR,
-    ) -> None:
+    def __init__(self, width: int, height: int, fill: Color = CLEAR) -> None:
         self.width = width
         self.height = height
         self.pixels = [fill] * (width * height)
@@ -222,6 +180,8 @@ class _Row:
             self._canvas.put(x, self._y, CLEAR)
             return
         self._canvas.put(x, self._y, color)
+
+
 def hunter_palette(allowed: set[Color]) -> Palette:
     colors: dict[str, Color | tuple[Color, ...]] = {}
     colors.update(signed_hunter_colors(allowed))
@@ -240,24 +200,24 @@ def signed_hunter_colors(allowed: set[Color]) -> dict[str, Color]:
         "leather_deep": take(43, 23, 15),
         "leather_soot": take(54, 30, 20),
         "leather_dark": take(55, 31, 21),
-        "leather_md": take(63, 35, 23),
+        "leather_mid": take(63, 35, 23),
         "leather_above_mid": take(67, 38, 25),
         "leather": take(74, 41, 26),
         "leather_fold": take(76, 43, 28),
         "leather_light": take(97, 55, 35),
         "leather_above_light": take(98, 56, 35),
-        "leather_hi": take(107, 64, 33),
+        "leather_highlight": take(107, 64, 33),
         "skin_dark": take(149, 92, 47),
-        "skin_md": take(187, 119, 69),
+        "skin_mid": take(187, 119, 69),
         "skin": take(222, 152, 98),
         "skin_warm": take(217, 150, 99),
         "skin_light": take(252, 187, 127),
         "brass_shadow": take(161, 103, 26),
-        "brass_md": take(167, 108, 29),
+        "brass_mid": take(167, 108, 29),
         "brass_dark": take(203, 141, 45),
         "brass": take(226, 166, 64),
         "brass_light": take(244, 172, 13),
-        "brass_hi": take(251, 214, 119),
+        "brass_highlight": take(251, 214, 119),
         "gel_shadow": take(3, 40, 43),
         "gel_deep": take(0, 64, 69),
         "gel_well": take(0, 76, 81),
@@ -273,7 +233,7 @@ def signed_hunter_colors(allowed: set[Color]) -> dict[str, Color]:
         "gel_core": take(0, 210, 211),
         "gel_light": take(0, 213, 215),
         "gel_bright": take(0, 229, 227),
-        "gel_hi": take(0, 251, 250),
+        "gel_highlight": take(0, 251, 250),
         "gel_hot": take(166, 253, 254),
         "sage_shadow": take(7, 35, 33),
         "sage_mid": take(28, 103, 99),
@@ -294,8 +254,8 @@ def signed_hunter_colors(allowed: set[Color]) -> dict[str, Color]:
         "bone_shadow": take(126, 126, 116),
         "bone_dust": take(148, 154, 143),
         "bone_dark": take(150, 149, 144),
-        "bone_md": take(174, 172, 175),
-        "bone_mid": take(179, 178, 182),
+        "bone_mid": take(174, 172, 175),
+        "bone_above_mid": take(179, 178, 182),
         "bone": take(245, 244, 243),
         "bone_light": take(255, 255, 255),
         "dead_dark": take(52, 36, 31),
@@ -329,7 +289,7 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
         colors["gel_core"],
         colors["gel_light"],
         colors["gel_bright"],
-        colors["gel_hi"],
+        colors["gel_highlight"],
     )
     gel_under = gel_ramp[:8]
     gel_body = gel_ramp[4:13]
@@ -346,28 +306,28 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
         colors["leather_deep"],
         colors["leather_soot"],
         colors["leather_dark"],
-        colors["leather_md"],
+        colors["leather_mid"],
         colors["leather_above_mid"],
         colors["leather"],
         colors["leather_fold"],
         colors["leather_light"],
         colors["leather_above_light"],
-        colors["leather_hi"],
+        colors["leather_highlight"],
     )
     brass_ramp = (
         colors["brass_shadow"],
-        colors["brass_md"],
+        colors["brass_mid"],
         colors["brass_dark"],
         colors["brass"],
         colors["brass_light"],
-        colors["brass_hi"],
+        colors["brass_highlight"],
     )
     bone_ramp = (
         colors["bone_shadow"],
         colors["bone_dark"],
         colors["bone_dust"],
-        colors["bone_md"],
         colors["bone_mid"],
+        colors["bone_above_mid"],
         colors["bone"],
         colors["bone_light"],
     )
@@ -375,8 +335,8 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
         colors["bone_shadow"],
         colors["bone_dark"],
         colors["bone_dust"],
-        colors["bone_md"],
         colors["bone_mid"],
+        colors["bone_above_mid"],
     )
     steel_ramp = (
         colors["steel_deep"],
@@ -393,11 +353,11 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
         colors["steel_mid"],
         colors["bone_dust"],
         colors["steel_light"],
-        colors["bone_md"],
+        colors["bone_mid"],
     )
     skin_ramp = (
         colors["skin_dark"],
-        colors["skin_md"],
+        colors["skin_mid"],
         colors["skin_warm"],
         colors["skin"],
         colors["skin_light"],
@@ -432,6 +392,7 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
 def palette_from_colors(colors: dict[str, Color | tuple[Color, ...]]) -> Palette:
     return Palette(**colors)
 
+
 @dataclass(frozen=True)
 class Palette:
     ink: Color
@@ -440,24 +401,24 @@ class Palette:
     leather_deep: Color
     leather_soot: Color
     leather_dark: Color
-    leather_md: Color
+    leather_mid: Color
     leather_above_mid: Color
     leather: Color
     leather_fold: Color
     leather_light: Color
     leather_above_light: Color
-    leather_hi: Color
+    leather_highlight: Color
     skin_dark: Color
-    skin_md: Color
+    skin_mid: Color
     skin: Color
     skin_warm: Color
     skin_light: Color
     brass_shadow: Color
-    brass_md: Color
+    brass_mid: Color
     brass_dark: Color
     brass: Color
     brass_light: Color
-    brass_hi: Color
+    brass_highlight: Color
     gel_shadow: Color
     gel_deep: Color
     gel_well: Color
@@ -473,7 +434,7 @@ class Palette:
     gel_core: Color
     gel_light: Color
     gel_bright: Color
-    gel_hi: Color
+    gel_highlight: Color
     gel_hot: Color
     sage_shadow: Color
     sage_mid: Color
@@ -494,8 +455,8 @@ class Palette:
     bone_shadow: Color
     bone_dust: Color
     bone_dark: Color
-    bone_md: Color
     bone_mid: Color
+    bone_above_mid: Color
     bone: Color
     bone_light: Color
     dead_dark: Color
