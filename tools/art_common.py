@@ -318,3 +318,24 @@ class Palette:
     skin_ramp: tuple[Color, ...]
     cloth_ramp: tuple[Color, ...]
 
+
+def load_pinned_colors(folder: Path, digests: dict[str, str]) -> set[Color]:
+    allowed: set[Color] = set()
+    for name, digest in digests.items():
+        path = folder / name
+        require_sha256(path, digest)
+        image = Image.open(path).convert("RGBA")
+        for red, green, blue, alpha in image.getdata():
+            if alpha == 0:
+                continue
+            if alpha != 255:
+                raise SystemExit(f"partial alpha in {name}")
+            allowed.add((red, green, blue, 255))
+    return allowed
+
+
+def require_sha256(path: Path, digest: str) -> None:
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != digest:
+        raise SystemExit(f"{path.name} hash {actual} != pinned source")
+
