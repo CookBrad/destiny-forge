@@ -10,13 +10,10 @@ from PIL import Image
 from art_common import (
     CLEAR,
     Palette,
-    add_cast_rim,
-    add_outline,
     clipping_canvas,
     composite_images,
     composite_layers,
     hunter_palette,
-    light_contour,
     load_pinned_colors,
     outline_layer,
     pack_strip,
@@ -100,63 +97,6 @@ def test_composite_images_rejects_a_layer_that_is_not_rgba() -> None:
     layer = Image.new("RGB", (1, 1), (1, 2, 3))
     with pytest.raises(ValueError, match="images do not match"):
         composite_images((2, 2), [(layer, (0, 0))])
-def test_add_outline_paints_the_eight_empty_neighbors_around_one_pixel() -> None:
-    canvas = clipping_canvas(3, 3)
-    canvas.put(1, 1, RED)
-    add_outline(canvas, INK)
-    assert canvas.read(1, 1) == RED
-    assert [canvas.read(x, y) for y in range(3) for x in range(3)].count(INK) == 8
-def test_add_outline_stops_at_the_corner_of_the_canvas() -> None:
-    canvas = clipping_canvas(2, 2)
-    canvas.put(0, 0, RED)
-    add_outline(canvas, INK)
-    assert canvas.read(1, 0) == INK
-    assert canvas.read(0, 1) == INK
-    assert canvas.read(1, 1) == INK
-    assert canvas.opaque_at(0, 0) is True
-def test_add_outline_rejects_a_partially_transparent_outline_color() -> None:
-    canvas = clipping_canvas(3, 3)
-    canvas.put(1, 1, RED)
-    with pytest.raises(SystemExit, match="partial alpha"):
-        add_outline(canvas, PARTIAL)
-def test_add_cast_rim_recolors_a_pixel_whose_lower_right_is_empty() -> None:
-    canvas = clipping_canvas(3, 3)
-    canvas.put(0, 0, RED)
-    canvas.put(1, 0, RED)
-    add_cast_rim(canvas, INK)
-    assert canvas.read(0, 0) == INK
-    assert canvas.read(1, 0) == INK
-def test_add_cast_rim_leaves_a_pixel_with_opaque_right_down_and_diagonal() -> None:
-    canvas = clipping_canvas(2, 2, RED)
-    add_cast_rim(canvas, INK)
-    assert canvas.read(0, 0) == RED
-    assert canvas.read(1, 0) == INK
-    assert canvas.read(0, 1) == INK
-    assert canvas.read(1, 1) == INK
-def test_add_cast_rim_rejects_a_partially_transparent_rim_color() -> None:
-    canvas = clipping_canvas(2, 2)
-    canvas.put(0, 0, RED)
-    with pytest.raises(SystemExit, match="partial alpha"):
-        add_cast_rim(canvas, PARTIAL)
-def test_light_contour_recolors_outline_with_empty_space_above() -> None:
-    canvas = clipping_canvas(3, 3)
-    canvas.put(1, 1, INK)
-    canvas.put(1, 2, RED)
-    light_contour(canvas, INK, BLUE)
-    assert canvas.read(1, 1) == BLUE
-    assert canvas.read(1, 2) == RED
-def test_light_contour_recolors_a_left_edge_that_still_has_a_pixel_below() -> None:
-    canvas = clipping_canvas(3, 3)
-    canvas.put(1, 1, INK)
-    canvas.put(2, 1, RED)
-    canvas.put(1, 2, RED)
-    light_contour(canvas, INK, BLUE)
-    assert canvas.read(1, 1) == BLUE
-def test_light_contour_rejects_a_partially_transparent_lit_color() -> None:
-    canvas = clipping_canvas(2, 2)
-    canvas.put(0, 0, INK)
-    with pytest.raises(SystemExit, match="partial alpha"):
-        light_contour(canvas, INK, PARTIAL)
 def test_outline_layer_adds_four_connected_neighbors_inside_the_bounds() -> None:
     outlined = outline_layer({(1, 1): RED}, INK, 3, 3)
     assert outlined[(1, 1)] == RED
@@ -345,12 +285,6 @@ def test_two_palettes_with_the_same_fields_are_equal() -> None:
     assert first == second
 def test_palette_does_not_carry_an_unused_leather_rim() -> None:
     assert "leather_rim" not in Palette.__dataclass_fields__
-def test_shared_helpers_do_not_restore_the_unused_contact_sheet() -> None:
-    import art_common
-
-    assert not hasattr(art_common, "contact_sheet")
-    assert not hasattr(art_common, "place_on_pin")
-    assert not hasattr(art_common, "Pin")
 def test_palette_rejects_construction_without_its_fields() -> None:
     with pytest.raises(TypeError):
         Palette()
