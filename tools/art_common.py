@@ -56,11 +56,11 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
 def add_outline(canvas: Canvas, color: Color) -> None:
     width = canvas.width
     height = canvas.height
-    extra: list[Point] = []
+    outline_points: list[Point] = []
     for y in range(height):
-        row = y * width
+        row_start = y * width
         for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
+            if canvas.pixels[row_start + x][3] == 0:
                 continue
             for column_step, row_step in NEIGHBORS_8:
                 neighbor_x = x + column_step
@@ -70,55 +70,18 @@ def add_outline(canvas: Canvas, color: Color) -> None:
                     and 0 <= neighbor_y < height
                     and canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
                 ):
-                    extra.append((neighbor_x, neighbor_y))
-    for x, y in extra:
+                    outline_points.append((neighbor_x, neighbor_y))
+    for x, y in outline_points:
         canvas.put(x, y, color)
-
-
-def add_cast_rim(canvas: Canvas, color: Color) -> None:
-    width = canvas.width
-    height = canvas.height
-    rim: list[Point] = []
-    for y in range(height):
-        row = y * width
-        for x in range(width):
-            if canvas.pixels[row + x][3] == 0:
-                continue
-            for column_step, row_step in ((1, 0), (0, 1), (1, 1)):
-                neighbor_x = x + column_step
-                neighbor_y = y + row_step
-                if (
-                    not (0 <= neighbor_x < width and 0 <= neighbor_y < height)
-                    or canvas.pixels[neighbor_y * width + neighbor_x][3] == 0
-                ):
-                    rim.append((x, y))
-                    break
-    for x, y in rim:
-        canvas.put(x, y, color)
-
-
-def light_contour(canvas: Canvas, outline: Color, lit: Color) -> None:
-    caught: list[Point] = []
-    for y in range(canvas.height):
-        for x in range(canvas.width):
-            if canvas.read(x, y) != outline:
-                continue
-            above_empty = canvas.read(x, y - 1) is None
-            left_empty = canvas.read(x - 1, y) is None
-            below_empty = canvas.read(x, y + 1) is None
-            if above_empty or (left_empty and not below_empty):
-                caught.append((x, y))
-    for x, y in caught:
-        canvas.put(x, y, lit)
 
 
 def outline_layer(layer: dict[Point, Color], color: Color, width: int, height: int) -> dict[Point, Color]:
     outlined = dict(layer)
     for x, y in layer:
         for column_step, row_step in NEIGHBORS_4:
-            neighbour = (x + column_step, y + row_step)
-            if neighbour not in layer and 0 <= neighbour[0] < width and 0 <= neighbour[1] < height:
-                outlined[neighbour] = color
+            neighbor = (x + column_step, y + row_step)
+            if neighbor not in layer and 0 <= neighbor[0] < width and 0 <= neighbor[1] < height:
+                outlined[neighbor] = color
     return outlined
 
 
@@ -147,12 +110,7 @@ def rejecting_canvas(width: int, height: int, fill: Color = CLEAR) -> Canvas:
 
 
 class Canvas:
-    def __init__(
-        self,
-        width: int,
-        height: int,
-        fill: Color = CLEAR,
-    ) -> None:
+    def __init__(self, width: int, height: int, fill: Color = CLEAR) -> None:
         self.width = width
         self.height = height
         self.pixels = [fill] * (width * height)
@@ -222,6 +180,8 @@ class _Row:
             self._canvas.put(x, self._y, CLEAR)
             return
         self._canvas.put(x, self._y, color)
+
+
 def hunter_palette(allowed: set[Color]) -> Palette:
     colors: dict[str, Color | tuple[Color, ...]] = {}
     colors.update(signed_hunter_colors(allowed))
@@ -431,6 +391,7 @@ def signed_hunter_ramps(colors: dict[str, Color]) -> dict[str, tuple[Color, ...]
 
 def palette_from_colors(colors: dict[str, Color | tuple[Color, ...]]) -> Palette:
     return Palette(**colors)
+
 
 @dataclass(frozen=True)
 class Palette:
