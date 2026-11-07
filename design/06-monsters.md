@@ -1,6 +1,6 @@
 # 06 — Monsters (large + small, behaviors)
 
-Authority: GDD §4.5 (large magical creatures; tells, part breaks, status, traps; phases, elemental shifts, enrage), §4.2 (small monsters in the mine), §5 difficulty curve "Village monsters → Forest/Mine threats → Large territorial monsters → Elder-class threats", §6 (seasons affect creature behavior), §8 ("distinctive silhouettes, readable tells, satisfying part-break animations… blend organic and crystalline or elemental traits"), §10 (Must-have **8–12 unique large monsters**; "define 2 monster behavior sets" first).
+Standards: large magical creatures have readable tells, breakable parts, status effects, traps, phases, elemental shifts and enrage. Small monsters live in the mine. Difficulty climbs from village monsters to forest and mine threats, then large territorial monsters, then elder-class threats. Seasons change creature behavior. Monsters have distinctive silhouettes, readable tells and satisfying part-break animations, and blend organic with crystalline or elemental traits. Launch needs **8 to 12 unique large monsters**, starting with 2 monster behavior sets.
 
 Build priority: **6 of 16**. Combat rules are in 05. Mine monsters are listed in 01 §5.4/§8 and not repeated here.
 
@@ -21,7 +21,7 @@ See 05 §2 for the hunting grounds. Small monsters fill grounds and zones. Large
 `MonsterDef` (data `monsters.ron`): id, class (Small/Large/Elder), rank availability, HP by rank, size, speed, element, weaknesses (per hitzone × damage type × element), parts (id, hitbox, HP, breakable/severable, reward table), status thresholds, KO/exhaust, moves (per phase), phase thresholds, enrage rule, fatigue, capture threshold, tells, habitat/season/weather/time, drops (carve/break/capture/quest).
 Runtime: `Monster {def}`, `MonsterBrain` (state machine: Idle, Roam, Alert, Engage, Telegraph(move), Attack(move), Recover, Flinch, Topple, Stunned, Trapped, Sleeping, Fatigued, Enraged overlay, AreaChange, Limp, Nest, Dead, Captured), `MoveSet`, `Aggro`, `PartState`, `StatusBuildup` (05), `MonsterAnimator` (layered parts: base + broken overlays).
 
-**Two behavior archetypes first** (GDD §11): *Charger* (Bristleboar: rush/turn/charge, readable straight-line threats) and *Caster/Zoner* (Glowmoth Matriarch: ranged patterns, ground AoE, aerial). Every other monster combines these with one signature mechanic.
+**Two behavior archetypes first**: *Charger* (Bristleboar: rush/turn/charge, readable straight-line threats) and *Caster/Zoner* (Glowmoth Matriarch: ranged patterns, ground AoE, aerial). Every other monster combines these with one signature mechanic.
 
 ## 4. Large monster roster (12 + existing King Slime)
 
@@ -101,7 +101,7 @@ Moves: Lava Swim (0.8 dives into lava), Magma Spit (0.6 throat glow, 3 globs), T
 **L10 Prism Leviathan Ray** (HP Master 32,000). Glides between islets. Wind currents (env) let the player reach it.
 Moves: Prism Beam (1.0 fins align, refracted by crystal spires: beams bounce), Glide Bomb (0.8), Stinger Strike (0.6, severable), Refraction Field (P2, 1.3, beam grid).
 
-**L11 Aether Drake** (Elder, HP Master 45,000). Elemental shift every phase (P1 Fire → P2 Ice at 66% → P3 Thunder at 33%). Its weakness inverts each phase (GDD "elemental shifts"). Spark drop 30%.
+**L11 Aether Drake** (Elder, HP Master 45,000). Elemental shift every phase (P1 Fire → P2 Ice at 66% → P3 Thunder at 33%). Its weakness inverts each phase. Spark drop 30%.
 Moves per element: breath (1.0), claw combo (0.5), wing nova (1.4), element-specific signature (Fire meteor rain / Ice spike field / Thunder chain).
 
 **L12 Elder Destiny Wyrm** (finale; HP 60,000). 3 phases with arena changes (crater floor cracks → floating debris platforms → forge-light core). Guaranteed 3 Sparks on first clear.
@@ -224,7 +224,7 @@ Covered in 05. Monster difficulty curve: Village (L0–L1) → Forest/Mine (L2�
 
 ## 11. UI
 
-Field Guide entries (13): portrait, habitat, weaknesses (revealed after hunting 1× or a Mirela research quest), breakable parts (revealed per part when broken: this is the GDD's "fills in as you research or break parts"), drops by source (revealed when obtained), size records, kill/capture counts, tempered status. Quest cards show the monster portrait. The hunt HUD shows a monster name plate and an "enraged"/"limping" icon (drawn).
+Field Guide entries (13): portrait, habitat, weaknesses (revealed after hunting 1× or a Mirela research quest), breakable parts (revealed per part when broken: so the guide fills in as the player researches or breaks parts), drops by source (revealed when obtained), size records, kill/capture counts, tempered status. Quest cards show the monster portrait. The hunt HUD shows a monster name plate and an "enraged"/"limping" icon (drawn).
 
 ## 12. Audio
 
@@ -243,9 +243,9 @@ HP per rank, damage, move frequencies/weights per phase, telegraph durations (th
 | # | Question | Proposal |
 | --- | --- | --- |
 | Q1 | Fully hand-drawn frames vs modular rigs baked to PNG? | **Modular part rigs** (body/head/limbs/tail as layers) posed in the draw script and **baked to PNG frames**. They count as in-house frames and make broken-part overlays and Elder skins tractable. |
-| Q2 | Ship 8 or 12 large monsters at launch? | 8 at launch (L1–L8), with L9–L12 in a content update. That meets the GDD's 8–12. |
+| Q2 | Ship 8 or 12 large monsters at launch? | 8 at launch (L1–L8), with L9–L12 in a content update. That meets the 8–12 standard. |
 | Q3 | Small monsters in top-down zones? | Only homestead pests + mine monsters (01). Forest roamers stay in the side-scroll grounds. |
-| Q4 | Monster schedules (seasonal) | Each monster has a favored season with +spawn and a "rare" season with none: GDD "seasons affect creature behavior". |
+| Q4 | Monster schedules (seasonal) | Each monster has a favored season with +spawn and a "rare" season with none, because seasons change creature behavior. |
 | Q5 | Monster HP display | Hidden by default (05 Q5). |
 | Q6 | Reuse King Slime as High rank? | No new art (frozen). It stays a Low-rank tutorial monster. |
 

@@ -1,6 +1,6 @@
 # 10 — World & Zones (Hearthspire, forests, riverlands, crystal mines, highland ruins, floating islets, seasons/weather in the world)
 
-Authority: GDD §6 ("steampunk world where clockwork industry and living magic coexist… airships, steam engines… the player inherits a rundown steam-powered homestead and the keys to a dormant Destiny Forge… Hub: player's farm + brass-and-timber village of Hearthspire. Zones: misty forests with glowing flora, riverlands with clockwork dams, crystal-veined mines, highland ruins of old magitech cities, floating islets. Seasons affect crops and creature behavior; certain magic-infused materials only appear in specific weather or seasons"), §8 art direction.
+Standards: the world is steampunk, where clockwork industry and living magic coexist, with airships and steam engines. The player inherits a rundown steam-powered homestead and the keys to a dormant Destiny Forge. The hub is the player's farm and the brass-and-timber village of Hearthspire. Zones are misty forests with glowing flora, riverlands with clockwork dams, crystal-veined mines, highland ruins of old magitech cities, and floating islets. Seasons change crops and creature behavior, and some magic-infused materials appear only in specific weather or seasons. Art direction is in 15.
 
 Build priority: **10 of 16**. Calendar/weather *rules* are in 11. This doc covers the places, their art, transitions, and world objects.
 

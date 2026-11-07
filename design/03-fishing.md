@@ -1,6 +1,6 @@
 # 03 — Fishing
 
-Authority: GDD §4.3 ("mini-game fishing at multiple locations and times of day/season. Fish can be cooked, used as bait, or processed into oils, scales, and bones for gear. Legendary fish drop unique materials for endgame weapons or special forge recipes"), §3 (Prepare & Gather).
+Standards: fishing is a mini-game at multiple locations, times of day and seasons. Fish can be cooked, used as bait, or processed into oils, scales and bones for gear. Legendary fish drop unique materials for endgame weapons and special forge recipes. Fishing is part of the prepare-and-gather phase of the day.
 
 Build priority: **3 of 16**. Nothing exists yet (EPICS #27–30 open; landmark #63 "fishing dock" open).
 

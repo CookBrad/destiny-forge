@@ -1,6 +1,6 @@
 # 14 — Audio
 
-Authority: GDD §8 ("Audio: warm acoustic and light steampunk instrumentation for farm life; dynamic orchestral tracks with magical and mechanical accents during hunts. Satisfying weapon impacts, steam vents, and forge hammers").
+Standards: farm life uses warm acoustic music with light steampunk instruments. Hunts use dynamic orchestral tracks with magical and mechanical accents. Weapon impacts, steam vents and forge hammers sound satisfying.
 
 Build priority: **14 of 16**. Per-system cue lists are in each doc's Audio section. This doc owns the audio engine, mixing, the music system, asset standards, and the master cue registry.
 

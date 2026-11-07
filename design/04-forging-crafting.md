@@ -1,6 +1,6 @@
 # 04 — Forging & Crafting (The Destiny Forge)
 
-Authority: GDD §4.6 ("central progression system… natural materials and monster parts… ranks Low, High, Master… skills, slots for decorations/jewels, elemental/status properties determined by materials used… Destiny Binding: at higher forge levels spend rare Destiny Sparks to lock in or enhance specific skills… forge upgrades require village reputation and rare materials, unlocking better base stats, more skill slots, and unique recipes"), §1 (rare part → forge upgrade → better farm tools), §2 (social bonds grant unique weapon trees), §5 (power from gear, not levels), §10 (Must-have forging system; Nice-to-have decoration system).
+Standards: forging is the central progression system. Gear is built from natural materials and monster parts, in ranks Low, High and Master, with skills, decoration and jewel slots, and elemental or status properties set by the materials used. Destiny Binding, at higher forge levels, spends rare Destiny Sparks to lock in or enhance specific skills. Forge upgrades need village reputation and rare materials, and unlock better base stats, more skill slots and unique recipes. A rare part upgrades the forge, which unlocks better farm tools. Social bonds grant unique weapon trees. Power comes from gear, not levels. Forging is must-have; decorations are nice-to-have.
 
 Build priority: **4 of 16**.
 
@@ -44,7 +44,7 @@ Every forge/craft action plays new in-house dwarf frames: hammering, bellows, qu
 - `Decoration {skill, level, size}`.
 - `DestinySpark` currency (09) and a `Binding` record.
 
-### 3.1 Material roles (the GDD's "frames, cores, polish")
+### 3.1 Material roles (frames, cores, polish)
 
 | Role | Typical source | Determines |
 | --- | --- | --- |
@@ -244,7 +244,7 @@ hammer_strike ×3 (bright anvil), masterwork_ring, fumble_clank, bellows_whoosh,
 | Q1 | Keep `WeaponKind`/`ArmorKind` enums or data rows? | Move to data rows (`gear.ron`) with a stable string id. Migrate saves by mapping the 4 weapon + 4 armor enums. Existing tests keep their names. |
 | Q2 | What happens to Sword and Spear? | Sword becomes the **Sword & Shield** tree (Rusty→Iron→Slime Blade keep their names). Spear is kept as a legacy family until Lance post-launch, still forgeable, and is not expanded. |
 | Q3 | Add a 5th armor slot (Coil)? | Yes, Waist "Coil". This gives MH-style 5-piece sets and room for 2/4-piece bonuses. |
-| Q4 | Decorations are "nice-to-have" in the GDD. Ship at launch? | Ship slots + size-1 decorations at Forge L2 (small scope). Size 2/3 come later. |
+| Q4 | Decorations are nice-to-have. Ship at launch? | Ship slots + size-1 decorations at Forge L2 (small scope). Size 2/3 come later. |
 | Q5 | Forging minigame? | Optional 3-strike timing on the G1 strike frame, with no penalty and a small Masterwork bonus. Toggle in settings. Default ON, skippable. |
 | Q6 | Gold fee on crafting? | Yes, a modest gold sink (09). |
 | Q7 | Cooking at the forge (PR #96) → Kitchen? | Move it. Keep the forge recipe entries working until the Kitchen ticket lands, then migrate. |

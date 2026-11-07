@@ -1,6 +1,6 @@
 # 09 — Progression & Economy (gold, reputation, sparks, player level, difficulty curve, endgame)
 
-Authority: GDD §5 ("primarily horizontal and gear-based… modest level system that unlocks basic tools and stamina… true power from forged equipment… Currencies: Gold (selling crops/fish/parts), Reputation (village), Destiny Sparks (rare)… difficulty curve: Village monsters → Forest/Mine threats → Large territorial monsters → Elder-class threats… Endgame: infinite optional hunts, rare material farming, perfecting gear sets for matchups"), §4.6 (forge upgrades need reputation).
+Standards: progression is mainly horizontal and gear-based. A modest level system unlocks basic tools and stamina, and real power comes from forged equipment. Currencies are Gold (from selling crops, fish and parts), Reputation (with the village) and Destiny Sparks (rare). Difficulty climbs from village monsters to forest and mine threats, then large territorial monsters, then elder-class threats. The endgame is endless optional hunts, rare material farming and perfecting gear sets for matchups. Forge upgrades need reputation.
 
 Build priority: **9 of 16**.
 
@@ -32,7 +32,7 @@ Shipping Bin (homestead, sells overnight); General Store (Juniper: seeds, basic 
 
 ### 3.2 Player level (modest)
 
-Level 1–20 from total skill XP. Each level: +5 max tool energy (100 → 195), +3 max HP, +2 max stamina. Levels unlock basics only: L2 Axe charge, L3 Seed Maker/Steam Press recipes, L5 Kiln/Dehydrator, L6 Torch bundles, L8 Sprinkler blueprint discount, L10 Golden Scythe recipe, L15 Ore Satchel ×2. **No damage scaling from level** (GDD: power from gear). Per-skill XP shows "proficiency" (cosmetic stars + small perks: Farming → quality bonus +0.2%/lvl; Mining → +1% geode chance; Fishing → +2 px zone; Hunting → carve speed +1%; Forging → fee −1%).
+Level 1–20 from total skill XP. Each level: +5 max tool energy (100 → 195), +3 max HP, +2 max stamina. Levels unlock basics only: L2 Axe charge, L3 Seed Maker/Steam Press recipes, L5 Kiln/Dehydrator, L6 Torch bundles, L8 Sprinkler blueprint discount, L10 Golden Scythe recipe, L15 Ore Satchel ×2. **No damage scaling from level** (power comes from gear). Per-skill XP shows "proficiency" (cosmetic stars + small perks: Farming → quality bonus +0.2%/lvl; Mining → +1% geode chance; Fishing → +2 px zone; Hunting → carve speed +1%; Forging → fee −1%).
 
 XP sources: till 1, water 1, harvest by crop value, ore break by hardness ×2, fish caught by difficulty/10, monster hunt (small 5, large 100–500), forge craft by rarity ×10, animal product 5, quests.
 
@@ -142,7 +142,7 @@ coin_pickup, sell_ka-ching, buy_bell, ship_drop thunk, shipping summary tally ti
 | --- | --- | --- |
 | Q1 | The UI shows 3 coin colors (gold/silver/copper). Three currencies or denominations? | **One gold integer.** Do not split it into g/s/c denominations. Repurpose the 3 footer chips as **Gold / Reputation / Sparks**. |
 | Q2 | Can reputation be lost? | No (cozy). It only rises. |
-| Q3 | Player level scope | Small, as GDD says: energy/HP/stamina and recipe unlocks. No damage. |
+| Q3 | Player level scope | Small: energy/HP/stamina and recipe unlocks. No damage. |
 | Q4 | Selling monster parts | Allowed at 30% so players are not soft-locked, while forging stays better. |
 | Q5 | Multiple saves economy separation | Per profile (exists: profiles). |
 

@@ -1,6 +1,6 @@
 # 01 — Mining & Gathering
 
-Authority: Brad's GDD §4.2 ("multi-level mine and outdoor gathering nodes provide ores, gems, herbs, and fossils… structural backbone of weapons and armor (frames, cores, polish)… floors have increasing difficulty with small monsters and environmental hazards… rare nodes only appear after certain story progress or during specific seasons"), §4.6 (forge uses natural materials), §6 ("crystal-veined mines"). Engine: Rust + Bevy 0.15.
+Standards: a multi-level mine and outdoor gathering nodes provide ores, gems, herbs and fossils. Mined materials are the backbone of weapons and armor, supplying frames, cores and polish. Each mine floor is harder than the last, with small monsters and environmental hazards. Rare nodes appear only after story progress or in specific seasons. The forge uses these natural materials, and the mines are crystal-veined. Engine: Rust + Bevy 0.15.
 
 Build priority: **1 of 16**. Herbs and fossils are covered here as *gathering*; crop-side herbs live in 02-farming.
 
@@ -30,7 +30,7 @@ The mine is top-down and uses the dwarf homestead avatar, not the side-scroll kn
 
 ## 2. Where it happens
 
-1. **Hearthspire Crystal Mines** (GDD "crystal-veined mines"). Entered from the homestead entrance that already exists. 40 main floors in 4 strata, plus an endless Destiny Vault after the story finale (floor 41+).
+1. **Hearthspire Crystal Mines**. Entered from the homestead entrance that already exists. 40 main floors in 4 strata, plus an endless Destiny Vault after the story finale (floor 41+).
 
 | Stratum | Floors | Theme | Main ores | Gems | Monsters | Hazards |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -282,7 +282,7 @@ Stack: 99 unless noted (`MAX_STACK` exists). Prices are the **sell** value (ship
 2. **Smelt** at the **Smelter** (new homestead station next to the forge furnace): pick a bar recipe, insert ore + coal, then the timer runs on in-game time:
    - Copper/Brass/Iron bar: 1 day phase (90 s real). Steel/Silver: 1 phase. Aethersteel/Mythril: 2 phases. Starsteel/Destinium: overnight (completes on sleep).
    - Queue size: 1 (Lv1), 3 (Lv2), 5 (Lv3+). Output collects in the smelter until taken.
-3. **Forge** (04): bars are the *frame/core* components. Gems become *polish/decorations*. Monster parts provide *skills/element*. This is the GDD's "frames, cores, polish".
+3. **Forge** (04): bars are the *frame/core* components. Gems become *polish/decorations*. Monster parts provide *skills/element*. Together these are the frames, cores and polish of every piece of gear.
 4. **Geode cracking**: Hearthspire Blacksmith (Ottilie, see 08) charges 25 g, or the Geode Press machine (Forge Lv2, 3 Iron Bar + 1 Gear Spring) is free and takes 1 energy. Loot tables per geode kind are in `assets/data/geodes.ron`.
 5. **Grinding**: the Gem Grinder (workbench) turns 3 low gems into gem dust (forge polish) or cuts a gem into a **Decoration blank** (04 decorations).
 6. **Stone → construction**: stone and clay go into farm machines (02), fences (07), and the homestead path.
@@ -397,7 +397,7 @@ Node hardness and required tier; drop counts (min/max) and bonus chance; pickaxe
 | --- | --- | --- |
 | Q1 | Do homestead/mine actions need up/down facings? | **No for launch.** All current dwarf sets are side-only with `flip_x`. Keep that, and add back-view sets only for ladders (C11/C12). Revisit after the art pass (15). |
 | Q2 | Does time pass in the mine? | **Yes**, same 90 s phases. Otherwise the mine is a free-time exploit and the day loop breaks. |
-| Q3 | Keep raw ore in forge recipes (PR #95) or require bars? | **Require bars** after the Smelter ships (MIN-06 migration). Raw ore is only for smelting. That gives the "processing step" the GDD implies. |
+| Q3 | Keep raw ore in forge recipes (PR #95) or require bars? | **Require bars** after the Smelter ships (MIN-06 migration). Raw ore is only for smelting. That gives a real processing step. |
 | Q4 | Stone stack 999? | Yes for Stone only. Everything else stays at 99. |
 | Q5 | Save mid-floor? | No. Leaving or sleeping resets the floor. Deepest floor and elevator stops persist. |
 | Q6 | Top-down mine combat or the side-scroll dungeon engine? | **Top-down combat-lite** (CMB-04). The dungeon side-scroller is frozen and belongs to hunts. |

@@ -1,6 +1,6 @@
 # 16 — Saves (profiles, persistence, migration, autosave)
 
-Authority: GDD implied by §3 (sleep advances the day; a persistent homestead) and §10 (scope). Brad listed saves/profiles as shipped. This doc covers how every new system persists safely.
+Standards: sleeping advances the day and the homestead persists. Saves and profiles already ship. This doc covers how every new system persists safely.
 
 Build priority: **16 of 16** as a system, but **SAV-01 and SAV-02 should land early**. Nearly every system ticket adds save fields, and the current migration and error handling (§1) will not scale.
 

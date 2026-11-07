@@ -1,6 +1,6 @@
 # 12 — Narrative & Story Events
 
-Authority: GDD §7 ("light narrative focused on restoring the Destiny Forge, discovering why magical creatures are stirring, and the player's personal destiny. Villagers include steam engineers, hedge mages, retired hunters, and magitech smiths whose stories intertwine with the rising threat. Tone: hopeful and cozy with steampunk wonder, moments of magical spectacle, high-stakes hunts. Not grimdark"), §6 (inherit a rundown homestead + dormant forge; valley threatened), §3 (sleep progresses story events), §4.6 (Sparks from story).
+Standards: the narrative is light, focused on restoring the Destiny Forge, finding out why magical creatures are stirring, and the player's personal destiny. Villagers include steam engineers, hedge mages, retired hunters and magitech smiths, whose stories tie into the rising threat. The tone is hopeful and cozy with steampunk wonder, moments of magical spectacle and high-stakes hunts, and never grimdark. The player inherits a rundown homestead and a dormant forge in a threatened valley. Sleeping moves story events forward, and story grants Sparks.
 
 Build priority: **12 of 16**.
 
@@ -114,7 +114,7 @@ Beat requirements (rep/HR/forge), pacing targets, spark counts per beat, skip ru
 
 | # | Question | Proposal |
 | --- | --- | --- |
-| Q1 | Is the Destiny Wyrm a villain? | No. It is a force of the valley's magic. The finale is a pact (hopeful tone, GDD "not grimdark"). |
+| Q1 | Is the Destiny Wyrm a villain? | No. It is a force of the valley's magic. The finale is a pact (hopeful tone, never grimdark). |
 | Q2 | Player choice? | One light finale choice (epilogue text + cosmetic glow) only. |
 | Q3 | Cutscene tech | Data-driven step list (RON) run by a `Cutscene` system that reuses the NPC/actor animators. No timeline editor. |
 | Q4 | How is King Slime (existing) tied in? | It becomes P3 "Slime Season", the first hunt, so the existing content keeps its role. |

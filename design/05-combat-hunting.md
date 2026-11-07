@@ -1,6 +1,6 @@
 # 05 — Combat & Hunting
 
-Authority: GDD §4.5 (MH-style combat on large magical creatures; weapon types with distinct movesets, commitment, strengths; **launch subset Great Sword, Long Sword, Sword & Shield, Dual Blades, Hammer, Bow**; hunting flow: accept a quest or free-hunt → track via clues (tracks, magical residue, roars, elemental signs) → fight (read tells, break parts, apply status, environmental traps) → phases, elemental shifts, enrage → carve/capture → fainting has limited retries per hunt), §1 pillar "Readable Mastery", §3 (hunt afternoon–night or multi-day expedition), §10 must-have 4–5 weapon types, should-have capture. Monsters themselves are in 06.
+Standards: combat is Monster Hunter style against large magical creatures. Weapon types have distinct movesets, commitment and strengths, and the launch set is **Great Sword, Long Sword, Sword & Shield, Dual Blades, Hammer and Bow**. A hunt goes: accept a quest or free-hunt, track by clues (tracks, magical residue, roars, elemental signs), fight (read tells, break parts, apply status, use environmental traps), handle phases, elemental shifts and enrage, then carve or capture. Fainting has limited retries per hunt. Combat is built on readable mastery. Hunts run from afternoon to night or as multi-day expeditions. Four to five weapon types are must-have; capture is should-have. Monsters themselves are in 06.
 
 Build priority: **5 of 16**.
 
@@ -205,7 +205,7 @@ Conventions: hunter **cell 343×160**, sole line at row 159 (existing `IDLE_SOLE
 | CV7 | Spirit gauge flare (LS) white/yellow/red | 4 ×3 | 96×96 | 0.06 | |
 | CV8 | Charge level flashes (GS/Hammer/Bow) | 3 ×3 | 64×64 | 0.05 | |
 | CV9 | Arrows: normal + 8 coatings | 2 ×9 | 24×6 | 0.08 | **new hunt arrow set**; the dungeon `arrow.png` is not touched |
-| CV10 | Bomb/barrel explosion | 7 | 96×96 | 0.05 | can share MIN V8 scaled art if Brad allows (Q6) |
+| CV10 | Bomb/barrel explosion | 7 | 96×96 | 0.05 | can share MIN V8 scaled art if allowed (Q6) |
 | CV11 | Traps: Pitfall (arm 4, trigger 6, struggle loop 4), Shock (arm 4, active loop 4) | 22 | 64×32 | 0.08 | |
 | CV12 | Tranq smoke | 5 | 64×64 | 0.08 | |
 | CV13 | Flash Pod burst | 5 | 128×128 | 0.04 | |
@@ -241,7 +241,7 @@ Hunt rewards are materials (06 per monster: carves, part breaks, capture, quest 
 
 1. **Accept**: the Quest Board at Hearthspire Hunter's Lodge (or the homestead mailbox for village requests). Types: Slay, Capture, Hunt (either), Gather, Tempered (High+), Arena challenge (post-launch). Each has a reward, a time limit in phases (Low 2 phases, High 3, Master overnight expedition), and a faint limit (3 default, 2 for tempered, 1 for arena).
 2. **Prepare**: eat a Hearth Meal (04), pick gear (stash), pack the pouch, optional companion (08).
-3. **Depart**: the hunt day cost (exists: 2 phase steps) now uses the quest's time cost. **Expeditions** let you sleep in the Base Camp tent (1 night) for multi-day hunts (GDD §3).
+3. **Depart**: the hunt day cost (exists: 2 phase steps) now uses the quest's time cost. **Expeditions** let you sleep in the Base Camp tent (1 night) for multi-day hunts.
 4. **Track**: clues spawn in areas (footprints, magical residue, claw marks, shed scales, roar echoes, elemental signs such as scorch/frost/static). Interact (H20) → +track gauge. At 100 the monster's area is shown and Tracker Moths (CV14) guide you. Paintball (CV15) keeps it marked. The Tracker skill lowers the needed amount.
 5. **Fight**: read tells (06). Break parts (per-part HP; severable tails need cutting damage). Apply status (buildup thresholds rise ×1.5 per proc). KO through blunt head hits. Exhaust via SnS/Hammer. Use env traps. The monster changes area at HP thresholds and flees to its nest when limping.
 6. **Phases/enrage**: phase 2 at 60% HP (new moves, sometimes an elemental shift), phase 3 at 30% (Elders), enrage from damage taken/time (×1.2 speed, ×1.3 damage, steam breath CV18, 25–40 s). Fatigue (drool) after 3 min enraged: slower, some moves fail.
@@ -277,7 +277,7 @@ HUD: HP (exists), stamina bar (new), sharpness gauge, weapon gauge, status icons
 
 ## 12. Audio
 
-Per weapon: swing whooshes (light/heavy), hit impacts (cut/blunt/pierce/crit), charge-up hums (GS/Hammer/Bow 3 levels), spirit/demon mode stingers, guard clang, parry ting (exists), evade roll, sharpen scrape, potion gulp, bomb fuse/boom, trap set/trigger, tranq hiss, flash pop, carve squelch (new), capture net, part-break crunch (distinct per material: bone, crystal, shell, gear), KO thud + bird tweet, faint jingle + cart bots, quest clear fanfare, quest fail. Music: per-ground exploration (calm) → combat (dynamic orchestral + mechanical) crossfade on monster aggro → enraged layer → victory sting (GDD §8). Monster roars live in 06.
+Per weapon: swing whooshes (light/heavy), hit impacts (cut/blunt/pierce/crit), charge-up hums (GS/Hammer/Bow 3 levels), spirit/demon mode stingers, guard clang, parry ting (exists), evade roll, sharpen scrape, potion gulp, bomb fuse/boom, trap set/trigger, tranq hiss, flash pop, carve squelch (new), capture net, part-break crunch (distinct per material: bone, crystal, shell, gear), KO thud + bird tweet, faint jingle + cart bots, quest clear fanfare, quest fail. Music: per-ground exploration (calm) → combat (dynamic orchestral + mechanical) crossfade on monster aggro → enraged layer → victory sting. Monster roars live in 06.
 
 ## 13. Save data
 

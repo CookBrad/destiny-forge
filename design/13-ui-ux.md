@@ -1,6 +1,6 @@
 # 13 — UI / UX (inventory, crafting with material sources, monster field guide, gear compare, remapping, combat assists)
 
-Authority: GDD §9 ("Clear inventory and crafting screens that show material sources. Monster field guide that fills in as the player researches or breaks parts. Simple but informative gear comparison tool. Accessible controls with remapping and optional simplified combat assists"), §10.
+Standards: inventory and crafting screens are clear and show where materials come from. A monster field guide fills in as the player researches or breaks parts. A simple gear comparison tool is informative. Controls are accessible, with remapping and optional simplified combat assists.
 
 Build priority: **13 of 16**. UI tickets from other docs (forge window v2, fishing minigame, dialogue) are owned there. This doc owns the shared shells and components they use.
 
@@ -41,7 +41,7 @@ Global overlay layer in all states. Screens: Title, Pause hub (tabs), Inventory,
 - Left: recipe list grouped by category with locks (silhouettes for unseen). Middle: selected recipe with components (icon, owned/needed colored), role glyphs (04), and **MaterialSourceList per missing component**. Right: output preview + stat compare (gear) or buff summary (food/potions). Bottom: Craft (hold to confirm for expensive items), quantity for consumables, **"Track"** pin that shows the missing materials on the HUD.
 
 ### 4.3 Monster Field Guide
-- Pages per monster: portrait (silhouette → revealed after the first sighting), habitat (zones, season, time), threat rank, size records, hunts/captures counts. **Weakness table** (element/damage-type stars) revealed by: hunting 2×, or a Quillon research quest, or Professor 6♥. **Parts list**, each revealed when that part is first broken (GDD), with its break rewards. Drops by source (revealed when obtained). Tells hints (unlocked after 3 hunts: "Paws twice before charging").
+- Pages per monster: portrait (silhouette → revealed after the first sighting), habitat (zones, season, time), threat rank, size records, hunts/captures counts. **Weakness table** (element/damage-type stars) revealed by: hunting 2×, or a Quillon research quest, or Professor 6♥. **Parts list**, each revealed when that part is first broken, with its break rewards. Drops by source (revealed when obtained). Tells hints (unlocked after 3 hunts: "Paws twice before charging").
 - Tabs also for Fish (03), Crops (02), Materials (all MaterialIds: sources/uses), Museum (01).
 
 ### 4.4 Gear compare
@@ -188,4 +188,4 @@ Tooltip verbosity, assist magnitudes (guard window, telegraph ×), toast duratio
 
 **Ticket count: 28.**
 
-**Build first (top 3):** UI-01 (InputMap: unblocks remapping and gamepad, and stops new hard-coded keys), UI-02 → UI-03/UI-04 (theme + icons on existing windows), UI-06 → UI-07 (material sources + tooltip, the GDD's headline UI requirement).
+**Build first (top 3):** UI-01 (InputMap: unblocks remapping and gamepad, and stops new hard-coded keys), UI-02 → UI-03/UI-04 (theme + icons on existing windows), UI-06 → UI-07 (material sources + tooltip, the headline UI requirement).

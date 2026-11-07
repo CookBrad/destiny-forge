@@ -1,6 +1,6 @@
 # 11 — Day / Season Cycle (time, sleep, calendar, seasons, weather)
 
-Authority: GDD §3 ("day/night and seasonal cycle similar to Stardew Valley; hunting expeditions span multiple in-game days or a single outing… Rest & Advance: sleep advances the day, restores stamina, progresses seasons and story events"), §4.1/§4.2/§6 (seasonal crops, rare nodes, creature behavior, weather-only materials), §10 (Must-have: seasons).
+Standards: the game has a day/night and seasonal cycle like Stardew Valley. A hunting expedition can span several in-game days or a single outing. Sleeping advances the day, restores stamina, and moves seasons and story events forward. Seasons change crops, rare nodes, creature behavior, and which weather-only materials appear. Seasons are must-have.
 
 Build priority: **11 of 16**. Many systems depend on **CYC-02 (seasons)** and **CYC-05 (weather)**, so those two tickets should be pulled forward once farming starts (they are listed early here for that reason).
 

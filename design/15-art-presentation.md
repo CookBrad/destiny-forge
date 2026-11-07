@@ -1,6 +1,6 @@
 # 15 — Art & Presentation (pipeline, conventions, style, cross-system sprite standards)
 
-Authority: GDD §8 ("cozy steampunk aesthetic: warm brass, copper, wood, glowing magical accents. Farm and village lived-in and inviting; hunts feature more dramatic lighting and magical effects. Creatures: magical beasts with distinctive silhouettes, readable tells, satisfying part-break animations; organic + crystalline/elemental traits"), §11 ("art style tests for farm vs. hunt presentation"). Brad's standing rule: **every player action needs new in-house sprite frames**.
+Standards: the look is cozy steampunk, with warm brass, copper and wood and glowing magical accents. The farm and village feel lived-in and inviting, and hunts use more dramatic lighting and magical effects. Creatures are magical beasts with distinctive silhouettes, readable tells and satisfying part-break animations, blending organic with crystalline or elemental traits. Farm and hunt presentation each get art style tests. **Every player action needs new in-house sprite frames.**
 
 Build priority: **15 of 16**, but **ART-01, ART-02, ART-03 should land before the first art tickets of mining/farming**. They define the conventions every [ART] ticket in docs 01–14 follows.
 
@@ -27,7 +27,7 @@ Build priority: **15 of 16**, but **ART-01, ART-02, ART-03 should land before th
 
 ## 2. Where it applies
 
-All zones, actors, items, UI. Two presentation modes (GDD "farm vs hunt"):
+All zones, actors, items, UI. Two presentation modes, farm and hunt:
 - **Life mode** (top-down: homestead, village, zones, mine): warm palette, soft daylight, chunky 16-px characters on 32-px tiles, cozy steampunk props.
 - **Hunt mode** (side-scroll: dungeon + hunting grounds): dramatic lighting (rim light drawn into frames, darker backgrounds, parallax), the large grit-neon hunter cell, big monsters, saturated magic VFX.
 
@@ -123,7 +123,7 @@ This is the roll-up of every sprite set specified in docs 01–14, used to plan 
 | AP2 | Screen transitions: iris wipe, steam wipe (zone change), page flip (day end, owned by 11) | 8 / 8 | 320×180 | 0.04 | drawn |
 | AP3 | Hunt-mode lighting overlays per ground (rim-light color grade drawn as gradient sprites) | 1–2 per ground | 320×180 | static/0.3 | "dramatic lighting" without shaders |
 | AP4 | Parallax backgrounds per hunting ground (3 layers each) | 3 × 8 grounds | 640×180 | static, cloud layers 0.2 | |
-| AP5 | Art-style test boards (GDD §11): farm vs. hunt side-by-side mockups | 2 boards | 960×540 | — | the first deliverable of ART-06 |
+| AP5 | Art-style test boards: farm vs. hunt side-by-side mockups | 2 boards | 960×540 | — | the first deliverable of ART-06 |
 
 ## 6. Inventory items
 
@@ -166,7 +166,7 @@ Per-frame seconds in `sprites.ron` (animation speed tuning without code), hit-fr
 | # | Question | Proposal |
 | --- | --- | --- |
 | Q1 | Up/down facings for the dwarf? | **Add back + front walk/idle (AP1)** and use them for vertical-only actions (doors, counters, ladders, boards, beds). Keep tool actions side-only with flip (as shipped) to contain frame counts. |
-| Q2 | "Grit-neon" hunter vs. cozy steampunk | Keep it: it matches GDD "hunts feature dramatic lighting". Add brass/copper accents to new hunter weapon sheets to tie them to the world. |
+| Q2 | "Grit-neon" hunter vs. cozy steampunk | Keep it: hunts use dramatic lighting. Add brass/copper accents to new hunter weapon sheets to tie them to the world. |
 | Q3 | Replace third-party art (0x72 dwarf base, Pixel Crawler, Dawnlike)? | Gradually. Animals first (ANM-42), then the anvil/workbench station art with the forge level art (FRG-30). The dwarf base stays (all in-house frames derive from it). |
 | Q4 | One PNG per frame (dwarf) vs strips? | New sets use **strips** + `sprites.ron`. Keep the existing per-frame dwarf files and migrate them in ART-03 without changing pixels. |
 | Q5 | Resolution / scale policy | Native pixel art, nearest-neighbor, integer scale. Follow the 3× homestead scale branch for life mode. |
@@ -178,7 +178,7 @@ Per-frame seconds in `sprites.ron` (animation speed tuning without code), hit-fr
 - **ART-03 [GAME]** `assets/data/sprites.ron` registry + loader (cell, frames, seconds, pins, hit frames, loop), migrating existing sets (dwarf, hunter, enemies) with behavior unchanged. deps: none.
 - **ART-04 [ART]** Icon atlas pipeline (`tools/pack_icons.py`, `icons.ron`) + first atlas (existing MaterialIds). deps: ART-01; pairs with UI-03/MIN-05.
 - **ART-05 [ART]** `tools/art_lint.py` + test that every `sprites.ron` entry matches its PNG dimensions/frame counts. deps: ART-03.
-- **ART-06 [ART]** Art-style test boards: farm vs. hunt (AP5), the GDD §11 next step. deps: ART-01.
+- **ART-06 [ART]** Art-style test boards: farm vs. hunt (AP5). deps: ART-01.
 - **ART-07 [ART]** Master palette file + style guide page (`docs/ART_STYLE.md`). deps: ART-06.
 - **ART-08 [GAME]** Wire the dwarf back/front facing into movement (vertical input picks the AP1 sets) + doors/ladders use them. deps: ART-02, ART-03.
 - **ART-09 [ART]** Screen transitions AP2 (iris, steam wipe). deps: ART-01.

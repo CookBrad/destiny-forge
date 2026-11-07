@@ -1,6 +1,6 @@
 # Destiny Forge — System Design Breakdowns (index)
 
-Designer breakdowns for every system in **Brad's Word GDD (v1.0, Oct 2026)**, which is the source of truth. The GDD's "Godot 4" line is ignored; the engine is **Rust + Bevy 0.15**. Repo `CookBrad/destiny-forge`, default branch `develop`. `docs/GAME_DESIGN.md` and `docs/EPICS.md` were read only to learn what exists; they are not authority.
+Designer breakdowns for every system in the game. These documents are the standard for each system, and the engine is **Rust + Bevy 0.15**. Repo `CookBrad/destiny-forge`, default branch `develop`. `docs/GAME_DESIGN.md` and `docs/EPICS.md` were read only to learn what exists; they are not authority.
 
 Each file is written so the PM agent (Forge) can split it into tickets. Every doc has the same sections: where it happens · entities/objects · tools & tiers · **animations (the most detailed section: every sprite set with frames, size, facing, and timing)** · inventory items (icon/stack/price/source) · processing · hooks (esp. forge + hunting) · energy/time/risk · progression/gating · UI · audio · save data · balance levers · open questions with proposed answers · **ticket breakdown**.
 

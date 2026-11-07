@@ -1,6 +1,6 @@
 # 07 — Animals & Husbandry
 
-Authority: GDD §4.1 ("Animals (chickens, cows, bees, etc.) produce materials used in both cooking and armor linings/upgrades"), §10 (Should-have: animal husbandry).
+Standards: animals (chickens, cows, bees and others) produce materials used in cooking and in armor linings and upgrades. Animal husbandry is should-have.
 
 Build priority: **7 of 16**.
 
@@ -132,7 +132,7 @@ Quality: products take the animal's quality (friendship + mood) → `ItemQuality
 
 ## 7. Processing summary
 
-Collect → (optional) machine → Kitchen (cooking) or Forge (linings). Lining chain: Wool → Cloth → **Lining slot of armor** (04 material role "Lining"). Example: Leather Hunter Mail = 2 Boar Hide + 1 Tough Leather (Tanning Rack from Boar Hide) + 1 Cloth. **Armor upgrades**: High rank sets require Silk Cloth/Tempered Hide/Quilted Pad (GDD "armor linings/upgrades").
+Collect → (optional) machine → Kitchen (cooking) or Forge (linings). Lining chain: Wool → Cloth → **Lining slot of armor** (04 material role "Lining"). Example: Leather Hunter Mail = 2 Boar Hide + 1 Tough Leather (Tanning Rack from Boar Hide) + 1 Cloth. **Armor upgrades**: High rank sets require Silk Cloth/Tempered Hide/Quilted Pad.
 
 ## 8. Hooks
 

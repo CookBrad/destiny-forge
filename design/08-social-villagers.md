@@ -1,6 +1,6 @@
 # 08 — Social & Villagers (schedules, gifts, hearts, quests, festivals, companions)
 
-Authority: GDD §4.4 ("~12–16 unique villagers with schedules, likes/dislikes, and personal stories. Many have hunter or smithing backgrounds… gift-giving, dialogue, and quests raise heart levels… high bonds unlock unique forge recipes, weapon skill trees, temporary hunt companions, farm helpers, and story events… festivals and community events provide rare materials, temporary buffs, and relationship opportunities"), §1 pillar "Living Community", §7 (steam engineers, hedge mages, retired hunters, magitech smiths), §10 (Must: basic social; Should: full relationship system, festivals).
+Standards: there are about 12 to 16 unique villagers with schedules, likes and dislikes, and personal stories, many with hunter or smithing backgrounds, such as steam engineers, hedge mages, retired hunters and magitech smiths. Gifts, dialogue and quests raise heart levels. High bonds unlock unique forge recipes, weapon skill trees, temporary hunt companions, farm helpers and story events. Festivals and community events give rare materials, temporary buffs and relationship chances. The village is a living community. Basic social is must-have; the full relationship system and festivals are should-have.
 
 Build priority: **8 of 16**. Nothing exists yet. There is no village zone, NPC, or dialogue.
 
@@ -177,11 +177,11 @@ Points per action, decay, gift multipliers, weekly limits, heart caps by act, qu
 
 | # | Question | Proposal |
 | --- | --- | --- |
-| Q1 | Romance/marriage? | Not in the GDD. **Friendship bonds only** at launch, with 10♥ "Kindred" events. Revisit post-launch. |
+| Q1 | Romance/marriage? | Not in scope. **Friendship bonds only** at launch, with 10♥ "Kindred" events. Revisit post-launch. |
 | Q2 | Do NPCs need front/back facing, unlike the side-only dwarf? | Yes: NPCs walk up/down village paths for long stretches. Give the **dwarf back-facing walk** too (S5 + a walk set) at the same time, for consistency (15-art decision). |
 | Q3 | Pathfinding | Waypoint graphs per zone (authored), not a full navmesh. |
-| Q4 | Count | 14 villagers (inside the GDD's 12–16). Launch with 8 (V1–V8), then V9–V14 in content updates. |
-| Q5 | Companions in co-op? | Single-player only. Co-op is post-launch (GDD future). |
+| Q4 | Count | 14 villagers (inside the 12–16 standard). Launch with 8 (V1–V8), then V9–V14 in content updates. |
+| Q5 | Companions in co-op? | Single-player only. Co-op is post-launch. |
 | Q6 | Dialogue authoring format | RON per villager with a small condition DSL (hearts ≥, season, flag). No scripting language. |
 
 ## 16. Ticket breakdown

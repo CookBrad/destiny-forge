@@ -1,6 +1,6 @@
 # 02 — Farming (crops, quality, seasons, fruit trees, magitech processing)
 
-Authority: GDD §4.1 ("steam-assisted homestead with crop plots, fruit trees, animals, and magitech processing machines… food for stamina and buffs… materials for potions, coatings, and forge components… quality Normal, Silver, Gold, Destiny… seasonal crops… some rare crops only grow with certain forge upgrades or relationship levels"), §1 ("a perfect crop can create a superior potion that lets you break a monster's head… a rare monster part can upgrade your forge, which allows better farm tools"). Animals are in 07; cooking stations are in 04.
+Standards: the homestead is steam-assisted, with crop plots, fruit trees, animals and magitech processing machines. Farming supplies food for stamina and buffs, and materials for potions, coatings and forge components. Crops have quality tiers Normal, Silver, Gold and Destiny, and they are seasonal. Some rare crops grow only with certain forge upgrades or relationship levels. Farming and hunting feed each other: a perfect crop makes a potion that helps break a monster part, and a rare monster part upgrades the forge, which unlocks better farm tools. Animals are in 07; cooking stations are in 04.
 
 Build priority: **2 of 16**.
 
@@ -67,7 +67,7 @@ All upgrades are crafted at the Destiny Forge (04) and need a Forge level. Each 
 | Hand (exists) | harvest / pick / shake | — | — | — | — | 0 |
 | Fertilizer Spreader (new item) | 1 tile | — | — | — | — | 0 |
 
-Upgrade recipes (data, 04): T2 = tool + 5 Copper Bar; T3 = 5 Iron Bar; T4 = 5 Brass Bar + 2 Gear Spring; T5 = 5 Aethersteel Bar + 1 Monster Core (Tidal/Briar boss part) + Forge Lv3. This is the GDD "rare monster part → forge upgrade → better farm tools" chain.
+Upgrade recipes (data, 04): T2 = tool + 5 Copper Bar; T3 = 5 Iron Bar; T4 = 5 Brass Bar + 2 Gear Spring; T5 = 5 Aethersteel Bar + 1 Monster Core (Tidal/Briar boss part) + Forge Lv3. This is the "rare monster part → forge upgrade → better farm tools" chain.
 
 Hotbar: today tools are keys 1–4 with no drag hotbar. Adding Axe/Scythe/Fertilizer needs a real tool bar (FRM-05: keys 1–8 + mouse wheel cycling).
 
@@ -236,7 +236,7 @@ Machines are crafted at the Workbench (04 crafting) from bars/wood/stone. Times 
 | Steam Sprinklers | Steam: 1 Copper Bar + 1 Iron Bar; Brass: 1 Brass Bar + 1 Iron Bar + 1 Gear Spring; Aether: 1 Aethersteel Bar + 1 Aether Crystal + 1 Stormcell | auto-water 4-adjacent / 3×3 / 5×5 at 6:00 | daily | farming |
 | Clockwork Crowbot | 50 Wood + 1 Copper Bar + 1 Gear Spring | prevents crows radius 8 | — | farming |
 
-### 7.1 Potions/coatings chain (the GDD farm→hunt coupling)
+### 7.1 Potions/coatings chain (the farm→hunt coupling)
 
 | Product | Inputs (Still) | Effect in hunts | Quality effect |
 | --- | --- | --- | --- |
@@ -247,7 +247,7 @@ Machines are crafted at the Workbench (04 crafting) from bars/wood/stone. Times 
 | Might Draught | Firepepper ×2 + Honey (07) | +10% atk 3 min | |
 | Cool Drink / Hot Drink | Frostleaf / Firepepper + Water | heat/cold zone immunity | |
 | Moon Draught | Moonpetal | status resist +50% | |
-| **Breaker Tonic** | Gold+ Ironroot + Gold+ Healroot + Bone Shard | **+25% part-break damage 3 min** (GDD: "perfect crop → superior potion → break the head") | Normal not allowed; Destiny = +40% |
+| **Breaker Tonic** | Gold+ Ironroot + Gold+ Healroot + Bone Shard | **+25% part-break damage 3 min** (perfect crop → superior potion → break the head) | Normal not allowed; Destiny = +40% |
 | Coatings (Bow, 05): Blaze, Frost, Shock, Poison, Sleep, Paralysis, Power, Close-range | essence/shroom + Fiber + 1 Sap | arrow coating ×20 | stack +5 per step |
 | Lantern Oil | Glowcap + Bean Oil | lantern fuel (mine 01) | |
 | Lubricant (Whetstone+) | Bean Oil + Brass Sap | sharpness restore +25% (05) | |
@@ -299,7 +299,7 @@ Start: Hoe T1, Can T1, Seeds, Hand, 15 Turnip seeds, 6×4 field. Day 3: Axe T1 (
 
 ## 14. Audio
 
-hoe_till (3 variants), water_pour loop + splash, can_empty, refill_gurgle, seed_scatter, harvest_pop (3), harvest_heavy_grunt, holdup_jingle (quality-specific: silver ting, gold chime, destiny choir), axe_chop wood ×3, tree_fall, scythe_swish ×2, grass_cut, tree_shake rustle, fruit_thump, sprinkler_hiss, machine_load clunk, machine_working loops (one per machine: press thump, kiln roar, still bubble, extractor hum, mill creak), machine_ready ding, crow caw/flap, crowbot tick, lightning_crack, season-change stinger. Music: `homestead_spring/summer/fall/winter` (warm acoustic + light steampunk, GDD §8), rain variant.
+hoe_till (3 variants), water_pour loop + splash, can_empty, refill_gurgle, seed_scatter, harvest_pop (3), harvest_heavy_grunt, holdup_jingle (quality-specific: silver ting, gold chime, destiny choir), axe_chop wood ×3, tree_fall, scythe_swish ×2, grass_cut, tree_shake rustle, fruit_thump, sprinkler_hiss, machine_load clunk, machine_working loops (one per machine: press thump, kiln roar, still bubble, extractor hum, mill creak), machine_ready ding, crow caw/flap, crowbot tick, lightning_crack, season-change stinger. Music: `homestead_spring/summer/fall/winter` (warm acoustic + light steampunk), rain variant.
 
 ## 15. Save data
 
