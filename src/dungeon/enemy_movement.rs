@@ -52,7 +52,7 @@ pub fn move_enemies(
     };
 
     let player_pos = player_transform.translation.truncate();
-    let dt = time.delta_secs();
+    let delta_seconds = time.delta_secs();
     let segments = &layout.floor.ground_segments;
     let pitfalls = &layout.floor.pitfalls;
 
@@ -75,10 +75,10 @@ pub fn move_enemies(
         let distance = to_player.length();
         let airborne = kind.is_some_and(|kind| kind.is_airborne());
 
-        let is_aggro = update_aggro(&mut commands, entity, aggro.as_deref_mut(), distance, dt);
+        let is_aggro = update_aggro(&mut commands, entity, aggro.as_deref_mut(), distance, delta_seconds);
         let (mut velocity, under_knockback) = knockback_velocity(
             knockback.as_deref_mut(),
-            dt,
+            delta_seconds,
             airborne,
             &mut commands,
             entity,
@@ -107,14 +107,13 @@ pub fn move_enemies(
         }
 
         let is_goblin = kind.is_some_and(|kind| *kind == EnemyKind::Goblin);
-        // King slime's body is two tiles tall. Compare against that height, not transform scale.
         let standing_y = standing_center_y(hitbox.0.y * 2.0);
         let goblin_airborne = goblin_jump.as_ref().is_some_and(|jump| jump.is_airborne())
             || transform.translation.y > standing_y + 0.5;
 
         if is_goblin && !under_knockback && !charging && !goblin_airborne {
             try_start_goblin_jump(
-                is_aggro,
+                if is_aggro { GoblinAim::TowardPlayer } else { GoblinAim::AlongPatrol },
                 &to_player,
                 &mut patrol,
                 &mut transform,
@@ -125,30 +124,31 @@ pub fn move_enemies(
             );
         }
 
-        let dx = velocity.x * dt;
+        let horizontal_distance = velocity.x * delta_seconds;
         if is_goblin && goblin_airborne {
             integrate_goblin_airborne(
                 &mut transform,
                 goblin_jump.as_deref_mut(),
                 pitfalls,
                 segments,
-                dx,
-                dt,
+                horizontal_distance,
+                delta_seconds,
             );
         } else if !airborne && boss.is_none() {
             integrate_ground_enemy(
                 &mut transform,
                 segments,
-                dx,
+                horizontal_distance,
                 velocity.y,
-                dt,
-                is_aggro,
-                charging,
+                delta_seconds,
+                if charging { GroundStepMode::Charging }
+                    else if is_aggro { GroundStepMode::Chasing }
+                    else { GroundStepMode::Patrolling },
                 &mut patrol,
             );
         } else {
-            transform.translation.x += dx;
-            transform.translation.y += velocity.y * dt;
+            transform.translation.x += horizontal_distance;
+            transform.translation.y += velocity.y * delta_seconds;
         }
 
         if charging {
@@ -177,14 +177,12 @@ pub fn move_enemies(
             is_aggro,
             boss.is_some(),
         );
-        // King sheet is a front view. Mirroring it would swap the crown.
         if boss.is_none() {
             apply_horizontal_facing(&mut transform, velocity.x);
         }
     }
 }
 
-/// Side-view sheets face right. Mirroring keeps the scale magnitude at 1.
 fn apply_horizontal_facing(transform: &mut Transform, velocity_x: f32) {
     if let Some(scale) = facing_from_motion(velocity_x) {
         transform.scale = scale;
@@ -204,10 +202,10 @@ fn update_aggro(
     entity: Entity,
     mut aggro: Option<&mut EnemyAggro>,
     distance: f32,
-    dt: f32,
+    delta_seconds: f32,
 ) -> bool {
     if let Some(aggro) = aggro.as_mut() {
-        aggro.lock_secs = (aggro.lock_secs - dt).max(0.0);
+        aggro.lock_secs = (aggro.lock_secs - delta_seconds).max(0.0);
         if distance > DEAGGRO_RANGE && aggro.lock_secs <= 0.0 {
             commands.entity(entity).remove::<EnemyAggro>();
             return distance < AGGRO_RANGE;
@@ -227,7 +225,7 @@ fn update_aggro(
 
 fn knockback_velocity(
     mut knockback: Option<&mut EnemyKnockback>,
-    dt: f32,
+    delta_seconds: f32,
     airborne: bool,
     commands: &mut Commands,
     entity: Entity,
@@ -248,11 +246,11 @@ fn knockback_velocity(
     }
 
     let velocity = knockback.velocity;
-    let decay = (-KNOCKBACK_DECAY * dt).exp();
+    let decay = (-KNOCKBACK_DECAY * delta_seconds).exp();
     knockback.velocity.x *= decay;
     if airborne {
         knockback.velocity.y *= decay;
-        knockback.velocity.y += KNOCKBACK_GRAVITY * dt;
+        knockback.velocity.y += KNOCKBACK_GRAVITY * delta_seconds;
     } else {
         knockback.velocity.y = 0.0;
     }
@@ -314,8 +312,15 @@ fn idle_or_chase_velocity(
     Vec2::new(patrol.direction * patrol.speed, 0.0)
 }
 
+enum GoblinAim { TowardPlayer, AlongPatrol }
+struct GoblinJumpStart<'a> {
+    aim: GoblinAim, to_player: &'a Vec2, patrol: &'a mut Patrol, transform: &'a mut Transform,
+    goblin_jump: Option<&'a mut GoblinJump>, segments: &'a [super::level::PlatformSpec],
+    pitfalls: &'a [super::level::PitfallSpec], velocity: &'a mut Vec2,
+}
+
 fn try_start_goblin_jump(
-    is_aggro: bool,
+    aim: GoblinAim,
     to_player: &Vec2,
     patrol: &mut Patrol,
     transform: &mut Transform,
@@ -324,7 +329,9 @@ fn try_start_goblin_jump(
     pitfalls: &[super::level::PitfallSpec],
     velocity: &mut Vec2,
 ) {
-    let jump_direction = if is_aggro {
+    let GoblinJumpStart { aim, to_player, patrol, transform, mut goblin_jump, segments, pitfalls, velocity } =
+        GoblinJumpStart { aim, to_player, patrol, transform, goblin_jump: goblin_jump.as_mut().map(|jump| &mut **jump), segments, pitfalls, velocity };
+    let jump_direction = if matches!(aim, GoblinAim::TowardPlayer) {
         to_player.x.signum()
     } else {
         patrol.direction
@@ -362,16 +369,16 @@ fn integrate_goblin_airborne(
     mut goblin_jump: Option<&mut GoblinJump>,
     pitfalls: &[super::level::PitfallSpec],
     segments: &[super::level::PlatformSpec],
-    dx: f32,
-    dt: f32,
+    horizontal_distance: f32,
+    delta_seconds: f32,
 ) {
     let Some(jump) = goblin_jump.as_mut() else {
-        transform.translation.x += dx;
+        transform.translation.x += horizontal_distance;
         return;
     };
 
-    jump.velocity_y += GOBLIN_GRAVITY * dt;
-    transform.translation.y += jump.velocity_y * dt;
+    jump.velocity_y += GOBLIN_GRAVITY * delta_seconds;
+    transform.translation.y += jump.velocity_y * delta_seconds;
 
     let half = ENEMY_DISPLAY_SIZE.y * 0.5;
     let floor_y = DUNGEON_FLOOR_Y + half;
@@ -394,25 +401,33 @@ fn integrate_goblin_airborne(
         jump.clearing = None;
     }
 
-    transform.translation.x += dx;
+    transform.translation.x += horizontal_distance;
+}
+
+enum GroundStepMode { Patrolling, Chasing, Charging }
+struct GroundEnemyStep<'a> {
+    transform: &'a mut Transform, segments: &'a [super::level::PlatformSpec],
+    horizontal_distance: f32, velocity_y: f32, delta_seconds: f32,
+    motion: GroundStepMode, patrol: &'a mut Patrol,
 }
 
 fn integrate_ground_enemy(
     transform: &mut Transform,
     segments: &[super::level::PlatformSpec],
-    dx: f32,
+    horizontal_distance: f32,
     velocity_y: f32,
-    dt: f32,
-    is_aggro: bool,
-    charging: bool,
+    delta_seconds: f32,
+    motion: GroundStepMode,
     patrol: &mut Patrol,
 ) {
-    let (new_x, hit_edge) = constrain_ground_walk(transform.translation.x, dx, segments);
+    let GroundEnemyStep { transform, segments, horizontal_distance, velocity_y, delta_seconds, motion, patrol } =
+        GroundEnemyStep { transform, segments, horizontal_distance, velocity_y, delta_seconds, motion, patrol };
+    let (new_x, hit_edge) = constrain_ground_walk(transform.translation.x, horizontal_distance, segments);
     transform.translation.x = new_x;
-    if hit_edge && !is_aggro && !charging {
+    if hit_edge && matches!(motion, GroundStepMode::Patrolling) {
         patrol.direction = -patrol.direction;
     }
-    transform.translation.y += velocity_y * dt;
+    transform.translation.y += velocity_y * delta_seconds;
 }
 
 fn clamp_boss_charge(
@@ -451,7 +466,6 @@ fn snap_to_ground_floor(
     }
 }
 
-/// Center y whose feet sit on the floor. `body_height` is the gameplay body, not a texture scale.
 fn standing_center_y(body_height: f32) -> f32 {
     DUNGEON_FLOOR_Y + body_height * 0.5
 }
@@ -481,7 +495,62 @@ fn reverse_patrol_at_bounds(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dungeon::level::{PitfallSpec, PlatformSpec};
     use crate::graphics::KING_SLIME_GAMEPLAY_SCALE;
+
+    fn ground_step(start_x: f32, horizontal_distance: f32, motion: GroundStepMode) -> (f32, f32, f32) {
+        let segments = [PlatformSpec { left: 0.0, width_tiles: 8, top_y: DUNGEON_FLOOR_Y }];
+        let mut patrol = Patrol { min_x: 0.0, max_x: 10_000.0, speed: 30.0, direction: 1.0 };
+        let mut transform = Transform::from_xyz(start_x, 20.0, 0.0);
+        integrate_ground_enemy(&mut transform, &segments, horizontal_distance, -6.0, 0.5, motion, &mut patrol);
+        (transform.translation.x, transform.translation.y, patrol.direction)
+    }
+
+    fn goblin_leap(x: f32, aim: GoblinAim, patrol_direction: f32, player_offset_x: f32) -> (f32, Vec2, GoblinJump) {
+        let segments = [
+            PlatformSpec { left: 0.0, width_tiles: 8, top_y: DUNGEON_FLOOR_Y },
+            PlatformSpec { left: 12.0 * TILE, width_tiles: 10, top_y: DUNGEON_FLOOR_Y },
+        ];
+        let pitfalls = [PitfallSpec { left: 8.0 * TILE, width_tiles: 4 }];
+        let mut patrol = Patrol { min_x: 0.0, max_x: 10_000.0, speed: 30.0, direction: patrol_direction };
+        let mut transform = Transform::from_xyz(x, 10.0, 0.0);
+        let mut jump = GoblinJump::default();
+        let mut velocity = Vec2::new(3.0, 4.0);
+        try_start_goblin_jump(aim, &Vec2::new(player_offset_x, 0.0), &mut patrol, &mut transform, Some(&mut jump), &segments, &pitfalls, &mut velocity);
+        (transform.translation.x, velocity, jump)
+    }
+
+    #[test]
+    fn patrolling_ground_enemy_reverses_when_the_step_hits_the_segment_edge() {
+        assert_eq!(ground_step(239.0, 8.0, GroundStepMode::Patrolling), (240.0, 17.0, -1.0));
+        assert_eq!(ground_step(40.0, 5.0, GroundStepMode::Patrolling), (45.0, 17.0, 1.0));
+    }
+
+    #[test]
+    fn ground_enemy_keeps_direction_while_chasing_or_charging() {
+        assert_eq!(ground_step(239.0, 8.0, GroundStepMode::Chasing), (240.0, 17.0, 1.0));
+        assert_eq!(ground_step(17.0, -8.0, GroundStepMode::Charging), (16.0, 17.0, 1.0));
+    }
+
+    #[test]
+    fn goblin_aiming_toward_the_player_leaps_from_the_pit_edge() {
+        let (x, velocity, jump) = goblin_leap(240.0, GoblinAim::TowardPlayer, -1.0, 80.0);
+        let clearing = jump.clearing.expect("pit clearing");
+        assert_eq!((x, velocity, jump.velocity_y), (240.0, Vec2::new(GOBLIN_JUMP_HSPEED, 4.0), GOBLIN_JUMP_SPEED));
+        assert_eq!((clearing.pit_left, clearing.pit_right, clearing.direction), (8.0 * TILE, 12.0 * TILE, 1.0));
+    }
+
+    #[test]
+    fn goblin_aiming_along_patrol_leaps_when_the_player_stands_opposite() {
+        let (x, velocity, jump) = goblin_leap(240.0, GoblinAim::AlongPatrol, 1.0, -80.0);
+        assert_eq!((x, velocity.x, jump.velocity_y, jump.clearing.expect("pit clearing").direction), (240.0, GOBLIN_JUMP_HSPEED, GOBLIN_JUMP_SPEED, 1.0));
+    }
+
+    #[test]
+    fn goblin_standing_inside_the_segment_keeps_its_ground_velocity() {
+        let (x, velocity, jump) = goblin_leap(80.0, GoblinAim::TowardPlayer, 1.0, 40.0);
+        assert_eq!((x, velocity, jump.velocity_y, jump.clearing.is_none()), (80.0, Vec2::new(3.0, 4.0), 0.0, true));
+    }
 
     #[test]
     fn standard_enemy_stands_one_tile_above_the_floor_line() {
