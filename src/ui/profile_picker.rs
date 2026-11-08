@@ -5,7 +5,8 @@ use crate::combat::SkillBindings;
 use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
     CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty,
-    ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
+    ProfileNeedsAttention, ProfileSnapshot, ProfileSwitch, RuntimeProfile, Season, ToolEnergy,
+    PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
@@ -94,34 +95,43 @@ pub fn begin_profile_run(
     if autosave_block.is_blocked(index) {
         return false;
     }
-    let switched = activate_profile(
-        index,
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-        active,
-        profile,
-        global,
-        profile_dirty,
-        autosave_block,
-    );
+    let switched = {
+        let source = ProfileSnapshot {
+            inventory,
+            loadout,
+            progress,
+            day_clock,
+            tool_energy,
+            audio,
+            bindings,
+        };
+        activate_profile(
+            index,
+            &source,
+            &mut ProfileSwitch {
+                active,
+                profile,
+                global,
+                dirty: profile_dirty,
+                autosave_block,
+            },
+        )
+    };
     if !switched {
         return false;
     }
     apply_profile_to_runtime(
         profile,
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-        season,
+        &mut RuntimeProfile {
+            inventory,
+            loadout,
+            progress,
+            day_clock,
+            tool_energy,
+            season,
+            audio,
+            bindings,
+        },
         rules,
     );
     true

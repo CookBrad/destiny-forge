@@ -86,14 +86,16 @@ pub fn hydrate_runtime_from_memory(
     } = runtime;
     apply_profile_to_runtime(
         &profile,
-        &mut inventory,
-        &mut loadout,
-        &mut progress,
-        &mut day_clock,
-        &mut tool_energy,
-        &mut audio,
-        &mut bindings,
-        &mut season,
+        &mut RuntimeProfile {
+            inventory: &mut inventory,
+            loadout: &mut loadout,
+            progress: &mut progress,
+            day_clock: &mut day_clock,
+            tool_energy: &mut tool_energy,
+            season: &mut season,
+            audio: &mut audio,
+            bindings: &mut bindings,
+        },
         &rules,
     );
 
@@ -155,10 +157,16 @@ pub fn snapshot_profile(source: ProfileSnapshot<'_>, profile: &mut PlayerProfile
     profile.day_phase = source.day_clock.phase;
     profile.tool_energy = source.tool_energy.current;
     profile.settings.capture_audio(source.audio);
-    profile.settings.capture_skill_bindings(source.bindings);
+    profile
+        .settings
+        .capture_skill_bindings(source.bindings);
 }
 
-fn switch_profile(index: u8, source: &ProfileSnapshot<'_>, switch: &mut ProfileSwitch<'_>) -> bool {
+pub fn activate_profile(
+    index: u8,
+    source: &ProfileSnapshot<'_>,
+    switch: &mut ProfileSwitch<'_>,
+) -> bool {
     let index = index.min(PROFILE_COUNT - 1);
     if switch.active.0 == index {
         return !switch.autosave_block.is_blocked(index);
@@ -185,7 +193,7 @@ fn switch_profile(index: u8, source: &ProfileSnapshot<'_>, switch: &mut ProfileS
     true
 }
 
-fn apply_saved_profile(
+pub fn apply_profile_to_runtime(
     profile: &PlayerProfile,
     runtime: &mut RuntimeProfile<'_>,
     rules: &CalendarRules,
@@ -198,71 +206,6 @@ fn apply_saved_profile(
     *runtime.season = CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, rules).season;
     profile.settings.apply_audio(runtime.audio);
     profile.settings.apply_skill_bindings(runtime.bindings);
-}
-
-pub fn activate_profile(
-    index: u8,
-    inventory: &Inventory,
-    loadout: &Loadout,
-    progress: &WorldProgress,
-    day_clock: &DayClock,
-    tool_energy: &ToolEnergy,
-    audio: &AudioSettings,
-    bindings: &SkillBindings,
-    active: &mut ActiveProfile,
-    profile: &mut PlayerProfile,
-    global: &mut GameSettings,
-    dirty: &mut ProfileDirty,
-    autosave_block: &mut ProfileAutosaveBlock,
-) -> bool {
-    let source = ProfileSnapshot {
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        audio,
-        bindings,
-    };
-    switch_profile(
-        index,
-        &source,
-        &mut ProfileSwitch {
-            active,
-            profile,
-            global,
-            dirty,
-            autosave_block,
-        },
-    )
-}
-
-pub fn apply_profile_to_runtime(
-    profile: &PlayerProfile,
-    inventory: &mut Inventory,
-    loadout: &mut Loadout,
-    progress: &mut WorldProgress,
-    day_clock: &mut DayClock,
-    tool_energy: &mut ToolEnergy,
-    audio: &mut AudioSettings,
-    bindings: &mut SkillBindings,
-    season: &mut Season,
-    rules: &CalendarRules,
-) {
-    apply_saved_profile(
-        profile,
-        &mut RuntimeProfile {
-            inventory,
-            loadout,
-            progress,
-            day_clock,
-            tool_energy,
-            season,
-            audio,
-            bindings,
-        },
-        rules,
-    );
 }
 
 #[cfg(test)]
@@ -286,14 +229,16 @@ mod tests {
 
         apply_profile_to_runtime(
             &profile,
-            &mut inventory,
-            &mut loadout,
-            &mut progress,
-            &mut day_clock,
-            &mut tool_energy,
-            &mut audio,
-            &mut bindings,
-            &mut season,
+            &mut RuntimeProfile {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                season: &mut season,
+                audio: &mut audio,
+                bindings: &mut bindings,
+            },
             &CalendarRules::load(),
         );
 
