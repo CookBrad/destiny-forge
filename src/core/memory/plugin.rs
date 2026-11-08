@@ -3,8 +3,12 @@ use bevy::prelude::*;
 use crate::items::Inventory;
 use crate::player::{Loadout, WorldProgress};
 
-use super::autosave::{flush_saves_on_exit, ProfileDirty};
+use super::autosave::{debounced_autosave, flush_saves_on_exit, queue_autosave, ProfileDirty};
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
+use super::header::{
+    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, remember_current_location,
+    BankedPlaytimeSeconds,
+};
 use super::profile::ActiveProfile;
 use super::storage::load_settings;
 use super::sync::hydrate_runtime_from_memory;
@@ -33,9 +37,21 @@ impl Plugin for MemoryPlugin {
             // DayClock / ToolEnergy are init'd in CorePlugin (after MemoryPlugin wiring).
             .init_resource::<ProfileDirty>()
             .init_resource::<super::autosave::AutosaveTimer>()
+            .init_resource::<BankedPlaytimeSeconds>()
             .add_systems(Startup, hydrate_runtime_from_memory)
+            .add_systems(
+                Update,
+                (
+                    accrue_playtime,
+                    mark_profile_dirty_when_a_second_is_banked,
+                    remember_current_location,
+                    super::sync::capture_profile_from_runtime,
+                    queue_autosave,
+                    debounced_autosave,
+                )
+                    .chain(),
+            )
             .add_systems(Last, flush_saves_on_exit);
-        super::header::add_save_header_systems(app);
     }
 }
 

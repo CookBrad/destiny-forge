@@ -3,28 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use super::super::day_cycle::DayPhase;
 use super::super::state::GameState;
-use super::autosave::{debounced_autosave, queue_autosave, ProfileDirty};
+use super::autosave::ProfileDirty;
 use super::profile::{bank_playtime, PlayerProfile};
-use super::sync::capture_profile_from_runtime;
 
 #[derive(Resource, Default)]
 pub(super) struct BankedPlaytimeSeconds(pub u64);
-
-pub(super) fn add_save_header_systems(app: &mut App) {
-    app.init_resource::<BankedPlaytimeSeconds>()
-        .add_systems(
-            Update,
-            (
-                accrue_playtime,
-                mark_profile_dirty_when_a_second_is_banked,
-                remember_current_location,
-                capture_profile_from_runtime,
-                queue_autosave,
-                debounced_autosave,
-            )
-                .chain(),
-        );
-}
 
 pub(super) fn accrue_playtime(
     time: Res<Time>,
