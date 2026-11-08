@@ -5,8 +5,8 @@ use crate::audio::AudioSettings;
 use crate::combat::SkillBindings;
 use crate::core::{
     activate_profile, apply_profile_to_runtime, load_profile_for_slot, ActiveProfile,
-    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileAutosaveBlock, ProfileDirty,
-    ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
+    CalendarRules, DayClock, GameSettings, PlayerProfile, ProfileApply, ProfileAutosaveBlock,
+    ProfileDirty, ProfileNeedsAttention, Season, ToolEnergy, PROFILE_COUNT,
 };
 use crate::items::Inventory;
 use crate::player::{Loadout, Wallet, WorldProgress};
@@ -119,16 +119,18 @@ pub fn begin_profile_run(index: u8, run: &mut ProfileRun) -> bool {
     }
     apply_profile_to_runtime(
         &run.profile,
-        &mut run.inventory,
-        &mut run.loadout,
-        &mut run.progress,
-        &mut run.day_clock,
-        &mut run.tool_energy,
-        &mut run.audio,
-        &mut run.bindings,
-        &mut run.season,
-        &run.rules,
-        &mut run.wallet,
+        &mut ProfileApply {
+            inventory: &mut run.inventory,
+            loadout: &mut run.loadout,
+            progress: &mut run.progress,
+            day_clock: &mut run.day_clock,
+            tool_energy: &mut run.tool_energy,
+            audio: &mut run.audio,
+            bindings: &mut run.bindings,
+            season: &mut run.season,
+            rules: &run.rules,
+            wallet: &mut run.wallet,
+        },
     );
     true
 }
