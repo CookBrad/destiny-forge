@@ -15,7 +15,7 @@ pub use memory::{
     ProfileSession, SavedCropKind, SavedCropPlot, SavedPlotStage, PROFILE_COUNT,
 };
 #[cfg(test)]
-pub(crate) use memory::{lock_profile_files, profile_path};
+pub(crate) use memory::TempSaveRoot;
 pub use plugin::CorePlugin;
 pub use season::{CalendarDate, CalendarRules, Season, SeasonRollover};
 pub use state::{DungeonPlayState, GameState};

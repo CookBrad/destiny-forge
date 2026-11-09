@@ -1,4 +1,3 @@
-use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::autosave_block::ProfileAutosaveBlock;
@@ -32,20 +31,6 @@ pub fn queue_autosave(profile_dirty: Res<ProfileDirty>, mut timer: ResMut<Autosa
     }
 }
 
-#[derive(SystemParam)]
-pub(crate) struct ProfileSaveState<'w> {
-    active: Res<'w, ActiveProfile>,
-    audio: Res<'w, AudioSettings>,
-    bindings: Res<'w, SkillBindings>,
-    inventory: Res<'w, Inventory>,
-    loadout: Res<'w, Loadout>,
-    progress: Res<'w, WorldProgress>,
-    day_clock: Res<'w, DayClock>,
-    tool_energy: Res<'w, ToolEnergy>,
-    profile: ResMut<'w, PlayerProfile>,
-    autosave_block: Res<'w, ProfileAutosaveBlock>,
-}
-
 pub fn debounced_autosave(
     time: Res<Time>,
     mut timer: ResMut<AutosaveTimer>,
@@ -55,18 +40,6 @@ pub fn debounced_autosave(
     mut profile: ResMut<PlayerProfile>,
     autosave_block: Res<ProfileAutosaveBlock>,
 ) {
-    let ProfileSaveState {
-        active,
-        audio,
-        bindings,
-        inventory,
-        loadout,
-        progress,
-        day_clock,
-        tool_energy,
-        mut profile,
-        autosave_block,
-    } = state;
     if !profile_dirty.0 || autosave_block.is_blocked(active.index()) {
         return;
     }

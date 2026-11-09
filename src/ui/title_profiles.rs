@@ -183,7 +183,10 @@ pub fn handle_title_profile_card_clicks(
 pub fn handle_title_profile_rename_clicks(
     mut rename: ResMut<ProfileRenameState>,
     picker: Res<ProfilePicker>,
-    mut interactions: TitleProfileRenameClicks,
+    mut interactions: Query<
+        (&Interaction, &TitleProfileRenameButton),
+        (Changed<Interaction>, With<Button>),
+    >,
 ) {
     for (interaction, button) in &mut interactions {
         if *interaction != Interaction::Pressed {
@@ -459,13 +462,12 @@ mod run_gate_tests {
     use crate::audio::AudioSettings;
     use crate::combat::SkillBindings;
     use crate::core::{
-        lock_profile_files, profile_path, ActiveProfile, CalendarRules, DayClock, GameSettings,
-        GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
-        PROFILE_COUNT,
+        ActiveProfile, CalendarRules, DayClock, GameSettings, GameState, PlayerProfile,
+        ProfileAutosaveBlock, ProfileDirty, Season, TempSaveRoot, ToolEnergy, PROFILE_COUNT,
     };
     use crate::input::action_state_after_pressing;
     use crate::items::Inventory;
-    use crate::player::{Loadout, WorldProgress};
+    use crate::player::{Loadout, Wallet, WorldProgress};
 
     use super::{
         handle_title_profile_card_clicks, handle_title_profile_keyboard_shortcuts,
@@ -474,8 +476,7 @@ mod run_gate_tests {
 
     #[test]
     fn a_pressed_card_starts_that_profile_run() {
-        let _files = lock_profile_files();
-        let _saved = RestoredProfiles::capture();
+        let _root = TempSaveRoot::acquire();
         let index = 1;
         let mut app = title_app(action_state_after_pressing(&[], &[]));
         app.world_mut()
@@ -491,8 +492,7 @@ mod run_gate_tests {
 
     #[test]
     fn a_digit_shortcut_starts_that_profile_run() {
-        let _files = lock_profile_files();
-        let _saved = RestoredProfiles::capture();
+        let _root = TempSaveRoot::acquire();
         let mut app = title_app(action_state_after_pressing(&[KeyCode::Digit2], &[]));
         app.add_systems(Update, handle_title_profile_keyboard_shortcuts);
         app.update();
@@ -505,8 +505,7 @@ mod run_gate_tests {
 
     #[test]
     fn an_out_of_range_card_starts_the_last_profile() {
-        let _files = lock_profile_files();
-        let _saved = RestoredProfiles::capture();
+        let _root = TempSaveRoot::acquire();
         let mut app = title_app(action_state_after_pressing(&[], &[]));
         app.world_mut().spawn((
             Button,
@@ -527,41 +526,6 @@ mod run_gate_tests {
         ));
     }
 
-    struct RestoredProfiles {
-        slots: Vec<(std::path::PathBuf, Option<Vec<u8>>)>,
-    }
-
-    impl RestoredProfiles {
-        fn capture() -> Self {
-            let slots = (0..PROFILE_COUNT)
-                .map(|index| {
-                    let path = profile_path(index);
-                    let previous = std::fs::read(&path).ok();
-                    (path, previous)
-                })
-                .collect();
-            Self { slots }
-        }
-    }
-
-    impl Drop for RestoredProfiles {
-        fn drop(&mut self) {
-            for (path, previous) in &self.slots {
-                match previous {
-                    Some(bytes) => {
-                        if let Some(parent) = path.parent() {
-                            let _ = std::fs::create_dir_all(parent);
-                        }
-                        let _ = std::fs::write(path, bytes);
-                    }
-                    None => {
-                        let _ = std::fs::remove_file(path);
-                    }
-                }
-            }
-        }
-    }
-
     fn title_app(actions: crate::input::ActionState) -> App {
         let mut app = App::new();
         app.insert_resource(actions)
@@ -571,12 +535,13 @@ mod run_gate_tests {
             .insert_resource(WorldProgress::default())
             .insert_resource(DayClock::default())
             .insert_resource(ToolEnergy::default())
-            .insert_resource(Season::default())
-            .insert_resource(CalendarRules::default())
-            .insert_resource(ActiveProfile::default())
+            .insert_resource(Season::Spring)
+            .insert_resource(CalendarRules::load())
+            .insert_resource(ActiveProfile(0))
             .insert_resource(PlayerProfile::default())
             .insert_resource(AudioSettings::default())
             .insert_resource(SkillBindings::default())
+            .insert_resource(Wallet::default())
             .insert_resource(GameSettings::default())
             .insert_resource(ProfileDirty::default())
             .insert_resource(ProfileAutosaveBlock::default())

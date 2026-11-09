@@ -15,59 +15,6 @@ use super::settings::GameSettings;
 use super::storage::{save_profile, save_root_display, save_settings};
 use super::ProfileDirty;
 
-#[derive(Clone, Copy)]
-pub struct ProfileSnapshot<'a> {
-    pub inventory: &'a Inventory,
-    pub loadout: &'a Loadout,
-    pub progress: &'a WorldProgress,
-    pub day_clock: &'a DayClock,
-    pub tool_energy: &'a ToolEnergy,
-    pub audio: &'a AudioSettings,
-    pub bindings: &'a SkillBindings,
-}
-
-pub struct RuntimeProfile<'a> {
-    pub inventory: &'a mut Inventory,
-    pub loadout: &'a mut Loadout,
-    pub progress: &'a mut WorldProgress,
-    pub day_clock: &'a mut DayClock,
-    pub tool_energy: &'a mut ToolEnergy,
-    pub season: &'a mut Season,
-    pub audio: &'a mut AudioSettings,
-    pub bindings: &'a mut SkillBindings,
-}
-
-pub struct ProfileSwitch<'a> {
-    pub active: &'a mut ActiveProfile,
-    pub profile: &'a mut PlayerProfile,
-    pub global: &'a mut GameSettings,
-    pub dirty: &'a mut ProfileDirty,
-    pub autosave_block: &'a mut ProfileAutosaveBlock,
-}
-
-#[derive(SystemParam)]
-pub(crate) struct HydratedRuntime<'w> {
-    audio: ResMut<'w, AudioSettings>,
-    bindings: ResMut<'w, SkillBindings>,
-    inventory: ResMut<'w, Inventory>,
-    loadout: ResMut<'w, Loadout>,
-    progress: ResMut<'w, WorldProgress>,
-    day_clock: ResMut<'w, DayClock>,
-    tool_energy: ResMut<'w, ToolEnergy>,
-    season: ResMut<'w, Season>,
-}
-
-#[derive(SystemParam)]
-pub(crate) struct CapturedRuntime<'w> {
-    audio: Res<'w, AudioSettings>,
-    bindings: Res<'w, SkillBindings>,
-    inventory: Res<'w, Inventory>,
-    loadout: Res<'w, Loadout>,
-    progress: Res<'w, WorldProgress>,
-    day_clock: Res<'w, DayClock>,
-    tool_energy: Res<'w, ToolEnergy>,
-}
-
 pub fn hydrate_runtime_from_memory(
     profile: Res<PlayerProfile>,
     active: Res<ActiveProfile>,
@@ -463,6 +410,32 @@ mod tests {
         assert!(started);
         assert_eq!(profile.wallet.gold, 8);
         assert_eq!(active.index(), PROFILE_COUNT - 1);
+    }
+
+    #[test]
+    fn a_corrupt_profile_does_not_switch() {
+        let _root = TempSaveRoot::acquire();
+        let saved_gold = 4;
+        std::fs::write(profile_path(1), b"this is not a profile {{{{").unwrap();
+        let mut profile = PlayerProfile {
+            wallet: Wallet {
+                gold: saved_gold,
+                sparks: DestinySpark(0),
+            },
+            ..PlayerProfile::default()
+        };
+        let active = ActiveProfile(0);
+        let mut autosave_block = ProfileAutosaveBlock::default();
+        let (started, active) =
+            activate_profile_with_block(&mut profile, active, 1, &mut autosave_block);
+        assert!(!started);
+        assert_eq!(active.index(), 0);
+        assert_eq!(profile.wallet.gold, saved_gold);
+        assert!(autosave_block.is_blocked(1));
+        assert_eq!(
+            std::fs::read(profile_path(1)).unwrap(),
+            b"this is not a profile {{{{"
+        );
     }
 
     fn apply_saved_wallet(
