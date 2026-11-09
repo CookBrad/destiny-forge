@@ -6,6 +6,7 @@ mod migration;
 mod plugin;
 mod profile;
 mod ron_value;
+mod sections;
 mod settings;
 mod storage;
 mod sync;

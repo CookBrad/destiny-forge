@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(profile.header.gold, 0);
         assert_eq!(profile.wallet.gold, 0);
         assert_eq!(profile.wallet.sparks.0, 0);
-        assert!(profile.crop_plots.is_empty());
+        assert!(profile.homestead.crop_plots.is_empty());
         assert!(profile.depleted_ore_node_ids.is_empty());
     }
 
