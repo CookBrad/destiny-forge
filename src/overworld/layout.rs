@@ -281,22 +281,25 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
 }
 
 fn spawn_player_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
-    let min_tx = (footprint.min.x / TILE).floor() as u32;
-    let max_tx = (footprint.max.x / TILE).ceil() as u32;
-    let min_ty = (footprint.min.y / TILE).floor() as u32;
-    let max_ty = (footprint.max.y / TILE).ceil() as u32;
+    let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
+        tile_range_from_rect(footprint);
 
     let wall_tint = Color::srgb(0.62, 0.5, 0.38);
     let floor_tint = Color::srgb(0.42, 0.32, 0.22);
-    let door_tx_start = min_tx + (max_tx - min_tx) / 2 - 1;
-    let door_tx_end = door_tx_start + 2;
+    let door_column_start =
+        first_tile_column + (end_tile_column - first_tile_column) / 2 - 1;
+    let door_column_end = door_column_start + 2;
 
-    for ty in min_ty..max_ty {
-        for tx in min_tx..max_tx {
-            let center = tile_center(tx, ty);
-            let on_south = ty == min_ty;
-            let on_edge = tx == min_tx || tx + 1 == max_tx || on_south || ty + 1 == max_ty;
-            let door_gap = on_south && tx >= door_tx_start && tx < door_tx_end;
+    for tile_row in first_tile_row..end_tile_row {
+        for tile_column in first_tile_column..end_tile_column {
+            let center = tile_center(tile_column, tile_row);
+            let on_south = tile_row == first_tile_row;
+            let on_edge = tile_column == first_tile_column
+                || tile_column + 1 == end_tile_column
+                || on_south
+                || tile_row + 1 == end_tile_row;
+            let door_gap =
+                on_south && tile_column >= door_column_start && tile_column < door_column_end;
 
             if on_edge && !door_gap {
                 commands.spawn((
@@ -324,22 +327,76 @@ fn spawn_player_house(commands: &mut Commands, art: &OverworldArt, footprint: Re
         }
     }
 
-    spawn_sleep_bed_placeholder(commands, art, min_tx, max_tx, min_ty, max_ty);
+    spawn_sleep_bed_placeholder(
+        commands,
+        art,
+        first_tile_column,
+        end_tile_column,
+        first_tile_row,
+        end_tile_row,
+    );
 
     spawn_native_roof_row(
         commands,
         NativeRoofRow {
             image: art.roof.clone(),
             color: Color::srgb(0.45, 0.22, 0.16),
-            min_tx,
-            max_tx,
-            tile_y: max_ty.saturating_sub(1),
+            min_tx: first_tile_column,
+            max_tx: end_tile_column,
+            tile_y: end_tile_row.saturating_sub(1),
             z: 2.0,
         },
         |entity| {
             entity.insert((HouseEntity, OverworldEntity));
         },
     );
+}
+
+fn tile_range_from_rect(bounds: Rect) -> (u32, u32, u32, u32) {
+    let first_tile_column = (bounds.min.x / TILE).floor() as u32;
+    let end_tile_column = (bounds.max.x / TILE).ceil() as u32;
+    let first_tile_row = (bounds.min.y / TILE).floor() as u32;
+    let end_tile_row = (bounds.max.y / TILE).ceil() as u32;
+    (
+        first_tile_column,
+        end_tile_column,
+        first_tile_row,
+        end_tile_row,
+    )
+}
+
+fn spawn_sleep_bed_placeholder(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    first_tile_column: u32,
+    end_tile_column: u32,
+    first_tile_row: u32,
+    end_tile_row: u32,
+) {
+    let bed_column = first_tile_column + (end_tile_column - first_tile_column) / 2;
+    let bed_row = end_tile_row.saturating_sub(2).max(first_tile_row + 1);
+    let bed_center = tile_center(bed_column, bed_row);
+    commands.spawn((
+        Sprite {
+            image: art.wall.clone(),
+            color: Color::srgb(0.55, 0.28, 0.35),
+            ..default()
+        },
+        world_transform(bed_center, 1.6),
+        SleepBed,
+        HouseEntity,
+        OverworldEntity,
+    ));
+    commands.spawn((
+        Sprite {
+            image: art.path.clone(),
+            color: Color::srgb(0.85, 0.82, 0.75),
+            ..default()
+        },
+        world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
+        HouseEntity,
+        OverworldEntity,
+    ));
 }
 
 struct NativeRoofRow {
@@ -415,19 +472,6 @@ fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
     }
 }
 
-fn tile_range_from_rect(bounds: Rect) -> (u32, u32, u32, u32) {
-    let first_tile_column = (bounds.min.x / TILE).floor() as u32;
-    let end_tile_column = (bounds.max.x / TILE).ceil() as u32;
-    let first_tile_row = (bounds.min.y / TILE).floor() as u32;
-    let end_tile_row = (bounds.max.y / TILE).ceil() as u32;
-    (
-        first_tile_column,
-        end_tile_column,
-        first_tile_row,
-        end_tile_row,
-    )
-}
-
 fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Rect) {
     let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
         tile_range_from_rect(entrance);
@@ -455,25 +499,6 @@ fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Re
             ));
         }
     }
-}
-
-fn fishing_dock_water_color() -> Color {
-    Color::srgb(0.22, 0.42, 0.58)
-}
-
-fn fishing_dock_plank_color() -> Color {
-    Color::srgb(0.52, 0.38, 0.24)
-}
-
-fn fishing_dock_tile_is_plank(
-    tile_column: u32,
-    tile_row: u32,
-    end_tile_column: u32,
-    first_tile_row: u32,
-    end_tile_row: u32,
-) -> bool {
-    tile_row == first_tile_row
-        || (tile_column == end_tile_column - 1 && tile_row < end_tile_row - 1)
 }
 
 fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
@@ -509,38 +534,23 @@ fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
     }
 }
 
-fn spawn_sleep_bed_placeholder(
-    commands: &mut Commands,
-    art: &OverworldArt,
-    first_tile_column: u32,
+fn fishing_dock_water_color() -> Color {
+    Color::srgb(0.22, 0.42, 0.58)
+}
+
+fn fishing_dock_plank_color() -> Color {
+    Color::srgb(0.52, 0.38, 0.24)
+}
+
+fn fishing_dock_tile_is_plank(
+    tile_column: u32,
+    tile_row: u32,
     end_tile_column: u32,
     first_tile_row: u32,
     end_tile_row: u32,
-) {
-    let bed_column = first_tile_column + (end_tile_column - first_tile_column) / 2;
-    let bed_row = end_tile_row.saturating_sub(2).max(first_tile_row + 1);
-    let bed_center = tile_center(bed_column, bed_row);
-    commands.spawn((
-        Sprite {
-            image: art.wall.clone(),
-            color: Color::srgb(0.55, 0.28, 0.35),
-            ..default()
-        },
-        world_transform(bed_center, 1.6),
-        SleepBed,
-        HouseEntity,
-        OverworldEntity,
-    ));
-    commands.spawn((
-        Sprite {
-            image: art.path.clone(),
-            color: Color::srgb(0.85, 0.82, 0.75),
-            ..default()
-        },
-        world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
-        HouseEntity,
-        OverworldEntity,
-    ));
+) -> bool {
+    tile_row == first_tile_row
+        || (tile_column == end_tile_column - 1 && tile_row < end_tile_row - 1)
 }
 
 pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
@@ -657,74 +667,181 @@ mod tests {
         assert_eq!(zone.bounds, dock);
     }
 
+    fn blank_overworld_art() -> OverworldArt {
+        let blank = Handle::default();
+        OverworldArt {
+            grass: blank.clone(),
+            path: blank.clone(),
+            wall: blank.clone(),
+            soil: blank.clone(),
+            roof: blank.clone(),
+            grid_line: blank.clone(),
+            forge_furnace: blank.clone(),
+            forge_workbench: blank.clone(),
+            forge_anvil: blank.clone(),
+            player: HomesteadPlayerFrames {
+                idle: std::array::from_fn(|_| Handle::default()),
+                walk: std::array::from_fn(|_| Handle::default()),
+                eat: std::array::from_fn(|_| Handle::default()),
+            },
+            animal: blank.clone(),
+            animal_layout: Handle::default(),
+        }
+    }
+
+    #[test]
+    fn tile_range_from_rect_maps_a_normal_footprint() {
+        assert_eq!(
+            tile_range_from_rect(tile_rect(4, 30, 13, 38)),
+            (4, 13, 30, 38)
+        );
+    }
+
+    #[test]
+    fn tile_range_from_rect_maps_a_one_tile_footprint() {
+        assert_eq!(tile_range_from_rect(tile_rect(7, 9, 8, 10)), (7, 8, 9, 10));
+    }
+
+    #[test]
+    fn tile_range_from_rect_maps_a_zero_size_footprint_to_an_empty_range() {
+        assert_eq!(tile_range_from_rect(tile_rect(5, 5, 5, 5)), (5, 5, 5, 5));
+    }
+
+    #[test]
+    fn fishing_dock_tile_is_plank_on_the_south_walkway() {
+        assert!(fishing_dock_tile_is_plank(2, 12, 5, 12, 16));
+    }
+
+    #[test]
+    fn fishing_dock_tile_is_plank_on_the_east_pier_edge() {
+        assert!(fishing_dock_tile_is_plank(4, 14, 5, 12, 16));
+    }
+
+    #[test]
+    fn fishing_dock_tile_is_plank_rejects_open_water() {
+        assert!(!fishing_dock_tile_is_plank(2, 14, 5, 12, 16));
+        assert!(!fishing_dock_tile_is_plank(4, 15, 5, 12, 16));
+    }
+
+    #[test]
+    fn spawn_sleep_bed_placeholder_places_bed_and_pillow_at_literal_house_spot() {
+        let mut app = App::new();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_sleep_bed_placeholder(&mut commands, &blank_overworld_art(), 4, 13, 30, 38);
+        });
+        app.update();
+        let bed_center = tile_center(8, 36);
+        let mut beds = app.world_mut().query::<(&Sprite, &Transform, &SleepBed)>();
+        let beds: Vec<_> = beds.iter(app.world()).collect();
+        assert_eq!(beds.len(), 1);
+        assert_eq!(beds[0].0.color, Color::srgb(0.55, 0.28, 0.35));
+        assert_eq!(
+            beds[0].1.translation,
+            world_transform(bed_center, 1.6).translation
+        );
+        let mut pillows = app
+            .world_mut()
+            .query_filtered::<(&Sprite, &Transform), (With<HouseEntity>, Without<SleepBed>)>();
+        let pillows: Vec<_> = pillows.iter(app.world()).collect();
+        assert_eq!(pillows.len(), 1);
+        assert_eq!(pillows[0].0.color, Color::srgb(0.85, 0.82, 0.75));
+        assert_eq!(
+            pillows[0].1.translation,
+            world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7).translation
+        );
+    }
+
+    #[test]
+    fn spawn_sleep_bed_placeholder_keeps_bed_inside_a_short_house() {
+        let mut app = App::new();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_sleep_bed_placeholder(&mut commands, &blank_overworld_art(), 0, 2, 0, 3);
+        });
+        app.update();
+        let bed_center = tile_center(1, 1);
+        let mut beds = app.world_mut().query::<(&Transform, &SleepBed)>();
+        let beds: Vec<_> = beds.iter(app.world()).collect();
+        assert_eq!(beds.len(), 1);
+        assert_eq!(
+            beds[0].0.translation,
+            world_transform(bed_center, 1.6).translation
+        );
+    }
+
+    #[test]
+    fn spawn_sleep_bed_placeholder_places_two_sprites_for_a_degenerate_range() {
+        let mut app = App::new();
+        app.add_systems(Update, |mut commands: Commands| {
+            spawn_sleep_bed_placeholder(&mut commands, &blank_overworld_art(), 5, 5, 5, 5);
+        });
+        app.update();
+        let bed_center = tile_center(5, 6);
+        let mut beds = app.world_mut().query::<(&Transform, &SleepBed)>();
+        let beds: Vec<_> = beds.iter(app.world()).collect();
+        assert_eq!(beds.len(), 1);
+        assert_eq!(
+            beds[0].0.translation,
+            world_transform(bed_center, 1.6).translation
+        );
+        let house_sprites = app
+            .world_mut()
+            .query_filtered::<(), With<HouseEntity>>()
+            .iter(app.world())
+            .count();
+        assert_eq!(house_sprites, 2);
+    }
+
     #[test]
     fn spawn_fishing_dock_places_sixteen_tiles_with_six_planks() {
         let mut app = App::new();
         let dock = fishing_dock_rect();
-        let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
-            tile_range_from_rect(dock);
         app.add_systems(Update, move |mut commands: Commands| {
-            let blank = Handle::default();
-            let art = OverworldArt {
-                grass: blank.clone(),
-                path: blank.clone(),
-                wall: blank.clone(),
-                soil: blank.clone(),
-                roof: blank.clone(),
-                grid_line: blank.clone(),
-                forge_furnace: blank.clone(),
-                forge_workbench: blank.clone(),
-                forge_anvil: blank.clone(),
-                player: HomesteadPlayerFrames {
-                    idle: std::array::from_fn(|_| Handle::default()),
-                    walk: std::array::from_fn(|_| Handle::default()),
-                    eat: std::array::from_fn(|_| Handle::default()),
-                },
-                animal: blank.clone(),
-                animal_layout: Handle::default(),
-            };
-            spawn_fishing_dock(&mut commands, &art, dock);
+            spawn_fishing_dock(&mut commands, &blank_overworld_art(), dock);
         });
         app.update();
-        let mut plank_count = 0;
-        let mut water_count = 0;
+        let plank_positions = [
+            tile_center(1, 12),
+            tile_center(2, 12),
+            tile_center(3, 12),
+            tile_center(4, 12),
+            tile_center(4, 13),
+            tile_center(4, 14),
+        ];
+        let water_positions = [
+            tile_center(1, 13),
+            tile_center(2, 13),
+            tile_center(3, 13),
+            tile_center(1, 14),
+            tile_center(2, 14),
+            tile_center(3, 14),
+            tile_center(1, 15),
+            tile_center(2, 15),
+            tile_center(3, 15),
+            tile_center(4, 15),
+        ];
         let mut tiles = app.world_mut().query::<(&Sprite, &Transform, &FishingDock)>();
-        let mut seen = Vec::new();
-        for (sprite, transform, _) in tiles.iter(app.world()) {
-            seen.push(transform.translation);
-            if sprite.color == fishing_dock_plank_color() {
-                plank_count += 1;
-            } else if sprite.color == fishing_dock_water_color() {
-                water_count += 1;
-            } else {
-                panic!("unexpected dock color {:?}", sprite.color);
-            }
+        let drawn: Vec<_> = tiles
+            .iter(app.world())
+            .map(|(sprite, transform, _)| (transform.translation, sprite.color))
+            .collect();
+        assert_eq!(drawn.len(), 16);
+        for position in plank_positions {
+            let expected = world_transform(position, 0.6).translation;
+            let color = drawn
+                .iter()
+                .find(|(translation, _)| *translation == expected)
+                .map(|(_, color)| *color)
+                .expect("plank tile present");
+            assert_eq!(color, fishing_dock_plank_color());
         }
-        assert_eq!(seen.len(), 16);
-        assert_eq!(plank_count, 6);
-        assert_eq!(water_count, 10);
-        for tile_row in first_tile_row..end_tile_row {
-            for tile_column in first_tile_column..end_tile_column {
-                let expected = world_transform(tile_center(tile_column, tile_row), 0.6).translation;
-                assert!(seen.contains(&expected));
-                let on_plank = fishing_dock_tile_is_plank(
-                    tile_column,
-                    tile_row,
-                    end_tile_column,
-                    first_tile_row,
-                    end_tile_row,
-                );
-                let sprite = tiles
-                    .iter(app.world())
-                    .find(|(_, transform, _)| transform.translation == expected)
-                    .map(|(sprite, _, _)| sprite.color)
-                    .unwrap();
-                if on_plank {
-                    assert_eq!(sprite, fishing_dock_plank_color());
-                } else {
-                    assert_eq!(sprite, fishing_dock_water_color());
-                }
-            }
+        for position in water_positions {
+            let expected = world_transform(position, 0.6).translation;
+            let color = drawn
+                .iter()
+                .find(|(translation, _)| *translation == expected)
+                .map(|(_, color)| *color)
+                .expect("water tile present");
+            assert_eq!(color, fishing_dock_water_color());
         }
     }
 }
