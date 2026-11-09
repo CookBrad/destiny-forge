@@ -333,10 +333,8 @@ mod tests {
 
     #[test]
     fn hydrate_clamps_a_zero_calendar_day_to_day_one() {
-        let profile = PlayerProfile {
-            calendar_day: 0,
-            ..PlayerProfile::default()
-        };
+        let mut profile = PlayerProfile::default();
+        profile.header.calendar.calendar_day = 0;
         let mut app = app_holding(profile, Wallet::default());
         app.add_systems(Update, hydrate_runtime_from_memory);
         app.update();
