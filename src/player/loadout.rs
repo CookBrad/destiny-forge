@@ -79,18 +79,7 @@ impl ArmorPiece {
     }
 
     pub fn slot(self) -> ArmorSlot {
-        match gear_catalog().slot(self.gear_id()) {
-            Some(GearSlot::Head) => ArmorSlot::Helm,
-            Some(GearSlot::Chest) => ArmorSlot::Mail,
-            Some(GearSlot::Arms) => ArmorSlot::Gauntlets,
-            Some(GearSlot::Legs) => ArmorSlot::Greaves,
-            Some(GearSlot::Weapon) | None => match self {
-                Self::Helm => ArmorSlot::Helm,
-                Self::Mail => ArmorSlot::Mail,
-                Self::Gauntlets => ArmorSlot::Gauntlets,
-                Self::Greaves => ArmorSlot::Greaves,
-            },
-        }
+        armor_slot_from_gear_slot(gear_catalog().slot(self.gear_id()), self)
     }
 
     pub fn defense(self) -> f32 {
@@ -99,6 +88,21 @@ impl ArmorPiece {
 
     pub fn label(self) -> &'static str {
         gear_catalog().name(self.gear_id())
+    }
+}
+
+fn armor_slot_from_gear_slot(slot: Option<GearSlot>, piece: ArmorPiece) -> ArmorSlot {
+    match slot {
+        Some(GearSlot::Head) => ArmorSlot::Helm,
+        Some(GearSlot::Chest) => ArmorSlot::Mail,
+        Some(GearSlot::Arms) => ArmorSlot::Gauntlets,
+        Some(GearSlot::Legs) => ArmorSlot::Greaves,
+        Some(GearSlot::Weapon) | None => match piece {
+            ArmorPiece::Helm => ArmorSlot::Helm,
+            ArmorPiece::Mail => ArmorSlot::Mail,
+            ArmorPiece::Gauntlets => ArmorSlot::Gauntlets,
+            ArmorPiece::Greaves => ArmorSlot::Greaves,
+        },
     }
 }
 
@@ -652,5 +656,77 @@ mod tests {
         assert_eq!(slots.mail, None);
         assert_eq!(slots.gauntlets, None);
         assert_eq!(slots.greaves, None);
+    }
+
+    #[test]
+    fn a_missing_gear_slot_maps_each_armor_piece_to_its_own_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(None, ArmorPiece::Helm),
+            ArmorSlot::Helm
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(None, ArmorPiece::Mail),
+            ArmorSlot::Mail
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(None, ArmorPiece::Gauntlets),
+            ArmorSlot::Gauntlets
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(None, ArmorPiece::Greaves),
+            ArmorSlot::Greaves
+        );
+    }
+
+    #[test]
+    fn a_weapon_gear_slot_maps_each_armor_piece_to_its_own_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Weapon), ArmorPiece::Helm),
+            ArmorSlot::Helm
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Weapon), ArmorPiece::Mail),
+            ArmorSlot::Mail
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Weapon), ArmorPiece::Gauntlets),
+            ArmorSlot::Gauntlets
+        );
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Weapon), ArmorPiece::Greaves),
+            ArmorSlot::Greaves
+        );
+    }
+
+    #[test]
+    fn a_head_gear_slot_maps_to_the_helm_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Head), ArmorPiece::Mail),
+            ArmorSlot::Helm
+        );
+    }
+
+    #[test]
+    fn a_chest_gear_slot_maps_to_the_mail_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Chest), ArmorPiece::Helm),
+            ArmorSlot::Mail
+        );
+    }
+
+    #[test]
+    fn an_arms_gear_slot_maps_to_the_gauntlets_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Arms), ArmorPiece::Greaves),
+            ArmorSlot::Gauntlets
+        );
+    }
+
+    #[test]
+    fn a_legs_gear_slot_maps_to_the_greaves_armor_slot() {
+        assert_eq!(
+            armor_slot_from_gear_slot(Some(GearSlot::Legs), ArmorPiece::Gauntlets),
+            ArmorSlot::Greaves
+        );
     }
 }
