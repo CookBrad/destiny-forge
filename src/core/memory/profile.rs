@@ -5,11 +5,11 @@ use crate::items::Inventory;
 use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::header::SaveHeader;
-use super::sections::HomesteadSave;
+use super::sections::{HomesteadSave, MineSave};
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 11;
+pub const PROFILE_VERSION: u32 = 12;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -29,7 +29,7 @@ pub struct PlayerProfile {
     pub loadout: Loadout,
     pub progress: WorldProgress,
     pub homestead: HomesteadSave,
-    pub depleted_ore_node_ids: Vec<u16>,
+    pub mine: MineSave,
     pub wallet: Wallet,
     #[serde(default)]
     pub settings: ProfileSettings,
@@ -46,7 +46,7 @@ impl Default for PlayerProfile {
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
             homestead: HomesteadSave::default(),
-            depleted_ore_node_ids: Vec::new(),
+            mine: MineSave::default(),
             wallet: Wallet::default(),
             settings: ProfileSettings::default(),
             playtime_fraction: 0.0,
