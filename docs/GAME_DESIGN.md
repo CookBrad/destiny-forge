@@ -11,6 +11,8 @@ Combat is the main challenge; the homestead is the calm half of the day that fun
 | v0.2    | July 2026 | Fresh-start revision: scope, specs, phases                            |
 | v1.0    | July 2026 | Rebalanced pillars: combat mastery + MH gear + full Stardew lifestyle |
 
+This is the overview. Each system is designed in detail in [`design/`](../design/README.md), one document per system, and every ticket links to its document there.
+
 ---
 
 ## Table of Contents

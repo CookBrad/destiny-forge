@@ -232,12 +232,15 @@ mod tests {
         let loaded = profile_or_missing_default(load_profile_at(&primary)).unwrap();
         let expected = PlayerProfile::default();
         assert_eq!(loaded.version, expected.version);
-        assert_eq!(loaded.name, expected.name);
+        assert_eq!(loaded.header.name, expected.header.name);
         assert_eq!(
             loaded.inventory.total_items(),
             expected.inventory.total_items()
         );
-        assert_eq!(loaded.calendar_day, expected.calendar_day);
+        assert_eq!(
+            loaded.header.calendar.calendar_day,
+            expected.header.calendar.calendar_day
+        );
         assert!(corrupt_backups(primary.parent().unwrap(), "profile_0").is_empty());
         let _ = fs::remove_dir_all(&root);
     }

@@ -33,6 +33,23 @@ const MAX_AIR_JUMPS: u8 = 1;
 const PLAYER_KNOCKBACK_DECAY: f32 = 7.0;
 const PLAYER_KNOCKBACK_STOP: f32 = 22.0;
 
+pub(crate) type DungeonMover<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Transform,
+        &'static mut PlayerVelocity,
+        &'static mut PlayerAirJumps,
+        &'static mut Health,
+        &'static PlayerAttack,
+        &'static PlayerBlock,
+        Option<&'static PlayerSpecialMove>,
+        Option<&'static mut PlayerKnockback>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn dungeon_movement(
     actions: Res<ActionState>,
     time: Res<Time>,
@@ -40,20 +57,7 @@ pub fn dungeon_movement(
     mut commands: Commands,
     bounds: Res<DungeonScrollBounds>,
     platforms: Query<&PlatformCollider>,
-    mut player: Query<
-        (
-            Entity,
-            &mut Transform,
-            &mut PlayerVelocity,
-            &mut PlayerAirJumps,
-            &mut Health,
-            &PlayerAttack,
-            &PlayerBlock,
-            Option<&PlayerSpecialMove>,
-            Option<&mut PlayerKnockback>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    mut player: DungeonMover,
 ) {
     let Ok((
         entity,
@@ -204,11 +208,12 @@ fn overlaps_x(center_x: f32, half_width: f32, collider: &PlatformCollider) -> bo
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use bevy::ecs::system::RunSystemOnce;
+    use std::time::Duration;
 
-    use crate::combat::{Health, PlayerAttack, PlayerBlock};
-    use crate::graphics::{DungeonScrollBounds, DUNGEON_JUMP_SPEED};
+    use super::*;
+
+    use crate::combat::{Health, PlayerAttack, PlayerBlock, PLAYER_MAX_HEALTH};
+    use crate::graphics::{DungeonScrollBounds, DUNGEON_JUMP_SPEED, PLAYER_WALK_SPEED, TILE};
     use crate::input::action_state_after_pressing;
 
     #[test]
@@ -219,37 +224,6 @@ mod tests {
         assert!(!hits_ceiling(DUNGEON_CEILING_Y, half, -10.0));
     }
 
-    fn vertical_velocity_after(keys: &[KeyCode]) -> f32 {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .insert_resource(action_state_after_pressing(keys, &[]))
-            .insert_resource(DungeonScrollBounds { width: 4_000.0 });
-        app.world_mut().spawn((
-            DungeonPlayer,
-            Transform::from_xyz(200.0, 200.0, 0.0),
-            PlayerVelocity {
-                x: 0.0,
-                y: 0.0,
-                grounded: true,
-            },
-            PlayerAirJumps { remaining: 1 },
-            Health::new(100.0),
-            finished_attack(),
-            PlayerBlock::default(),
-        ));
-        app.world_mut().run_system_once(dungeon_movement).unwrap();
-        app.world_mut()
-            .query_filtered::<&PlayerVelocity, With<DungeonPlayer>>()
-            .single(app.world())
-            .y
-    }
-
-    fn finished_attack() -> PlayerAttack {
-        let mut attack = PlayerAttack::inactive();
-        attack.timer.tick(std::time::Duration::from_secs(1));
-        attack
-    }
-
     #[test]
     fn space_still_jumps_and_enter_does_not() {
         assert_eq!(
@@ -257,5 +231,122 @@ mod tests {
             DUNGEON_JUMP_SPEED
         );
         assert_eq!(vertical_velocity_after(&[KeyCode::Enter]), 0.0);
+    }
+
+    fn vertical_velocity_after(keys: &[KeyCode]) -> f32 {
+        let start = Vec3::new(TILE * 6.0, TILE * 6.0, 0.0);
+        let mut app = movement_app(keys, Duration::ZERO, start.x);
+        spawn_grounded_hunter(&mut app, start);
+        app.update();
+        app.world_mut()
+            .query_filtered::<&PlayerVelocity, With<DungeonPlayer>>()
+            .single(app.world())
+            .y
+    }
+
+    fn movement_app(keys: &[KeyCode], step: Duration, far_x: f32) -> App {
+        let mut time = Time::<()>::default();
+        time.advance_by(step);
+        let mut app = App::new();
+        app.insert_resource(time)
+            .insert_resource(action_state_after_pressing(keys, &[]))
+            .insert_resource(DungeonScrollBounds {
+                width: far_x + player_half_extents().x + TILE,
+            })
+            .add_systems(Update, dungeon_movement);
+        app
+    }
+
+    fn spawn_grounded_hunter(app: &mut App, translation: Vec3) -> Entity {
+        app.world_mut()
+            .spawn((
+                DungeonPlayer,
+                Transform::from_translation(translation),
+                PlayerVelocity {
+                    x: 0.0,
+                    y: 0.0,
+                    grounded: true,
+                },
+                PlayerAirJumps {
+                    remaining: MAX_AIR_JUMPS,
+                },
+                Health::new(PLAYER_MAX_HEALTH),
+                finished_attack(),
+                PlayerBlock::default(),
+            ))
+            .id()
+    }
+
+    fn finished_attack() -> PlayerAttack {
+        let mut attack = PlayerAttack::inactive();
+        attack.timer.tick(Duration::from_secs(1));
+        attack
+    }
+
+    #[test]
+    fn a_grounded_hunter_walks_right_across_one_step() {
+        let step = Duration::from_millis(50);
+        let half = player_half_extents();
+        let platform_top = TILE;
+        let start_x = TILE * 4.0;
+        let start = Vec3::new(start_x, platform_top + half.y, 0.0);
+        let expected_x = start_x + PLAYER_WALK_SPEED * step.as_secs_f32();
+        let mut app = movement_app(&[KeyCode::KeyD], step, expected_x);
+        app.world_mut().spawn(PlatformCollider {
+            min_x: start_x - TILE,
+            max_x: expected_x + TILE,
+            top_y: platform_top,
+        });
+        let hunter = spawn_grounded_hunter(&mut app, start);
+        app.update();
+        let transform = app.world().get::<Transform>(hunter).unwrap();
+        let velocity = app.world().get::<PlayerVelocity>(hunter).unwrap();
+        assert_eq!(transform.translation.x, expected_x);
+        assert_eq!(transform.translation.y, start.y);
+        assert_eq!(velocity.x, PLAYER_WALK_SPEED);
+        assert_eq!(velocity.y, 0.0);
+        assert!(velocity.grounded);
+    }
+
+    #[test]
+    fn a_dead_hunter_stays_where_they_fell() {
+        let step = Duration::from_millis(50);
+        let start = Vec3::new(TILE * 4.0, TILE * 4.0, 0.0);
+        let mut app = movement_app(&[KeyCode::KeyD, KeyCode::Space], step, start.x + TILE * 8.0);
+        let hunter = spawn_grounded_hunter(&mut app, start);
+        app.world_mut().get_mut::<Health>(hunter).unwrap().current = 0.0;
+        app.update();
+        let transform = app.world().get::<Transform>(hunter).unwrap();
+        let velocity = app.world().get::<PlayerVelocity>(hunter).unwrap();
+        assert_eq!(transform.translation, start);
+        assert_eq!(velocity.x, 0.0);
+        assert_eq!(velocity.y, 0.0);
+        assert!(velocity.grounded);
+    }
+
+    #[test]
+    fn movement_leaves_other_entities_alone_when_no_hunter_is_present() {
+        let start = Vec3::new(TILE, TILE, 0.0);
+        let mut app = movement_app(
+            &[KeyCode::KeyD, KeyCode::Space],
+            Duration::from_millis(50),
+            start.x + TILE,
+        );
+        let bystander = app
+            .world_mut()
+            .spawn(Transform::from_translation(start))
+            .id();
+        app.update();
+        assert_eq!(
+            app.world().get::<Transform>(bystander).unwrap().translation,
+            start
+        );
+        assert_eq!(
+            app.world_mut()
+                .query::<&DungeonPlayer>()
+                .iter(app.world())
+                .count(),
+            0
+        );
     }
 }
