@@ -544,53 +544,59 @@ mod tests {
                 ]);
             }
             for index in 16..64 {
-                let s0 = word[index - 15].rotate_right(7)
+                let message_schedule_sigma_zero = word[index - 15].rotate_right(7)
                     ^ word[index - 15].rotate_right(18)
                     ^ (word[index - 15] >> 3);
-                let s1 = word[index - 2].rotate_right(17)
+                let message_schedule_sigma_one = word[index - 2].rotate_right(17)
                     ^ word[index - 2].rotate_right(19)
                     ^ (word[index - 2] >> 10);
                 word[index] = word[index - 16]
-                    .wrapping_add(s0)
+                    .wrapping_add(message_schedule_sigma_zero)
                     .wrapping_add(word[index - 7])
-                    .wrapping_add(s1);
+                    .wrapping_add(message_schedule_sigma_one);
             }
-            let mut a = hash[0];
-            let mut b = hash[1];
-            let mut c = hash[2];
-            let mut d = hash[3];
-            let mut e = hash[4];
-            let mut f = hash[5];
-            let mut g = hash[6];
-            let mut h = hash[7];
+            let mut working_hash_a = hash[0];
+            let mut working_hash_b = hash[1];
+            let mut working_hash_c = hash[2];
+            let mut working_hash_d = hash[3];
+            let mut working_hash_e = hash[4];
+            let mut working_hash_f = hash[5];
+            let mut working_hash_g = hash[6];
+            let mut working_hash_h = hash[7];
             for index in 0..64 {
-                let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
-                let choose = (e & f) ^ (!e & g);
-                let temp1 = h
-                    .wrapping_add(s1)
+                let compression_sigma_one = working_hash_e.rotate_right(6)
+                    ^ working_hash_e.rotate_right(11)
+                    ^ working_hash_e.rotate_right(25);
+                let choose = (working_hash_e & working_hash_f) ^ (!working_hash_e & working_hash_g);
+                let compression_sum_one = working_hash_h
+                    .wrapping_add(compression_sigma_one)
                     .wrapping_add(choose)
                     .wrapping_add(K[index])
                     .wrapping_add(word[index]);
-                let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
-                let majority = (a & b) ^ (a & c) ^ (b & c);
-                let temp2 = s0.wrapping_add(majority);
-                h = g;
-                g = f;
-                f = e;
-                e = d.wrapping_add(temp1);
-                d = c;
-                c = b;
-                b = a;
-                a = temp1.wrapping_add(temp2);
+                let compression_sigma_zero = working_hash_a.rotate_right(2)
+                    ^ working_hash_a.rotate_right(13)
+                    ^ working_hash_a.rotate_right(22);
+                let majority = (working_hash_a & working_hash_b)
+                    ^ (working_hash_a & working_hash_c)
+                    ^ (working_hash_b & working_hash_c);
+                let compression_sum_two = compression_sigma_zero.wrapping_add(majority);
+                working_hash_h = working_hash_g;
+                working_hash_g = working_hash_f;
+                working_hash_f = working_hash_e;
+                working_hash_e = working_hash_d.wrapping_add(compression_sum_one);
+                working_hash_d = working_hash_c;
+                working_hash_c = working_hash_b;
+                working_hash_b = working_hash_a;
+                working_hash_a = compression_sum_one.wrapping_add(compression_sum_two);
             }
-            hash[0] = hash[0].wrapping_add(a);
-            hash[1] = hash[1].wrapping_add(b);
-            hash[2] = hash[2].wrapping_add(c);
-            hash[3] = hash[3].wrapping_add(d);
-            hash[4] = hash[4].wrapping_add(e);
-            hash[5] = hash[5].wrapping_add(f);
-            hash[6] = hash[6].wrapping_add(g);
-            hash[7] = hash[7].wrapping_add(h);
+            hash[0] = hash[0].wrapping_add(working_hash_a);
+            hash[1] = hash[1].wrapping_add(working_hash_b);
+            hash[2] = hash[2].wrapping_add(working_hash_c);
+            hash[3] = hash[3].wrapping_add(working_hash_d);
+            hash[4] = hash[4].wrapping_add(working_hash_e);
+            hash[5] = hash[5].wrapping_add(working_hash_f);
+            hash[6] = hash[6].wrapping_add(working_hash_g);
+            hash[7] = hash[7].wrapping_add(working_hash_h);
         }
         let mut out = [0u8; 32];
         for (index, value) in hash.iter().enumerate() {
