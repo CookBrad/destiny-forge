@@ -68,7 +68,7 @@ pub struct DungeonLayout {
     pub floor: GeneratedFloor,
 }
 
-pub fn find_ground_segment_at<'a>(x: f32, segments: &'a [PlatformSpec]) -> Option<&'a PlatformSpec> {
+pub fn find_ground_segment_at(x: f32, segments: &[PlatformSpec]) -> Option<&PlatformSpec> {
     segments.iter().find(|segment| {
         segment.top_y == DUNGEON_FLOOR_Y
             && x >= segment.left
@@ -84,7 +84,6 @@ pub fn segment_walk_bounds(segment: &PlatformSpec) -> (f32, f32) {
     )
 }
 
-/// Walkable span on the floor segment under `x`.
 pub fn ground_walk_bounds_at(x: f32, segments: &[PlatformSpec]) -> Option<(f32, f32)> {
     find_ground_segment_at(x, segments).map(segment_walk_bounds)
 }
@@ -97,7 +96,6 @@ pub fn is_on_ground_floor(x: f32, segments: &[PlatformSpec]) -> bool {
     find_ground_segment_at(x, segments).is_some()
 }
 
-/// Keep horizontal movement on the current floor segment; returns `(new_x, hit_edge)`.
 pub fn constrain_ground_walk(current_x: f32, delta_x: f32, segments: &[PlatformSpec]) -> (f32, bool) {
     let proposed = current_x + delta_x;
 
@@ -130,7 +128,6 @@ pub fn pit_bounds(pit: &PitfallSpec) -> (f32, f32) {
     (pit.left, pit.left + pit.width_tiles as f32 * TILE)
 }
 
-/// Pit immediately beyond the walk edge the goblin is standing on, if any.
 pub fn adjacent_pit_from_edge(
     x: f32,
     direction: f32,

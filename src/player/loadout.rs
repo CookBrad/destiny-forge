@@ -3,6 +3,7 @@ use serde::de::Deserializer;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::combat::{EquippedWeapon, WeaponKind};
+use crate::gear::{gear_catalog, GearSet, GearSlot};
 use crate::items::{FoodBuff, Inventory, MaterialId};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -62,35 +63,42 @@ impl Default for Loadout {
 }
 
 impl ArmorPiece {
+    pub(crate) fn gear_id(self) -> &'static str {
+        match self {
+            Self::Helm => "slime_helm",
+            Self::Mail => "slime_mail",
+            Self::Gauntlets => "slime_gauntlets",
+            Self::Greaves => "slime_greaves",
+        }
+    }
+
     pub fn set(self) -> ArmorSet {
-        ArmorSet::Slime
+        match gear_catalog().set(self.gear_id()) {
+            Some(GearSet::Slime) | None => ArmorSet::Slime,
+        }
     }
 
     pub fn slot(self) -> ArmorSlot {
-        match self {
-            Self::Helm => ArmorSlot::Helm,
-            Self::Mail => ArmorSlot::Mail,
-            Self::Gauntlets => ArmorSlot::Gauntlets,
-            Self::Greaves => ArmorSlot::Greaves,
+        match gear_catalog().slot(self.gear_id()) {
+            Some(GearSlot::Head) => ArmorSlot::Helm,
+            Some(GearSlot::Chest) => ArmorSlot::Mail,
+            Some(GearSlot::Arms) => ArmorSlot::Gauntlets,
+            Some(GearSlot::Legs) => ArmorSlot::Greaves,
+            Some(GearSlot::Weapon) | None => match self {
+                Self::Helm => ArmorSlot::Helm,
+                Self::Mail => ArmorSlot::Mail,
+                Self::Gauntlets => ArmorSlot::Gauntlets,
+                Self::Greaves => ArmorSlot::Greaves,
+            },
         }
     }
 
     pub fn defense(self) -> f32 {
-        match self {
-            Self::Helm => 2.0,
-            Self::Mail => 4.0,
-            Self::Gauntlets => 1.0,
-            Self::Greaves => 2.0,
-        }
+        gear_catalog().defense(self.gear_id())
     }
 
     pub fn label(self) -> &'static str {
-        match self {
-            Self::Helm => "Slime Helm",
-            Self::Mail => "Slime Mail",
-            Self::Gauntlets => "Slime Gauntlets",
-            Self::Greaves => "Slime Greaves",
-        }
+        gear_catalog().name(self.gear_id())
     }
 }
 
@@ -358,12 +366,7 @@ pub fn expire_food_buff_after_hunt(mut loadout: ResMut<Loadout>) {
 }
 
 pub fn weapon_kind_label(kind: WeaponKind) -> &'static str {
-    match kind {
-        WeaponKind::RustySword => "Rusty Sword",
-        WeaponKind::RustySpear => "Rusty Spear",
-        WeaponKind::IronSword => "Iron Sword",
-        WeaponKind::SlimeBlade => "Slime Blade",
-    }
+    gear_catalog().name(kind.gear_id())
 }
 
 #[cfg(test)]

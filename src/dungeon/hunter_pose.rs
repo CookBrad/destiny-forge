@@ -5,13 +5,10 @@ use bevy::sprite::Anchor;
 
 use crate::graphics::{hunter_body_anchor, HUNTER_CELL_PX, TILE};
 
-/// Signed idle sole, relative to the body origin. The cell is 160 px tall and that
-/// sole sits one pixel above the cell bottom, so the contact is 79 px below the origin.
 const IDLE_SOLE_WORLD_Y: f32 = -(HUNTER_CELL_PX.y * 0.5 - IDLE_SOLE_GAP);
 
 const IDLE_PIN_X: f32 = 86.0;
 const IDLE_SOLE_GAP: f32 = 1.0;
-/// New grounded frames plant here. It is the body-center x, sole one pixel up.
 const FOOT_PIN_X: f32 = 81.5;
 const FOOT_SOLE_GAP: f32 = 1.0;
 const CHAMBER_PIN_X: f32 = 69.0;
@@ -19,23 +16,18 @@ const CHAMBER_SOLE_GAP: f32 = 0.0;
 const THRUST_PIN_X: f32 = 81.5;
 const THRUST_SOLE_GAP: f32 = 0.0;
 
-/// Sheet file still has four identical cells. Only cell 0 is shown.
 pub const IDLE_PLAYED_FRAMES: usize = 1;
 pub const IDLE_FRAME_ORIGIN: usize = 0;
 pub const IDLE_ANIMATES: bool = false;
 pub const IDLE_FRAME_SECONDS: f32 = 0.12;
 
-/// Cell 0 is the signed lean and is not played. Cells 1–8 are the cycle.
 pub const RUN_PLAYED_FRAMES: usize = 8;
 pub const RUN_FRAME_ORIGIN: usize = 1;
 pub const RUN_ANIMATES: bool = true;
 pub const RUN_FRAME_SECONDS: f32 = 0.08;
 
-/// Quarter-turn fraction while the body is still airborne (~25°).
-/// Landing shows the crumple drawing, so the tilt goes to zero.
 pub const DEATH_AIR_TILT: f32 = 0.28;
 
-/// Horizontal speed that counts as a run or a turn. Below this the pose stays idle.
 const MOVE_SPEED: f32 = 1.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -127,7 +119,6 @@ pub fn playback_for(pose: HunterPose) -> Playback {
     }
 }
 
-/// `hit_start` and `hit_end` are seconds on the swing. `progress` is elapsed / duration.
 pub fn attack_phase(
     step_index: usize,
     progress: f32,
@@ -164,15 +155,12 @@ pub fn attack_cell(phase: AttackPhase) -> usize {
 pub fn pose_anchor_local(pose: HunterPose) -> Vec2 {
     match pose {
         HunterPose::Idle => anchor_local(IDLE_PIN_X, IDLE_SOLE_GAP),
-        // Tucked feet are not the pin. The body center keeps the torso on the hurtbox.
         HunterPose::Jump => anchor_local(FOOT_PIN_X, FOOT_SOLE_GAP),
-        // The down boot is drawn on the shared foot point.
         HunterPose::Fall => anchor_local(FOOT_PIN_X, FOOT_SOLE_GAP),
         HunterPose::Run => anchor_local(FOOT_PIN_X, FOOT_SOLE_GAP),
         HunterPose::Attack(AttackPhase::Windup) => {
             anchor_local(CHAMBER_PIN_X, CHAMBER_SOLE_GAP)
         }
-        // Between and recover are drawn on the thrust pin so the tip stays put.
         HunterPose::Attack(
             AttackPhase::Between | AttackPhase::Thrust | AttackPhase::Recover,
         ) => anchor_local(THRUST_PIN_X, THRUST_SOLE_GAP),
@@ -187,25 +175,22 @@ pub fn pose_anchor(pose: HunterPose) -> Anchor {
             AttackPhase::Between | AttackPhase::Thrust | AttackPhase::Recover
         )
     ) {
-        // Thrust x is the body center. Read it from the shared anchor so the
-        // blade tip cannot drift from `hunter_blade_tip_reach`.
         local.x = hunter_body_anchor().as_vec().x * HUNTER_CELL_PX.x;
     }
     Anchor::Custom(local / HUNTER_CELL_PX)
 }
 
-/// Holds frame 0 when the clip does not animate. Otherwise advances within `played_frames`.
 pub fn next_played_frame(
     frame: usize,
     elapsed_in_frame: f32,
     playback: Playback,
-    dt: f32,
+    delta_seconds: f32,
 ) -> (usize, f32) {
     if !playback.animates || playback.played_frames <= 1 || playback.frame_seconds <= 0.0 {
         return (0, 0.0);
     }
     let mut frame = frame % playback.played_frames;
-    let mut elapsed = elapsed_in_frame + dt;
+    let mut elapsed = elapsed_in_frame + delta_seconds;
     while elapsed >= playback.frame_seconds {
         elapsed -= playback.frame_seconds;
         frame = (frame + 1) % playback.played_frames;
@@ -213,15 +198,12 @@ pub fn next_played_frame(
     (frame, elapsed)
 }
 
-/// Upright body center after orbiting `(0, 79)` around the planted sole.
-/// At tilt 0 and sink 0 this is `physics_center`.
 pub fn death_visual_center(physics_center: Vec2, tilt: f32, sink: f32) -> Vec2 {
     let planted = physics_center + Vec2::new(0.0, IDLE_SOLE_WORLD_Y - sink);
     let upright = Vec3::new(0.0, -IDLE_SOLE_WORLD_Y, 0.0);
     planted + Quat::from_rotation_z(tilt).mul_vec3(upright).truncate()
 }
 
-/// Airborne: stagger cell and a small tilt. Landed with `velocity_y == 0`: crumple, no tilt.
 pub fn death_pose(
     physics_center: Vec2,
     velocity_y: f32,
@@ -552,9 +534,9 @@ mod tests {
         data.extend_from_slice(&bit_len.to_be_bytes());
         for chunk in data.chunks(64) {
             let mut word = [0u32; 64];
-            for index in 0..16 {
+            for (index, slot) in word.iter_mut().take(16).enumerate() {
                 let start = index * 4;
-                word[index] = u32::from_be_bytes(chunk[start..start + 4].try_into().unwrap());
+                *slot = u32::from_be_bytes(chunk[start..start + 4].try_into().unwrap());
             }
             for index in 16..64 {
                 let s0 = word[index - 15].rotate_right(7)
