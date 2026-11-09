@@ -39,14 +39,29 @@ pub struct OverworldVelocity {
 
 const PLAYER_RADIUS: f32 = TILE * 0.42;
 
+pub(crate) type ExplorationMovementPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Transform,
+        &'static mut OverworldVelocity,
+        &'static mut Sprite,
+    ),
+    (With<OverworldPlayer>, Without<HomesteadEatCycle>),
+>;
+
+pub(crate) type ExplorationAnimationPlayer<'w, 's> = Query<
+    'w,
+    's,
+    (&'static OverworldVelocity, &'static mut Sprite),
+    (With<OverworldPlayer>, Without<HomesteadEatCycle>),
+>;
+
 pub fn exploration_movement(
     actions: Res<ActionState>,
     time: Res<Time>,
     map: Res<ExplorationMap>,
-    mut player: Query<
-        (&mut Transform, &mut OverworldVelocity, &mut Sprite),
-        (With<OverworldPlayer>, Without<HomesteadEatCycle>),
-    >,
+    mut player: ExplorationMovementPlayer,
 ) {
     let Ok((mut transform, mut velocity, mut sprite)) = player.get_single_mut() else {
         return;
@@ -92,10 +107,7 @@ pub fn exploration_movement(
 pub fn animate_overworld_player(
     time: Res<Time>,
     art: Res<OverworldArt>,
-    mut player: Query<
-        (&OverworldVelocity, &mut Sprite),
-        (With<OverworldPlayer>, Without<HomesteadEatCycle>),
-    >,
+    mut player: ExplorationAnimationPlayer,
 ) {
     let Ok((velocity, mut sprite)) = player.get_single_mut() else {
         return;
