@@ -227,8 +227,8 @@ fn migrate_profile_to_v11(profile: &mut RonValue) {
     if !matches!(profile, RonValue::Map(_)) {
         return;
     }
-    let full_tool = RonValue::Float(f64::from(TOOL_ENERGY_MAX));
-    nest_flat_field(profile, "homestead", "tool_energy", full_tool);
+    let full_tool_energy = RonValue::Float(f64::from(TOOL_ENERGY_MAX));
+    nest_flat_field(profile, "homestead", "tool_energy", full_tool_energy);
     nest_flat_field(
         profile,
         "homestead",
