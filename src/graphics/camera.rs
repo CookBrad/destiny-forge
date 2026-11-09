@@ -107,8 +107,6 @@ fn camera_y() -> f32 {
 mod tests {
     use super::*;
 
-    use bevy::ecs::system::RunSystemOnce;
-
     use crate::graphics::{DUNGEON_CEILING_Y, HUNTER_BODY_PX, TILE};
 
     const VIEW_HALF_HEIGHT_720P: f32 = 360.0;
@@ -131,11 +129,9 @@ mod tests {
     #[test]
     fn init_dungeon_camera_centers_on_a_short_dungeon() {
         let mut app = dungeon_camera_app(400.0, 200.0);
-        app.world_mut()
-            .run_system_once(init_dungeon_camera)
-            .unwrap();
+        app.update();
         let (x, y, scale) = camera_pose(&mut app);
-        assert!((x - 200.0).abs() < 1e-3, "short dungeon centers at half width");
+        assert_eq!(x, 200.0);
         assert_eq!(y, dungeon_camera_center_y());
         assert_eq!(scale, CAMERA_ORTHO_SCALE);
     }
@@ -143,14 +139,9 @@ mod tests {
     #[test]
     fn init_dungeon_camera_clamps_to_the_player_inside_a_wide_dungeon() {
         let mut app = dungeon_camera_app(DUNGEON_WIDTH, 1_600.0);
-        app.world_mut()
-            .run_system_once(init_dungeon_camera)
-            .unwrap();
+        app.update();
         let (x, y, scale) = camera_pose(&mut app);
-        let half_view = WINDOW_WIDTH * 0.5 * CAMERA_ORTHO_SCALE;
-        assert!((x - 1_600.0).abs() < 1e-3);
-        assert!(x >= half_view - 1e-3);
-        assert!(x <= DUNGEON_WIDTH - half_view + 1e-3);
+        assert_eq!(x, 1_600.0);
         assert_eq!(y, dungeon_camera_center_y());
         assert_eq!(scale, CAMERA_ORTHO_SCALE);
     }
@@ -158,33 +149,29 @@ mod tests {
     #[test]
     fn follow_camera_tracks_the_player_along_x() {
         let mut app = dungeon_camera_app(DUNGEON_WIDTH, 800.0);
-        app.world_mut()
-            .run_system_once(init_dungeon_camera)
-            .unwrap();
+        app.update();
         let hunter = app
             .world_mut()
             .query_filtered::<Entity, With<DungeonPlayer>>()
             .single(app.world());
         app.world_mut().get_mut::<Transform>(hunter).unwrap().translation.x = 2_400.0;
-        app.world_mut().run_system_once(follow_camera).unwrap();
+        app.update();
         let (x, y, _) = camera_pose(&mut app);
-        assert!((x - 2_400.0).abs() < 1e-3);
+        assert_eq!(x, 2_400.0);
         assert_eq!(y, dungeon_camera_center_y());
     }
 
     #[test]
     fn follow_camera_leaves_the_camera_when_no_hunter_is_present() {
         let mut app = dungeon_camera_app(DUNGEON_WIDTH, 800.0);
-        app.world_mut()
-            .run_system_once(init_dungeon_camera)
-            .unwrap();
+        app.update();
         let (before_x, before_y, _) = camera_pose(&mut app);
         let hunter = app
             .world_mut()
             .query_filtered::<Entity, With<DungeonPlayer>>()
             .single(app.world());
         app.world_mut().entity_mut(hunter).despawn();
-        app.world_mut().run_system_once(follow_camera).unwrap();
+        app.update();
         let (after_x, after_y, _) = camera_pose(&mut app);
         assert_eq!(after_x, before_x);
         assert_eq!(after_y, before_y);
@@ -195,7 +182,8 @@ mod tests {
         app.add_plugins(MinimalPlugins)
             .insert_resource(DungeonScrollBounds {
                 width: dungeon_width,
-            });
+            })
+            .add_systems(Update, (init_dungeon_camera, follow_camera));
         app.world_mut().spawn(Window {
             resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
             ..default()
