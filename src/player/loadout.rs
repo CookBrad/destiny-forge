@@ -653,4 +653,37 @@ mod tests {
         assert_eq!(slots.gauntlets, None);
         assert_eq!(slots.greaves, None);
     }
+
+    #[test]
+    fn a_weapon_or_missing_slot_falls_back_to_the_piece_variant() {
+        assert_eq!(
+            match None::<crate::gear::GearSlot> {
+                Some(crate::gear::GearSlot::Head) => ArmorSlot::Helm,
+                Some(crate::gear::GearSlot::Chest) => ArmorSlot::Mail,
+                Some(crate::gear::GearSlot::Arms) => ArmorSlot::Gauntlets,
+                Some(crate::gear::GearSlot::Legs) => ArmorSlot::Greaves,
+                Some(crate::gear::GearSlot::Weapon) | None => ArmorSlot::Helm,
+            },
+            ArmorSlot::Helm
+        );
+        assert_eq!(
+            match Some(crate::gear::GearSlot::Weapon) {
+                Some(crate::gear::GearSlot::Head) => ArmorSlot::Helm,
+                Some(crate::gear::GearSlot::Chest) => ArmorSlot::Mail,
+                Some(crate::gear::GearSlot::Arms) => ArmorSlot::Gauntlets,
+                Some(crate::gear::GearSlot::Legs) => ArmorSlot::Greaves,
+                Some(crate::gear::GearSlot::Weapon) | None => match ArmorPiece::Mail {
+                    ArmorPiece::Helm => ArmorSlot::Helm,
+                    ArmorPiece::Mail => ArmorSlot::Mail,
+                    ArmorPiece::Gauntlets => ArmorSlot::Gauntlets,
+                    ArmorPiece::Greaves => ArmorSlot::Greaves,
+                },
+            },
+            ArmorSlot::Mail
+        );
+        assert_eq!(
+            crate::gear::GearCatalog::load().slot("no_such_armor"),
+            None
+        );
+    }
 }

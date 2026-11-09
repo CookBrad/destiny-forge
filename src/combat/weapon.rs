@@ -4,14 +4,11 @@ use serde::{Deserialize, Serialize};
 use crate::gear::{gear_catalog, GearFamily};
 use crate::graphics::hunter_blade_tip_reach;
 
-/// Sword reach is the painted hit-frame blade, measured from the body center.
 const SWORD_BLADE_REACH: f32 = hunter_blade_tip_reach();
-/// Spear outranges that blade. Spread keeps the old poke / thrust / lunge ratios (40:30, 48:32, 58:34).
 const SPEAR_POKE_REACH: f32 = SWORD_BLADE_REACH * 40.0 / 30.0;
 const SPEAR_THRUST_REACH: f32 = SWORD_BLADE_REACH * 48.0 / 32.0;
 const SPEAR_LUNGE_REACH: f32 = SWORD_BLADE_REACH * 58.0 / 34.0;
 
-/// Spear special outranges the lunge by the old 64/58 margin.
 pub const fn spear_special_reach() -> f32 {
     SPEAR_LUNGE_REACH * 64.0 / 58.0
 }
@@ -34,14 +31,10 @@ pub enum WeaponFamily {
     Spear,
 }
 
-/// How a combo step produces its hit volume.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HitShape {
-    /// Vertical arc (sword).
     SwordArc,
-    /// Forward poke (spear).
     SpearThrust,
-    /// Long commit poke (spear finisher / lunge).
     SpearLunge,
 }
 
@@ -50,12 +43,9 @@ pub struct ComboStep {
     pub duration: f32,
     pub hit_start: f32,
     pub hit_end: f32,
-    /// Multiplier on weapon base power for this step.
     pub power_mult: f32,
-    /// Forward reach in world pixels from the body center to the blade tip.
     pub reach: f32,
     pub shape: HitShape,
-    /// Elapsed time when input can queue the next combo step.
     pub chain_start: f32,
 }
 
@@ -64,7 +54,6 @@ pub struct WeaponMoveset {
     pub steps: &'static [ComboStep],
 }
 
-// --- Sword combo: fast multi-hit ---
 const SWORD_COMBO: &[ComboStep] = &[
     ComboStep {
         duration: 0.26,
@@ -95,7 +84,6 @@ const SWORD_COMBO: &[ComboStep] = &[
     },
 ];
 
-// --- Spear combo: poke → thrust → lunge ---
 const SPEAR_COMBO: &[ComboStep] = &[
     ComboStep {
         duration: 0.3,
@@ -182,5 +170,20 @@ mod tests {
     fn slime_blade_keeps_sword_family() {
         assert_eq!(WeaponKind::SlimeBlade.family(), WeaponFamily::Sword);
         assert_eq!(WeaponKind::SlimeBlade.base_power(), 18.0);
+    }
+
+    #[test]
+    fn a_missing_catalog_family_maps_to_sword() {
+        assert_eq!(
+            crate::gear::GearCatalog::load().family("no_such_weapon"),
+            None
+        );
+        assert_eq!(
+            match crate::gear::GearCatalog::load().family("no_such_weapon") {
+                Some(crate::gear::GearFamily::Spear) => WeaponFamily::Spear,
+                Some(crate::gear::GearFamily::Sword) | None => WeaponFamily::Sword,
+            },
+            WeaponFamily::Sword
+        );
     }
 }

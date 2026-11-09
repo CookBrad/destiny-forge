@@ -5,6 +5,10 @@ use serde::Deserialize;
 
 use crate::core::data_load::load_ron_from_assets_or_embedded;
 
+mod plugin;
+
+pub use plugin::GearPlugin;
+
 const GEAR_PATH: &str = "assets/data/gear.ron";
 const EMBEDDED_GEAR: &str = include_str!("../../assets/data/gear.ron");
 
@@ -93,7 +97,13 @@ pub(crate) fn gear_catalog() -> &'static GearCatalog {
 }
 
 fn read_gear_catalog() -> GearCatalog {
-    match load_ron_from_assets_or_embedded::<Vec<GearPiece>>(GEAR_PATH, EMBEDDED_GEAR, "gear") {
+    catalog_from_loaded_pieces(load_ron_from_assets_or_embedded::<Vec<GearPiece>>(
+        GEAR_PATH, EMBEDDED_GEAR, "gear",
+    ))
+}
+
+fn catalog_from_loaded_pieces(loaded: Option<Vec<GearPiece>>) -> GearCatalog {
+    match loaded {
         Some(pieces) if !pieces.is_empty() => GearCatalog { pieces },
         Some(_) => {
             bevy::log::error!("Gear list is empty; weapons and armor have no stats");
@@ -168,6 +178,34 @@ mod tests {
         assert_eq!(ArmorPiece::Gauntlets.defense(), 1.0);
         assert_eq!(ArmorPiece::Greaves.defense(), 2.0);
         assert_eq!(ArmorPiece::Greaves.label(), "Slime Greaves");
+    }
+
+    #[test]
+    fn an_unknown_gear_id_falls_back_to_safe_defaults() {
+        let catalog = GearCatalog::load();
+        assert_eq!(catalog.name("missing_piece"), "missing_piece");
+        assert_eq!(catalog.attack("missing_piece"), 0.0);
+        assert_eq!(catalog.defense("missing_piece"), 0.0);
+        assert_eq!(catalog.family("missing_piece"), None);
+        assert_eq!(catalog.slot("missing_piece"), None);
+        assert_eq!(catalog.set("missing_piece"), None);
+        assert!(catalog.piece("missing_piece").is_none());
+    }
+
+    #[test]
+    fn an_empty_loaded_gear_list_yields_an_empty_catalog() {
+        let catalog = catalog_from_loaded_pieces(Some(Vec::new()));
+        assert!(catalog.pieces.is_empty());
+        assert_eq!(catalog.attack("rusty_sword"), 0.0);
+        assert_eq!(catalog.name("rusty_sword"), "rusty_sword");
+    }
+
+    #[test]
+    fn a_failed_gear_load_yields_an_empty_catalog() {
+        let catalog = catalog_from_loaded_pieces(None);
+        assert!(catalog.pieces.is_empty());
+        assert_eq!(catalog.defense("slime_helm"), 0.0);
+        assert_eq!(catalog.slot("slime_helm"), None);
     }
 
     #[test]
