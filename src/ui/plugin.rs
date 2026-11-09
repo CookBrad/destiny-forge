@@ -32,8 +32,8 @@ use super::inventory_window::{
     cleanup_inventory_window, handle_inventory_close_button, handle_inventory_eat_request,
     handle_inventory_slot_click, handle_inventory_sort_button, inventory_window_open,
     rebuild_inventory_on_loadout_change, sync_inventory_display,
-    sync_inventory_selected_item_description, toggle_inventory_window, InventorySelectedSlot,
-    InventoryWindowOpen,
+    sync_inventory_selected_item_description, sync_inventory_wallet_footer, toggle_inventory_window,
+    InventorySelectedSlot, InventoryWindowOpen,
 };
 use super::loadout_strip::{
     handle_loadout_swap_keys, handle_stash_armor_click, handle_stash_weapon_click,
@@ -203,6 +203,7 @@ impl Plugin for UiPlugin {
                         rebuild_inventory_on_loadout_change,
                         sync_inventory_display,
                         sync_inventory_selected_item_description,
+                        sync_inventory_wallet_footer,
                     )
                         .chain()
                         .run_if(inventory_window_open),
