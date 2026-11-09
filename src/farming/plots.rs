@@ -1,5 +1,3 @@
-//! Crop plot entities and layered stage visuals on the homestead.
-
 use bevy::prelude::*;
 
 use crate::graphics::{world_transform, TILE};
@@ -97,7 +95,6 @@ fn spawn_one_plot(
                 CropPlantSprite,
                 OverworldEntity,
             ));
-            // Water sits above the plant. Both are full 16×16 tiles, and the plant is opaque.
             parent.spawn((
                 Sprite {
                     image: art.path.clone(),
@@ -205,7 +202,6 @@ fn growing_plant_visual(crop: CropKind, days: u8, watered: bool) -> LayerVisual 
         };
     }
 
-    // Stage is a tint on the 16×16 grass cell. There is no sprout sheet to draw smaller.
     let (color, offset_y) = match (crop, days) {
         (CropKind::Turnip, 1) => (Color::srgb(0.35, 0.72, 0.32), TILE * 0.08),
         (CropKind::Potato, 1) => (Color::srgb(0.28, 0.62, 0.28), TILE * 0.06),
@@ -279,7 +275,6 @@ pub fn sync_plot_visuals(
 
         let plant = plant_visual(plot.stage);
         let show_water = watered_stage(plot.stage);
-        // Placeholder grass tile at 1×. Stage is the tint until dedicated crop sprites land.
         let plant_image = art.grass.clone();
         let _ = plant.sprite_kind;
 
