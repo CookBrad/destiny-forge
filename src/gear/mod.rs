@@ -1,6 +1,5 @@
 use std::sync::OnceLock;
 
-use bevy::prelude::*;
 use serde::Deserialize;
 
 use crate::core::data_load::load_ron_from_assets_or_embedded;
