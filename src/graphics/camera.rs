@@ -110,6 +110,9 @@ mod tests {
     use crate::graphics::{DUNGEON_CEILING_Y, HUNTER_BODY_PX, TILE};
 
     const VIEW_HALF_HEIGHT_720P: f32 = 360.0;
+    const WINDOW_WIDTH: f32 = 1280.0;
+    const WINDOW_HEIGHT: f32 = 720.0;
+    const DUNGEON_WIDTH: f32 = 3_200.0;
 
     #[test]
     fn camera_frames_the_ground_the_hunter_and_the_ceiling_in_a_720p_view() {
@@ -121,5 +124,91 @@ mod tests {
         assert_eq!(DUNGEON_FLOOR_Y - bottom, 3.0 * TILE, "three ground rows show");
         assert!(DUNGEON_FLOOR_Y + HUNTER_BODY_PX.y < top);
         assert!(DUNGEON_CEILING_Y + TILE < top, "the ceiling beam shows");
+    }
+
+    #[test]
+    fn init_dungeon_camera_centers_on_a_short_dungeon() {
+        let mut app = dungeon_camera_app(400.0, 200.0);
+        app.update();
+        let (x, y, scale) = camera_pose(&mut app);
+        assert_eq!(x, 200.0);
+        assert_eq!(y, dungeon_camera_center_y());
+        assert_eq!(scale, CAMERA_ORTHO_SCALE);
+    }
+
+    #[test]
+    fn init_dungeon_camera_clamps_to_the_player_inside_a_wide_dungeon() {
+        let mut app = dungeon_camera_app(DUNGEON_WIDTH, 1_600.0);
+        app.update();
+        let (x, y, scale) = camera_pose(&mut app);
+        assert_eq!(x, 1_600.0);
+        assert_eq!(y, dungeon_camera_center_y());
+        assert_eq!(scale, CAMERA_ORTHO_SCALE);
+    }
+
+    #[test]
+    fn follow_camera_tracks_the_player_along_x() {
+        let mut app = dungeon_camera_app(DUNGEON_WIDTH, 800.0);
+        app.update();
+        let hunter = app
+            .world_mut()
+            .query_filtered::<Entity, With<DungeonPlayer>>()
+            .single(app.world());
+        app.world_mut().get_mut::<Transform>(hunter).unwrap().translation.x = 2_400.0;
+        app.update();
+        let (x, y, _) = camera_pose(&mut app);
+        assert_eq!(x, 2_400.0);
+        assert_eq!(y, dungeon_camera_center_y());
+    }
+
+    #[test]
+    fn follow_camera_leaves_the_camera_when_no_hunter_is_present() {
+        let mut app = dungeon_camera_app(DUNGEON_WIDTH, 800.0);
+        app.update();
+        let (before_x, before_y, _) = camera_pose(&mut app);
+        let hunter = app
+            .world_mut()
+            .query_filtered::<Entity, With<DungeonPlayer>>()
+            .single(app.world());
+        app.world_mut().entity_mut(hunter).despawn();
+        app.update();
+        let (after_x, after_y, _) = camera_pose(&mut app);
+        assert_eq!(after_x, before_x);
+        assert_eq!(after_y, before_y);
+    }
+
+    fn dungeon_camera_app(dungeon_width: f32, player_x: f32) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(DungeonScrollBounds {
+                width: dungeon_width,
+            })
+            .add_systems(Update, (init_dungeon_camera, follow_camera));
+        app.world_mut().spawn(Window {
+            resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
+            ..default()
+        });
+        app.world_mut().spawn((
+            Camera2d,
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            OrthographicProjection::default_2d(),
+        ));
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::from_xyz(player_x, DUNGEON_FLOOR_Y, 0.0),
+        ));
+        app
+    }
+
+    fn camera_pose(app: &mut App) -> (f32, f32, f32) {
+        let mut cameras = app
+            .world_mut()
+            .query_filtered::<(&Transform, &OrthographicProjection), With<Camera2d>>();
+        let (transform, projection) = cameras.single(app.world());
+        (
+            transform.translation.x,
+            transform.translation.y,
+            projection.scale,
+        )
     }
 }
