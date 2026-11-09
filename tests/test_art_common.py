@@ -14,6 +14,7 @@ from art_common import (
     composite_images,
     composite_layers,
     hunter_palette,
+    light_contour,
     load_pinned_colors,
     outline_layer,
     pack_strip,
@@ -97,6 +98,84 @@ def test_composite_images_rejects_a_layer_that_is_not_rgba() -> None:
     layer = Image.new("RGB", (1, 1), (1, 2, 3))
     with pytest.raises(ValueError, match="images do not match"):
         composite_images((2, 2), [(layer, (0, 0))])
+def test_light_contour_recolors_an_outline_pixel_with_an_empty_side_above() -> None:
+    canvas = clipping_canvas(3, 3)
+    canvas.put(1, 1, INK)
+    canvas.put(1, 2, RED)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [
+        CLEAR, CLEAR, CLEAR,
+        CLEAR, BLUE, CLEAR,
+        CLEAR, RED, CLEAR,
+    ]
+def test_light_contour_recolors_an_outline_pixel_when_the_left_is_empty_and_the_pixel_below_is_filled() -> None:
+    canvas = clipping_canvas(3, 3)
+    canvas.put(1, 0, RED)
+    canvas.put(1, 1, INK)
+    canvas.put(1, 2, RED)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [
+        CLEAR, RED, CLEAR,
+        CLEAR, BLUE, CLEAR,
+        CLEAR, RED, CLEAR,
+    ]
+def test_light_contour_leaves_an_outline_pixel_when_the_top_and_the_left_are_filled() -> None:
+    canvas = clipping_canvas(3, 3)
+    canvas.put(1, 0, RED)
+    canvas.put(0, 1, RED)
+    canvas.put(1, 1, INK)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [
+        CLEAR, RED, CLEAR,
+        RED, INK, CLEAR,
+        CLEAR, CLEAR, CLEAR,
+    ]
+def test_light_contour_recolors_an_outline_pixel_on_the_top_row() -> None:
+    canvas = clipping_canvas(1, 2)
+    canvas.put(0, 0, INK)
+    canvas.put(0, 1, RED)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [BLUE, RED]
+def test_light_contour_recolors_an_outline_pixel_on_the_left_edge_when_the_pixel_below_is_filled() -> None:
+    canvas = clipping_canvas(1, 3)
+    canvas.put(0, 0, RED)
+    canvas.put(0, 1, INK)
+    canvas.put(0, 2, RED)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [RED, BLUE, RED]
+def test_light_contour_keeps_an_outline_pixel_on_the_bottom_row_when_the_left_is_empty() -> None:
+    canvas = clipping_canvas(2, 2)
+    canvas.put(0, 0, RED)
+    canvas.put(0, 1, INK)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [RED, CLEAR, INK, CLEAR]
+def test_light_contour_lights_only_the_upper_pixel_of_a_stacked_outline() -> None:
+    canvas = clipping_canvas(1, 2)
+    canvas.put(0, 0, INK)
+    canvas.put(0, 1, INK)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [BLUE, INK]
+def test_light_contour_leaves_a_clear_canvas_clear() -> None:
+    canvas = clipping_canvas(2, 2)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [CLEAR, CLEAR, CLEAR, CLEAR]
+def test_light_contour_on_a_zero_size_canvas_changes_nothing() -> None:
+    canvas = clipping_canvas(0, 0)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == []
+def test_light_contour_leaves_a_pixel_that_is_not_the_outline_color() -> None:
+    canvas = clipping_canvas(1, 1, RED)
+    light_contour(canvas, INK, BLUE)
+    assert canvas.pixels == [RED]
+def test_light_contour_rejects_a_lit_color_with_partial_alpha() -> None:
+    canvas = clipping_canvas(1, 1)
+    canvas.put(0, 0, INK)
+    with pytest.raises(SystemExit, match="partial alpha"):
+        light_contour(canvas, INK, PARTIAL)
+    assert canvas.pixels == [INK]
+def test_light_contour_rejects_a_value_that_is_not_a_canvas() -> None:
+    with pytest.raises(AttributeError):
+        light_contour(object(), INK, BLUE)
 def test_outline_layer_adds_four_connected_neighbors_inside_the_bounds() -> None:
     outlined = outline_layer({(1, 1): RED}, INK, 3, 3)
     assert outlined[(1, 1)] == RED

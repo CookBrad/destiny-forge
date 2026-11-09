@@ -167,7 +167,10 @@ def paint_shield(canvas: Canvas) -> None:
             tone = canvas[y][x]
             if tone not in IRON_TONES:
                 continue
-            if any(neighbor(canvas, x, y, dx, dy) in BRASS_TONES for dx, dy in ORTHO):
+            if any(
+                neighbor(canvas, x, y, offset_x, offset_y) in BRASS_TONES
+                for offset_x, offset_y in ORTHO
+            ):
                 piping.append((x, y))
     for x, y in piping:
         above = neighbor(canvas, x, y, 0, -1)
@@ -233,14 +236,14 @@ def recolor_rim(
             canvas[y][x] = mid
 
 def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
-    return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
+    return any(neighbor(canvas, x, y, offset_x, offset_y) is None for offset_x, offset_y in ORTHO)
 
 def neighbor(
-    canvas: Canvas, x: int, y: int, dx: int, dy: int
+    canvas: Canvas, x: int, y: int, offset_x: int, offset_y: int
 ) -> tuple[int, int, int, int] | None:
-    nx, ny = x + dx, y + dy
-    if 0 <= nx < SIZE and 0 <= ny < SIZE:
-        return canvas[ny][nx]
+    neighbor_x, neighbor_y = x + offset_x, y + offset_y
+    if 0 <= neighbor_x < SIZE and 0 <= neighbor_y < SIZE:
+        return canvas[neighbor_y][neighbor_x]
     return None
 
 def stamp_boss(canvas: Canvas) -> None:
@@ -288,8 +291,8 @@ def paint_boot(canvas: Canvas) -> None:
         (20, 9, 16, SOLE),
         (21, 10, 15, SOLE),
     ]
-    for y, x0, x1, color in spans:
-        fills_span(canvas, y, x0, x1, color)
+    for y, start_x, end_x, color in spans:
+        fills_span(canvas, y, start_x, end_x, color)
     for y in (7, 8):
         fills_span(canvas, y, 19, 22, SOLE)
     for y in range(7, 12):
@@ -312,11 +315,11 @@ def paint_boot(canvas: Canvas) -> None:
 def fills_span(
     canvas: Canvas,
     y: int,
-    x0: int,
-    x1: int,
+    start_x: int,
+    end_x: int,
     color: tuple[int, int, int, int],
 ) -> None:
-    for x in range(x0, x1 + 1):
+    for x in range(start_x, end_x + 1):
         put(canvas, x, y, color)
 
 def paint_boot_trail(canvas: Canvas) -> None:
@@ -386,19 +389,19 @@ def paint_wand_orbit(canvas: Canvas) -> None:
             color = CYAN_DK
         put(canvas, x, y, color)
 
-def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
+def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, int]]:
     points: set[tuple[int, int]] = set()
     x, y, decision = 0, radius, 3 - 2 * radius
 
-    def plot(px: int, py: int) -> None:
-        points.add((cx + px, cy + py))
-        points.add((cx - px, cy + py))
-        points.add((cx + px, cy - py))
-        points.add((cx - px, cy - py))
-        points.add((cx + py, cy + px))
-        points.add((cx - py, cy + px))
-        points.add((cx + py, cy - px))
-        points.add((cx - py, cy - px))
+    def plot(offset_x: int, offset_y: int) -> None:
+        points.add((center_x + offset_x, center_y + offset_y))
+        points.add((center_x - offset_x, center_y + offset_y))
+        points.add((center_x + offset_x, center_y - offset_y))
+        points.add((center_x - offset_x, center_y - offset_y))
+        points.add((center_x + offset_y, center_y + offset_x))
+        points.add((center_x - offset_y, center_y + offset_x))
+        points.add((center_x + offset_y, center_y - offset_x))
+        points.add((center_x - offset_y, center_y - offset_x))
 
     while x <= y:
         plot(x, y)
