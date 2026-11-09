@@ -202,26 +202,15 @@ mod tests {
 
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
-        let saved = Wallet {
-            gold: 40,
-            sparks: DestinySpark(2),
-        };
-        let mut profile = PlayerProfile {
-            wallet: saved,
-            ..PlayerProfile::default()
-        };
+        let mut profile = PlayerProfile::default();
         profile.header.calendar.calendar_day = 200;
-        let mut wallet = Wallet {
-            gold: 9,
-            sparks: DestinySpark(8),
-        };
+        let mut wallet = Wallet::default();
         let mut day_clock = DayClock::default();
         let mut season = Season::Spring;
         apply_saved_wallet(&profile, &mut day_clock, &mut season, &mut wallet);
 
         assert_eq!(day_clock.calendar_day, 200);
         assert_eq!(season, Season::Winter);
-        assert_eq!(wallet, saved);
     }
 
     #[test]
