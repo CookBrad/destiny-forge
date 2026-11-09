@@ -5,15 +5,26 @@ use crate::graphics::{CAMERA_ORTHO_SCALE, DUNGEON_FLOOR_Y};
 
 const CAMERA_HEIGHT_ABOVE_FLOOR: f32 = 264.0;
 
-/// Horizontal span of the current dungeon floor in native world pixels.
+pub(crate) type DungeonCameraInit<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Transform, &'static mut OrthographicProjection),
+    (With<Camera2d>, Without<DungeonPlayer>),
+>;
+
+pub(crate) type DungeonCameraFollow<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Transform, &'static OrthographicProjection),
+    (With<Camera2d>, Without<DungeonPlayer>),
+>;
+
 #[derive(Resource, Clone, Copy)]
 pub struct DungeonScrollBounds {
     pub width: f32,
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    // Camera2d already requires OrthographicProjection::default_2d at scale 1.
-    // A second Projection would fight it for Camera.clip_from_view every frame.
     commands.spawn((Camera2d, Transform::from_xyz(0.0, camera_y(), 0.0)));
 }
 
@@ -25,10 +36,7 @@ pub fn init_dungeon_camera(
     bounds: Res<DungeonScrollBounds>,
     player: Query<&Transform, With<DungeonPlayer>>,
     window: Query<&Window>,
-    mut camera: Query<
-        (&mut Transform, &mut OrthographicProjection),
-        (With<Camera2d>, Without<DungeonPlayer>),
-    >,
+    mut camera: DungeonCameraInit,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -51,10 +59,7 @@ pub fn follow_camera(
     bounds: Res<DungeonScrollBounds>,
     player: Query<&Transform, With<DungeonPlayer>>,
     window: Query<&Window>,
-    mut camera: Query<
-        (&mut Transform, &OrthographicProjection),
-        (With<Camera2d>, Without<DungeonPlayer>),
-    >,
+    mut camera: DungeonCameraFollow,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -90,7 +95,6 @@ pub fn dungeon_camera_center_y() -> f32 {
     DUNGEON_FLOOR_Y + CAMERA_HEIGHT_ABOVE_FLOOR
 }
 
-/// World-space Y of the bottom edge of the visible viewport.
 pub fn viewport_bottom_y(window: &Window) -> f32 {
     dungeon_camera_center_y() - window.height() * 0.5
 }

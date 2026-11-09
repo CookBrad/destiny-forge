@@ -20,4 +20,8 @@ pub use profile::{
 };
 pub use settings::GameSettings;
 pub use storage::save_root_display;
-pub use sync::{activate_profile, apply_profile_to_runtime};
+#[cfg(test)]
+pub(crate) use storage::TempSaveRoot;
+pub use sync::{
+    activate_profile, apply_profile_to_runtime, ProfileApply, ProfileCapture, ProfileSession,
+};

@@ -1,10 +1,11 @@
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
 use crate::core::{DungeonPlayState, GameState};
 use crate::input::{Action, ActionState};
 use crate::items::{Inventory, MaterialId, INVENTORY_SLOT_COUNT};
-use crate::player::Loadout;
+use crate::player::{Loadout, Wallet};
 
 use super::eat_feedback::FoodEaten;
 use super::loadout_strip::{spawn_loadout_strip, LoadoutSwapAccess};
@@ -81,12 +82,22 @@ pub struct InventoryEatButton;
 #[derive(Component)]
 pub struct InventorySortButton;
 
+#[derive(Component)]
+pub(crate) struct InventoryGoldAmount;
+
+#[derive(Component)]
+pub(crate) struct InventorySparksAmount;
+
+#[derive(Component)]
+struct InventoryCurrencyMark;
+
 pub fn spawn_inventory_window(
     commands: &mut Commands,
     inventory: &Inventory,
     loadout: &Loadout,
     access: LoadoutSwapAccess,
     selected_slot_index: usize,
+    wallet: &Wallet,
 ) {
     let grid_width = GRID_COLUMNS as f32 * SLOT_SIZE + (GRID_COLUMNS as f32 - 1.0) * SLOT_GAP;
     let panel_width = grid_width + PANEL_PADDING * 2.0;
@@ -138,7 +149,7 @@ pub fn spawn_inventory_window(
                                 selected_slot_index,
                             );
                             spawn_loadout_strip(panel, loadout, access);
-                            spawn_currency_footer(panel);
+                            spawn_currency_footer(panel, wallet);
                         });
                 });
         });
@@ -504,12 +515,12 @@ fn eat_hint(access: LoadoutSwapAccess) -> &'static str {
     }
 }
 
-fn spawn_currency_footer(parent: &mut ChildBuilder<'_>) {
+fn spawn_currency_footer(parent: &mut ChildBuilder<'_>, wallet: &Wallet) {
     parent
         .spawn((
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Px(28.0),
+                height: Val::Px(36.0),
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
                 column_gap: Val::Px(14.0),
@@ -521,13 +532,12 @@ fn spawn_currency_footer(parent: &mut ChildBuilder<'_>) {
             BorderColor(Color::srgb(0.28, 0.18, 0.1)),
         ))
         .with_children(|footer| {
-            spawn_coin_display(footer, Color::srgb(0.92, 0.76, 0.18), "0");
-            spawn_coin_display(footer, Color::srgb(0.72, 0.74, 0.78), "0");
-            spawn_coin_display(footer, Color::srgb(0.78, 0.48, 0.28), "0");
+            spawn_coin_display(footer, Color::srgb(0.92, 0.76, 0.18), "$", &wallet.gold.to_string(), InventoryGoldAmount);
+            spawn_coin_display(footer, Color::srgb(0.72, 0.74, 0.78), "*", &wallet.sparks.amount().to_string(), InventorySparksAmount);
         });
 }
 
-fn spawn_coin_display(parent: &mut ChildBuilder<'_>, coin_color: Color, amount: &str) {
+fn spawn_coin_display(parent: &mut ChildBuilder<'_>, coin_color: Color, mark: &str, amount: &str, amount_marker: impl Bundle) {
     parent
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -536,25 +546,20 @@ fn spawn_coin_display(parent: &mut ChildBuilder<'_>, coin_color: Color, amount: 
             ..default()
         })
         .with_children(|group| {
-            group.spawn((
-                Node {
-                    width: Val::Px(14.0),
-                    height: Val::Px(14.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                },
-                BackgroundColor(coin_color),
-                BorderColor(Color::srgb(0.18, 0.12, 0.08)),
-            ));
-            group.spawn((
-                Text::new(amount),
-                TextFont {
-                    font_size: 12.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.9, 0.88, 0.84)),
-            ));
+            group.spawn((InventoryCurrencyMark, Text::new(mark), TextFont { font_size: 18.0, ..default() }, TextColor(coin_color)));
+            group.spawn((amount_marker, Text::new(amount), TextFont { font_size: 18.0, ..default() }, TextColor(Color::srgb(0.9, 0.88, 0.84))));
         });
+}
+
+pub fn sync_inventory_wallet_footer(wallet: Res<Wallet>, open: Res<InventoryWindowOpen>, mut gold_amounts: Query<&mut Text, (With<InventoryGoldAmount>, Without<InventorySparksAmount>)>, mut spark_amounts: Query<&mut Text, (With<InventorySparksAmount>, Without<InventoryGoldAmount>)>) {
+    if open.0 && wallet.is_changed() {
+        for mut text in &mut gold_amounts {
+            text.0 = wallet.gold.to_string();
+        }
+        for mut text in &mut spark_amounts {
+            text.0 = wallet.sparks.amount().to_string();
+        }
+    }
 }
 
 pub fn cleanup_inventory_window(
@@ -570,19 +575,36 @@ pub fn cleanup_inventory_window(
     }
 }
 
+#[derive(SystemParam)]
+pub(crate) struct InventoryWindowToggle<'w, 's> {
+    commands: Commands<'w, 's>,
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    wallet: Res<'w, Wallet>,
+    selected: Res<'w, InventorySelectedSlot>,
+    windows: Query<'w, 's, Entity, With<InventoryWindow>>,
+    game: Res<'w, State<GameState>>,
+    dungeon: Option<Res<'w, State<DungeonPlayState>>>,
+    time: ResMut<'w, Time<Virtual>>,
+}
+
 pub fn toggle_inventory_window(
     actions: Res<ActionState>,
     forge: Res<crate::ui::forge_window::ForgeWindowOpen>,
     mut open: ResMut<InventoryWindowOpen>,
-    mut commands: Commands,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    selected: Res<InventorySelectedSlot>,
-    windows: Query<Entity, With<InventoryWindow>>,
-    game: Res<State<GameState>>,
-    dungeon: Option<Res<State<DungeonPlayState>>>,
-    mut time: ResMut<Time<Virtual>>,
+    toggle: InventoryWindowToggle,
 ) {
+    let InventoryWindowToggle {
+        mut commands,
+        inventory,
+        loadout,
+        wallet,
+        selected,
+        windows,
+        game,
+        dungeon,
+        mut time,
+    } = toggle;
     let close = open.0 && actions.just_pressed(Action::Cancel);
     let toggle = actions.just_pressed(Action::ToggleInventory);
 
@@ -611,34 +633,32 @@ pub fn toggle_inventory_window(
             &loadout,
             LoadoutSwapAccess::from_game_state(game.get()),
             selected.0,
+            &wallet,
         );
         time.pause();
     }
 }
 
-pub fn rebuild_inventory_on_loadout_change(
-    loadout: Res<Loadout>,
-    inventory: Res<Inventory>,
-    open: Res<InventoryWindowOpen>,
-    selected: Res<InventorySelectedSlot>,
-    game: Res<State<GameState>>,
-    mut commands: Commands,
-    windows: Query<Entity, With<InventoryWindow>>,
-) {
-    if !open.0 || !loadout.is_changed() || windows.is_empty() {
+#[derive(SystemParam)]
+pub(crate) struct InventoryRebuildInputs<'w, 's> {
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    wallet: Res<'w, Wallet>,
+    open: Res<'w, InventoryWindowOpen>,
+    selected: Res<'w, InventorySelectedSlot>,
+    game: Res<'w, State<GameState>>,
+    windows: Query<'w, 's, Entity, With<InventoryWindow>>,
+}
+
+pub fn rebuild_inventory_on_loadout_change(mut commands: Commands, inputs: InventoryRebuildInputs) {
+    if !inputs.open.0 || !inputs.loadout.is_changed() || inputs.windows.is_empty() {
         return;
     }
 
-    for entity in &windows {
+    for entity in &inputs.windows {
         commands.entity(entity).try_despawn_recursive();
     }
-    spawn_inventory_window(
-        &mut commands,
-        &inventory,
-        &loadout,
-        LoadoutSwapAccess::from_game_state(game.get()),
-        selected.0,
-    );
+    spawn_inventory_window(&mut commands, &inputs.inventory, &inputs.loadout, LoadoutSwapAccess::from_game_state(inputs.game.get()), inputs.selected.0, &inputs.wallet);
 }
 
 pub fn handle_inventory_close_button(
@@ -669,8 +689,15 @@ pub fn handle_inventory_close_button(
     }
 }
 
+pub(crate) type InventorySlotClicks<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Interaction, &'static InventorySlot),
+    (Changed<Interaction>, With<Button>),
+>;
+
 pub fn handle_inventory_slot_click(
-    mut interactions: Query<(&Interaction, &InventorySlot), (Changed<Interaction>, With<Button>)>,
+    mut interactions: InventorySlotClicks,
     mut selected: ResMut<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &mut BorderColor)>,
 ) {
@@ -820,6 +847,13 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
     }
 }
 
+pub(crate) type InventoryItemNameText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemName>>;
+pub(crate) type InventoryItemDescriptionText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemDescription>>;
+pub(crate) type InventoryItemBuffText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemBuff>>;
+
 pub fn sync_inventory_selected_item_description(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
@@ -827,9 +861,9 @@ pub fn sync_inventory_selected_item_description(
     selected: Res<InventorySelectedSlot>,
     game: Res<State<GameState>>,
     mut selected_item_description_texts: ParamSet<(
-        Query<&mut Text, With<InventoryItemName>>,
-        Query<&mut Text, With<InventoryItemDescription>>,
-        Query<&mut Text, With<InventoryItemBuff>>,
+        InventoryItemNameText,
+        InventoryItemDescriptionText,
+        InventoryItemBuffText,
     )>,
 ) {
     if !open.0 || !(inventory.is_changed() || selected.is_changed() || loadout.is_changed()) {
@@ -853,6 +887,11 @@ pub fn sync_inventory_selected_item_description(
     }
 }
 
+pub(crate) type InventoryIconLabelText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryIconLabel>>;
+pub(crate) type InventorySlotStackLabel<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventorySlotStackText>>;
+
 pub fn sync_inventory_display(
     inventory: Res<Inventory>,
     open: Res<InventoryWindowOpen>,
@@ -860,10 +899,7 @@ pub fn sync_inventory_display(
     mut slots: Query<(&InventorySlot, &Children, &mut BorderColor)>,
     mut icons: Query<(&mut BackgroundColor, &Children), With<InventorySlotIcon>>,
     stacks: Query<&Children, With<InventorySlotStack>>,
-    mut texts: ParamSet<(
-        Query<&mut Text, With<InventoryIconLabel>>,
-        Query<&mut Text, With<InventorySlotStackText>>,
-    )>,
+    mut texts: ParamSet<(InventoryIconLabelText, InventorySlotStackLabel)>,
 ) {
     if !open.0 {
         return;
@@ -912,6 +948,7 @@ pub fn sync_inventory_display(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::player::DestinySpark;
     use bevy::ecs::system::RunSystemOnce;
 
     fn app_with_two_stews_and_e_pressed(game: GameState) -> App {
@@ -988,5 +1025,183 @@ mod tests {
 
         let empty = selected_item_description(&inventory, &loadout, LoadoutSwapAccess::Hub, 5);
         assert_eq!(empty.name_line, "Empty slot");
+    }
+
+    #[test]
+    fn inventory_footer_marks_each_currency() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default()).init_resource::<Loadout>().insert_resource(Wallet { gold: 250, sparks: DestinySpark(4) });
+        app.world_mut().run_system_once(spawn_inventory_with_wallet).unwrap();
+        assert_eq!(currency_marks(&mut app), vec!["$", "*"]);
+    }
+
+    #[test]
+    fn inventory_footer_shows_the_wallet() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 120,
+                sparks: DestinySpark(7),
+            });
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "120");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "7");
+    }
+
+    #[test]
+    fn open_inventory_footer_tracks_wallet_changes() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 1,
+                sparks: DestinySpark(2),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .add_systems(Update, sync_inventory_wallet_footer);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        {
+            let mut wallet = app.world_mut().resource_mut::<Wallet>();
+            wallet.gold = 9;
+            wallet.sparks = DestinySpark(3);
+        }
+        app.update();
+
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "9");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "3");
+    }
+
+    #[test]
+    fn pressing_i_opens_the_inventory_footer_with_the_wallet() {
+        let mut app = toggle_app_with_forge_closed(Wallet {
+            gold: 250,
+            sparks: DestinySpark(4),
+        });
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        assert!(app.world().resource::<InventoryWindowOpen>().0);
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
+    }
+
+    #[test]
+    fn pressing_i_again_closes_the_inventory() {
+        let mut app = toggle_app_with_forge_closed(Wallet::default());
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        app.update();
+        assert!(!app.world().resource::<InventoryWindowOpen>().0);
+        let mut windows = app.world_mut().query::<&InventoryWindow>();
+        assert_eq!(windows.iter(app.world()).count(), 0);
+    }
+
+    #[test]
+    fn pressing_i_while_the_forge_is_open_leaves_the_inventory_closed() {
+        let mut app = toggle_app_with_forge_open(Wallet::default());
+        press(&mut app, &[KeyCode::KeyI]);
+        app.update();
+        assert!(!app.world().resource::<InventoryWindowOpen>().0);
+    }
+
+    #[test]
+    fn a_closed_inventory_keeps_the_footer_text_it_already_showed() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 1,
+                sparks: DestinySpark(2),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .add_systems(Update, sync_inventory_wallet_footer);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        app.world_mut().resource_mut::<InventoryWindowOpen>().0 = false;
+        {
+            let mut wallet = app.world_mut().resource_mut::<Wallet>();
+            wallet.gold = 9;
+            wallet.sparks = DestinySpark(3);
+        }
+        app.update();
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "1");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "2");
+    }
+
+    #[test]
+    fn loadout_change_rebuilds_the_open_inventory() {
+        let mut app = App::new();
+        app.insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(Wallet {
+                gold: 250,
+                sparks: DestinySpark(4),
+            })
+            .insert_resource(InventoryWindowOpen(true))
+            .insert_resource(InventorySelectedSlot(0))
+            .insert_resource(State::new(GameState::Overworld))
+            .add_systems(Update, rebuild_inventory_on_loadout_change);
+        app.world_mut()
+            .run_system_once(spawn_inventory_with_wallet)
+            .unwrap();
+        let first = app
+            .world_mut()
+            .query_filtered::<Entity, With<InventoryWindow>>()
+            .single(app.world());
+        app.world_mut().resource_mut::<Loadout>().food_buff = Some(MaterialId::PotatoStew);
+        app.update();
+        let rebuilt = app
+            .world_mut()
+            .query_filtered::<Entity, With<InventoryWindow>>()
+            .single(app.world());
+        assert_ne!(rebuilt, first);
+        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
+        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
+    }
+
+    fn spawn_inventory_with_wallet(mut commands: Commands, inventory: Res<Inventory>, loadout: Res<Loadout>, wallet: Res<Wallet>) {
+        spawn_inventory_window(&mut commands, &inventory, &loadout, LoadoutSwapAccess::Hub, 0, &wallet);
+    }
+    fn footer_amount<T: Component>(app: &mut App) -> String {
+        app.world_mut().query_filtered::<&Text, With<T>>().single(app.world()).0.clone()
+    }
+    fn currency_marks(app: &mut App) -> Vec<String> {
+        let mut labels: Vec<_> = app.world_mut().query_filtered::<&Text, With<InventoryCurrencyMark>>().iter(app.world()).map(|text| text.0.clone()).collect();
+        labels.sort();
+        labels
+    }
+
+    fn toggle_app_with_forge_closed(wallet: Wallet) -> App {
+        inventory_toggle_app(wallet, crate::ui::forge_window::ForgeWindowOpen(false))
+    }
+
+    fn toggle_app_with_forge_open(wallet: Wallet) -> App {
+        inventory_toggle_app(wallet, crate::ui::forge_window::ForgeWindowOpen(true))
+    }
+
+    fn inventory_toggle_app(wallet: Wallet, forge: crate::ui::forge_window::ForgeWindowOpen) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(crate::input::action_state_after_pressing(&[], &[]))
+            .insert_resource(forge)
+            .insert_resource(InventoryWindowOpen(false))
+            .insert_resource(Inventory::default())
+            .init_resource::<Loadout>()
+            .insert_resource(wallet)
+            .insert_resource(InventorySelectedSlot(0))
+            .insert_resource(State::new(GameState::Overworld))
+            .add_systems(Update, toggle_inventory_window);
+        app
+    }
+
+    fn press(app: &mut App, keys: &[KeyCode]) {
+        app.world_mut()
+            .insert_resource(crate::input::action_state_after_pressing(keys, &[]));
     }
 }

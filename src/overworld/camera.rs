@@ -6,6 +6,20 @@ use super::movement::{ExplorationMap, OverworldPlayer};
 
 const OVERWORLD_CAMERA_Z: f32 = 100.0;
 
+pub(crate) type ExplorationCameraInit<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Transform, &'static mut OrthographicProjection),
+    (With<Camera2d>, Without<OverworldPlayer>),
+>;
+
+pub(crate) type ExplorationCameraFollow<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Transform, &'static OrthographicProjection),
+    (With<Camera2d>, Without<OverworldPlayer>),
+>;
+
 pub const HOMESTEAD_PIXEL_ZOOM: f32 = 3.0;
 pub const FOREST_PIXEL_ZOOM: f32 = 1.0;
 
@@ -13,10 +27,7 @@ pub fn init_exploration_camera(
     map: Res<ExplorationMap>,
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
-    mut camera: Query<
-        (&mut Transform, &mut OrthographicProjection),
-        (With<Camera2d>, Without<OverworldPlayer>),
-    >,
+    mut camera: ExplorationCameraInit,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;
@@ -39,10 +50,7 @@ pub fn follow_exploration_camera(
     map: Res<ExplorationMap>,
     player: Query<&Transform, (With<OverworldPlayer>, Without<Camera2d>)>,
     window: Query<&Window>,
-    mut camera: Query<
-        (&mut Transform, &OrthographicProjection),
-        (With<Camera2d>, Without<OverworldPlayer>),
-    >,
+    mut camera: ExplorationCameraFollow,
 ) {
     let Ok(player_transform) = player.get_single() else {
         return;

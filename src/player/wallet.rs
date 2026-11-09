@@ -7,6 +7,12 @@ use serde::{Deserialize, Serialize};
 #[serde(transparent)]
 pub struct DestinySpark(pub u32);
 
+impl DestinySpark {
+    pub fn amount(self) -> u32 {
+        self.0
+    }
+}
+
 impl fmt::Display for DestinySpark {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.0)
@@ -27,7 +33,7 @@ mod tests {
     fn new_wallet_starts_empty() {
         let wallet = Wallet::default();
         assert_eq!(wallet.gold, 0);
-        assert_eq!(wallet.sparks.0, 0);
+        assert_eq!(wallet.sparks.amount(), 0);
         assert_eq!(wallet.sparks.to_string(), "0");
     }
 
@@ -38,7 +44,7 @@ mod tests {
             sparks: DestinySpark(u32::MAX),
         };
         assert_eq!(wallet.gold, u32::MAX);
-        assert_eq!(wallet.sparks.0, u32::MAX);
+        assert_eq!(wallet.sparks.amount(), u32::MAX);
     }
 
     #[test]
