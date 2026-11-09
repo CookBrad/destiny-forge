@@ -1,10 +1,12 @@
 mod autosave;
 mod autosave_block;
 mod crop_save;
+mod header;
 mod migration;
 mod plugin;
 mod profile;
 mod ron_value;
+mod sections;
 mod settings;
 mod storage;
 mod sync;
@@ -18,8 +20,6 @@ pub use profile::{
 };
 pub use settings::GameSettings;
 pub use storage::save_root_display;
-#[cfg(test)]
-pub(crate) use storage::{lock_profile_files, profile_path};
 pub use sync::{
-    activate_profile, apply_profile_to_runtime, ProfileSnapshot, ProfileSwitch, RuntimeProfile,
+    activate_profile, apply_profile_to_runtime, ProfileApply, ProfileCapture, ProfileSession,
 };

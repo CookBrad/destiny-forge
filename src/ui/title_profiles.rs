@@ -1,76 +1,16 @@
-use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
-use crate::audio::AudioSettings;
-use crate::combat::SkillBindings;
 use crate::core::{
-    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, CalendarRules, DayClock,
-    GameSettings, GameState, PlayerProfile, ProfileAutosaveBlock, ProfileDirty, Season, ToolEnergy,
-    PROFILE_COUNT,
+    rename_profile_on_disk, sanitize_profile_name, ActiveProfile, GameState, PlayerProfile,
+    ProfileAutosaveBlock, PROFILE_COUNT,
 };
 use crate::input::{Action, ActionState};
-use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
 
-use super::profile_picker::{begin_profile_run, ProfilePicker};
+use super::profile_picker::{begin_profile_run, ProfilePicker, ProfileRun};
 
 const CARD_WIDTH: f32 = 420.0;
 const CARD_HEIGHT: f32 = 72.0;
-
-#[derive(SystemParam)]
-pub(crate) struct ProfileRunGate<'w> {
-    inventory: ResMut<'w, Inventory>,
-    loadout: ResMut<'w, Loadout>,
-    progress: ResMut<'w, WorldProgress>,
-    day_clock: ResMut<'w, DayClock>,
-    tool_energy: ResMut<'w, ToolEnergy>,
-    season: ResMut<'w, Season>,
-    rules: Res<'w, CalendarRules>,
-    active: ResMut<'w, ActiveProfile>,
-    profile: ResMut<'w, PlayerProfile>,
-    audio: ResMut<'w, AudioSettings>,
-    bindings: ResMut<'w, SkillBindings>,
-    global: ResMut<'w, GameSettings>,
-    profile_dirty: ResMut<'w, ProfileDirty>,
-    autosave_block: ResMut<'w, ProfileAutosaveBlock>,
-}
-
-impl ProfileRunGate<'_> {
-    fn started_at(&mut self, index: u8) -> bool {
-        begin_profile_run(
-            index,
-            &mut self.inventory,
-            &mut self.loadout,
-            &mut self.progress,
-            &mut self.day_clock,
-            &mut self.tool_energy,
-            &mut self.season,
-            &self.rules,
-            &mut self.audio,
-            &mut self.bindings,
-            &mut self.active,
-            &mut self.profile,
-            &mut self.global,
-            &mut self.profile_dirty,
-            &mut self.autosave_block,
-        )
-    }
-}
-
-pub(crate) type TitleProfileCardClicks<'w, 's> = Query<
-    'w,
-    's,
-    (&'static Interaction, &'static TitleProfileCard),
-    (Changed<Interaction>, With<Button>),
->;
-
-pub(crate) type TitleProfileRenameClicks<'w, 's> = Query<
-    'w,
-    's,
-    (&'static Interaction, &'static TitleProfileRenameButton),
-    (Changed<Interaction>, With<Button>),
->;
 
 #[derive(Component)]
 pub struct TitleProfileContainer;
@@ -219,8 +159,11 @@ fn card_details(summary: &super::profile_picker::ProfileCardSummary) -> String {
 pub fn handle_title_profile_card_clicks(
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut interactions: TitleProfileCardClicks,
-    mut profile_run: ProfileRunGate,
+    mut interactions: Query<
+        (&Interaction, &TitleProfileCard),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut run: ProfileRun,
 ) {
     if rename.active.is_some() {
         return;
@@ -231,7 +174,7 @@ pub fn handle_title_profile_card_clicks(
             continue;
         }
 
-        if profile_run.started_at(card.index) {
+        if begin_profile_run(card.index, &mut run) {
             next_state.set(GameState::Overworld);
         }
     }
@@ -277,7 +220,7 @@ pub fn handle_profile_rename_input(
         let buffer = session.buffer.clone();
         if let Some(saved) = rename_profile_on_disk(index, buffer) {
             if active.index() == index {
-                profile.name = saved.name;
+                profile.header.name = saved.header.name;
             }
         }
         *picker = ProfilePicker::refresh(&mut autosave_block);
@@ -301,7 +244,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
     actions: Res<ActionState>,
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut profile_run: ProfileRunGate,
+    mut run: ProfileRun,
 ) {
     if rename.active.is_some() {
         return;
@@ -311,7 +254,7 @@ pub fn handle_title_profile_keyboard_shortcuts(
         return;
     };
 
-    if profile_run.started_at(index) {
+    if begin_profile_run(index, &mut run) {
         next_state.set(GameState::Overworld);
     }
 }
