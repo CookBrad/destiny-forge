@@ -29,7 +29,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_new_homestead_save_starts_with_a_full_tool_and_no_crops() {
+    fn a_new_homestead_save_starts_with_full_tool_energy_and_no_crops() {
         let homestead = HomesteadSave::default();
         assert_eq!(homestead.tool_energy, TOOL_ENERGY_MAX);
         assert!(homestead.crop_plots.is_empty());
