@@ -956,8 +956,13 @@ def test_require_inside_rejects_a_pixel_left_of_the_cell() -> None:
 
 def test_build_run_parts_returns_the_body_legs_and_sword(idle_cell) -> None:
     parts = hunter.build_run_parts(idle_cell)
-    assert tuple(sorted(parts)) == ("body", "chest", "front", "rear", "sword")
-    assert parts["chest"] == 93.5
+    assert isinstance(parts, hunter.RunParts)
+    assert tuple(hunter.RunParts.__dataclass_fields__) == ("body", "chest", "rear", "front", "sword")
+    assert parts.chest == 93.5
+    assert isinstance(parts.body, hunter.Sprite)
+    assert isinstance(parts.rear, hunter.Sprite)
+    assert isinstance(parts.front, hunter.Sprite)
+    assert isinstance(parts.sword, hunter.Sprite)
 
 
 def test_build_run_parts_rejects_an_empty_sprite() -> None:
@@ -1001,9 +1006,9 @@ def test_compose_run_frame_builds_the_first_pose(idle_cell) -> None:
     assert len(frame.pixels) > 9000
 
 
-def test_compose_run_frame_rejects_a_pose_without_a_plant(idle_cell) -> None:
+def test_compose_run_frame_rejects_a_pose_that_is_not_a_run_pose(idle_cell) -> None:
     parts = hunter.build_run_parts(idle_cell)
-    with pytest.raises(KeyError, match="bob"):
+    with pytest.raises(AttributeError, match="bob"):
         hunter.compose_run_frame(parts, {})
 
 

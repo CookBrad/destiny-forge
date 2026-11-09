@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import math
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
@@ -33,21 +34,28 @@ SIGNED_SHA256 = {
     "knight_attack_side.png": "ca089a0e93524161f020d9ef91f736e330d36f3530749b8296e918b088620b04",
 }
 
-RUN_POSES = (
-    {"rear_deg": 8, "front_deg": 64, "bob": 0, "plant": "rear"},
-    {"rear_deg": 14, "front_deg": 22, "bob": 2, "plant": ""},
-    {"rear_deg": -28, "front_deg": 84, "bob": -1, "plant": ""},
-    {"rear_deg": -14, "front_deg": 38, "bob": 0, "plant": ""},
-    {"rear_deg": -48, "front_deg": -4, "bob": 0, "plant": "front"},
-    {"rear_deg": 20, "front_deg": -12, "bob": 2, "plant": ""},
-    {"rear_deg": 88, "front_deg": -44, "bob": -1, "plant": ""},
-    {"rear_deg": 32, "front_deg": -18, "bob": 1, "plant": ""},
-)
-
 RUN_LEAN_DEG = 7.0
 RUN_SWORD_DEG = 16.0
 RUN_SWORD_LENGTH = 58
 CAPE_TRIM_X = 18
+
+@dataclass(frozen=True)
+class RunPose:
+    rear_degrees: int
+    front_degrees: int
+    bob: int
+    plant: str
+
+RUN_POSES = (
+    RunPose(rear_degrees=8, front_degrees=64, bob=0, plant="rear"),
+    RunPose(rear_degrees=14, front_degrees=22, bob=2, plant=""),
+    RunPose(rear_degrees=-28, front_degrees=84, bob=-1, plant=""),
+    RunPose(rear_degrees=-14, front_degrees=38, bob=0, plant=""),
+    RunPose(rear_degrees=-48, front_degrees=-4, bob=0, plant="front"),
+    RunPose(rear_degrees=20, front_degrees=-12, bob=2, plant=""),
+    RunPose(rear_degrees=88, front_degrees=-44, bob=-1, plant=""),
+    RunPose(rear_degrees=32, front_degrees=-18, bob=1, plant=""),
+)
 
 def main() -> None:
     reject_resample_names(Path(__file__))
@@ -182,9 +190,9 @@ class Sprite:
             raise SystemExit("empty sprite")
         return min(xs), min(ys), max(xs), max(ys)
 
-    def require_opaque_pixels_inside(self, dx: int = 0, dy: int = 0, *, width: int, height: int) -> None:
+    def require_opaque_pixels_inside(self, offset_x: int = 0, offset_y: int = 0, *, width: int, height: int) -> None:
         for x, y in self.pixels:
-            xx, yy = x + dx, y + dy
+            xx, yy = x + offset_x, y + offset_y
             if not (0 <= xx < width and 0 <= yy < height):
                 raise SystemExit(f"opaque pixel would leave the cell at {xx},{yy}")
 
@@ -200,8 +208,8 @@ def colors_used(*groups: dict[Point, Color]) -> set[Color]:
 def cell_of(sheet: Sprite, index: int) -> Sprite:
     return sheet.crop(index * CELL_W, 0, (index + 1) * CELL_W, CELL_H)
 
-def leg_column(idle: Sprite, x0: int, y0: int, x1: int, y1: int) -> Sprite:
-    return bridge_vertical_gaps(idle.crop(x0, y0, x1, y1))
+def leg_column(idle: Sprite, start_x: int, start_y: int, end_x: int, end_y: int) -> Sprite:
+    return bridge_vertical_gaps(idle.crop(start_x, start_y, end_x, end_y))
 
 def bridge_vertical_gaps(leg: Sprite, limit: int = 8) -> Sprite:
     columns: dict[int, list[int]] = {}
@@ -251,7 +259,15 @@ def build_run_cycle(idle: Sprite) -> list[Sprite]:
             )
     return frames
 
-def build_run_parts(idle: Sprite) -> dict:
+@dataclass(frozen=True)
+class RunParts:
+    body: Sprite
+    chest: float
+    rear: Sprite
+    front: Sprite
+    sword: Sprite
+
+def build_run_parts(idle: Sprite) -> RunParts:
     body = without_blade(idle)
     body.erase_rect(0, 0, CAPE_TRIM_X, CELL_H)
     body.erase_rect(58, 130, 86, CELL_H)
@@ -267,7 +283,7 @@ def build_run_parts(idle: Sprite) -> dict:
     rear = leg_column(idle, 62, 116, 82, 160)
     front = leg_column(idle, 90, 112, 116, 160)
     sword = blade_only(idle)
-    return {"body": leaned, "chest": chest_pin_x(leaned), "rear": rear, "front": front, "sword": sword}
+    return RunParts(body=leaned, chest=chest_pin_x(leaned), rear=rear, front=front, sword=sword)
 
 def without_blade(sprite: Sprite, halo: int = 4) -> Sprite:
     blade = flood_blade(sprite)
@@ -412,14 +428,14 @@ def blade_only(sprite: Sprite) -> Sprite:
     blade = flood_blade(sprite)
     return Sprite({point: sprite.pixels[point] for point in blade})
 
-def compose_run_frame(parts: dict, pose: dict) -> Sprite:
-    chest = parts["chest"]
-    body = parts["body"].shift(0, pose["bob"])
+def compose_run_frame(parts: RunParts, pose: RunPose) -> Sprite:
+    chest = parts.chest
+    body = parts.body.shift(0, pose.bob)
     hip_y = 118
-    rear = swing_from_hip(parts["rear"], pose["rear_deg"], chest - 4, hip_y)
-    front = swing_from_hip(parts["front"], pose["front_deg"], chest + 10, hip_y)
-    rear = seat_planted_leg(rear, chest) if pose["plant"] == "rear" else seat_lifted_leg(rear)
-    front = seat_planted_leg(front, chest) if pose["plant"] == "front" else seat_lifted_leg(front)
+    rear = swing_from_hip(parts.rear, pose.rear_degrees, chest - 4, hip_y)
+    front = swing_from_hip(parts.front, pose.front_degrees, chest + 10, hip_y)
+    rear = seat_planted_leg(rear, chest) if pose.plant == "rear" else seat_lifted_leg(rear)
+    front = seat_planted_leg(front, chest) if pose.plant == "front" else seat_lifted_leg(front)
     rear_foot, _sole = bottom_band(rear)
     front_foot, _sole = bottom_band(front)
     frame = body.copy()
@@ -430,7 +446,7 @@ def compose_run_frame(parts: dict, pose: dict) -> Sprite:
         frame.paste(front)
         frame.paste(rear)
     hand = sword_hand(body)
-    aimed, pivot = aim_low_blade(parts["sword"], RUN_SWORD_DEG, RUN_SWORD_LENGTH)
+    aimed, pivot = aim_low_blade(parts.sword, RUN_SWORD_DEG, RUN_SWORD_LENGTH)
     frame.paste(place_aimed(aimed, pivot, (hand[0] + 2, hand[1] - 8)))
     return frame
 
@@ -479,10 +495,10 @@ def stance_contact(sprite: Sprite) -> tuple[int, float]:
         return y, (left + right) / 2
     raise SystemExit("no stance contact")
 
-def long_runs(xs: list[int]) -> list[tuple[int, int]]:
-    if not xs:
+def long_runs(x_positions: list[int]) -> list[tuple[int, int]]:
+    if not x_positions:
         return []
-    ordered = sorted(set(xs))
+    ordered = sorted(set(x_positions))
     runs: list[tuple[int, int]] = []
     start = previous = ordered[0]
     for x in ordered[1:]:
@@ -492,7 +508,7 @@ def long_runs(xs: list[int]) -> list[tuple[int, int]]:
         runs.append((start, previous))
         start = previous = x
     runs.append((start, previous))
-    return [(a, b) for a, b in runs if b - a + 1 >= 8]
+    return [(run_start, run_end) for run_start, run_end in runs if run_end - run_start + 1 >= 8]
 
 def bottom_band(sprite: Sprite) -> tuple[float, int]:
     max_y = max(y for _, y in sprite.pixels)
@@ -884,8 +900,8 @@ def opaque_width(sprite: Sprite) -> int:
     left, _top, right, _bottom = sprite.bounds()
     return right - left + 1
 
-def same_pixels(a: Sprite, b: Sprite) -> bool:
-    return a.pixels == b.pixels
+def same_pixels(first: Sprite, second: Sprite) -> bool:
+    return first.pixels == second.pixels
 
 def check_attack(between: Sprite, recover: Sprite) -> None:
     for label, frame, tip_target in (("between", between, 220), ("recover", recover, 180)):
