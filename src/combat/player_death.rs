@@ -123,19 +123,19 @@ pub fn tick_player_death(
 
     death.timer.tick(time.delta());
 
-    let dt = time.delta_secs();
+    let delta_seconds = time.delta_secs();
     velocity.x = death.knockback.x;
     if death.knockback.y > 1.0 {
         velocity.y = death.knockback.y;
         death.knockback.y = 0.0;
     } else {
-        velocity.y += DUNGEON_GRAVITY * dt;
+        velocity.y += DUNGEON_GRAVITY * delta_seconds;
     }
 
-    death.knockback.x *= (-6.5 * dt).exp();
+    death.knockback.x *= (-6.5 * delta_seconds).exp();
 
     let half = player_half_extents();
-    let delta = Vec2::new(velocity.x, velocity.y) * dt;
+    let delta = Vec2::new(velocity.x, velocity.y) * delta_seconds;
     let mut position = death.physics_center;
     position.x = (position.x + delta.x).clamp(half.x, bounds.width - half.x);
     position.y += delta.y;

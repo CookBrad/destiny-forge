@@ -43,7 +43,7 @@ impl Default for PlayerAnimation {
     }
 }
 
-pub(crate) type PlayerAnimQuery<'w, 's> = Query<
+pub(crate) type PlayerAnimationQuery<'w, 's> = Query<
     'w,
     's,
     (
@@ -58,7 +58,7 @@ pub(crate) type PlayerAnimQuery<'w, 's> = Query<
     (With<DungeonPlayer>, Without<PlayerDeath>),
 >;
 
-pub fn animate_player(time: Res<Time>, art: Res<DungeonArt>, mut player: PlayerAnimQuery) {
+pub fn animate_player(time: Res<Time>, art: Res<DungeonArt>, mut player: PlayerAnimationQuery) {
     let Ok((velocity, attack, special, knockback, mut animation, mut sprite, mut transform)) =
         player.get_single_mut()
     else {
@@ -147,15 +147,15 @@ fn apply_pose(
     sprite: &mut Sprite,
     art: &DungeonArt,
     pose: HunterPose,
-    dt: f32,
+    delta_seconds: f32,
 ) {
-    let cell = sheet_cell(animation, pose, dt);
+    let cell = sheet_cell(animation, pose, delta_seconds);
     sprite.image = art.hunter_image(sheet_for(pose));
     sprite.rect = Some(player_frame_rect(cell));
     sprite.anchor = pose_anchor(pose);
 }
 
-fn sheet_cell(animation: &mut PlayerAnimation, pose: HunterPose, dt: f32) -> usize {
+fn sheet_cell(animation: &mut PlayerAnimation, pose: HunterPose, delta_seconds: f32) -> usize {
     if let HunterPose::Attack(phase) = pose {
         animation.clip = None;
         return attack_cell(phase);
@@ -176,7 +176,7 @@ fn sheet_cell(animation: &mut PlayerAnimation, pose: HunterPose, dt: f32) -> usi
         animation.frame,
         animation.timer.elapsed_secs(),
         playback,
-        dt,
+        delta_seconds,
     );
     animation.frame = frame;
     animation

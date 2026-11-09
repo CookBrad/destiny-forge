@@ -67,7 +67,7 @@ pub(crate) type CarveCorpseQuery<'w, 's> = Query<
 >;
 
 #[derive(SystemParam)]
-pub(crate) struct CarveCorpseParams<'w, 's> {
+pub(crate) struct CarveCorpseParameters<'w, 's> {
     time: Res<'w, Time>,
     actions: Res<'w, ActionState>,
     loadout: Res<'w, Loadout>,
@@ -80,11 +80,11 @@ pub(crate) struct CarveCorpseParams<'w, 's> {
 }
 
 pub fn carve_corpses(
-    params: CarveCorpseParams,
+    parameters: CarveCorpseParameters,
     player: Query<(&Transform, Option<&PlayerHitFlash>), With<DungeonPlayer>>,
     corpses: CarveCorpseQuery,
 ) {
-    let CarveCorpseParams {
+    let CarveCorpseParameters {
         time,
         actions,
         loadout,
@@ -94,7 +94,7 @@ pub fn carve_corpses(
         mut carve_state,
         mut loot_log,
         mut commands,
-    } = params;
+    } = parameters;
     let Ok((player_transform, hit_flash)) = player.get_single() else {
         carve_state.target = None;
         return;

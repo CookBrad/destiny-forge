@@ -432,10 +432,10 @@ fn execute_attack(
             sfx.send(CombatSfx::GroundSlam);
         }
         BossAttackKind::RoyalCharge => {
-            let dx = to_player.x.signum();
-            if dx != 0.0 {
+            let horizontal_direction = to_player.x.signum();
+            if horizontal_direction != 0.0 {
                 commands.entity(boss_entity).insert(BossCharging {
-                    velocity: Vec2::new(dx * 140.0, 0.0),
+                    velocity: Vec2::new(horizontal_direction * 140.0, 0.0),
                     timer: Timer::from_seconds(0.65, TimerMode::Once),
                 });
                 sfx.send(CombatSfx::BossCharge);
