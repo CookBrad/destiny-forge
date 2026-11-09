@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 
@@ -56,16 +57,25 @@ pub struct ForgeSetBonusLabel;
 #[derive(Component)]
 pub struct ForgeStatusLabel;
 
+pub struct ForgeCraftSources<'a> {
+    pub inventory: &'a Inventory,
+    pub loadout: &'a Loadout,
+    pub recipes: &'a RecipeBook,
+}
+
 pub fn open_forge_window(
     open: &mut ForgeWindowOpen,
     selected: &mut ForgeSelectedRecipe,
     commands: &mut Commands,
-    inventory: &Inventory,
-    loadout: &Loadout,
-    recipes: &RecipeBook,
+    sources: ForgeCraftSources<'_>,
     windows: &Query<Entity, With<ForgeWindow>>,
     time: &mut Time<Virtual>,
 ) {
+    let ForgeCraftSources {
+        inventory,
+        loadout,
+        recipes,
+    } = sources;
     if open.0 || !windows.is_empty() || recipes.is_empty() {
         return;
     }
@@ -345,16 +355,26 @@ fn close_forge_window(
     time.unpause();
 }
 
+#[derive(SystemParam)]
+pub(crate) struct ForgeRecipeSources<'w> {
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    recipes: Res<'w, RecipeBook>,
+}
+
 pub fn handle_forge_recipe_cycle(
     actions: Res<ActionState>,
     open: Res<ForgeWindowOpen>,
     mut selected: ResMut<ForgeSelectedRecipe>,
     mut commands: Commands,
     windows: Query<Entity, With<ForgeWindow>>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    recipes: Res<RecipeBook>,
+    sources: ForgeRecipeSources,
 ) {
+    let ForgeRecipeSources {
+        inventory,
+        loadout,
+        recipes,
+    } = sources;
     if !open.0 || recipes.is_empty() {
         return;
     }
@@ -377,19 +397,27 @@ pub fn handle_forge_recipe_cycle(
     }
 }
 
+pub(crate) type ForgeRecipeNameText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<ForgeRecipeNameLabel>>;
+pub(crate) type ForgeCostsText<'w, 's> = Query<'w, 's, &'static mut Text, With<ForgeCostsLabel>>;
+pub(crate) type ForgeRequirementText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<ForgeRequirementLabel>>;
+pub(crate) type ForgeSetBonusText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<ForgeSetBonusLabel>>;
+pub(crate) type ForgeStatusText<'w, 's> = Query<'w, 's, &'static mut Text, With<ForgeStatusLabel>>;
+
 pub fn sync_forge_display(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
     recipes: Res<RecipeBook>,
-    // ParamSet: multiple &mut Text queries conflict without full Without chains (B0001).
     mut texts: ParamSet<(
-        Query<&mut Text, With<ForgeRecipeNameLabel>>,
-        Query<&mut Text, With<ForgeCostsLabel>>,
-        Query<&mut Text, With<ForgeRequirementLabel>>,
-        Query<&mut Text, With<ForgeSetBonusLabel>>,
-        Query<&mut Text, With<ForgeStatusLabel>>,
+        ForgeRecipeNameText,
+        ForgeCostsText,
+        ForgeRequirementText,
+        ForgeSetBonusText,
+        ForgeStatusText,
     )>,
 ) {
     if !open.0 || recipes.is_empty() {
@@ -438,17 +466,28 @@ fn craft_selected_recipe(
     }
 }
 
+#[derive(SystemParam)]
+pub(crate) struct ForgeCraftApply<'w, 's> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    profile_dirty: ResMut<'w, ProfileDirty>,
+    status: Query<'w, 's, &'static mut Text, With<ForgeStatusLabel>>,
+}
+
 pub fn handle_forge_craft_input(
     actions: Res<ActionState>,
     open: Res<ForgeWindowOpen>,
     selected: Res<ForgeSelectedRecipe>,
     recipes: Res<RecipeBook>,
     interactions: Query<&Interaction, (Changed<Interaction>, With<ForgeCraftButton>)>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut status: Query<&mut Text, With<ForgeStatusLabel>>,
+    craft: ForgeCraftApply,
 ) {
+    let ForgeCraftApply {
+        mut inventory,
+        mut loadout,
+        mut profile_dirty,
+        mut status,
+    } = craft;
     if !open.0 {
         return;
     }

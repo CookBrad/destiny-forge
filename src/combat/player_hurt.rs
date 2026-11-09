@@ -62,13 +62,17 @@ pub fn apply_player_hurt(
     ));
 }
 
+pub(crate) type PlayerHitFlashTicks<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static mut PlayerHitFlash, &'static mut Sprite),
+    (With<DungeonPlayer>, Without<PlayerDeath>),
+>;
+
 pub fn tick_player_hit_flash(
     time: Res<Time>,
     mut commands: Commands,
-    mut player: Query<
-        (Entity, &mut PlayerHitFlash, &mut Sprite),
-        (With<DungeonPlayer>, Without<PlayerDeath>),
-    >,
+    mut player: PlayerHitFlashTicks,
 ) {
     for (entity, mut flash, mut sprite) in &mut player {
         flash.timer.tick(time.delta());
@@ -81,3 +85,81 @@ pub fn tick_player_hit_flash(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_fresh_hit_flash_paints_the_hunter_until_invulnerability_ends() {
+        let mut app = flash_app();
+        let hunter = app
+            .world_mut()
+            .spawn((
+                DungeonPlayer,
+                PlayerHitFlash::new(),
+                Sprite {
+                    color: Color::BLACK,
+                    ..default()
+                },
+            ))
+            .id();
+        app.add_systems(Update, tick_player_hit_flash);
+        app.update();
+        let sprite = app.world().get::<Sprite>(hunter).unwrap();
+        assert_eq!(sprite.color, Color::srgb(1.0, 0.42, 0.42));
+        assert!(app.world().get::<PlayerHitFlash>(hunter).is_some());
+    }
+
+    fn flash_app() -> App {
+        let mut app = App::new();
+        app.insert_resource(Time::<()>::default());
+        app
+    }
+
+    #[test]
+    fn a_finished_hit_flash_restores_white_and_clears_the_component() {
+        let mut app = flash_app();
+        let mut flash = PlayerHitFlash::new();
+        flash
+            .timer
+            .tick(std::time::Duration::from_secs_f32(PLAYER_INVULN_DURATION));
+        let hunter = app
+            .world_mut()
+            .spawn((
+                DungeonPlayer,
+                flash,
+                Sprite {
+                    color: Color::BLACK,
+                    ..default()
+                },
+            ))
+            .id();
+        app.add_systems(Update, tick_player_hit_flash);
+        app.update();
+        let sprite = app.world().get::<Sprite>(hunter).unwrap();
+        assert_eq!(sprite.color, Color::WHITE);
+        assert!(app.world().get::<PlayerHitFlash>(hunter).is_none());
+    }
+
+    #[test]
+    fn a_dying_hunter_keeps_the_color_they_already_had() {
+        let mut app = flash_app();
+        let hunter = app
+            .world_mut()
+            .spawn((
+                DungeonPlayer,
+                PlayerDeath::new(1.0, Vec2::ZERO),
+                PlayerHitFlash::new(),
+                Sprite {
+                    color: Color::BLACK,
+                    ..default()
+                },
+            ))
+            .id();
+        app.add_systems(Update, tick_player_hit_flash);
+        app.update();
+        let sprite = app.world().get::<Sprite>(hunter).unwrap();
+        assert_eq!(sprite.color, Color::BLACK);
+        assert!(app.world().get::<PlayerHitFlash>(hunter).is_some());
+    }
+}

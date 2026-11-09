@@ -25,7 +25,7 @@ pub fn setup_mine(
     profile: Res<PlayerProfile>,
 ) {
     let art = OverworldArt::load(&asset_server, &mut atlas_layouts, &mut images);
-    spawn_mine(&mut commands, &art, &profile.depleted_ore_node_ids);
+    spawn_mine(&mut commands, &art, &profile.mine.depleted_ore_node_ids);
 
     let start = tile_center(ARRIVAL_TILE.0, ARRIVAL_TILE.1);
     commands.spawn((
