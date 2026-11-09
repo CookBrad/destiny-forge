@@ -77,8 +77,6 @@ pub fn flush_saves_on_exit(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
-
     use super::*;
     use crate::audio::AudioSettings;
     use crate::combat::SkillBindings;
@@ -87,9 +85,7 @@ mod tests {
     use crate::items::Inventory;
     use crate::player::{DestinySpark, Loadout, Wallet, WorldProgress};
 
-    use super::super::storage::{load_profile, lock_save_root_for_test, set_save_root_for_test};
-
-    static NEXT_SAVE_DIR: AtomicU64 = AtomicU64::new(0);
+    use super::super::storage::{load_profile, TempSaveRoot};
 
     #[test]
     fn debounced_autosave_writes_the_wallet_after_the_delay() {
@@ -214,32 +210,5 @@ mod tests {
     fn finish_timer(app: &mut App) {
         let mut timer = app.world_mut().resource_mut::<AutosaveTimer>();
         timer.0 = Timer::from_seconds(0.0, TimerMode::Once);
-    }
-
-    struct TempSaveRoot {
-        root: std::path::PathBuf,
-        _gate: std::sync::MutexGuard<'static, ()>,
-    }
-
-    impl TempSaveRoot {
-        fn acquire() -> Self {
-            let gate = lock_save_root_for_test();
-            let n = NEXT_SAVE_DIR.fetch_add(1, Ordering::Relaxed);
-            let root = std::env::temp_dir().join(format!(
-                "destiny_forge_autosave_{}_{n}",
-                std::process::id()
-            ));
-            let _ = std::fs::remove_dir_all(&root);
-            std::fs::create_dir_all(root.join("profiles")).unwrap();
-            set_save_root_for_test(Some(root.clone()));
-            Self { root, _gate: gate }
-        }
-    }
-
-    impl Drop for TempSaveRoot {
-        fn drop(&mut self) {
-            set_save_root_for_test(None);
-            let _ = std::fs::remove_dir_all(&self.root);
-        }
     }
 }

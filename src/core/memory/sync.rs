@@ -228,6 +228,8 @@ mod tests {
     use super::*;
     use crate::combat::WeaponKind;
     use crate::player::DestinySpark;
+
+    use super::super::storage::{load_profile, profile_path, TempSaveRoot};
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
         let mut profile = PlayerProfile::default();
@@ -541,6 +543,90 @@ mod tests {
     }
 
     #[test]
+    fn saving_before_a_switch_writes_the_profile_and_clears_dirty() {
+        let _root = TempSaveRoot::acquire();
+        let mut profile = PlayerProfile::default();
+        profile.wallet.gold = 7;
+        let mut active = ActiveProfile(0);
+        let mut global = GameSettings::default();
+        let mut dirty = ProfileDirty(true);
+        let mut autosave_block = ProfileAutosaveBlock::default();
+        let runtime = DefaultRuntime {
+            wallet: profile.wallet,
+            ..DefaultRuntime::default()
+        };
+        let switched = activate_profile(
+            1,
+            &runtime.capture(),
+            &mut ProfileSession {
+                active: &mut active,
+                profile: &mut profile,
+                global: &mut global,
+                dirty: &mut dirty,
+                autosave_block: &mut autosave_block,
+            },
+        );
+        assert!(switched);
+        assert!(!dirty.0);
+        assert_eq!(load_profile(0).unwrap().wallet.gold, 7);
+    }
+
+    #[test]
+    fn a_failed_save_before_a_switch_keeps_dirty_and_still_switches() {
+        let _root = TempSaveRoot::acquire();
+        std::fs::create_dir_all(profile_path(0).with_extension("ron.tmp")).unwrap();
+        let mut profile = PlayerProfile::default();
+        let mut active = ActiveProfile(0);
+        let mut global = GameSettings::default();
+        let mut dirty = ProfileDirty(true);
+        let mut autosave_block = ProfileAutosaveBlock::default();
+        let mut session = ProfileSession {
+            active: &mut active,
+            profile: &mut profile,
+            global: &mut global,
+            dirty: &mut dirty,
+            autosave_block: &mut autosave_block,
+        };
+        assert!(!save_profile_before_switch(&session));
+        assert!(session.dirty.0);
+        assert!(!profile_path(0).exists());
+
+        assert!(activate_profile(
+            1,
+            &DefaultRuntime::default().capture(),
+            &mut session
+        ));
+        assert_eq!(session.active.0, 1);
+    }
+
+    #[derive(Default)]
+    struct DefaultRuntime {
+        inventory: Inventory,
+        loadout: Loadout,
+        progress: WorldProgress,
+        day_clock: DayClock,
+        tool_energy: ToolEnergy,
+        audio: AudioSettings,
+        bindings: SkillBindings,
+        wallet: Wallet,
+    }
+
+    impl DefaultRuntime {
+        fn capture(&self) -> ProfileCapture<'_> {
+            ProfileCapture {
+                inventory: &self.inventory,
+                loadout: &self.loadout,
+                progress: &self.progress,
+                day_clock: &self.day_clock,
+                tool_energy: &self.tool_energy,
+                audio: &self.audio,
+                bindings: &self.bindings,
+                wallet: &self.wallet,
+            }
+        }
+    }
+
+    #[test]
     fn a_resource_inserted_before_the_first_run_is_not_changed_after_hydration() {
         let mut app = app_recording_hydration_changes();
         app.update();
@@ -580,6 +666,72 @@ mod tests {
 
     fn record_hydration_change(watched: Res<WatchedValue>, mut seen: ResMut<SeenChange>) {
         seen.0 = changed_after_hydration(&watched);
+    }
+
+    #[test]
+    fn apply_restores_the_wallet() {
+        let mut restored = Wallet {
+            gold: 9,
+            sparks: DestinySpark(8),
+        };
+        restore_wallet(
+            Wallet {
+                gold: 40,
+                sparks: DestinySpark(2),
+            },
+            &mut restored,
+        );
+        assert_eq!(restored.gold, 40);
+        assert_eq!(restored.sparks.amount(), 2);
+
+        restored = Wallet {
+            gold: 9,
+            sparks: DestinySpark(8),
+        };
+        restore_wallet(Wallet::default(), &mut restored);
+        assert_eq!(restored, Wallet::default());
+
+        restored = Wallet::default();
+        restore_wallet(
+            Wallet {
+                gold: u32::MAX,
+                sparks: DestinySpark(u32::MAX),
+            },
+            &mut restored,
+        );
+        assert_eq!(restored.gold, u32::MAX);
+        assert_eq!(restored.sparks.amount(), u32::MAX);
+    }
+
+    fn restore_wallet(saved: Wallet, restored: &mut Wallet) {
+        let profile = PlayerProfile {
+            wallet: saved,
+            ..PlayerProfile::default()
+        };
+        let mut inventory = Inventory::default();
+        let mut loadout = Loadout::default();
+        let mut progress = WorldProgress::default();
+        let mut day_clock = DayClock::default();
+        let mut tool_energy = ToolEnergy::default();
+        let mut audio = AudioSettings::default();
+        let mut bindings = SkillBindings::default();
+        let mut season = Season::Spring;
+        let rules = CalendarRules::load();
+        apply_profile_to_runtime(
+            &profile,
+            &mut ProfileApply {
+                inventory: &mut inventory,
+                loadout: &mut loadout,
+                progress: &mut progress,
+                day_clock: &mut day_clock,
+                tool_energy: &mut tool_energy,
+                audio: &mut audio,
+                bindings: &mut bindings,
+                season: &mut season,
+                rules: &rules,
+                wallet: restored,
+            },
+        );
     }
 
     #[test]
