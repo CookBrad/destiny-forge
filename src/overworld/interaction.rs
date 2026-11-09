@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::core::{
@@ -10,7 +11,9 @@ use crate::graphics::INTERACT_DISTANCE;
 use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
-use crate::ui::forge_window::{open_forge_window, ForgeCraftSources, ForgeSelectedRecipe, ForgeWindowOpen};
+use crate::ui::forge_window::{
+    open_forge_window, ForgeCraftSources, ForgeSelectedRecipe, ForgeWindowOpen,
+};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 
@@ -20,22 +23,37 @@ use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity}
 const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
 const BED_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 1.5;
 
+#[derive(SystemParam)]
+pub(crate) struct OverworldForgeOpen<'w, 's> {
+    commands: Commands<'w, 's>,
+    game_inventory: Res<'w, crate::items::Inventory>,
+    forge_windows: Query<'w, 's, Entity, With<crate::ui::forge_window::ForgeWindow>>,
+    time: ResMut<'w, Time<Virtual>>,
+    forge: ResMut<'w, ForgeWindowOpen>,
+    forge_recipe: ResMut<'w, ForgeSelectedRecipe>,
+    loadout: Res<'w, Loadout>,
+    recipes: Res<'w, RecipeBook>,
+}
+
 pub fn overworld_interaction(
     actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
-    mut commands: Commands,
-    game_inventory: Res<crate::items::Inventory>,
-    forge_windows: Query<Entity, With<crate::ui::forge_window::ForgeWindow>>,
-    mut time: ResMut<Time<Virtual>>,
-    mut forge: ResMut<ForgeWindowOpen>,
-    mut forge_recipe: ResMut<ForgeSelectedRecipe>,
-    loadout: Res<Loadout>,
-    recipes: Res<RecipeBook>,
     layout: Res<OverworldLayout>,
     cooldown: Res<MapTransitionCooldown>,
     player: Query<(&Transform, &OverworldVelocity), With<OverworldPlayer>>,
     mut next_state: ResMut<NextState<GameState>>,
+    forge_open: OverworldForgeOpen,
 ) {
+    let OverworldForgeOpen {
+        mut commands,
+        game_inventory,
+        forge_windows,
+        mut time,
+        mut forge,
+        mut forge_recipe,
+        loadout,
+        recipes,
+    } = forge_open;
     let Ok((transform, velocity)) = player.get_single() else {
         return;
     };
@@ -84,24 +102,40 @@ pub fn overworld_interaction(
     }
 }
 
-/// Hold E near the house bed to end the day.
+#[derive(SystemParam)]
+pub(crate) struct SleepAtBed<'w, 's> {
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    season_rollovers: EventWriter<'w, SeasonRollover>,
+    profile: ResMut<'w, PlayerProfile>,
+    profile_dirty: ResMut<'w, ProfileDirty>,
+    clear: ResMut<'w, ClearColor>,
+    plots: Query<'w, 's, &'static mut CropPlot>,
+    loadout: ResMut<'w, Loadout>,
+}
+
 pub fn try_sleep_at_bed(
     actions: Res<ActionState>,
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
     player: Query<&Transform, With<OverworldPlayer>>,
     beds: Query<&Transform, With<Bed>>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
-    rules: Res<CalendarRules>,
-    mut season_rollovers: EventWriter<SeasonRollover>,
-    mut profile: ResMut<PlayerProfile>,
-    mut profile_dirty: ResMut<ProfileDirty>,
-    mut clear: ResMut<ClearColor>,
-    mut plots: Query<&mut CropPlot>,
-    mut loadout: ResMut<Loadout>,
+    sleep: SleepAtBed,
 ) {
+    let SleepAtBed {
+        mut day_clock,
+        mut tool_energy,
+        mut season,
+        rules,
+        mut season_rollovers,
+        mut profile,
+        mut profile_dirty,
+        mut clear,
+        mut plots,
+        mut loadout,
+    } = sleep;
     if inventory.0 || forge.0 || !actions.just_pressed(Action::Interact) {
         return;
     }
@@ -205,8 +239,10 @@ mod tests {
     #[test]
     fn sleeping_ends_the_food_buff() {
         let mut app = App::new();
-        let mut loadout = Loadout::default();
-        loadout.food_buff = Some(MaterialId::RoastTurnip);
+        let loadout = Loadout {
+            food_buff: Some(MaterialId::RoastTurnip),
+            ..Loadout::default()
+        };
         app.insert_resource(crate::input::action_state_after_pressing(
             &[KeyCode::KeyE],
             &[],
