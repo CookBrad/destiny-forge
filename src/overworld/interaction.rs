@@ -82,7 +82,6 @@ pub fn overworld_interaction(
                 );
             }
             HomesteadZone::DungeonGate if near && actions.just_pressed(Action::Interact) => {
-                // Day cost is applied OnEnter(Dungeon) so all entry paths share one hook.
                 next_state.set(GameState::Dungeon);
             }
             HomesteadZone::MineEntrance if near && actions.just_pressed(Action::Interact) => {
@@ -172,7 +171,6 @@ pub fn try_sleep_at_bed(
     );
 }
 
-/// Show tooltip for forge / dungeon gate / bed when in range.
 pub fn update_overworld_interaction_prompt(
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
