@@ -321,7 +321,7 @@ mod tests {
         inventory.try_add(MaterialId::SlimeGel, 4);
 
         assert!(try_craft_recipe(&mut inventory, &mut loadout, &helm));
-        assert_eq!(loadout.armor.head, Some(ArmorPiece::Helm));
+        assert_eq!(loadout.armor.helm, Some(ArmorPiece::Helm));
     }
 
     #[test]

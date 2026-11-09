@@ -39,7 +39,7 @@ pub struct StashWeaponButton {
 
 #[derive(Component, Clone, Copy)]
 pub struct StashArmorButton {
-    pub kind: ArmorPiece,
+    pub piece: ArmorPiece,
 }
 
 pub fn spawn_loadout_strip(
@@ -101,8 +101,8 @@ fn spawn_stash_row(parent: &mut ChildBuilder<'_>, loadout: &Loadout, access: Loa
             for weapon in &loadout.stash.weapons {
                 spawn_weapon_button(row, *weapon);
             }
-            for kind in &loadout.stash.armor {
-                spawn_armor_button(row, *kind);
+            for piece in &loadout.stash.armor {
+                spawn_armor_button(row, *piece);
             }
         });
 }
@@ -115,8 +115,8 @@ fn spawn_weapon_button(parent: &mut ChildBuilder<'_>, weapon: WeaponKind) {
     );
 }
 
-fn spawn_armor_button(parent: &mut ChildBuilder<'_>, kind: ArmorPiece) {
-    spawn_stash_button(parent, StashArmorButton { kind }, kind.label());
+fn spawn_armor_button(parent: &mut ChildBuilder<'_>, piece: ArmorPiece) {
+    spawn_stash_button(parent, StashArmorButton { piece }, piece.label());
 }
 
 fn spawn_stash_button(parent: &mut ChildBuilder<'_>, marker: impl Bundle, label: &'static str) {
@@ -193,7 +193,7 @@ pub fn handle_stash_armor_click(
     mut dirty: ResMut<ProfileDirty>,
 ) {
     for (interaction, button) in &interactions {
-        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_armor(button.kind) {
+        if *interaction == Interaction::Pressed && loadout.swap_to_stashed_armor(button.piece) {
             dirty.mark();
         }
     }
@@ -244,30 +244,30 @@ mod tests {
     #[test]
     fn an_armor_button_shows_the_piece_label() {
         assert_eq!(armor_button_label(ArmorPiece::Helm), "Slime Helm");
-        assert_eq!(spawned_armor_kind(ArmorPiece::Helm), ArmorPiece::Helm);
+        assert_eq!(spawned_armor_piece(ArmorPiece::Helm), ArmorPiece::Helm);
     }
 
-    fn armor_button_label(kind: ArmorPiece) -> String {
-        let mut app = armor_button_app(kind);
+    fn armor_button_label(piece: ArmorPiece) -> String {
+        let mut app = armor_button_app(piece);
         app.add_systems(Update, spawn_requested_armor_button);
         app.update();
         let mut labels = app.world_mut().query::<&Text>();
         labels.single(app.world()).0.clone()
     }
 
-    fn spawned_armor_kind(kind: ArmorPiece) -> ArmorPiece {
-        let mut app = armor_button_app(kind);
+    fn spawned_armor_piece(piece: ArmorPiece) -> ArmorPiece {
+        let mut app = armor_button_app(piece);
         app.add_systems(Update, spawn_requested_armor_button);
         app.update();
         app.world_mut()
             .query::<&StashArmorButton>()
             .single(app.world())
-            .kind
+            .piece
     }
 
-    fn armor_button_app(kind: ArmorPiece) -> App {
+    fn armor_button_app(piece: ArmorPiece) -> App {
         let mut app = App::new();
-        app.insert_resource(ArmorButtonRequest(kind));
+        app.insert_resource(ArmorButtonRequest(piece));
         app
     }
 
@@ -275,9 +275,9 @@ mod tests {
     struct ArmorButtonRequest(ArmorPiece);
 
     fn spawn_requested_armor_button(mut commands: Commands, request: Res<ArmorButtonRequest>) {
-        let kind = request.0;
+        let piece = request.0;
         commands.spawn(Node::default()).with_children(|parent| {
-            spawn_armor_button(parent, kind);
+            spawn_armor_button(parent, piece);
         });
     }
 
@@ -289,19 +289,19 @@ mod tests {
     #[test]
     fn an_armor_button_is_not_spawned_for_a_piece_that_was_not_requested() {
         assert_eq!(
-            spawned_armor_kinds(ArmorPiece::Mail),
+            spawned_armor_pieces(ArmorPiece::Mail),
             vec![ArmorPiece::Mail]
         );
     }
 
-    fn spawned_armor_kinds(kind: ArmorPiece) -> Vec<ArmorPiece> {
-        let mut app = armor_button_app(kind);
+    fn spawned_armor_pieces(piece: ArmorPiece) -> Vec<ArmorPiece> {
+        let mut app = armor_button_app(piece);
         app.add_systems(Update, spawn_requested_armor_button);
         app.update();
         let mut buttons = app.world_mut().query::<&StashArmorButton>();
         buttons
             .iter(app.world())
-            .map(|button| button.kind)
+            .map(|button| button.piece)
             .collect()
     }
 
@@ -385,17 +385,17 @@ mod tests {
             Button,
             Interaction::Pressed,
             StashArmorButton {
-                kind: ArmorPiece::Helm,
+                piece: ArmorPiece::Helm,
             },
         ));
         app.add_systems(Update, handle_stash_armor_click);
         app.update();
         let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.head, Some(ArmorPiece::Helm));
+        assert_eq!(loadout.armor.helm, Some(ArmorPiece::Helm));
         assert!(loadout.stash.armor.is_empty());
-        assert_eq!(loadout.armor.chest, None);
-        assert_eq!(loadout.armor.arms, None);
-        assert_eq!(loadout.armor.legs, None);
+        assert_eq!(loadout.armor.mail, None);
+        assert_eq!(loadout.armor.gauntlets, None);
+        assert_eq!(loadout.armor.greaves, None);
         assert!(app.world().resource::<ProfileDirty>().0);
     }
 
@@ -410,14 +410,14 @@ mod tests {
             Button,
             Interaction::Hovered,
             StashArmorButton {
-                kind: ArmorPiece::Mail,
+                piece: ArmorPiece::Mail,
             },
         ));
         app.add_systems(Update, handle_stash_armor_click);
         app.update();
         let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.head, None);
-        assert_eq!(loadout.armor.chest, None);
+        assert_eq!(loadout.armor.helm, None);
+        assert_eq!(loadout.armor.mail, None);
         assert_eq!(loadout.stash.armor, vec![ArmorPiece::Mail]);
         assert!(!app.world().resource::<ProfileDirty>().0);
     }
@@ -429,13 +429,13 @@ mod tests {
             Button,
             Interaction::Pressed,
             StashArmorButton {
-                kind: ArmorPiece::Greaves,
+                piece: ArmorPiece::Greaves,
             },
         ));
         app.add_systems(Update, handle_stash_armor_click);
         app.update();
         let loadout = app.world().resource::<Loadout>();
-        assert_eq!(loadout.armor.legs, None);
+        assert_eq!(loadout.armor.greaves, None);
         assert!(loadout.stash.armor.is_empty());
         assert!(!app.world().resource::<ProfileDirty>().0);
     }
