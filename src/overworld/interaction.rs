@@ -10,7 +10,7 @@ use crate::graphics::INTERACT_DISTANCE;
 use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
-use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
+use crate::ui::forge_window::{open_forge_window, ForgeCraftSources, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 
@@ -54,9 +54,11 @@ pub fn overworld_interaction(
                     &mut forge,
                     &mut forge_recipe,
                     &mut commands,
-                    &game_inventory,
-                    &loadout,
-                    &recipes,
+                    ForgeCraftSources {
+                        inventory: &game_inventory,
+                        loadout: &loadout,
+                        recipes: &recipes,
+                    },
                     &forge_windows,
                     &mut time,
                 );
