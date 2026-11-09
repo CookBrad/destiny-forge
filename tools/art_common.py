@@ -53,6 +53,21 @@ def composite_images(size: tuple[int, int], layers: list[tuple[Image.Image, Poin
     return image
 
 
+def light_contour(canvas: Canvas, outline: Color, lit: Color) -> None:
+    caught: list[Point] = []
+    for y in range(canvas.height):
+        for x in range(canvas.width):
+            if canvas.read(x, y) != outline:
+                continue
+            above_empty = canvas.read(x, y - 1) is None
+            left_empty = canvas.read(x - 1, y) is None
+            below_empty = canvas.read(x, y + 1) is None
+            if above_empty or (left_empty and not below_empty):
+                caught.append((x, y))
+    for x, y in caught:
+        canvas.put(x, y, lit)
+
+
 def add_outline(canvas: Canvas, color: Color) -> None:
     width = canvas.width
     height = canvas.height

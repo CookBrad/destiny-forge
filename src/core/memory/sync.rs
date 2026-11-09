@@ -412,6 +412,32 @@ mod tests {
         assert_eq!(active.index(), PROFILE_COUNT - 1);
     }
 
+    #[test]
+    fn a_corrupt_profile_does_not_switch() {
+        let _root = TempSaveRoot::acquire();
+        let saved_gold = 4;
+        std::fs::write(profile_path(1), b"this is not a profile {{{{").unwrap();
+        let mut profile = PlayerProfile {
+            wallet: Wallet {
+                gold: saved_gold,
+                sparks: DestinySpark(0),
+            },
+            ..PlayerProfile::default()
+        };
+        let active = ActiveProfile(0);
+        let mut autosave_block = ProfileAutosaveBlock::default();
+        let (started, active) =
+            activate_profile_with_block(&mut profile, active, 1, &mut autosave_block);
+        assert!(!started);
+        assert_eq!(active.index(), 0);
+        assert_eq!(profile.wallet.gold, saved_gold);
+        assert!(autosave_block.is_blocked(1));
+        assert_eq!(
+            std::fs::read(profile_path(1)).unwrap(),
+            b"this is not a profile {{{{"
+        );
+    }
+
     fn apply_saved_wallet(
         profile: &PlayerProfile,
         day_clock: &mut DayClock,
