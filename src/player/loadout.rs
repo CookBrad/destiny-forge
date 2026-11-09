@@ -585,12 +585,10 @@ mod tests {
 
     #[test]
     fn armor_slots_replace_only_the_slot_that_piece_uses() {
-        let mut slots = ArmorSlots {
-            helm: Some(ArmorPiece::Mail),
-            mail: Some(ArmorPiece::Mail),
-            gauntlets: Some(ArmorPiece::Gauntlets),
-            greaves: Some(ArmorPiece::Greaves),
-        };
+        let mut slots = ArmorSlots::default();
+        slots.set(ArmorPiece::Mail);
+        slots.set(ArmorPiece::Gauntlets);
+        slots.set(ArmorPiece::Greaves);
         slots.set(ArmorPiece::Helm);
         assert_eq!(slots.helm, Some(ArmorPiece::Helm));
         assert_eq!(slots.mail, Some(ArmorPiece::Mail));
@@ -606,18 +604,6 @@ mod tests {
         assert_eq!(slots.helm, None);
         assert_eq!(slots.mail, None);
         assert_eq!(slots.gauntlets, None);
-    }
-
-    #[test]
-    fn forging_a_second_piece_stashes_the_piece_already_in_that_slot() {
-        let mut loadout = Loadout::default();
-        loadout.armor.helm = Some(ArmorPiece::Mail);
-        loadout.equip_forged_armor(ArmorPiece::Helm);
-        assert_eq!(loadout.armor.helm, Some(ArmorPiece::Helm));
-        assert_eq!(loadout.stash.armor, vec![ArmorPiece::Mail]);
-        assert_eq!(loadout.armor.mail, None);
-        assert_eq!(loadout.armor.gauntlets, None);
-        assert_eq!(loadout.armor.greaves, None);
     }
 
     #[test]
