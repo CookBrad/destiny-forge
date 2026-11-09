@@ -1096,7 +1096,7 @@ def test_build_jump_rejects_an_empty_body() -> None:
 def test_hunter_main_writes_the_six_combat_sheets_with_the_locked_hashes(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "combat"
     folder.mkdir()
-    monkeypatch.setattr(hunter, "OUT", folder)
+    monkeypatch.setattr(hunter, "OUTPUT_DIRECTORY", folder)
     hunter.main()
     expected = {
         "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
@@ -1341,7 +1341,7 @@ def test_ascii_preview_rejects_an_image_with_no_pixels() -> None:
 def test_skill_main_writes_the_four_icons_with_the_locked_hashes(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "skills"
     folder.mkdir()
-    monkeypatch.setattr(icons, "OUT_DIR", folder)
+    monkeypatch.setattr(icons, "OUTPUT_DIRECTORY", folder)
     monkeypatch.setattr(icons.sys, "argv", ["draw_skill_icons.py"])
     icons.main()
     expected = {
@@ -1440,7 +1440,7 @@ def test_actor_main_writes_a_64_pixel_slime_sheet(tmp_path, monkeypatch) -> None
 def test_skill_main_check_rejects_a_missing_icon(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "skills"
     folder.mkdir()
-    monkeypatch.setattr(icons, "OUT_DIR", folder)
+    monkeypatch.setattr(icons, "OUTPUT_DIRECTORY", folder)
     monkeypatch.setattr(icons.sys, "argv", ["draw_skill_icons.py", "--check"])
     with pytest.raises(SystemExit, match="missing"):
         icons.main()

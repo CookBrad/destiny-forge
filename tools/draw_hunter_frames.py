@@ -21,7 +21,7 @@ from art_common import (
 
 ROOT = Path(__file__).resolve().parents[1]
 SIGNED = ROOT / "assets" / "source" / "hunter_signed"
-OUTPUT_DIR = ROOT / "assets" / "player" / "combat"
+OUTPUT_DIRECTORY = ROOT / "assets" / "player" / "combat"
 
 CELL_WIDTH = 343
 CELL_HEIGHT = 160
@@ -967,9 +967,9 @@ def write_outputs(
     stagger: Sprite,
     crumple: Sprite,
 ) -> None:
-    idle_src = SIGNED / "knight_idle_side.png"
-    idle_dst = OUTPUT_DIR / "knight_idle_side.png"
-    shutil.copyfile(idle_src, idle_dst)
+    idle_source = SIGNED / "knight_idle_side.png"
+    idle_destination = OUTPUT_DIRECTORY / "knight_idle_side.png"
+    shutil.copyfile(idle_source, idle_destination)
 
     run_image = sheet_image([cell_of(run_sheet, 0), *run_frames])
     attack_image = sheet_image(
@@ -978,11 +978,11 @@ def write_outputs(
     assert_cell_equal(run_image, 0, cell_of(run_sheet, 0), "run")
     assert_cell_equal(attack_image, 0, cell_of(attack_sheet, 0), "attack")
     assert_cell_equal(attack_image, 2, cell_of(attack_sheet, 2), "attack")
-    save_png(run_image, OUTPUT_DIR / "knight_run_side.png")
-    save_png(attack_image, OUTPUT_DIR / "knight_attack_side.png")
-    save_png(sheet_image([jump]), OUTPUT_DIR / "knight_jump_side.png")
-    save_png(sheet_image([fall]), OUTPUT_DIR / "knight_fall_side.png")
-    save_png(sheet_image([stagger, crumple]), OUTPUT_DIR / "knight_death_side.png")
+    save_png(run_image, OUTPUT_DIRECTORY / "knight_run_side.png")
+    save_png(attack_image, OUTPUT_DIRECTORY / "knight_attack_side.png")
+    save_png(sheet_image([jump]), OUTPUT_DIRECTORY / "knight_jump_side.png")
+    save_png(sheet_image([fall]), OUTPUT_DIRECTORY / "knight_fall_side.png")
+    save_png(sheet_image([stagger, crumple]), OUTPUT_DIRECTORY / "knight_death_side.png")
 
     expected = {
         "knight_idle_side.png": (1372, 160),
@@ -993,10 +993,10 @@ def write_outputs(
         "knight_death_side.png": (686, 160),
     }
     for name, (width, height) in expected.items():
-        image = Image.open(OUTPUT_DIR / name)
+        image = Image.open(OUTPUT_DIRECTORY / name)
         if image.size != (width, height):
             raise SystemExit(f"{name} size {image.size} != {(width, height)}")
-    idle_hash = hashlib.sha256(idle_dst.read_bytes()).hexdigest()
+    idle_hash = hashlib.sha256(idle_destination.read_bytes()).hexdigest()
     if idle_hash != SIGNED_SHA256["knight_idle_side.png"]:
         raise SystemExit("idle gameplay file is not the signed bytes")
 

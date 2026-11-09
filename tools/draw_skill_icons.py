@@ -9,7 +9,7 @@ from PIL import Image, PngImagePlugin
 from art_common import Canvas, add_outline, light_contour, rejecting_canvas, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "assets" / "ui" / "skills"
+OUTPUT_DIRECTORY = ROOT / "assets" / "ui" / "skills"
 SIZE = 32
 
 OUTLINE = require_opaque_color((16, 10, 14, 255))
@@ -57,16 +57,16 @@ def main() -> None:
 
     for name, image in icons.items():
         verify(image, name)
-        dest = OUT_DIR / name
+        destination = OUTPUT_DIRECTORY / name
         if check:
-            if not dest.is_file():
-                raise SystemExit(f"missing {dest}")
-            existing = Image.open(dest).convert("RGBA")
+            if not destination.is_file():
+                raise SystemExit(f"missing {destination}")
+            existing = Image.open(destination).convert("RGBA")
             verify(existing, name)
             if list(existing.getdata()) != list(image.getdata()):
                 raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
         else:
-            save_png(image, dest)
+            save_png(image, destination)
         min_x, min_y, max_x, max_y = glyph_box(image)
         print(
             f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
