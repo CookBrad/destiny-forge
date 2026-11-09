@@ -87,6 +87,9 @@ pub fn overworld_interaction(
             HomesteadZone::MineEntrance if near && actions.just_pressed(Action::Interact) => {
                 next_state.set(GameState::Mine);
             }
+            HomesteadZone::FishingDock if near && actions.just_pressed(Action::Interact) => {
+                info!("Fishing is coming soon.");
+            }
             _ => {}
         }
     }
@@ -210,6 +213,7 @@ fn overworld_prompt_candidates(
                 HomesteadZone::Forge => candidates.push(PromptKind::OpenForge),
                 HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
                 HomesteadZone::MineEntrance => candidates.push(PromptKind::EnterMine),
+                HomesteadZone::FishingDock => candidates.push(PromptKind::FishingComingSoon),
                 _ => {}
             }
         }
@@ -318,5 +322,30 @@ mod tests {
         );
         assert_eq!(rollover.calendar_day, last_day + 1);
         assert_eq!(*app.world().resource::<Season>(), Season::Spring);
+    }
+
+    #[test]
+    fn fishing_dock_prompt_says_coming_soon() {
+        let mut app = App::new();
+        app.insert_resource(OverworldLayout::homestead())
+            .init_resource::<InventoryWindowOpen>()
+            .init_resource::<ForgeWindowOpen>()
+            .init_resource::<InteractionPrompt>();
+        let dock = crate::overworld::layout::fishing_dock_rect().center();
+        app.world_mut().spawn((
+            OverworldPlayer,
+            Transform::from_translation(dock.extend(0.0)),
+        ));
+        app.world_mut()
+            .run_system_once(update_overworld_interaction_prompt)
+            .unwrap();
+        assert_eq!(
+            app.world().resource::<InteractionPrompt>().kind,
+            Some(PromptKind::FishingComingSoon)
+        );
+        assert_eq!(
+            PromptKind::FishingComingSoon.label(),
+            "E — Fishing (coming soon)"
+        );
     }
 }

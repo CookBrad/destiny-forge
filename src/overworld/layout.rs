@@ -24,6 +24,10 @@ pub fn mine_return_tile() -> Vec2 {
     tile_center(46, 20)
 }
 
+pub fn fishing_dock_rect() -> Rect {
+    tile_rect(1, 12, 5, 16)
+}
+
 /// Northern edge of the west forest trail — walk up into this to enter the forest.
 pub fn homestead_forest_transition() -> Rect {
     tile_rect(2, 38, 5, 40)
@@ -43,6 +47,7 @@ pub enum HomesteadZone {
     ForestTrail,
     DungeonGate,
     MineEntrance,
+    FishingDock,
 }
 
 #[derive(Resource, Clone)]
@@ -88,6 +93,10 @@ impl OverworldLayout {
             ZoneRect {
                 zone: HomesteadZone::MineEntrance,
                 bounds: mine_entrance_rect(),
+            },
+            ZoneRect {
+                zone: HomesteadZone::FishingDock,
+                bounds: fishing_dock_rect(),
             },
         ];
 
@@ -145,6 +154,7 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
     spawn_mine_entrance(commands, art, mine_entrance_rect());
+    spawn_fishing_dock(commands, art, fishing_dock_rect());
 }
 
 fn ground_tile(tx: u32, ty: u32) -> (fn(&OverworldArt) -> Handle<Image>, Color) {
@@ -463,6 +473,35 @@ fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Re
     }
 }
 
+fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
+    let min_tx = (dock.min.x / TILE).floor() as u32;
+    let max_tx = (dock.max.x / TILE).ceil() as u32;
+    let min_ty = (dock.min.y / TILE).floor() as u32;
+    let max_ty = (dock.max.y / TILE).ceil() as u32;
+    let water = Color::srgb(0.22, 0.42, 0.58);
+    let plank = Color::srgb(0.52, 0.38, 0.24);
+
+    for ty in min_ty..max_ty {
+        for tx in min_tx..max_tx {
+            let on_plank = ty == min_ty || (tx == max_tx - 1 && ty < max_ty - 1);
+            commands.spawn((
+                Sprite {
+                    image: if on_plank {
+                        art.path.clone()
+                    } else {
+                        art.grass.clone()
+                    },
+                    color: if on_plank { plank } else { water },
+                    ..default()
+                },
+                world_transform(tile_center(tx, ty), 0.6),
+                FishingDock,
+                OverworldEntity,
+            ));
+        }
+    }
+}
+
 pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
     Vec2::new(tx as f32 * TILE + TILE * 0.5, ty as f32 * TILE + TILE * 0.5)
 }
@@ -478,6 +517,9 @@ pub struct DungeonEntrance;
 
 #[derive(Component)]
 pub struct MineEntrance;
+
+#[derive(Component)]
+pub struct FishingDock;
 
 #[derive(Component)]
 pub struct ForgeEntity;
@@ -561,5 +603,16 @@ mod tests {
     fn a_reversed_roof_range_places_no_tiles() {
         let tiles = roof_tiles(5, 2, 1, 2.0, Color::WHITE);
         assert_eq!(tiles.len(), 0);
+    }
+
+    #[test]
+    fn fishing_dock_sits_west_of_the_crops() {
+        let layout = OverworldLayout::homestead();
+        let dock = fishing_dock_rect();
+        let zone = layout
+            .zone_at(dock.center())
+            .expect("dock center is a zone");
+        assert_eq!(zone.zone, HomesteadZone::FishingDock);
+        assert_eq!(zone.bounds, dock);
     }
 }
