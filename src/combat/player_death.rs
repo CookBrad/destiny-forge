@@ -48,22 +48,26 @@ impl PlayerDeath {
     }
 }
 
+pub(crate) type PlayerDeathCheck<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static Health,
+        &'static PlayerAnimation,
+        Option<&'static PlayerDeath>,
+        Option<&'static PlayerFallDeath>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn detect_player_death(
     mut commands: Commands,
     mut next_play: ResMut<NextState<DungeonPlayState>>,
     mut next_game: ResMut<NextState<GameState>>,
     mut profile_dirty: ResMut<ProfileDirty>,
-    player: Query<
-        (
-            Entity,
-            &Transform,
-            &Health,
-            &PlayerAnimation,
-            Option<&PlayerDeath>,
-            Option<&PlayerFallDeath>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    player: PlayerDeathCheck,
 ) {
     let Ok((entity, transform, health, animation, death, fall_death)) = player.get_single() else {
         return;
@@ -227,5 +231,115 @@ pub fn finish_player_death(
         profile_dirty.mark();
         commands.insert_resource(OverworldEntry::DungeonReturn);
         next_game.set(GameState::Overworld);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dungeon::PlayerAnimation;
+    use crate::graphics::TILE;
+
+    #[test]
+    fn a_dead_hunter_starts_the_dying_sequence() {
+        let mut app = death_app();
+        let hunter = app.world_mut().spawn(slain_hunter()).id();
+        app.add_systems(Update, detect_player_death);
+        app.update();
+        let death = app.world().get::<PlayerDeath>(hunter).unwrap();
+        let velocity = app.world().get::<PlayerVelocity>(hunter).unwrap();
+        assert_eq!(death.physics_center, Vec2::ZERO);
+        assert_eq!(
+            death.knockback,
+            Vec2::new(-DEATH_KNOCKBACK_X, DEATH_KNOCKBACK_Y)
+        );
+        assert_eq!(velocity.x, 0.0);
+        assert_eq!(velocity.y, 0.0);
+        assert!(!velocity.grounded);
+        assert!(matches!(
+            app.world().resource::<NextState<DungeonPlayState>>(),
+            NextState::Pending(DungeonPlayState::Dying)
+        ));
+        assert!(app.world().get_resource::<OverworldEntry>().is_none());
+        assert!(!app.world().resource::<ProfileDirty>().0);
+    }
+
+    fn death_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<NextState<DungeonPlayState>>();
+        app.init_resource::<NextState<GameState>>();
+        app.init_resource::<ProfileDirty>();
+        app
+    }
+
+    fn slain_hunter() -> impl Bundle {
+        let mut health = Health::new(super::super::health::PLAYER_MAX_HEALTH);
+        health.current = 0.0;
+        (
+            DungeonPlayer,
+            Transform::default(),
+            health,
+            PlayerAnimation::default(),
+            PlayerVelocity {
+                x: TILE,
+                y: TILE,
+                grounded: true,
+            },
+        )
+    }
+
+    #[test]
+    fn a_hunter_who_fell_returns_to_the_overworld() {
+        let mut app = death_app();
+        let hunter = app.world_mut().spawn(slain_hunter()).id();
+        app.world_mut().entity_mut(hunter).insert(PlayerFallDeath);
+        app.add_systems(Update, detect_player_death);
+        app.update();
+        assert!(app.world().get::<PlayerDeath>(hunter).is_none());
+        assert!(app.world().get::<PlayerFallDeath>(hunter).is_none());
+        assert_eq!(
+            app.world().get::<Visibility>(hunter).copied(),
+            Some(Visibility::Hidden)
+        );
+        assert!(matches!(
+            app.world().resource::<OverworldEntry>(),
+            OverworldEntry::DungeonReturn
+        ));
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert!(matches!(
+            app.world().resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::Overworld)
+        ));
+    }
+
+    #[test]
+    fn a_living_hunter_does_not_start_the_dying_sequence() {
+        let mut app = death_app();
+        let hunter = app
+            .world_mut()
+            .spawn((
+                DungeonPlayer,
+                Transform::default(),
+                Health::new(super::super::health::PLAYER_MAX_HEALTH),
+                PlayerAnimation::default(),
+                PlayerVelocity {
+                    x: TILE,
+                    y: TILE,
+                    grounded: true,
+                },
+            ))
+            .id();
+        app.add_systems(Update, detect_player_death);
+        app.update();
+        let velocity = app.world().get::<PlayerVelocity>(hunter).unwrap();
+        assert!(app.world().get::<PlayerDeath>(hunter).is_none());
+        assert_eq!(velocity.x, TILE);
+        assert_eq!(velocity.y, TILE);
+        assert!(velocity.grounded);
+        assert!(matches!(
+            app.world().resource::<NextState<DungeonPlayState>>(),
+            NextState::Unchanged
+        ));
+        assert!(!app.world().resource::<ProfileDirty>().0);
     }
 }
