@@ -228,6 +228,7 @@ mod tests {
             .insert_resource(Inventory::default())
             .insert_resource(Loadout::default())
             .insert_resource(WorldProgress::default())
+            .insert_resource(Wallet::default())
             .init_resource::<AudioSettings>()
             .init_resource::<SkillBindings>()
             .init_resource::<DayClock>()
