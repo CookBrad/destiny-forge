@@ -125,10 +125,7 @@ impl WeaponKind {
     }
 
     pub fn family(self) -> WeaponFamily {
-        match gear_catalog().family(self.gear_id()) {
-            Some(GearFamily::Spear) => WeaponFamily::Spear,
-            Some(GearFamily::Sword) | None => WeaponFamily::Sword,
-        }
+        weapon_family_from_gear_family(gear_catalog().family(self.gear_id()))
     }
 
     pub fn base_power(self) -> f32 {
@@ -140,6 +137,13 @@ impl WeaponKind {
             WeaponFamily::Sword => WeaponMoveset { steps: SWORD_COMBO },
             WeaponFamily::Spear => WeaponMoveset { steps: SPEAR_COMBO },
         }
+    }
+}
+
+fn weapon_family_from_gear_family(family: Option<GearFamily>) -> WeaponFamily {
+    match family {
+        Some(GearFamily::Spear) => WeaponFamily::Spear,
+        Some(GearFamily::Sword) | None => WeaponFamily::Sword,
     }
 }
 
@@ -173,17 +177,23 @@ mod tests {
     }
 
     #[test]
-    fn a_missing_catalog_family_maps_to_sword() {
+    fn a_missing_gear_family_maps_to_the_sword_family() {
+        assert_eq!(weapon_family_from_gear_family(None), WeaponFamily::Sword);
+    }
+
+    #[test]
+    fn a_sword_gear_family_maps_to_the_sword_family() {
         assert_eq!(
-            crate::gear::GearCatalog::load().family("no_such_weapon"),
-            None
-        );
-        assert_eq!(
-            match crate::gear::GearCatalog::load().family("no_such_weapon") {
-                Some(crate::gear::GearFamily::Spear) => WeaponFamily::Spear,
-                Some(crate::gear::GearFamily::Sword) | None => WeaponFamily::Sword,
-            },
+            weapon_family_from_gear_family(Some(GearFamily::Sword)),
             WeaponFamily::Sword
+        );
+    }
+
+    #[test]
+    fn a_spear_gear_family_maps_to_the_spear_family() {
+        assert_eq!(
+            weapon_family_from_gear_family(Some(GearFamily::Spear)),
+            WeaponFamily::Spear
         );
     }
 }

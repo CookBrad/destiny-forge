@@ -30,7 +30,6 @@ fn main() {
         .add_plugins(farming::FarmingPlugin)
         .add_plugins(forest::ForestPlugin)
         .add_plugins(mining::MiningPlugin)
-        .add_plugins(gear::GearPlugin)
         .add_plugins(ui::UiPlugin)
         .run();
 }

@@ -5,10 +5,6 @@ use serde::Deserialize;
 
 use crate::core::data_load::load_ron_from_assets_or_embedded;
 
-mod plugin;
-
-pub use plugin::GearPlugin;
-
 const GEAR_PATH: &str = "assets/data/gear.ron";
 const EMBEDDED_GEAR: &str = include_str!("../../assets/data/gear.ron");
 
