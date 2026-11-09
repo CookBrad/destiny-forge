@@ -2,19 +2,15 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
-use super::crop_save::SavedCropPlot;
 use super::header::SaveHeader;
+use super::sections::{HomesteadSave, MineSave};
 use super::settings::ProfileSettings;
 
 pub const PROFILE_COUNT: u8 = 3;
-pub const PROFILE_VERSION: u32 = 9;
+pub const PROFILE_VERSION: u32 = 12;
 pub const MAX_PROFILE_NAME_LEN: usize = 24;
-
-fn default_tool_energy() -> f32 {
-    super::super::day_cycle::TOOL_ENERGY_MAX
-}
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct ActiveProfile(pub u8);
@@ -32,9 +28,9 @@ pub struct PlayerProfile {
     pub inventory: Inventory,
     pub loadout: Loadout,
     pub progress: WorldProgress,
-    pub tool_energy: f32,
-    pub crop_plots: Vec<SavedCropPlot>,
-    pub depleted_ore_node_ids: Vec<u16>,
+    pub homestead: HomesteadSave,
+    pub mine: MineSave,
+    pub wallet: Wallet,
     #[serde(default)]
     pub settings: ProfileSettings,
     #[serde(skip)]
@@ -49,9 +45,9 @@ impl Default for PlayerProfile {
             inventory: Inventory::with_starter_kit(),
             loadout: Loadout::default(),
             progress: WorldProgress::default(),
-            tool_energy: default_tool_energy(),
-            crop_plots: Vec::new(),
-            depleted_ore_node_ids: Vec::new(),
+            homestead: HomesteadSave::default(),
+            mine: MineSave::default(),
+            wallet: Wallet::default(),
             settings: ProfileSettings::default(),
             playtime_fraction: 0.0,
         }
@@ -151,6 +147,8 @@ mod tests {
         assert_eq!(profile.header.calendar.day_phase, DayPhase::Morning);
         assert_eq!(profile.header.location, SaveLocation::Homestead);
         assert_eq!(profile.header.gold, 0);
+        assert_eq!(profile.wallet.gold, 0);
+        assert_eq!(profile.wallet.sparks.0, 0);
         assert_eq!(profile.playtime_fraction, 0.0);
         assert_eq!(profile.display_name(0), "Profile 1");
     }

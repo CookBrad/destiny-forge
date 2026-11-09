@@ -1,14 +1,15 @@
 use bevy::prelude::*;
 
 use crate::items::Inventory;
-use crate::player::{Loadout, WorldProgress};
+use crate::player::{Loadout, Wallet, WorldProgress};
 
 use super::autosave::{
     debounced_autosave, flush_saves_on_exit, queue_autosave, AutosaveTimer, ProfileDirty,
 };
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::header::{
-    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, BankedPlaytimeSeconds,
+    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, remember_current_location,
+    BankedPlaytimeSeconds,
 };
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::load_settings;
@@ -43,7 +44,8 @@ fn insert_resources_from_the_save_folder(app: &mut App) {
         .insert_resource(profile)
         .insert_resource(Inventory::default())
         .insert_resource(Loadout::default())
-        .insert_resource(WorldProgress::default());
+        .insert_resource(WorldProgress::default())
+        .insert_resource(Wallet::default());
 }
 
 fn runtime_profile_while_save_is_blocked() -> PlayerProfile {
@@ -60,6 +62,7 @@ fn register_memory_systems_leaving_day_clock_and_tool_energy_for_core_plugin(app
             (
                 accrue_playtime,
                 mark_profile_dirty_when_a_second_is_banked,
+                remember_current_location,
                 capture_profile_from_runtime,
                 queue_autosave,
                 debounced_autosave,
@@ -78,8 +81,28 @@ mod tests {
     use crate::core::season::{CalendarRules, Season};
     use crate::core::state::GameState;
 
+    use super::super::header::SaveLocation;
     use super::super::profile::PROFILE_VERSION;
     use super::super::settings::GameSettings;
+
+    #[test]
+    fn memory_plugin_starts_an_empty_wallet() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(State::new(GameState::Title))
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Season::default())
+            .insert_resource(CalendarRules::default())
+            .add_plugins(MemoryPlugin);
+        app.update();
+
+        let wallet = app.world().resource::<Wallet>();
+        assert_eq!(wallet.gold, 0);
+        assert_eq!(wallet.sparks.0, 0);
+    }
 
     #[test]
     fn memory_plugin_runs_one_update_with_a_blank_header() {
@@ -91,6 +114,19 @@ mod tests {
         assert_eq!(profile.playtime_fraction, 0.0);
         assert!(!app.world().resource::<ProfileDirty>().0);
         assert!(!app.world().contains_resource::<GameSettings>());
+    }
+
+    #[test]
+    fn memory_plugin_records_the_forest_on_the_save_header() {
+        let mut app = app_with_memory_plugin(PlayerProfile::default());
+        app.insert_resource(State::new(GameState::Forest));
+        app.world_mut()
+            .resource_mut::<ProfileAutosaveBlock>()
+            .block(ActiveProfile::default().index());
+        app.update();
+        let profile = app.world().resource::<PlayerProfile>();
+        assert_eq!(profile.header.location, SaveLocation::Forest);
+        assert!(app.world().resource::<ProfileDirty>().0);
     }
 
     #[test]
@@ -153,8 +189,10 @@ mod tests {
         assert_eq!(profile.header.playtime_seconds, 0);
         assert_eq!(profile.playtime_fraction, 0.0);
         assert_eq!(profile.header.gold, 0);
-        assert!(profile.crop_plots.is_empty());
-        assert!(profile.depleted_ore_node_ids.is_empty());
+        assert_eq!(profile.wallet.gold, 0);
+        assert_eq!(profile.wallet.sparks.0, 0);
+        assert!(profile.homestead.crop_plots.is_empty());
+        assert!(profile.mine.depleted_ore_node_ids.is_empty());
     }
 
     #[test]
