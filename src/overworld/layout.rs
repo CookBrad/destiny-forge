@@ -28,8 +28,7 @@ pub fn fishing_dock_rect() -> Rect {
     tile_rect(1, 12, 5, 16)
 }
 
-/// Northern edge of the west forest trail — walk up into this to enter the forest.
-pub fn homestead_forest_transition() -> Rect {
+pub fn northern_forest_trail_entry_rect() -> Rect {
     tile_rect(2, 38, 5, 40)
 }
 
@@ -147,10 +146,9 @@ pub fn spawn_homestead(commands: &mut Commands, art: &OverworldArt) {
         },
     );
 
-    spawn_house(commands, art, tile_rect(4, 30, 13, 38));
+    spawn_player_house(commands, art, tile_rect(4, 30, 13, 38));
     spawn_forge(commands, art, tile_rect(37, 30, 46, 38));
 
-    // Crop plots are spawned by FarmingPlugin / setup_overworld (persist + till/plant).
     spawn_animal_pen(commands, art, tile_rect(33, 7, 48, 17));
     spawn_dungeon_gate(commands, art, tile_rect(23, 2, 28, 4));
     spawn_mine_entrance(commands, art, mine_entrance_rect());
@@ -282,8 +280,7 @@ fn spawn_forge(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
     );
 }
 
-/// Player house: floor interior, door gap on south wall, bed for sleep.
-fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
+fn spawn_player_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
     let min_tx = (footprint.min.x / TILE).floor() as u32;
     let max_tx = (footprint.max.x / TILE).ceil() as u32;
     let min_ty = (footprint.min.y / TILE).floor() as u32;
@@ -327,33 +324,7 @@ fn spawn_house(commands: &mut Commands, art: &OverworldArt, footprint: Rect) {
         }
     }
 
-    // Bed against the north interior wall.
-    let bed_tx = min_tx + (max_tx - min_tx) / 2;
-    let bed_ty = max_ty.saturating_sub(2).max(min_ty + 1);
-    let bed_center = tile_center(bed_tx, bed_ty);
-    // No bed sprite yet: one tinted wall tile at 1×, not a stretched quad.
-    commands.spawn((
-        Sprite {
-            image: art.wall.clone(),
-            color: Color::srgb(0.55, 0.28, 0.35),
-            ..default()
-        },
-        world_transform(bed_center, 1.6),
-        Bed,
-        HouseEntity,
-        OverworldEntity,
-    ));
-    // No pillow sprite yet. A 16×16 path tile overlaps the bed until that art exists.
-    commands.spawn((
-        Sprite {
-            image: art.path.clone(),
-            color: Color::srgb(0.85, 0.82, 0.75),
-            ..default()
-        },
-        world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
-        HouseEntity,
-        OverworldEntity,
-    ));
+    spawn_sleep_bed_placeholder(commands, art, min_tx, max_tx, min_ty, max_ty);
 
     spawn_native_roof_row(
         commands,
@@ -444,17 +415,30 @@ fn spawn_dungeon_gate(commands: &mut Commands, art: &OverworldArt, gate: Rect) {
     }
 }
 
+fn tile_range_from_rect(bounds: Rect) -> (u32, u32, u32, u32) {
+    let first_tile_column = (bounds.min.x / TILE).floor() as u32;
+    let end_tile_column = (bounds.max.x / TILE).ceil() as u32;
+    let first_tile_row = (bounds.min.y / TILE).floor() as u32;
+    let end_tile_row = (bounds.max.y / TILE).ceil() as u32;
+    (
+        first_tile_column,
+        end_tile_column,
+        first_tile_row,
+        end_tile_row,
+    )
+}
+
 fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Rect) {
-    let min_tx = (entrance.min.x / TILE).floor() as u32;
-    let max_tx = (entrance.max.x / TILE).ceil() as u32;
-    let min_ty = (entrance.min.y / TILE).floor() as u32;
-    let max_ty = (entrance.max.y / TILE).ceil() as u32;
+    let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
+        tile_range_from_rect(entrance);
     let rock_color = Color::srgb(0.36, 0.32, 0.3);
     let opening_color = Color::srgb(0.08, 0.07, 0.08);
 
-    for ty in min_ty..max_ty {
-        for tx in min_tx..max_tx {
-            let is_opening_tile = tx > min_tx && tx + 1 < max_tx && ty == min_ty;
+    for tile_row in first_tile_row..end_tile_row {
+        for tile_column in first_tile_column..end_tile_column {
+            let is_opening_tile = tile_column > first_tile_column
+                && tile_column + 1 < end_tile_column
+                && tile_row == first_tile_row;
             commands.spawn((
                 Sprite {
                     image: art.wall.clone(),
@@ -465,7 +449,7 @@ fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Re
                     },
                     ..default()
                 },
-                world_transform(tile_center(tx, ty), 1.8),
+                world_transform(tile_center(tile_column, tile_row), 1.8),
                 MineEntrance,
                 OverworldEntity,
             ));
@@ -473,17 +457,40 @@ fn spawn_mine_entrance(commands: &mut Commands, art: &OverworldArt, entrance: Re
     }
 }
 
-fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
-    let min_tx = (dock.min.x / TILE).floor() as u32;
-    let max_tx = (dock.max.x / TILE).ceil() as u32;
-    let min_ty = (dock.min.y / TILE).floor() as u32;
-    let max_ty = (dock.max.y / TILE).ceil() as u32;
-    let water = Color::srgb(0.22, 0.42, 0.58);
-    let plank = Color::srgb(0.52, 0.38, 0.24);
+fn fishing_dock_water_color() -> Color {
+    Color::srgb(0.22, 0.42, 0.58)
+}
 
-    for ty in min_ty..max_ty {
-        for tx in min_tx..max_tx {
-            let on_plank = ty == min_ty || (tx == max_tx - 1 && ty < max_ty - 1);
+fn fishing_dock_plank_color() -> Color {
+    Color::srgb(0.52, 0.38, 0.24)
+}
+
+fn fishing_dock_tile_is_plank(
+    tile_column: u32,
+    tile_row: u32,
+    end_tile_column: u32,
+    first_tile_row: u32,
+    end_tile_row: u32,
+) -> bool {
+    tile_row == first_tile_row
+        || (tile_column == end_tile_column - 1 && tile_row < end_tile_row - 1)
+}
+
+fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
+    let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
+        tile_range_from_rect(dock);
+    let water = fishing_dock_water_color();
+    let plank = fishing_dock_plank_color();
+
+    for tile_row in first_tile_row..end_tile_row {
+        for tile_column in first_tile_column..end_tile_column {
+            let on_plank = fishing_dock_tile_is_plank(
+                tile_column,
+                tile_row,
+                end_tile_column,
+                first_tile_row,
+                end_tile_row,
+            );
             commands.spawn((
                 Sprite {
                     image: if on_plank {
@@ -494,12 +501,46 @@ fn spawn_fishing_dock(commands: &mut Commands, art: &OverworldArt, dock: Rect) {
                     color: if on_plank { plank } else { water },
                     ..default()
                 },
-                world_transform(tile_center(tx, ty), 0.6),
+                world_transform(tile_center(tile_column, tile_row), 0.6),
                 FishingDock,
                 OverworldEntity,
             ));
         }
     }
+}
+
+fn spawn_sleep_bed_placeholder(
+    commands: &mut Commands,
+    art: &OverworldArt,
+    first_tile_column: u32,
+    end_tile_column: u32,
+    first_tile_row: u32,
+    end_tile_row: u32,
+) {
+    let bed_column = first_tile_column + (end_tile_column - first_tile_column) / 2;
+    let bed_row = end_tile_row.saturating_sub(2).max(first_tile_row + 1);
+    let bed_center = tile_center(bed_column, bed_row);
+    commands.spawn((
+        Sprite {
+            image: art.wall.clone(),
+            color: Color::srgb(0.55, 0.28, 0.35),
+            ..default()
+        },
+        world_transform(bed_center, 1.6),
+        SleepBed,
+        HouseEntity,
+        OverworldEntity,
+    ));
+    commands.spawn((
+        Sprite {
+            image: art.path.clone(),
+            color: Color::srgb(0.85, 0.82, 0.75),
+            ..default()
+        },
+        world_transform(bed_center + Vec2::new(0.0, TILE * 0.22), 1.7),
+        HouseEntity,
+        OverworldEntity,
+    ));
 }
 
 pub fn tile_center(tx: u32, ty: u32) -> Vec2 {
@@ -527,9 +568,8 @@ pub struct ForgeEntity;
 #[derive(Component)]
 pub struct HouseEntity;
 
-/// Interactable sleep point inside the house.
 #[derive(Component)]
-pub struct Bed;
+pub struct SleepBed;
 
 #[derive(Component)]
 pub struct OverworldGrid;
@@ -537,6 +577,7 @@ pub struct OverworldGrid;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::sprites::HomesteadPlayerFrames;
 
     #[derive(Component)]
     struct RoofTile;
@@ -606,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    fn fishing_dock_sits_west_of_the_crops() {
+    fn fishing_dock_center_is_inside_the_fishing_dock_zone() {
         let layout = OverworldLayout::homestead();
         let dock = fishing_dock_rect();
         let zone = layout
@@ -614,5 +655,76 @@ mod tests {
             .expect("dock center is a zone");
         assert_eq!(zone.zone, HomesteadZone::FishingDock);
         assert_eq!(zone.bounds, dock);
+    }
+
+    #[test]
+    fn spawn_fishing_dock_places_sixteen_tiles_with_six_planks() {
+        let mut app = App::new();
+        let dock = fishing_dock_rect();
+        let (first_tile_column, end_tile_column, first_tile_row, end_tile_row) =
+            tile_range_from_rect(dock);
+        app.add_systems(Update, move |mut commands: Commands| {
+            let blank = Handle::default();
+            let art = OverworldArt {
+                grass: blank.clone(),
+                path: blank.clone(),
+                wall: blank.clone(),
+                soil: blank.clone(),
+                roof: blank.clone(),
+                grid_line: blank.clone(),
+                forge_furnace: blank.clone(),
+                forge_workbench: blank.clone(),
+                forge_anvil: blank.clone(),
+                player: HomesteadPlayerFrames {
+                    idle: std::array::from_fn(|_| Handle::default()),
+                    walk: std::array::from_fn(|_| Handle::default()),
+                    eat: std::array::from_fn(|_| Handle::default()),
+                },
+                animal: blank.clone(),
+                animal_layout: Handle::default(),
+            };
+            spawn_fishing_dock(&mut commands, &art, dock);
+        });
+        app.update();
+        let mut plank_count = 0;
+        let mut water_count = 0;
+        let mut tiles = app.world_mut().query::<(&Sprite, &Transform, &FishingDock)>();
+        let mut seen = Vec::new();
+        for (sprite, transform, _) in tiles.iter(app.world()) {
+            seen.push(transform.translation);
+            if sprite.color == fishing_dock_plank_color() {
+                plank_count += 1;
+            } else if sprite.color == fishing_dock_water_color() {
+                water_count += 1;
+            } else {
+                panic!("unexpected dock color {:?}", sprite.color);
+            }
+        }
+        assert_eq!(seen.len(), 16);
+        assert_eq!(plank_count, 6);
+        assert_eq!(water_count, 10);
+        for tile_row in first_tile_row..end_tile_row {
+            for tile_column in first_tile_column..end_tile_column {
+                let expected = world_transform(tile_center(tile_column, tile_row), 0.6).translation;
+                assert!(seen.contains(&expected));
+                let on_plank = fishing_dock_tile_is_plank(
+                    tile_column,
+                    tile_row,
+                    end_tile_column,
+                    first_tile_row,
+                    end_tile_row,
+                );
+                let sprite = tiles
+                    .iter(app.world())
+                    .find(|(_, transform, _)| transform.translation == expected)
+                    .map(|(sprite, _, _)| sprite.color)
+                    .unwrap();
+                if on_plank {
+                    assert_eq!(sprite, fishing_dock_plank_color());
+                } else {
+                    assert_eq!(sprite, fishing_dock_water_color());
+                }
+            }
+        }
     }
 }
