@@ -313,11 +313,6 @@ fn idle_or_chase_velocity(
 }
 
 enum GoblinAim { TowardPlayer, AlongPatrol }
-struct GoblinJumpStart<'a> {
-    aim: GoblinAim, to_player: &'a Vec2, patrol: &'a mut Patrol, transform: &'a mut Transform,
-    goblin_jump: Option<&'a mut GoblinJump>, segments: &'a [super::level::PlatformSpec],
-    pitfalls: &'a [super::level::PitfallSpec], velocity: &'a mut Vec2,
-}
 
 fn try_start_goblin_jump(
     aim: GoblinAim,
@@ -329,8 +324,6 @@ fn try_start_goblin_jump(
     pitfalls: &[super::level::PitfallSpec],
     velocity: &mut Vec2,
 ) {
-    let GoblinJumpStart { aim, to_player, patrol, transform, mut goblin_jump, segments, pitfalls, velocity } =
-        GoblinJumpStart { aim, to_player, patrol, transform, goblin_jump: goblin_jump.as_mut().map(|jump| &mut **jump), segments, pitfalls, velocity };
     let jump_direction = if matches!(aim, GoblinAim::TowardPlayer) {
         to_player.x.signum()
     } else {

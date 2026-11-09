@@ -503,8 +503,8 @@ mod tests {
             "{path} is not a PNG"
         );
         assert_eq!(&bytes[12..16], b"IHDR", "{path} is missing IHDR");
-        let width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
-        let height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+        let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+        let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
         (width, height)
     }
 
@@ -536,7 +536,12 @@ mod tests {
             let mut word = [0u32; 64];
             for (index, slot) in word.iter_mut().take(16).enumerate() {
                 let start = index * 4;
-                *slot = u32::from_be_bytes(chunk[start..start + 4].try_into().unwrap());
+                *slot = u32::from_be_bytes([
+                    chunk[start],
+                    chunk[start + 1],
+                    chunk[start + 2],
+                    chunk[start + 3],
+                ]);
             }
             for index in 16..64 {
                 let s0 = word[index - 15].rotate_right(7)
