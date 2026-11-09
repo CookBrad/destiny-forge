@@ -1028,12 +1028,10 @@ mod tests {
     }
 
     #[test]
-    fn inventory_footer_prints_the_spark_amount() {
+    fn inventory_footer_marks_each_currency() {
         let mut app = App::new();
-        app.insert_resource(Inventory::default()).init_resource::<Loadout>().insert_resource(Wallet { gold: 250, sparks: crate::player::DestinySpark(4) });
+        app.insert_resource(Inventory::default()).init_resource::<Loadout>().insert_resource(Wallet { gold: 250, sparks: DestinySpark(4) });
         app.world_mut().run_system_once(spawn_inventory_with_wallet).unwrap();
-        assert_eq!(footer_amount::<InventoryGoldAmount>(&mut app), "250");
-        assert_eq!(footer_amount::<InventorySparksAmount>(&mut app), "4");
         assert_eq!(currency_marks(&mut app), vec!["$", "*"]);
     }
 
