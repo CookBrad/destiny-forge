@@ -35,7 +35,7 @@ pub fn setup_overworld(
         &mut commands,
         &art,
         tile_rect(4, 7, 20, 17),
-        &profile.crop_plots,
+        &profile.homestead.crop_plots,
     );
     spawn_overworld_player(&mut commands, &art, spawn);
 

@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""In-house homestead dwarf pickaxe swing frames.
-
-Pixel-authored at 1x on top of the 0x72 dwarf_m idle frame 0. Every colour
-comes from the dwarf palette. The 16x28 dwarf sits centred on a 48x60 canvas
-so the Bevy sprite centre stays on the dwarf and the pickaxe has room to arc.
-Re-running writes the same bytes.
-
-Source: assets/player/non-combat/dwarf_m_idle_anim_f0.png
-Outputs: assets/player/non-combat/dwarf_m_pickaxe_swing_f0..3.png
-"""
-
 from __future__ import annotations
 
 import math
@@ -17,12 +5,14 @@ from pathlib import Path
 
 from PIL import Image
 
+from art_common import composite_layers, outline_layer, require_opaque_color
+
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "assets" / "player" / "non-combat"
 DWARF = FOLDER / "dwarf_m_idle_anim_f0.png"
 
-CANVAS_W = 48
-CANVAS_H = 60
+CANVAS_WIDTH = 48
+CANVAS_HEIGHT = 60
 DWARF_X = 16
 DWARF_Y = 16
 HEAD_LAST_ROW = 21
@@ -30,10 +20,10 @@ HANDLE_LENGTH = 13.0
 PICK_HALF_SPAN = 5.0
 PICK_SWEEP_BACK = 1.6
 
-OUTLINE = (34, 34, 34, 255)
-SKIN = (216, 165, 125, 255)
-WOOD = (119, 92, 85, 255)
-STEEL = (123, 137, 148, 255)
+OUTLINE = require_opaque_color((34, 34, 34, 255))
+SKIN = require_opaque_color((216, 165, 125, 255))
+WOOD = require_opaque_color((119, 92, 85, 255))
+STEEL = require_opaque_color((123, 137, 148, 255))
 
 POSES = [
     {"lean_x": -1, "drop_y": 0, "grip": (20.5, 27.5), "angle": -55.0, "in_front": False},
@@ -42,39 +32,23 @@ POSES = [
     {"lean_x": 1, "drop_y": 1, "grip": (33.5, 35.5), "angle": 140.0, "in_front": True},
 ]
 
+def main():
+    frames = [draw_frame(pose) for pose in POSES]
+    for index, frame in enumerate(frames):
+        frame.save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
 
-def distance_to_segment(px, py, ax, ay, bx, by):
-    abx, aby = bx - ax, by - ay
-    length_squared = abx * abx + aby * aby
-    t = 0.0 if length_squared == 0 else max(0.0, min(1.0, ((px - ax) * abx + (py - ay) * aby) / length_squared))
-    cx, cy = ax + abx * t, ay + aby * t
-    return math.hypot(px - cx, py - cy)
-
-
-def stroke(layer, segments, core_radius, colour):
-    for y in range(CANVAS_H):
-        for x in range(CANVAS_W):
-            cx, cy = x + 0.5, y + 0.5
-            if any(distance_to_segment(cx, cy, *a, *b) <= core_radius for a, b in segments):
-                layer[(x, y)] = colour
-
-
-def outline_around(layer):
-    outlined = dict(layer)
-    for (x, y) in layer:
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            neighbour = (x + dx, y + dy)
-            if neighbour not in layer and 0 <= neighbour[0] < CANVAS_W and 0 <= neighbour[1] < CANVAS_H:
-                outlined[neighbour] = OUTLINE
-    return outlined
-
+def draw_frame(pose):
+    pickaxe = pickaxe_pixels(pose["grip"], pose["angle"])
+    layers = [dwarf_pixels(pose), pickaxe] if pose["in_front"] else [pickaxe, dwarf_pixels(pose)]
+    layers.append(fist_pixels(pose["grip"]))
+    return composite_layers(CANVAS_WIDTH, CANVAS_HEIGHT, layers)
 
 def pickaxe_pixels(grip, angle_degrees):
     radians = math.radians(angle_degrees)
     along = (math.sin(radians), -math.cos(radians))
     across = (along[1] * -1, along[0])
-    gx, gy = grip
-    tip = (gx + along[0] * HANDLE_LENGTH, gy + along[1] * HANDLE_LENGTH)
+    grip_x, grip_y = grip
+    tip = (grip_x + along[0] * HANDLE_LENGTH, grip_y + along[1] * HANDLE_LENGTH)
     prong_forward = (
         tip[0] + across[0] * PICK_HALF_SPAN - along[0] * PICK_SWEEP_BACK,
         tip[1] + across[1] * PICK_HALF_SPAN - along[1] * PICK_SWEEP_BACK,
@@ -88,12 +62,22 @@ def pickaxe_pixels(grip, angle_degrees):
     stroke(layer, [(prong_back, tip), (tip, prong_forward)], 0.75, STEEL)
     return outline_around(layer)
 
+def stroke(layer, segments, core_radius, color):
+    for y in range(CANVAS_HEIGHT):
+        for x in range(CANVAS_WIDTH):
+            center_x, center_y = x + 0.5, y + 0.5
+            if any(distance_to_segment(center_x, center_y, *segment_start, *segment_end) <= core_radius for segment_start, segment_end in segments):
+                layer[(x, y)] = color
 
-def fist_pixels(grip):
-    gx, gy = int(grip[0]), int(grip[1])
-    layer = {(gx + dx, gy + dy): SKIN for dx in (-1, 0) for dy in (0, 1)}
-    return outline_around(layer)
+def distance_to_segment(point_x, point_y, segment_start_x, segment_start_y, segment_end_x, segment_end_y):
+    segment_span_x, segment_span_y = segment_end_x - segment_start_x, segment_end_y - segment_start_y
+    length_squared = segment_span_x * segment_span_x + segment_span_y * segment_span_y
+    fraction = 0.0 if length_squared == 0 else max(0.0, min(1.0, ((point_x - segment_start_x) * segment_span_x + (point_y - segment_start_y) * segment_span_y) / length_squared))
+    closest_x, closest_y = segment_start_x + segment_span_x * fraction, segment_start_y + segment_span_y * fraction
+    return math.hypot(point_x - closest_x, point_y - closest_y)
 
+def outline_around(layer):
+    return outline_layer(layer, OUTLINE, CANVAS_WIDTH, CANVAS_HEIGHT)
 
 def dwarf_pixels(pose):
     dwarf = Image.open(DWARF).convert("RGBA")
@@ -101,32 +85,20 @@ def dwarf_pixels(pose):
     for y in range(dwarf.height):
         for x in range(dwarf.width):
             if y > HEAD_LAST_ROW:
-                colour = dwarf.getpixel((x, y))
-                if colour[3]:
-                    layer[(DWARF_X + x, DWARF_Y + y)] = colour
+                color = dwarf.getpixel((x, y))
+                if color[3]:
+                    layer[(DWARF_X + x, DWARF_Y + y)] = color
     for y in range(HEAD_LAST_ROW + 1):
         for x in range(dwarf.width):
-            colour = dwarf.getpixel((x, y))
-            if colour[3]:
-                layer[(DWARF_X + x + pose["lean_x"], DWARF_Y + y + pose["drop_y"])] = colour
+            color = dwarf.getpixel((x, y))
+            if color[3]:
+                layer[(DWARF_X + x + pose["lean_x"], DWARF_Y + y + pose["drop_y"])] = color
     return layer
 
-
-def draw_frame(pose):
-    image = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
-    pickaxe = pickaxe_pixels(pose["grip"], pose["angle"])
-    layers = [dwarf_pixels(pose), pickaxe] if pose["in_front"] else [pickaxe, dwarf_pixels(pose)]
-    layers.append(fist_pixels(pose["grip"]))
-    for layer in layers:
-        for position, colour in layer.items():
-            image.putpixel(position, colour)
-    return image
-
-
-def main():
-    for index, pose in enumerate(POSES):
-        draw_frame(pose).save(FOLDER / f"dwarf_m_pickaxe_swing_f{index}.png")
-
+def fist_pixels(grip):
+    grip_x, grip_y = int(grip[0]), int(grip[1])
+    layer = {(grip_x + delta_x, grip_y + delta_y): SKIN for delta_x in (-1, 0) for delta_y in (0, 1)}
+    return outline_around(layer)
 
 if __name__ == "__main__":
     main()
