@@ -14,7 +14,6 @@ pub struct ExplorationMap {
     pub pixel_zoom: f32,
 }
 
-/// Prevents immediately bouncing back after a map transition.
 #[derive(Resource)]
 pub struct MapTransitionCooldown(pub Timer);
 
