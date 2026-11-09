@@ -40,15 +40,9 @@ pub struct GearPiece {
     pub set: Option<GearSet>,
 }
 
-#[derive(Resource, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct GearCatalog {
     pieces: Vec<GearPiece>,
-}
-
-impl Default for GearCatalog {
-    fn default() -> Self {
-        Self::load()
-    }
 }
 
 impl GearCatalog {
