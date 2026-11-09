@@ -8,7 +8,8 @@ use super::autosave::{
 };
 use super::autosave_block::{load_profile_for_slot, ProfileAutosaveBlock};
 use super::header::{
-    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, BankedPlaytimeSeconds,
+    accrue_playtime, mark_profile_dirty_when_a_second_is_banked, remember_current_location,
+    BankedPlaytimeSeconds,
 };
 use super::profile::{ActiveProfile, PlayerProfile};
 use super::storage::load_settings;
@@ -61,6 +62,7 @@ fn register_memory_systems_leaving_day_clock_and_tool_energy_for_core_plugin(app
             (
                 accrue_playtime,
                 mark_profile_dirty_when_a_second_is_banked,
+                remember_current_location,
                 capture_profile_from_runtime,
                 queue_autosave,
                 debounced_autosave,
@@ -79,6 +81,7 @@ mod tests {
     use crate::core::season::{CalendarRules, Season};
     use crate::core::state::GameState;
 
+    use super::super::header::SaveLocation;
     use super::super::profile::PROFILE_VERSION;
     use super::super::settings::GameSettings;
 
@@ -111,6 +114,19 @@ mod tests {
         assert_eq!(profile.playtime_fraction, 0.0);
         assert!(!app.world().resource::<ProfileDirty>().0);
         assert!(!app.world().contains_resource::<GameSettings>());
+    }
+
+    #[test]
+    fn memory_plugin_records_the_forest_on_the_save_header() {
+        let mut app = app_with_memory_plugin(PlayerProfile::default());
+        app.insert_resource(State::new(GameState::Forest));
+        app.world_mut()
+            .resource_mut::<ProfileAutosaveBlock>()
+            .block(ActiveProfile::default().index());
+        app.update();
+        let profile = app.world().resource::<PlayerProfile>();
+        assert_eq!(profile.header.location, SaveLocation::Forest);
+        assert!(app.world().resource::<ProfileDirty>().0);
     }
 
     #[test]
