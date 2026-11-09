@@ -85,8 +85,19 @@ mod tests {
     use super::super::profile::PROFILE_VERSION;
     use super::super::settings::GameSettings;
 
+    use super::super::storage::{lock_save_root_for_test, set_save_root_for_test};
+
     #[test]
     fn memory_plugin_starts_an_empty_wallet() {
+        let _gate = lock_save_root_for_test();
+        let root = std::env::temp_dir().join(format!(
+            "destiny_forge_plugin_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("profiles")).unwrap();
+        set_save_root_for_test(Some(root.clone()));
+
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(State::new(GameState::Title))
@@ -102,6 +113,8 @@ mod tests {
         let wallet = app.world().resource::<Wallet>();
         assert_eq!(wallet.gold, 0);
         assert_eq!(wallet.sparks.0, 0);
+        set_save_root_for_test(None);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

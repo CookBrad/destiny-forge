@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::audio::AudioSettings;
@@ -17,36 +18,50 @@ use super::ProfileDirty;
 pub fn hydrate_runtime_from_memory(
     profile: Res<PlayerProfile>,
     active: Res<ActiveProfile>,
-    mut audio: ResMut<AudioSettings>,
-    mut bindings: ResMut<SkillBindings>,
-    mut inventory: ResMut<Inventory>,
-    mut loadout: ResMut<Loadout>,
-    mut progress: ResMut<WorldProgress>,
-    mut day_clock: ResMut<DayClock>,
-    mut tool_energy: ResMut<ToolEnergy>,
-    mut season: ResMut<Season>,
-    rules: Res<CalendarRules>,
-    mut wallet: ResMut<Wallet>,
+    mut runtime: ProfileApplyInputs,
 ) {
-    apply_profile_to_runtime(
-        &profile,
-        &mut ProfileApply {
-            inventory: &mut inventory,
-            loadout: &mut loadout,
-            progress: &mut progress,
-            day_clock: &mut day_clock,
-            tool_energy: &mut tool_energy,
-            audio: &mut audio,
-            bindings: &mut bindings,
-            season: &mut season,
-            rules: &rules,
-            wallet: &mut wallet,
-        },
-    );
+    runtime.apply_saved_profile(&profile);
+    log_loaded_profile(&profile, active.index(), &runtime.day_clock);
+}
 
+#[derive(SystemParam)]
+pub(super) struct ProfileApplyInputs<'w> {
+    inventory: ResMut<'w, Inventory>,
+    loadout: ResMut<'w, Loadout>,
+    progress: ResMut<'w, WorldProgress>,
+    day_clock: ResMut<'w, DayClock>,
+    tool_energy: ResMut<'w, ToolEnergy>,
+    audio: ResMut<'w, AudioSettings>,
+    bindings: ResMut<'w, SkillBindings>,
+    season: ResMut<'w, Season>,
+    rules: Res<'w, CalendarRules>,
+    wallet: ResMut<'w, Wallet>,
+}
+
+impl ProfileApplyInputs<'_> {
+    fn apply_saved_profile(&mut self, profile: &PlayerProfile) {
+        apply_profile_to_runtime(
+            profile,
+            &mut ProfileApply {
+                inventory: &mut self.inventory,
+                loadout: &mut self.loadout,
+                progress: &mut self.progress,
+                day_clock: &mut self.day_clock,
+                tool_energy: &mut self.tool_energy,
+                audio: &mut self.audio,
+                bindings: &mut self.bindings,
+                season: &mut self.season,
+                rules: &self.rules,
+                wallet: &mut self.wallet,
+            },
+        );
+    }
+}
+
+fn log_loaded_profile(profile: &PlayerProfile, active_index: u8, day_clock: &DayClock) {
     info!(
         "Loaded profile {} — weapon: {}, materials: {}, boss cleared: {}, {}",
-        active.index() + 1,
+        active_index + 1,
         profile.summary_weapon(),
         profile.summary_material_count(),
         profile.summary_boss_cleared(),
@@ -56,46 +71,57 @@ pub fn hydrate_runtime_from_memory(
 }
 
 pub fn capture_profile_from_runtime(
-    audio: Res<AudioSettings>,
-    bindings: Res<SkillBindings>,
-    inventory: Res<Inventory>,
-    loadout: Res<Loadout>,
-    progress: Res<WorldProgress>,
-    day_clock: Res<DayClock>,
-    tool_energy: Res<ToolEnergy>,
-    wallet: Res<Wallet>,
+    sources: ProfileCaptureInputs,
     mut profile: ResMut<PlayerProfile>,
     mut dirty: ResMut<ProfileDirty>,
 ) {
-    if !changed_after_hydration(&audio)
-        && !changed_after_hydration(&bindings)
-        && !changed_after_hydration(&inventory)
-        && !changed_after_hydration(&loadout)
-        && !changed_after_hydration(&progress)
-        && !changed_after_hydration(&tool_energy)
-        && !changed_after_hydration(&wallet)
-    {
+    if !sources.any_saved_value_changed_except_day_clock() {
         return;
     }
 
-    snapshot_profile(
-        &ProfileCapture {
-            inventory: &inventory,
-            loadout: &loadout,
-            progress: &progress,
-            day_clock: &day_clock,
-            tool_energy: &tool_energy,
-            audio: &audio,
-            bindings: &bindings,
-            wallet: &wallet,
-        },
-        &mut profile,
-    );
+    snapshot_profile(&sources.capture(), &mut profile);
     dirty.mark();
 }
 
 fn changed_after_hydration<T: Resource>(resource: &Res<T>) -> bool {
     resource.is_changed() && !resource.is_added()
+}
+
+#[derive(SystemParam)]
+pub(super) struct ProfileCaptureInputs<'w> {
+    inventory: Res<'w, Inventory>,
+    loadout: Res<'w, Loadout>,
+    progress: Res<'w, WorldProgress>,
+    day_clock: Res<'w, DayClock>,
+    tool_energy: Res<'w, ToolEnergy>,
+    audio: Res<'w, AudioSettings>,
+    bindings: Res<'w, SkillBindings>,
+    wallet: Res<'w, Wallet>,
+}
+
+impl ProfileCaptureInputs<'_> {
+    fn any_saved_value_changed_except_day_clock(&self) -> bool {
+        changed_after_hydration(&self.audio)
+            || changed_after_hydration(&self.bindings)
+            || changed_after_hydration(&self.inventory)
+            || changed_after_hydration(&self.loadout)
+            || changed_after_hydration(&self.progress)
+            || changed_after_hydration(&self.tool_energy)
+            || changed_after_hydration(&self.wallet)
+    }
+
+    pub(super) fn capture(&self) -> ProfileCapture<'_> {
+        ProfileCapture {
+            inventory: &self.inventory,
+            loadout: &self.loadout,
+            progress: &self.progress,
+            day_clock: &self.day_clock,
+            tool_energy: &self.tool_energy,
+            audio: &self.audio,
+            bindings: &self.bindings,
+            wallet: &self.wallet,
+        }
+    }
 }
 
 pub struct ProfileCapture<'a> {
@@ -140,9 +166,7 @@ pub fn activate_profile(
     }
 
     snapshot_profile(sources, session.profile);
-    if let Err(error) = save_profile(session.active.index(), session.profile) {
-        warn!("Failed to save profile before switch: {error}");
-    } else {
+    if save_profile_before_switch(session) {
         session.dirty.0 = false;
     }
 
@@ -158,6 +182,16 @@ pub fn activate_profile(
 
     session.dirty.0 = false;
     true
+}
+
+fn save_profile_before_switch(session: &ProfileSession<'_>) -> bool {
+    match save_profile(session.active.index(), session.profile) {
+        Ok(()) => true,
+        Err(error) => {
+            warn!("Failed to save profile before switch: {error}");
+            false
+        }
+    }
 }
 
 pub struct ProfileApply<'a> {
@@ -192,8 +226,8 @@ pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileAp
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::combat::WeaponKind;
     use crate::player::DestinySpark;
-
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
         let mut profile = PlayerProfile::default();
@@ -295,6 +329,17 @@ mod tests {
         let wallet = app.world().resource::<Wallet>();
         assert_eq!(wallet.gold, 40);
         assert_eq!(wallet.sparks, DestinySpark(2));
+    }
+
+    #[test]
+    fn hydrate_clamps_a_zero_calendar_day_to_day_one() {
+        let mut profile = PlayerProfile::default();
+        profile.header.calendar.calendar_day = 0;
+        let mut app = app_holding(profile, Wallet::default());
+        app.add_systems(Update, hydrate_runtime_from_memory);
+        app.update();
+        assert_eq!(app.world().resource::<DayClock>().calendar_day, 1);
+        assert_eq!(*app.world().resource::<Wallet>(), Wallet::default());
     }
 
     #[test]
@@ -535,5 +580,225 @@ mod tests {
 
     fn record_hydration_change(watched: Res<WatchedValue>, mut seen: ResMut<SeenChange>) {
         seen.0 = changed_after_hydration(&watched);
+    }
+
+    #[test]
+    fn capture_reads_the_wallet_from_the_runtime() {
+        let seen = see_capture(
+            Wallet {
+                gold: 40,
+                sparks: DestinySpark(2),
+            },
+            |_| {},
+        );
+        assert_eq!((seen.gold, seen.sparks), (40, 2));
+    }
+
+    #[test]
+    fn capture_reads_an_empty_wallet() {
+        let seen = see_capture(Wallet::default(), |_| {});
+        assert_eq!((seen.gold, seen.sparks), (0, 0));
+    }
+
+    #[test]
+    fn capture_reads_the_largest_wallet_from_the_runtime() {
+        let seen = see_capture(
+            Wallet {
+                gold: u32::MAX,
+                sparks: DestinySpark(u32::MAX),
+            },
+            |_| {},
+        );
+        assert_eq!((seen.gold, seen.sparks), (u32::MAX, u32::MAX));
+    }
+
+    #[test]
+    fn a_wallet_change_counts_as_a_saved_value() {
+        let seen = see_capture(Wallet::default(), |app| {
+            app.world_mut().resource_mut::<Wallet>().gold = 6;
+        });
+        assert!(seen.saved_value_changed);
+        assert_eq!(seen.gold, 6);
+    }
+
+    #[test]
+    fn an_unchanged_runtime_does_not_count_as_a_saved_value() {
+        let seen = see_capture(Wallet::default(), |_| {});
+        assert!(!seen.saved_value_changed);
+    }
+
+    #[test]
+    fn a_day_clock_change_does_not_count_as_a_saved_value() {
+        let seen = see_capture(Wallet::default(), |app| {
+            app.world_mut().resource_mut::<DayClock>().calendar_day = 12;
+        });
+        assert!(!seen.saved_value_changed);
+        assert_eq!(seen.day, 12);
+    }
+
+    fn see_capture(wallet: Wallet, change: impl FnOnce(&mut App)) -> SeenCapture {
+        let mut app = runtime_app(wallet);
+        app.insert_resource(SeenCapture::default())
+            .add_systems(Update, read_capture);
+        app.update();
+        app.world_mut().resource_mut::<SeenCapture>().saved_value_changed = false;
+        change(&mut app);
+        app.update();
+        *app.world().resource::<SeenCapture>()
+    }
+
+    fn runtime_app(wallet: Wallet) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(PlayerProfile::default())
+            .insert_resource(Inventory::default())
+            .insert_resource(Loadout::default())
+            .insert_resource(WorldProgress::default())
+            .insert_resource(DayClock::default())
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(AudioSettings::default())
+            .insert_resource(SkillBindings::default())
+            .insert_resource(wallet)
+            .insert_resource(ProfileDirty::default());
+        app
+    }
+
+    fn read_capture(sources: ProfileCaptureInputs, mut seen: ResMut<SeenCapture>) {
+        let captured = sources.capture();
+        seen.gold = captured.wallet.gold;
+        seen.sparks = captured.wallet.sparks.amount();
+        seen.day = captured.day_clock.calendar_day;
+        seen.saved_value_changed = sources.any_saved_value_changed_except_day_clock();
+    }
+
+    #[derive(Resource, Default, Clone, Copy)]
+    struct SeenCapture {
+        gold: u32,
+        sparks: u32,
+        day: u32,
+        saved_value_changed: bool,
+    }
+
+    #[test]
+    fn capture_fails_when_the_wallet_is_missing() {
+        let mut app = runtime_app(Wallet::default());
+        app.world_mut().remove_resource::<Wallet>();
+        app.add_systems(Update, capture_profile_from_runtime);
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| app.update()))
+            .expect_err("capture panics");
+        let message = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .unwrap();
+        assert_eq!(message, "destiny_forge::core::memory::sync::capture_profile_from_runtime could not access system parameter Res<'_, Wallet>");
+    }
+
+    #[test]
+    fn changing_inventory_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<Inventory>().slots[0].count = 4;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).inventory.slots[0].count, 4);
+    }
+
+    fn capture_after(change: impl FnOnce(&mut App)) -> App {
+        let mut app = runtime_app(Wallet::default());
+        app.add_systems(Update, capture_profile_from_runtime);
+        app.update();
+        mark_clean(&mut app);
+        change(&mut app);
+        app.update();
+        app
+    }
+
+    fn mark_clean(app: &mut App) {
+        app.world_mut().resource_mut::<ProfileDirty>().0 = false;
+    }
+
+    fn saved_profile(app: &App) -> &PlayerProfile {
+        app.world().resource::<PlayerProfile>()
+    }
+
+    #[test]
+    fn changing_the_loadout_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<Loadout>().weapon = WeaponKind::RustySpear;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).loadout.weapon, WeaponKind::RustySpear);
+    }
+
+    #[test]
+    fn changing_progress_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<WorldProgress>().boss_defeated_floor_1 = true;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert!(saved_profile(&app).progress.boss_defeated_floor_1);
+    }
+
+    #[test]
+    fn changing_tool_energy_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<ToolEnergy>().current = 3.0;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).homestead.tool_energy, 3.0);
+    }
+
+    #[test]
+    fn changing_the_wallet_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            let mut wallet = app.world_mut().resource_mut::<Wallet>();
+            wallet.gold = 9;
+            wallet.sparks = DestinySpark(2);
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).wallet.gold, 9);
+        assert_eq!(saved_profile(&app).wallet.sparks.amount(), 2);
+    }
+
+    #[test]
+    fn changing_audio_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<AudioSettings>().music_enabled = false;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert!(!saved_profile(&app).settings.audio.music_enabled);
+    }
+
+    #[test]
+    fn changing_bindings_marks_the_profile_dirty() {
+        let app = capture_after(|app| {
+            app.world_mut().resource_mut::<SkillBindings>().slots[0] = None;
+        });
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).settings.skill_bindings[0], None);
+    }
+
+    #[test]
+    fn a_day_clock_change_alone_leaves_the_profile_clean() {
+        let mut app = runtime_app(Wallet::default());
+        app.add_systems(Update, capture_profile_from_runtime);
+        app.update();
+        mark_clean(&mut app);
+        app.world_mut().resource_mut::<DayClock>().calendar_day = 9;
+        app.update();
+        assert!(!app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).header.calendar.calendar_day, 1);
+    }
+
+    #[test]
+    fn editing_the_saved_profile_without_a_runtime_change_leaves_the_profile_clean() {
+        let mut app = runtime_app(Wallet::default());
+        app.add_systems(Update, capture_profile_from_runtime);
+        app.update();
+        mark_clean(&mut app);
+        app.world_mut().resource_mut::<PlayerProfile>().wallet.gold = 3;
+        app.update();
+        assert!(!app.world().resource::<ProfileDirty>().0);
+        assert_eq!(saved_profile(&app).wallet.gold, 3);
     }
 }
