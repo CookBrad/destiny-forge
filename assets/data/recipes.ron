@@ -34,7 +34,7 @@
         costs: [
             (SlimeGel, 4),
         ],
-        output: Armor(Helm),
+        output: Armor(SlimeHelm),
         requires_weapon: None,
     ),
     (
@@ -43,7 +43,7 @@
             (SlimeGel, 6),
             (SlimeCore, 1),
         ],
-        output: Armor(Mail),
+        output: Armor(SlimeMail),
         requires_weapon: None,
     ),
     (
@@ -51,7 +51,7 @@
         costs: [
             (SlimeGel, 3),
         ],
-        output: Armor(Gauntlets),
+        output: Armor(SlimeGauntlets),
         requires_weapon: None,
     ),
     (
@@ -59,7 +59,7 @@
         costs: [
             (SlimeGel, 3),
         ],
-        output: Armor(Greaves),
+        output: Armor(SlimeGreaves),
         requires_weapon: None,
     ),
     (
