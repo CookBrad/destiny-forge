@@ -1,3 +1,4 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use std::f32::consts::{FRAC_PI_2, TAU};
@@ -223,27 +224,40 @@ pub fn tick_special_cooldowns(
     cooldowns.tick(time.delta_secs());
 }
 
+#[derive(SystemParam)]
+pub(crate) struct SpecialMoveStartWriters<'w, 's> {
+    commands: Commands<'w, 's>,
+    combat_sound: EventWriter<'w, CombatSfx>,
+}
+
+pub(crate) type SpecialMoveActor<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static EquippedWeapon,
+        &'static PlayerAnimation,
+        &'static PlayerVelocity,
+        &'static PlayerAttack,
+        &'static PlayerBlock,
+        Option<&'static PlayerSpecialMove>,
+    ),
+    With<DungeonPlayer>,
+>;
+
 pub fn start_player_special_moves(
-    mut commands: Commands,
-    mut sfx: EventWriter<CombatSfx>,
+    writers: SpecialMoveStartWriters,
     mut cooldowns: ResMut<SpecialCooldownState>,
     bindings: Res<SkillBindings>,
     loadout: Res<Loadout>,
     actions: Res<crate::input::ActionState>,
     hit_stop: Res<HitStop>,
-    mut player: Query<
-        (
-            Entity,
-            &EquippedWeapon,
-            &PlayerAnimation,
-            &PlayerVelocity,
-            &PlayerAttack,
-            &PlayerBlock,
-            Option<&PlayerSpecialMove>,
-        ),
-        With<DungeonPlayer>,
-    >,
+    mut player: SpecialMoveActor,
 ) {
+    let SpecialMoveStartWriters {
+        mut commands,
+        mut combat_sound,
+    } = writers;
     if hit_stop.is_active() {
         return;
     }
@@ -286,8 +300,7 @@ pub fn start_player_special_moves(
         return;
     }
 
-    let facing = animation.facing.signum().max(-1.0).min(1.0);
-    let direction = if facing == 0.0 { 1.0 } else { facing };
+    let direction = charge_direction_from_facing(animation.facing);
     let duration = match kind {
         SpecialMoveKind::Charge => CHARGE_SECS,
         SpecialMoveKind::Spin => SPIN_SECS,
@@ -303,10 +316,18 @@ pub fn start_player_special_moves(
 
     cooldowns.start(kind, kind.base_cooldown() * cd_mult);
 
-    sfx.send(match kind {
+    combat_sound.send(match kind {
         SpecialMoveKind::Charge => CombatSfx::Charge,
         SpecialMoveKind::Spin | SpecialMoveKind::Thrust => CombatSfx::Spin,
     });
+}
+
+fn charge_direction_from_facing(facing: f32) -> f32 {
+    if facing.is_nan() {
+        -1.0
+    } else {
+        facing.signum()
+    }
 }
 
 pub fn tick_player_special_moves(
@@ -334,24 +355,28 @@ pub fn tick_player_special_moves(
     }
 }
 
+pub(crate) type SpecialMoveHitEnemies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Transform,
+        &'static EnemyHitbox,
+        &'static mut Health,
+        &'static mut Sprite,
+        Option<&'static KingSlimeBoss>,
+        Option<&'static EnemyKind>,
+    ),
+    (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
+>;
+
 pub fn resolve_special_move_hits(
     mut commands: Commands,
     mut sfx: EventWriter<CombatSfx>,
     mut hit_stop: ResMut<HitStop>,
     loadout: Res<Loadout>,
     mut player: Query<(&Transform, &mut PlayerSpecialMove), With<DungeonPlayer>>,
-    mut enemies: Query<
-        (
-            Entity,
-            &Transform,
-            &EnemyHitbox,
-            &mut Health,
-            &mut Sprite,
-            Option<&KingSlimeBoss>,
-            Option<&EnemyKind>,
-        ),
-        (With<Health>, Without<DungeonPlayer>, Without<EnemyCorpse>),
-    >,
+    mut enemies: SpecialMoveHitEnemies,
 ) {
     let Ok((player_transform, mut special)) = player.get_single_mut() else {
         return;
@@ -581,7 +606,9 @@ mod tests {
     #[test]
     fn spin_arm_stays_on_the_sixteen_px_orbit() {
         assert_eq!(SPIN_ARM_RADIUS, 16.0 * 1.85);
-        assert!(SPIN_ARM_RADIUS < TILE * 1.85);
+        const {
+            assert!(SPIN_ARM_RADIUS < TILE * 1.85);
+        }
         assert_eq!(SPIN_SWORD_HIT_PADDING, 16.0 * 0.85);
     }
 
@@ -599,5 +626,230 @@ mod tests {
             special_for_weapon(WeaponKind::IronSword, SkillKind::Spin),
             Some(SpecialMoveKind::Spin)
         );
+    }
+
+    #[test]
+    fn a_positive_facing_becomes_a_rightward_charge() {
+        assert_eq!(charge_direction_from_facing(1.0), 1.0);
+    }
+
+    #[test]
+    fn a_negative_facing_becomes_a_leftward_charge() {
+        assert_eq!(charge_direction_from_facing(-1.0), -1.0);
+    }
+
+    #[test]
+    fn a_zero_facing_becomes_a_rightward_charge() {
+        assert_eq!(charge_direction_from_facing(0.0), 1.0);
+    }
+
+    #[test]
+    fn an_undefined_facing_becomes_a_leftward_charge() {
+        assert_eq!(charge_direction_from_facing(f32::NAN), -1.0);
+    }
+
+    #[test]
+    fn a_grounded_sword_charge_starts_toward_the_hunter_facing() {
+        let mut app = special_app(crate::input::action_state_after_pressing(
+            &[KeyCode::Digit3],
+            &[],
+        ));
+        let facing = 1.0;
+        let hunter = app.world_mut().spawn(sword_hunter(facing)).id();
+        app.add_systems(Update, start_player_special_moves);
+        app.update();
+        let special = app.world().get::<PlayerSpecialMove>(hunter).unwrap();
+        let cooldown = SpecialMoveKind::Charge.base_cooldown()
+            * Loadout::default().special_cooldown_multiplier();
+        assert_eq!(special.kind, SpecialMoveKind::Charge);
+        assert_eq!(special.charge_direction, facing);
+        assert_eq!(
+            app.world()
+                .resource::<SpecialCooldownState>()
+                .remaining(SpecialMoveKind::Charge),
+            cooldown
+        );
+    }
+
+    fn special_app(actions: crate::input::ActionState) -> App {
+        let mut app = App::new();
+        app.insert_resource(SpecialCooldownState::default());
+        app.insert_resource(SkillBindings::default());
+        app.insert_resource(Loadout::default());
+        app.insert_resource(actions);
+        app.insert_resource(HitStop::default());
+        app.add_event::<CombatSfx>();
+        app
+    }
+
+    fn resting_attack() -> PlayerAttack {
+        let mut attack = PlayerAttack::inactive();
+        attack.timer.tick(std::time::Duration::from_secs(1));
+        attack
+    }
+
+    fn sword_hunter(facing: f32) -> impl Bundle {
+        let mut animation = PlayerAnimation::default();
+        animation.facing = facing;
+        (
+            DungeonPlayer,
+            Transform::default(),
+            EquippedWeapon(WeaponKind::RustySword),
+            animation,
+            PlayerVelocity {
+                x: 0.0,
+                y: 0.0,
+                grounded: true,
+            },
+            resting_attack(),
+            PlayerBlock::default(),
+        )
+    }
+
+    #[test]
+    fn an_undefined_facing_charges_left() {
+        let mut app = special_app(crate::input::action_state_after_pressing(
+            &[KeyCode::Digit3],
+            &[],
+        ));
+        let hunter = app.world_mut().spawn(sword_hunter(f32::NAN)).id();
+        app.add_systems(Update, start_player_special_moves);
+        app.update();
+        let special = app.world().get::<PlayerSpecialMove>(hunter).unwrap();
+        assert_eq!(special.kind, SpecialMoveKind::Charge);
+        assert_eq!(special.charge_direction, -1.0);
+    }
+
+    #[test]
+    fn a_charge_press_in_the_air_does_not_start() {
+        let mut app = special_app(crate::input::action_state_after_pressing(
+            &[KeyCode::Digit3],
+            &[],
+        ));
+        let hunter = app.world_mut().spawn(sword_hunter(1.0)).id();
+        app.world_mut()
+            .get_mut::<PlayerVelocity>(hunter)
+            .unwrap()
+            .grounded = false;
+        app.add_systems(Update, start_player_special_moves);
+        app.update();
+        assert!(app.world().get::<PlayerSpecialMove>(hunter).is_none());
+        assert_eq!(
+            app.world()
+                .resource::<SpecialCooldownState>()
+                .remaining(SpecialMoveKind::Charge),
+            0.0
+        );
+    }
+
+    #[test]
+    fn no_skill_press_leaves_the_hunter_without_a_special() {
+        let mut app = special_app(crate::input::action_state_after_pressing(&[], &[]));
+        let hunter = app.world_mut().spawn(sword_hunter(1.0)).id();
+        app.add_systems(Update, start_player_special_moves);
+        app.update();
+        assert!(app.world().get::<PlayerSpecialMove>(hunter).is_none());
+    }
+
+    #[test]
+    fn a_charge_in_the_hit_window_damages_the_enemy_it_reaches() {
+        let mut app = hit_app();
+        let dealt = damage_amount(
+            CHARGE_ATTACK_POWER * Loadout::default().attack_power_multiplier(),
+            0.0,
+        );
+        let starting = dealt + dealt;
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::default(),
+            charge_at(opening_charge_hit_midpoint()),
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(player_half_extents().x, 0.0, 0.0),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_special_move_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting - dealt);
+        assert_eq!(app.world().resource::<HitStop>().remaining, HIT_STOP_HEAVY);
+    }
+
+    fn hit_app() -> App {
+        let mut app = App::new();
+        app.insert_resource(Loadout::default());
+        app.insert_resource(HitStop::default());
+        app.add_event::<CombatSfx>();
+        app
+    }
+
+    fn opening_charge_hit_midpoint() -> f32 {
+        (CHARGE_HIT_START + CHARGE_HIT_END) * 0.5
+    }
+
+    fn charge_at(elapsed: f32) -> PlayerSpecialMove {
+        let mut timer = Timer::from_seconds(CHARGE_SECS, TimerMode::Once);
+        timer.tick(std::time::Duration::from_secs_f32(elapsed));
+        PlayerSpecialMove {
+            kind: SpecialMoveKind::Charge,
+            timer,
+            charge_direction: 1.0,
+            hit_entities: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_charge_misses_an_enemy_standing_apart_from_it() {
+        let mut app = hit_app();
+        let starting = CHARGE_ATTACK_POWER + CHARGE_ATTACK_POWER;
+        app.world_mut().spawn((
+            DungeonPlayer,
+            Transform::default(),
+            charge_at(opening_charge_hit_midpoint()),
+        ));
+        app.world_mut().spawn((
+            Transform::from_xyz(TILE * 40.0, 0.0, 0.0),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_special_move_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting);
+        assert_eq!(app.world().resource::<HitStop>().remaining, 0.0);
+    }
+
+    #[test]
+    fn a_charge_before_its_hit_window_does_not_damage() {
+        let mut app = hit_app();
+        let starting = CHARGE_ATTACK_POWER + CHARGE_ATTACK_POWER;
+        app.world_mut()
+            .spawn((DungeonPlayer, Transform::default(), charge_at(0.0)));
+        app.world_mut().spawn((
+            Transform::from_xyz(player_half_extents().x, 0.0, 0.0),
+            EnemyHitbox(Vec2::splat(TILE * 0.5)),
+            Health::new(starting),
+            Sprite::default(),
+        ));
+        app.add_systems(Update, resolve_special_move_hits);
+        app.update();
+        let health = app
+            .world_mut()
+            .query::<&Health>()
+            .single(app.world())
+            .current;
+        assert_eq!(health, starting);
+        assert_eq!(app.world().resource::<HitStop>().remaining, 0.0);
     }
 }

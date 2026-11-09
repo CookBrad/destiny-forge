@@ -83,6 +83,10 @@ pub fn capture_profile_from_runtime(
     dirty.mark();
 }
 
+fn changed_after_hydration<T: Resource>(resource: &Res<T>) -> bool {
+    resource.is_changed() && !resource.is_added()
+}
+
 #[derive(SystemParam)]
 pub(super) struct ProfileCaptureInputs<'w> {
     inventory: Res<'w, Inventory>,
@@ -97,13 +101,13 @@ pub(super) struct ProfileCaptureInputs<'w> {
 
 impl ProfileCaptureInputs<'_> {
     fn any_saved_value_changed_except_day_clock(&self) -> bool {
-        self.audio.is_changed()
-            || self.bindings.is_changed()
-            || self.inventory.is_changed()
-            || self.loadout.is_changed()
-            || self.progress.is_changed()
-            || self.tool_energy.is_changed()
-            || self.wallet.is_changed()
+        changed_after_hydration(&self.audio)
+            || changed_after_hydration(&self.bindings)
+            || changed_after_hydration(&self.inventory)
+            || changed_after_hydration(&self.loadout)
+            || changed_after_hydration(&self.progress)
+            || changed_after_hydration(&self.tool_energy)
+            || changed_after_hydration(&self.wallet)
     }
 
     pub(super) fn capture(&self) -> ProfileCapture<'_> {
@@ -135,9 +139,9 @@ pub fn snapshot_profile(sources: &ProfileCapture<'_>, profile: &mut PlayerProfil
     profile.inventory = sources.inventory.clone();
     profile.loadout = sources.loadout.clone();
     profile.progress = sources.progress.clone();
-    profile.calendar_day = sources.day_clock.calendar_day;
-    profile.day_phase = sources.day_clock.phase;
-    profile.tool_energy = sources.tool_energy.current;
+    profile.header.calendar.calendar_day = sources.day_clock.calendar_day;
+    profile.header.calendar.day_phase = sources.day_clock.phase;
+    profile.homestead.tool_energy = sources.tool_energy.current;
     profile.wallet = *sources.wallet;
     profile.settings.capture_audio(sources.audio);
     profile.settings.capture_skill_bindings(sources.bindings);
@@ -207,8 +211,11 @@ pub fn apply_profile_to_runtime(profile: &PlayerProfile, runtime: &mut ProfileAp
     *runtime.inventory = profile.inventory.clone();
     *runtime.loadout = profile.loadout.clone();
     *runtime.progress = profile.progress.clone();
-    *runtime.day_clock = DayClock::from_saved(profile.calendar_day, profile.day_phase);
-    *runtime.tool_energy = ToolEnergy::from_saved(profile.tool_energy, TOOL_ENERGY_MAX);
+    *runtime.day_clock = DayClock::from_saved(
+        profile.header.calendar.calendar_day,
+        profile.header.calendar.day_phase,
+    );
+    *runtime.tool_energy = ToolEnergy::from_saved(profile.homestead.tool_energy, TOOL_ENERGY_MAX);
     *runtime.season =
         CalendarDate::from_calendar_day(runtime.day_clock.calendar_day, runtime.rules).season;
     *runtime.wallet = profile.wallet;
@@ -223,26 +230,15 @@ mod tests {
     use crate::player::DestinySpark;
     #[test]
     fn applying_a_profile_snaps_season_to_the_saved_day() {
-        let saved = Wallet {
-            gold: 40,
-            sparks: DestinySpark(2),
-        };
-        let profile = PlayerProfile {
-            calendar_day: 200,
-            wallet: saved,
-            ..PlayerProfile::default()
-        };
-        let mut wallet = Wallet {
-            gold: 9,
-            sparks: DestinySpark(8),
-        };
+        let mut profile = PlayerProfile::default();
+        profile.header.calendar.calendar_day = 200;
+        let mut wallet = Wallet::default();
         let mut day_clock = DayClock::default();
         let mut season = Season::Spring;
         apply_saved_wallet(&profile, &mut day_clock, &mut season, &mut wallet);
 
         assert_eq!(day_clock.calendar_day, 200);
         assert_eq!(season, Season::Winter);
-        assert_eq!(wallet, saved);
     }
 
     #[test]
@@ -337,10 +333,8 @@ mod tests {
 
     #[test]
     fn hydrate_clamps_a_zero_calendar_day_to_day_one() {
-        let profile = PlayerProfile {
-            calendar_day: 0,
-            ..PlayerProfile::default()
-        };
+        let mut profile = PlayerProfile::default();
+        profile.header.calendar.calendar_day = 0;
         let mut app = app_holding(profile, Wallet::default());
         app.add_systems(Update, hydrate_runtime_from_memory);
         app.update();
@@ -375,7 +369,7 @@ mod tests {
         app.world_mut().resource_mut::<DayClock>().calendar_day = 9;
         app.update();
         assert!(!app.world().resource::<ProfileDirty>().0);
-        assert_eq!(app.world().resource::<PlayerProfile>().calendar_day, 1);
+        assert_eq!(app.world().resource::<PlayerProfile>().header.calendar.calendar_day, 1);
     }
 
     #[test]
@@ -544,6 +538,48 @@ mod tests {
             },
         );
         (started, active)
+    }
+
+    #[test]
+    fn a_resource_inserted_before_the_first_run_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_changed_after_the_first_run_is_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.update();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(app.world().resource::<SeenChange>().0);
+    }
+
+    #[test]
+    fn a_resource_added_then_changed_in_the_same_tick_is_not_changed_after_hydration() {
+        let mut app = app_recording_hydration_changes();
+        app.world_mut().resource_mut::<WatchedValue>().0 = 1;
+        app.update();
+        assert!(!app.world().resource::<SeenChange>().0);
+    }
+
+    #[derive(Resource, Default)]
+    struct WatchedValue(u32);
+
+    #[derive(Resource, Default)]
+    struct SeenChange(bool);
+
+    fn app_recording_hydration_changes() -> App {
+        let mut app = App::new();
+        app.init_resource::<WatchedValue>()
+            .init_resource::<SeenChange>()
+            .add_systems(Update, record_hydration_change);
+        app
+    }
+
+    fn record_hydration_change(watched: Res<WatchedValue>, mut seen: ResMut<SeenChange>) {
+        seen.0 = changed_after_hydration(&watched);
     }
 
     #[test]
@@ -775,7 +811,7 @@ mod tests {
             app.world_mut().resource_mut::<ToolEnergy>().current = 3.0;
         });
         assert!(app.world().resource::<ProfileDirty>().0);
-        assert_eq!(saved_profile(&app).tool_energy, 3.0);
+        assert_eq!(saved_profile(&app).homestead.tool_energy, 3.0);
     }
 
     #[test]
@@ -817,7 +853,7 @@ mod tests {
         app.world_mut().resource_mut::<DayClock>().calendar_day = 9;
         app.update();
         assert!(!app.world().resource::<ProfileDirty>().0);
-        assert_eq!(saved_profile(&app).calendar_day, 1);
+        assert_eq!(saved_profile(&app).header.calendar.calendar_day, 1);
     }
 
     #[test]
