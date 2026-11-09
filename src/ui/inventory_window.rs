@@ -576,10 +576,8 @@ pub fn cleanup_inventory_window(
 }
 
 #[derive(SystemParam)]
-pub(crate) struct InventoryToggle<'w, 's> {
-    actions: Res<'w, ActionState>,
-    forge: Res<'w, crate::ui::forge_window::ForgeWindowOpen>,
-    open: ResMut<'w, InventoryWindowOpen>,
+pub(crate) struct InventoryWindowToggle<'w, 's> {
+    commands: Commands<'w, 's>,
     inventory: Res<'w, Inventory>,
     loadout: Res<'w, Loadout>,
     wallet: Res<'w, Wallet>,
@@ -590,30 +588,55 @@ pub(crate) struct InventoryToggle<'w, 's> {
     time: ResMut<'w, Time<Virtual>>,
 }
 
-pub fn toggle_inventory_window(mut commands: Commands, mut toggle: InventoryToggle) {
-    let close = toggle.open.0 && toggle.actions.just_pressed(Action::Cancel);
-    let pressed = toggle.actions.just_pressed(Action::ToggleInventory);
-    if !close && !pressed {
-        return;
-    }
-    if pressed && toggle.forge.0 {
-        return;
-    }
-    if toggle.open.0 {
-        close_open_inventory(&mut commands, &mut toggle);
-        return;
-    }
-    open_inventory(&mut commands, &mut toggle);
-}
+pub fn toggle_inventory_window(
+    actions: Res<ActionState>,
+    forge: Res<crate::ui::forge_window::ForgeWindowOpen>,
+    mut open: ResMut<InventoryWindowOpen>,
+    toggle: InventoryWindowToggle,
+) {
+    let InventoryWindowToggle {
+        mut commands,
+        inventory,
+        loadout,
+        wallet,
+        selected,
+        windows,
+        game,
+        dungeon,
+        mut time,
+    } = toggle;
+    let close = open.0 && actions.just_pressed(Action::Cancel);
+    let toggle = actions.just_pressed(Action::ToggleInventory);
 
-fn close_open_inventory(commands: &mut Commands, toggle: &mut InventoryToggle) {
-    close_inventory(&mut toggle.open, commands, &toggle.windows, toggle.game.get(), toggle.dungeon.as_deref(), &mut toggle.time);
-}
+    if !close && !toggle {
+        return;
+    }
 
-fn open_inventory(commands: &mut Commands, toggle: &mut InventoryToggle) {
-    toggle.open.0 = true;
-    spawn_inventory_window(commands, &toggle.inventory, &toggle.loadout, LoadoutSwapAccess::from_game_state(toggle.game.get()), toggle.selected.0, &toggle.wallet);
-    toggle.time.pause();
+    if toggle && forge.0 {
+        return;
+    }
+
+    if open.0 {
+        close_inventory(
+            &mut open,
+            &mut commands,
+            &windows,
+            game.get(),
+            dungeon.as_deref(),
+            &mut time,
+        );
+    } else {
+        open.0 = true;
+        spawn_inventory_window(
+            &mut commands,
+            &inventory,
+            &loadout,
+            LoadoutSwapAccess::from_game_state(game.get()),
+            selected.0,
+            &wallet,
+        );
+        time.pause();
+    }
 }
 
 #[derive(SystemParam)]
@@ -666,8 +689,15 @@ pub fn handle_inventory_close_button(
     }
 }
 
+pub(crate) type InventorySlotClicks<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Interaction, &'static InventorySlot),
+    (Changed<Interaction>, With<Button>),
+>;
+
 pub fn handle_inventory_slot_click(
-    mut interactions: Query<(&Interaction, &InventorySlot), (Changed<Interaction>, With<Button>)>,
+    mut interactions: InventorySlotClicks,
     mut selected: ResMut<InventorySelectedSlot>,
     mut slots: Query<(&InventorySlot, &mut BorderColor)>,
 ) {
@@ -817,6 +847,13 @@ fn material_visual(material: MaterialId) -> (Color, &'static str) {
     }
 }
 
+pub(crate) type InventoryItemNameText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemName>>;
+pub(crate) type InventoryItemDescriptionText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemDescription>>;
+pub(crate) type InventoryItemBuffText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryItemBuff>>;
+
 pub fn sync_inventory_selected_item_description(
     inventory: Res<Inventory>,
     loadout: Res<Loadout>,
@@ -824,9 +861,9 @@ pub fn sync_inventory_selected_item_description(
     selected: Res<InventorySelectedSlot>,
     game: Res<State<GameState>>,
     mut selected_item_description_texts: ParamSet<(
-        Query<&mut Text, With<InventoryItemName>>,
-        Query<&mut Text, With<InventoryItemDescription>>,
-        Query<&mut Text, With<InventoryItemBuff>>,
+        InventoryItemNameText,
+        InventoryItemDescriptionText,
+        InventoryItemBuffText,
     )>,
 ) {
     if !open.0 || !(inventory.is_changed() || selected.is_changed() || loadout.is_changed()) {
@@ -850,6 +887,11 @@ pub fn sync_inventory_selected_item_description(
     }
 }
 
+pub(crate) type InventoryIconLabelText<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventoryIconLabel>>;
+pub(crate) type InventorySlotStackLabel<'w, 's> =
+    Query<'w, 's, &'static mut Text, With<InventorySlotStackText>>;
+
 pub fn sync_inventory_display(
     inventory: Res<Inventory>,
     open: Res<InventoryWindowOpen>,
@@ -857,10 +899,7 @@ pub fn sync_inventory_display(
     mut slots: Query<(&InventorySlot, &Children, &mut BorderColor)>,
     mut icons: Query<(&mut BackgroundColor, &Children), With<InventorySlotIcon>>,
     stacks: Query<&Children, With<InventorySlotStack>>,
-    mut texts: ParamSet<(
-        Query<&mut Text, With<InventoryIconLabel>>,
-        Query<&mut Text, With<InventorySlotStackText>>,
-    )>,
+    mut texts: ParamSet<(InventoryIconLabelText, InventorySlotStackLabel)>,
 ) {
     if !open.0 {
         return;

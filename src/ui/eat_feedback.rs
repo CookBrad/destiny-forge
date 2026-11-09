@@ -163,8 +163,10 @@ mod tests {
 
     #[test]
     fn popup_names_food_and_active_bonus() {
-        let mut loadout = Loadout::default();
-        loadout.food_buff = Some(MaterialId::PotatoStew);
+        let loadout = Loadout {
+            food_buff: Some(MaterialId::PotatoStew),
+            ..Loadout::default()
+        };
         assert_eq!(
             eat_popup_text(MaterialId::PotatoStew, &loadout),
             "Ate Potato Stew!  +2 defense, +10% carve"
