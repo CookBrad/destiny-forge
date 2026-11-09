@@ -107,7 +107,7 @@ fn read_gear_catalog() -> GearCatalog {
 mod tests {
     use super::*;
     use crate::combat::WeaponKind;
-    use crate::player::{weapon_kind_label, ArmorKind, ArmorSlot};
+    use crate::player::{weapon_kind_label, ArmorPiece, ArmorSlot};
 
     #[test]
     fn shipped_rows_keep_weapon_power_family_and_names() {
@@ -155,19 +155,19 @@ mod tests {
         assert_eq!(catalog.set("slime_mail"), Some(GearSet::Slime));
         assert_eq!(catalog.name("slime_gauntlets"), "Slime Gauntlets");
 
-        assert_eq!(ArmorKind::SlimeHelm.gear_id(), "slime_helm");
-        assert_eq!(ArmorKind::SlimeMail.gear_id(), "slime_mail");
-        assert_eq!(ArmorKind::SlimeGauntlets.gear_id(), "slime_gauntlets");
-        assert_eq!(ArmorKind::SlimeGreaves.gear_id(), "slime_greaves");
-        assert_eq!(ArmorKind::SlimeHelm.slot(), ArmorSlot::Head);
-        assert_eq!(ArmorKind::SlimeMail.slot(), ArmorSlot::Chest);
-        assert_eq!(ArmorKind::SlimeGauntlets.slot(), ArmorSlot::Arms);
-        assert_eq!(ArmorKind::SlimeGreaves.slot(), ArmorSlot::Legs);
-        assert_eq!(ArmorKind::SlimeHelm.defense(), 2.0);
-        assert_eq!(ArmorKind::SlimeMail.defense(), 4.0);
-        assert_eq!(ArmorKind::SlimeGauntlets.defense(), 1.0);
-        assert_eq!(ArmorKind::SlimeGreaves.defense(), 2.0);
-        assert_eq!(ArmorKind::SlimeGreaves.label(), "Slime Greaves");
+        assert_eq!(ArmorPiece::Helm.gear_id(), "slime_helm");
+        assert_eq!(ArmorPiece::Mail.gear_id(), "slime_mail");
+        assert_eq!(ArmorPiece::Gauntlets.gear_id(), "slime_gauntlets");
+        assert_eq!(ArmorPiece::Greaves.gear_id(), "slime_greaves");
+        assert_eq!(ArmorPiece::Helm.slot(), ArmorSlot::Helm);
+        assert_eq!(ArmorPiece::Mail.slot(), ArmorSlot::Mail);
+        assert_eq!(ArmorPiece::Gauntlets.slot(), ArmorSlot::Gauntlets);
+        assert_eq!(ArmorPiece::Greaves.slot(), ArmorSlot::Greaves);
+        assert_eq!(ArmorPiece::Helm.defense(), 2.0);
+        assert_eq!(ArmorPiece::Mail.defense(), 4.0);
+        assert_eq!(ArmorPiece::Gauntlets.defense(), 1.0);
+        assert_eq!(ArmorPiece::Greaves.defense(), 2.0);
+        assert_eq!(ArmorPiece::Greaves.label(), "Slime Greaves");
     }
 
     #[test]

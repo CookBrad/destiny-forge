@@ -1,5 +1,3 @@
-//! Crop plot entities and layered stage visuals on the homestead.
-
 use bevy::prelude::*;
 
 use crate::graphics::{world_transform, TILE};
@@ -97,7 +95,6 @@ fn spawn_one_plot(
                 CropPlantSprite,
                 OverworldEntity,
             ));
-            // Water sits above the plant. Both are full 16×16 tiles, and the plant is opaque.
             parent.spawn((
                 Sprite {
                     image: art.path.clone(),
@@ -205,7 +202,6 @@ fn growing_plant_visual(crop: CropKind, days: u8, watered: bool) -> LayerVisual 
         };
     }
 
-    // Stage is a tint on the 16×16 grass cell. There is no sprout sheet to draw smaller.
     let (color, offset_y) = match (crop, days) {
         (CropKind::Turnip, 1) => (Color::srgb(0.35, 0.72, 0.32), TILE * 0.08),
         (CropKind::Potato, 1) => (Color::srgb(0.28, 0.62, 0.28), TILE * 0.06),
@@ -234,28 +230,44 @@ fn ready_plant_visual(crop: CropKind) -> LayerVisual {
     }
 }
 
+pub(crate) type ChangedPlotSoils<'w, 's> = Query<
+    'w,
+    's,
+    (&'static CropPlot, &'static Children, &'static mut Sprite),
+    (With<CropSoilSprite>, Changed<CropPlot>),
+>;
+
+pub(crate) type PlotPlantLayers<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static mut Sprite,
+        &'static mut Transform,
+        &'static mut Visibility,
+    ),
+    (
+        With<CropPlantSprite>,
+        Without<CropSoilSprite>,
+        Without<CropWaterSprite>,
+    ),
+>;
+
+pub(crate) type PlotWaterLayers<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Sprite, &'static mut Visibility),
+    (
+        With<CropWaterSprite>,
+        Without<CropSoilSprite>,
+        Without<CropPlantSprite>,
+    ),
+>;
+
 pub fn sync_plot_visuals(
     art: Res<OverworldArt>,
-    mut plots: Query<
-        (&CropPlot, &Children, &mut Sprite),
-        (With<CropSoilSprite>, Changed<CropPlot>),
-    >,
-    mut plants: Query<
-        (&mut Sprite, &mut Transform, &mut Visibility),
-        (
-            With<CropPlantSprite>,
-            Without<CropSoilSprite>,
-            Without<CropWaterSprite>,
-        ),
-    >,
-    mut waters: Query<
-        (&mut Sprite, &mut Visibility),
-        (
-            With<CropWaterSprite>,
-            Without<CropSoilSprite>,
-            Without<CropPlantSprite>,
-        ),
-    >,
+    mut plots: ChangedPlotSoils,
+    mut plants: PlotPlantLayers,
+    mut waters: PlotWaterLayers,
 ) {
     for (plot, children, mut soil_sprite) in &mut plots {
         let soil = soil_visual(plot.stage);
@@ -263,7 +275,6 @@ pub fn sync_plot_visuals(
 
         let plant = plant_visual(plot.stage);
         let show_water = watered_stage(plot.stage);
-        // Placeholder grass tile at 1×. Stage is the tint until dedicated crop sprites land.
         let plant_image = art.grass.clone();
         let _ = plant.sprite_kind;
 

@@ -43,22 +43,22 @@ impl Default for PlayerAnimation {
     }
 }
 
-pub fn animate_player(
-    time: Res<Time>,
-    art: Res<DungeonArt>,
-    mut player: Query<
-        (
-            &PlayerVelocity,
-            &PlayerAttack,
-            Option<&PlayerSpecialMove>,
-            Option<&PlayerKnockback>,
-            &mut PlayerAnimation,
-            &mut Sprite,
-            &mut Transform,
-        ),
-        (With<DungeonPlayer>, Without<PlayerDeath>),
-    >,
-) {
+pub(crate) type PlayerAnimQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static PlayerVelocity,
+        &'static PlayerAttack,
+        Option<&'static PlayerSpecialMove>,
+        Option<&'static PlayerKnockback>,
+        &'static mut PlayerAnimation,
+        &'static mut Sprite,
+        &'static mut Transform,
+    ),
+    (With<DungeonPlayer>, Without<PlayerDeath>),
+>;
+
+pub fn animate_player(time: Res<Time>, art: Res<DungeonArt>, mut player: PlayerAnimQuery) {
     let Ok((velocity, attack, special, knockback, mut animation, mut sprite, mut transform)) =
         player.get_single_mut()
     else {
