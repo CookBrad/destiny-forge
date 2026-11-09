@@ -40,8 +40,9 @@ impl CropKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlotStage {
+    #[default]
     Soil,
     Tilled,
     Growing {
@@ -50,12 +51,6 @@ pub enum PlotStage {
         watered: bool,
     },
     Ready { crop: CropKind },
-}
-
-impl Default for PlotStage {
-    fn default() -> Self {
-        Self::Soil
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

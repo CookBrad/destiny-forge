@@ -210,6 +210,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Rebind | `Rebind` | Binding that moves a Lock to another skill. |
 | Weapon tree | `WeaponTree` | An upgrade path of weapons within one weapon family. |
 | Armor slot | `ArmorSlot` | Helm, Mail, Gauntlets, Greaves or Coil. |
+| Armor piece | `ArmorPiece` | One worn piece: Helm, Mail, Gauntlets or Greaves. |
 | Armor set | `ArmorSet` | A family of armor pieces sharing a set skill. |
 | Hearth Meal | `HearthMeal` | A pre-hunt meal that gives one daily buff. |
 | Food buff | `FoodBuff` | A timed bonus from eating food. |
@@ -420,7 +421,11 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Term | Code form | Meaning |
 | --- | --- | --- |
 | Save file | `SaveFile` | The header plus the player profile. |
-| Save header | `SaveHeader` | Version, build, save time, playtime and location. |
+| Save header | `SaveHeader` | Name, playtime, calendar, location and gold stored with a profile. |
+| Save calendar | `SaveCalendar` | The calendar day and day phase stored on a save header. |
+| Save location | `SaveLocation` | Homestead, Forest, Mine or Dungeon stored on a save header. |
+| Homestead save | `HomesteadSave` | Tool energy and crop plots stored on a player profile. |
+| Mine save | `MineSave` | Depleted ore nodes stored on a player profile. |
 | Player profile | `PlayerProfile` | All saved player state in namespaced sub-structs. |
 | Profile | `profile` | One save slot picked on the title screen. |
 | Migration | `Migrations` | Ordered transforms from one save version to the next. |

@@ -71,10 +71,10 @@ def reach(base: Image.Image) -> Image.Image:
 
 def stamp(image: Image.Image, pattern: list[str], left: int, top: int) -> None:
     for row, line in enumerate(pattern):
-        for col, key in enumerate(line):
+        for column, key in enumerate(line):
             if key == ".":
                 continue
-            x = left + col
+            x = left + column
             y = top + row
             if 0 <= x < image.width and 0 <= y < image.height:
                 image.putpixel((x, y), PALETTE[key])

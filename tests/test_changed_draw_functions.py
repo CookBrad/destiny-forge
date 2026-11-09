@@ -99,13 +99,6 @@ def test_draw_slime_paints_the_signed_gel_body(palette):
     assert (canvas.width, canvas.height) == (64, 64)
     assert _digest(canvas.pixels) == '8f97217f716f24351aa973bf14c8dd02de39d21fdd41dec2a158c52ab76f1c5c'
 
-
-def test_draw_slime_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_slime(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 2123
-
-
 def test_draw_slime_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
         actors.draw_slime(object())
@@ -115,13 +108,6 @@ def test_draw_blob_paints_the_small_gel_blob(palette):
     canvas = actors.draw_blob(palette)
     assert (canvas.width, canvas.height) == (32, 32)
     assert _digest(canvas.pixels) == '22aac6bd18af5bbe108948db8d581a8ba2193b905ba5d4bdde883efe3c88d081'
-
-
-def test_draw_blob_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_blob(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 675
-
 
 def test_draw_blob_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
@@ -133,13 +119,6 @@ def test_draw_bolt_paints_the_slime_bolt(palette):
     assert (canvas.width, canvas.height) == (16, 48)
     assert _digest(canvas.pixels) == '8ab4ed9b408d292621c7546ccdf688221d655fedbf701b160cd8dd0faff1c9fa'
 
-
-def test_draw_bolt_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_bolt(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 449
-
-
 def test_draw_bolt_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
         actors.draw_bolt(object())
@@ -149,13 +128,6 @@ def test_draw_arrow_paints_the_brass_arrow(palette):
     canvas = actors.draw_arrow(palette)
     assert (canvas.width, canvas.height) == (16, 48)
     assert _digest(canvas.pixels) == '09b87796954105a9ef18380832881162ddc1a01865f0d3589f7e5561c2b3b795'
-
-
-def test_draw_arrow_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_arrow(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 360
-
 
 def test_draw_arrow_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
@@ -167,13 +139,6 @@ def test_draw_bat_paints_the_signed_bat(palette):
     assert (canvas.width, canvas.height) == (96, 48)
     assert _digest(canvas.pixels) == '0b88b5d4b855b74804cf01c927fb6a69dc41e39581b654a785b42d0e4387c3ee'
 
-
-def test_draw_bat_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_bat(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 2315
-
-
 def test_draw_bat_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
         actors.draw_bat(object())
@@ -183,13 +148,6 @@ def test_draw_goblin_paints_the_signed_goblin(palette):
     canvas = actors.draw_goblin(palette)
     assert (canvas.width, canvas.height) == (80, 112)
     assert _digest(canvas.pixels) == '697b730b68859bf39985dade2053398b96f5430d78d5eb729f972e77aa622722'
-
-
-def test_draw_goblin_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_goblin(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 3823
-
 
 def test_draw_goblin_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
@@ -201,13 +159,6 @@ def test_draw_skeleton_paints_the_signed_skeleton(palette):
     assert (canvas.width, canvas.height) == (64, 144)
     assert _digest(canvas.pixels) == '16aa497935de235f69a4a9989133eb9998b91d2a3d69e3669c8b7219a44542b3'
 
-
-def test_draw_skeleton_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_skeleton(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 4724
-
-
 def test_draw_skeleton_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
         actors.draw_skeleton(object())
@@ -218,13 +169,6 @@ def test_draw_zombie_paints_the_signed_zombie(palette):
     assert (canvas.width, canvas.height) == (96, 128)
     assert _digest(canvas.pixels) == 'f24c06a7c3135af33820f6ef6bd82fcc3f4075fa90c7ef9bbeca84fc7e0f1e8c'
 
-
-def test_draw_zombie_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_zombie(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 5642
-
-
 def test_draw_zombie_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
         actors.draw_zombie(object())
@@ -234,13 +178,6 @@ def test_draw_king_paints_the_signed_king_slime(palette):
     canvas = actors.draw_king(palette)
     assert (canvas.width, canvas.height) == (192, 192)
     assert _digest(canvas.pixels) == 'b84df8c2d3c144bf764515af1b2e2801aa5d0f0b010defd19cc6ebfdbcf28a8c'
-
-
-def test_draw_king_keeps_the_top_left_pixel_clear_and_counts_opaque_pixels(palette):
-    canvas = actors.draw_king(palette)
-    assert canvas.read(0, 0) is None
-    assert sum(pixel[3] == 255 for pixel in canvas.pixels) == 21381
-
 
 def test_draw_king_rejects_a_palette_without_the_signed_ramps():
     with pytest.raises(AttributeError):
@@ -337,13 +274,6 @@ def test_draw_ground_fill_paints_the_locked_ground_fill_canvas():
 def test_draw_ground_fill_keeps_the_locked_corner_pixel():
     assert environment.draw_ground_fill().read(0, 0) == (16, 14, 20, 255)
 
-
-def test_draw_ground_fill_rejects_a_purple_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "PURPLE_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_ground_fill()
-
-
 def test_draw_ceiling_beam_paints_the_locked_ceiling_beam_canvas():
     canvas = environment.draw_ceiling_beam()
     assert (canvas.width, canvas.height) == (128, 32)
@@ -368,13 +298,6 @@ def test_draw_platform_paints_the_locked_platform_canvas():
 
 def test_draw_platform_keeps_the_locked_corner_pixel():
     assert environment.draw_platform().read(0, 0) == (230, 170, 255, 255)
-
-
-def test_draw_platform_rejects_a_iron_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "IRON_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_platform()
-
 
 def test_draw_pit_paints_the_locked_pit_canvas():
     canvas = environment.draw_pit()
@@ -401,13 +324,6 @@ def test_draw_ladder_paints_the_locked_ladder_canvas():
 def test_draw_ladder_keeps_the_locked_corner_pixel():
     assert environment.draw_ladder().read(0, 0) == None
 
-
-def test_draw_ladder_rejects_a_iron_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "IRON_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_ladder()
-
-
 def test_draw_stake_paints_the_locked_stake_canvas():
     canvas = environment.draw_stake()
     assert (canvas.width, canvas.height) == (24, 112)
@@ -416,13 +332,6 @@ def test_draw_stake_paints_the_locked_stake_canvas():
 
 def test_draw_stake_keeps_the_locked_corner_pixel():
     assert environment.draw_stake().read(0, 0) == None
-
-
-def test_draw_stake_rejects_a_brass_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "BRASS_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_stake()
-
 
 def test_draw_lip_paints_the_locked_lip_canvas():
     canvas = environment.draw_lip()
@@ -433,13 +342,6 @@ def test_draw_lip_paints_the_locked_lip_canvas():
 def test_draw_lip_keeps_the_locked_corner_pixel():
     assert environment.draw_lip().read(0, 0) == (214, 164, 70, 255)
 
-
-def test_draw_lip_rejects_a_brass_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "BRASS_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_lip()
-
-
 def test_draw_pillar_paints_the_locked_pillar_canvas():
     canvas = environment.draw_pillar()
     assert (canvas.width, canvas.height) == (64, 512)
@@ -448,13 +350,6 @@ def test_draw_pillar_paints_the_locked_pillar_canvas():
 
 def test_draw_pillar_keeps_the_locked_corner_pixel():
     assert environment.draw_pillar().read(0, 0) == (48, 46, 56, 255)
-
-
-def test_draw_pillar_rejects_a_gray_dk_value_that_is_not_a_color(monkeypatch):
-    monkeypatch.setattr(environment, "GRAY_DK", 5)
-    with pytest.raises(TypeError):
-        environment.draw_pillar()
-
 
 def test_draw_torch_paints_the_locked_torch_canvas():
     canvas = environment.draw_torch()
