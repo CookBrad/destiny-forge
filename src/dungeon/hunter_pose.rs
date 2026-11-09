@@ -552,9 +552,9 @@ mod tests {
         data.extend_from_slice(&bit_len.to_be_bytes());
         for chunk in data.chunks(64) {
             let mut word = [0u32; 64];
-            for (index, slot) in word.iter_mut().take(16).enumerate() {
+            for index in 0..16 {
                 let start = index * 4;
-                *slot = u32::from_be_bytes(chunk[start..start + 4].try_into().unwrap());
+                word[index] = u32::from_be_bytes(chunk[start..start + 4].try_into().unwrap());
             }
             for index in 16..64 {
                 let s0 = word[index - 15].rotate_right(7)
