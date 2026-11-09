@@ -189,6 +189,40 @@ pub fn save_root_display() -> String {
 }
 
 #[cfg(test)]
+static NEXT_SAVE_DIRECTORY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+#[cfg(test)]
+pub(crate) struct TempSaveRoot {
+    root: PathBuf,
+    _gate: std::sync::MutexGuard<'static, ()>,
+}
+
+#[cfg(test)]
+impl TempSaveRoot {
+    pub(crate) fn acquire() -> Self {
+        let gate = lock_save_root_for_test();
+        let save_directory_number =
+            NEXT_SAVE_DIRECTORY.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "destiny_forge_save_root_{}_{save_directory_number}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("profiles")).unwrap();
+        set_save_root_for_test(Some(root.clone()));
+        Self { root, _gate: gate }
+    }
+}
+
+#[cfg(test)]
+impl Drop for TempSaveRoot {
+    fn drop(&mut self) {
+        set_save_root_for_test(None);
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::super::profile::PROFILE_VERSION;
     use super::*;
@@ -311,39 +345,5 @@ mod tests {
                 path.is_file() && name.starts_with(&prefix) && name.ends_with(".ron")
             })
             .collect()
-    }
-}
-
-#[cfg(test)]
-static NEXT_SAVE_DIRECTORY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-#[cfg(test)]
-pub(crate) struct TempSaveRoot {
-    root: PathBuf,
-    _gate: std::sync::MutexGuard<'static, ()>,
-}
-
-#[cfg(test)]
-impl TempSaveRoot {
-    pub(crate) fn acquire() -> Self {
-        let gate = lock_save_root_for_test();
-        let save_directory_number =
-            NEXT_SAVE_DIRECTORY.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "destiny_forge_save_root_{}_{save_directory_number}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("profiles")).unwrap();
-        set_save_root_for_test(Some(root.clone()));
-        Self { root, _gate: gate }
-    }
-}
-
-#[cfg(test)]
-impl Drop for TempSaveRoot {
-    fn drop(&mut self) {
-        set_save_root_for_test(None);
-        let _ = fs::remove_dir_all(&self.root);
     }
 }

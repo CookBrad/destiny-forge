@@ -197,8 +197,10 @@ mod tests {
 
     #[test]
     fn bank_playtime_ignores_a_zero_or_negative_span() {
-        let mut profile = PlayerProfile::default();
-        profile.playtime_fraction = 0.25;
+        let mut profile = PlayerProfile {
+            playtime_fraction: 0.25,
+            ..PlayerProfile::default()
+        };
         assert_eq!(bank_playtime(&mut profile, 0.0), 0);
         assert_eq!(bank_playtime(&mut profile, -1.0), 0);
         assert_eq!(profile.header.playtime_seconds, 0);

@@ -156,13 +156,24 @@ fn card_details(summary: &super::profile_picker::ProfileCardSummary) -> String {
     format!("{} · {} mats{boss}", summary.weapon, summary.materials)
 }
 
+pub(crate) type TitleProfileCardClicks<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Interaction, &'static TitleProfileCard),
+    (Changed<Interaction>, With<Button>),
+>;
+
+pub(crate) type TitleProfileRenameClicks<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Interaction, &'static TitleProfileRenameButton),
+    (Changed<Interaction>, With<Button>),
+>;
+
 pub fn handle_title_profile_card_clicks(
     rename: Res<ProfileRenameState>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut interactions: Query<
-        (&Interaction, &TitleProfileCard),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interactions: TitleProfileCardClicks,
     mut run: ProfileRun,
 ) {
     if rename.active.is_some() {
@@ -183,10 +194,7 @@ pub fn handle_title_profile_card_clicks(
 pub fn handle_title_profile_rename_clicks(
     mut rename: ResMut<ProfileRenameState>,
     picker: Res<ProfilePicker>,
-    mut interactions: Query<
-        (&Interaction, &TitleProfileRenameButton),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interactions: TitleProfileRenameClicks,
 ) {
     for (interaction, button) in &mut interactions {
         if *interaction != Interaction::Pressed {
