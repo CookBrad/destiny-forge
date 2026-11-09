@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::exploration::{
     build_map_border, spawn_grid_overlay, tile_checker_shade, tile_rect, tint_shade,
-    GridOverlayStyle,
+    GridOverlayExtent, GridOverlayStyle,
 };
 use crate::graphics::{center_on_surface, world_transform, TILE};
 
@@ -49,9 +49,9 @@ impl ForestLayout {
 }
 
 pub fn forest_path(tx: u32, ty: u32) -> bool {
-    (tx >= 2 && tx <= 4 && ty <= 30)
-        || (tx >= 2 && tx <= 6 && ty <= 4)
-        || (tx >= 20 && tx <= 24 && ty <= 28)
+    ((2..=4).contains(&tx) && ty <= 30)
+        || ((2..=6).contains(&tx) && ty <= 4)
+        || ((20..=24).contains(&tx) && ty <= 28)
 }
 
 pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLayout) {
@@ -85,10 +85,12 @@ pub fn spawn_forest(commands: &mut Commands, art: &ForestArt, layout: &ForestLay
     spawn_grid_overlay(
         commands,
         art.grid_line.clone(),
-        WORLD_WIDTH,
-        WORLD_HEIGHT,
-        MAP_TILES_W,
-        MAP_TILES_H,
+        GridOverlayExtent {
+            world_width: WORLD_WIDTH,
+            world_height: WORLD_HEIGHT,
+            map_tiles_w: MAP_TILES_W,
+            map_tiles_h: MAP_TILES_H,
+        },
         GridOverlayStyle {
             line_color: Color::srgba(0.05, 0.08, 0.04, 0.72),
             z: 0.08,

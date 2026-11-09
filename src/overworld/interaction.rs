@@ -10,7 +10,7 @@ use crate::graphics::INTERACT_DISTANCE;
 use crate::input::{Action, ActionState};
 use crate::mining::respawn_ore_nodes_on_sleep;
 use crate::player::Loadout;
-use crate::ui::forge_window::{open_forge_window, ForgeSelectedRecipe, ForgeWindowOpen};
+use crate::ui::forge_window::{open_forge_window, ForgeCraftSources, ForgeSelectedRecipe, ForgeWindowOpen};
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 
@@ -54,9 +54,11 @@ pub fn overworld_interaction(
                     &mut forge,
                     &mut forge_recipe,
                     &mut commands,
-                    &game_inventory,
-                    &loadout,
-                    &recipes,
+                    ForgeCraftSources {
+                        inventory: &game_inventory,
+                        loadout: &loadout,
+                        recipes: &recipes,
+                    },
                     &forge_windows,
                     &mut time,
                 );
@@ -119,10 +121,10 @@ pub fn try_sleep_at_bed(
     let day = outcome.calendar_day;
     advance_all_plots_on_sleep(&mut plots);
     loadout.clear_food_buff();
-    profile.calendar_day = day_clock.calendar_day;
-    profile.day_phase = day_clock.phase;
-    profile.tool_energy = tool_energy.current;
-    profile.crop_plots = capture_plots(plots.iter());
+    profile.header.calendar.calendar_day = day_clock.calendar_day;
+    profile.header.calendar.day_phase = day_clock.phase;
+    profile.homestead.tool_energy = tool_energy.current;
+    profile.homestead.crop_plots = capture_plots(plots.iter());
     respawn_ore_nodes_on_sleep(&mut profile);
     profile_dirty.mark();
     clear.0 = day_clock.phase.ambient_clear_color();
