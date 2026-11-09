@@ -2,8 +2,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::core::{PlayerProfile, ProfileDirty, ToolEnergy};
-use crate::input::{Action, ActionState};
 use crate::graphics::TILE;
+use crate::input::{Action, ActionState};
 use crate::items::{Inventory, MaterialId};
 use crate::overworld::movement::{OverworldPlayer, OverworldVelocity};
 use crate::ui::forge_window::ForgeWindowOpen;
@@ -35,8 +35,8 @@ pub fn ensure_starter_kit(mut inventory: ResMut<Inventory>, mut dirty: ResMut<Pr
     if inventory.count(MaterialId::PickaxeTier2) == 0 {
         changed |= grant_if_missing(&mut inventory, MaterialId::PickaxeTier1, 1);
     }
-    let has_seed = inventory.count(MaterialId::TurnipSeed) > 0
-        || inventory.count(MaterialId::PotatoSeed) > 0;
+    let has_seed =
+        inventory.count(MaterialId::TurnipSeed) > 0 || inventory.count(MaterialId::PotatoSeed) > 0;
     if !has_seed {
         inventory.try_add(MaterialId::TurnipSeed, 8);
         inventory.try_add(MaterialId::PotatoSeed, 4);
@@ -93,10 +93,7 @@ pub fn use_homestead_tool(
     };
     let player_pos = transform.translation.truncate();
     let Some((tile_x, tile_y)) = find_target_tiles(player_pos, facing.dir, &plots) else {
-        info!(
-            "No crop plot in range. Equipped: {}.",
-            equipped.0.label()
-        );
+        info!("No crop plot in range. Equipped: {}.", equipped.0.label());
         return;
     };
 
@@ -181,7 +178,9 @@ fn find_target_tiles(
         let center = plot_center(plot.tile_x, plot.tile_y);
         let dist = player_pos.distance(center);
         if dist <= PLOT_TARGET_RANGE {
-            let better = best_near.map(|(_, _, best_d)| dist < best_d).unwrap_or(true);
+            let better = best_near
+                .map(|(_, _, best_d)| dist < best_d)
+                .unwrap_or(true);
             if better {
                 best_near = Some((plot.tile_x, plot.tile_y, dist));
             }
@@ -198,4 +197,100 @@ fn plot_center(tile_x: u32, tile_y: u32) -> Vec2 {
         tile_x as f32 * TILE + TILE * 0.5,
         tile_y as f32 * TILE + TILE * 0.5,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::TempSaveRoot;
+    use crate::farming::crops::PlotStage;
+    use crate::farming::tools::HomesteadTool;
+    use crate::input::action_state_after_pressing;
+    use bevy::ecs::system::RunSystemOnce;
+
+    const SOIL_TILE_X: u32 = 4;
+    const SOIL_TILE_Y: u32 = 2;
+
+    fn homestead_tool_app(
+        inventory_window: InventoryWindowOpen,
+        forge_window: ForgeWindowOpen,
+    ) -> (TempSaveRoot, App) {
+        let save_root = TempSaveRoot::acquire();
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(action_state_after_pressing(&[KeyCode::Space], &[]))
+            .insert_resource(inventory_window)
+            .insert_resource(forge_window)
+            .insert_resource(EquippedTool(HomesteadTool::Hoe))
+            .insert_resource(ToolEnergy::default())
+            .insert_resource(Inventory::with_starter_kit())
+            .insert_resource(ProfileDirty(false))
+            .insert_resource(PlayerProfile::default());
+        let center = plot_center(SOIL_TILE_X, SOIL_TILE_Y);
+        app.world_mut().spawn((
+            OverworldPlayer,
+            Transform::from_translation(center.extend(0.0)),
+            PlayerFacing::default(),
+        ));
+        app.world_mut().spawn(CropPlot {
+            tile_x: SOIL_TILE_X,
+            tile_y: SOIL_TILE_Y,
+            stage: PlotStage::Soil,
+        });
+        (save_root, app)
+    }
+
+    fn plot_stage(app: &mut App) -> PlotStage {
+        let mut plots = app.world_mut().query::<&CropPlot>();
+        plots.single(app.world()).stage
+    }
+
+    #[test]
+    fn hoe_tills_the_soil_under_the_player_and_spends_five_energy() {
+        let (_save_root, mut app) =
+            homestead_tool_app(InventoryWindowOpen(false), ForgeWindowOpen(false));
+        let energy_before = app.world().resource::<ToolEnergy>().current;
+
+        app.world_mut().run_system_once(use_homestead_tool).unwrap();
+
+        assert_eq!(plot_stage(&mut app), PlotStage::Tilled);
+        assert_eq!(HomesteadTool::Hoe.energy_cost(), 5.0);
+        assert_eq!(
+            app.world().resource::<ToolEnergy>().current,
+            energy_before - HomesteadTool::Hoe.energy_cost()
+        );
+        assert!(app.world().resource::<ProfileDirty>().0);
+        assert_eq!(
+            app.world().resource::<Inventory>(),
+            &Inventory::with_starter_kit()
+        );
+    }
+
+    #[test]
+    fn an_open_inventory_window_stops_the_hoe_from_tilling() {
+        assert_open_window_stops_the_hoe(InventoryWindowOpen(true), ForgeWindowOpen(false));
+    }
+
+    #[test]
+    fn an_open_forge_window_stops_the_hoe_from_tilling() {
+        assert_open_window_stops_the_hoe(InventoryWindowOpen(false), ForgeWindowOpen(true));
+    }
+
+    fn assert_open_window_stops_the_hoe(
+        inventory_window: InventoryWindowOpen,
+        forge_window: ForgeWindowOpen,
+    ) {
+        let (_save_root, mut app) = homestead_tool_app(inventory_window, forge_window);
+        let energy_before = app.world().resource::<ToolEnergy>().current;
+
+        app.world_mut().run_system_once(use_homestead_tool).unwrap();
+
+        assert_eq!(plot_stage(&mut app), PlotStage::Soil);
+        assert_eq!(app.world().resource::<ToolEnergy>().current, energy_before);
+        assert!(!app.world().resource::<ProfileDirty>().0);
+        assert_eq!(
+            app.world().resource::<Inventory>(),
+            &Inventory::with_starter_kit()
+        );
+    }
 }

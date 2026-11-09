@@ -50,7 +50,9 @@ pub enum PlotStage {
         days: u8,
         watered: bool,
     },
-    Ready { crop: CropKind },
+    Ready {
+        crop: CropKind,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -169,7 +171,12 @@ mod tests {
         ));
         let (s, _) = water_plot(s);
         let s = advance_plot_day(s);
-        assert_eq!(s, PlotStage::Ready { crop: CropKind::Turnip });
+        assert_eq!(
+            s,
+            PlotStage::Ready {
+                crop: CropKind::Turnip
+            }
+        );
         let (s, r) = harvest_plot(s);
         assert_eq!(s, PlotStage::Soil);
         assert_eq!(
@@ -194,5 +201,10 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn default_plot_stage_is_soil() {
+        assert_eq!(PlotStage::default(), PlotStage::Soil);
     }
 }

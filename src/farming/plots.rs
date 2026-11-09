@@ -362,4 +362,102 @@ mod tests {
         let tilled = soil_visual(PlotStage::Tilled);
         assert!(tilled.color.to_srgba().red < soil.color.to_srgba().red);
     }
+
+    fn app_with_homestead_art() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<Image>()
+            .init_asset::<TextureAtlasLayout>();
+        let art = app.world_mut().resource_scope(
+            |world, mut layouts: Mut<Assets<TextureAtlasLayout>>| {
+                world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
+                    OverworldArt::load(world.resource::<AssetServer>(), &mut layouts, &mut images)
+                })
+            },
+        );
+        app.insert_resource(art);
+        app
+    }
+
+    fn spawn_watered_growing_turnip(app: &mut App) -> (Entity, Entity, Entity) {
+        let soil = app.world().resource::<OverworldArt>().soil.clone();
+        let grass = app.world().resource::<OverworldArt>().grass.clone();
+        let path = app.world().resource::<OverworldArt>().path.clone();
+        let mut plant = Entity::PLACEHOLDER;
+        let mut water = Entity::PLACEHOLDER;
+        let plot = app
+            .world_mut()
+            .spawn((
+                Sprite {
+                    image: soil,
+                    ..default()
+                },
+                CropPlot {
+                    tile_x: 4,
+                    tile_y: 2,
+                    stage: PlotStage::Soil,
+                },
+                CropSoilSprite,
+            ))
+            .with_children(|parent| {
+                plant = parent
+                    .spawn((
+                        Sprite {
+                            image: grass,
+                            color: Color::NONE,
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, 0.0, 0.2)),
+                        Visibility::Hidden,
+                        CropPlantSprite,
+                    ))
+                    .id();
+                water = parent
+                    .spawn((
+                        Sprite {
+                            image: path,
+                            color: Color::srgba(0.35, 0.55, 0.85, 0.55),
+                            ..default()
+                        },
+                        Transform::from_translation(Vec3::new(0.0, -TILE * 0.22, 0.3)),
+                        Visibility::Hidden,
+                        CropWaterSprite,
+                    ))
+                    .id();
+            })
+            .id();
+        app.world_mut().get_mut::<CropPlot>(plot).unwrap().stage = PlotStage::Growing {
+            crop: CropKind::Turnip,
+            days: 0,
+            watered: true,
+        };
+        (plot, plant, water)
+    }
+
+    #[test]
+    fn watered_growing_turnip_shows_dark_soil_a_seed_and_water() {
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut app = app_with_homestead_art();
+        let (plot, plant, water) = spawn_watered_growing_turnip(&mut app);
+        app.world_mut().run_system_once(sync_plot_visuals).unwrap();
+
+        let soil_color = app.world().get::<Sprite>(plot).unwrap().color;
+        let plant_sprite = app.world().get::<Sprite>(plant).unwrap();
+        let plant_image = plant_sprite.image.clone();
+        let plant_color = plant_sprite.color;
+        let plant_offset_y = app.world().get::<Transform>(plant).unwrap().translation.y;
+        let plant_visibility = *app.world().get::<Visibility>(plant).unwrap();
+        let water_color = app.world().get::<Sprite>(water).unwrap().color;
+        let water_visibility = *app.world().get::<Visibility>(water).unwrap();
+        let grass = app.world().resource::<OverworldArt>().grass.clone();
+
+        assert_eq!(soil_color, Color::srgb(0.16, 0.14, 0.18));
+        assert_eq!(plant_image, grass);
+        assert_eq!(plant_color, Color::srgb(0.85, 0.7, 0.95));
+        assert_eq!(plant_offset_y, -TILE * 0.02);
+        assert_eq!(plant_visibility, Visibility::Visible);
+        assert_eq!(water_color, Color::srgba(0.4, 0.65, 0.95, 0.65));
+        assert_eq!(water_visibility, Visibility::Visible);
+    }
 }

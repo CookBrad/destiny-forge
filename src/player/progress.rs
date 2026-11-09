@@ -17,3 +17,13 @@ impl WorldProgress {
         self.boss_defeated_floor_1 = true;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_world_has_not_defeated_the_first_floor_boss() {
+        assert!(!WorldProgress::default().boss_defeated_floor_1);
+    }
+}
