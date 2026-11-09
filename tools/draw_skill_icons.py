@@ -9,39 +9,39 @@ from PIL import Image, PngImagePlugin
 from art_common import Canvas, add_outline, light_contour, rejecting_canvas, require_opaque_color
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "assets" / "ui" / "skills"
+OUTPUT_DIRECTORY = ROOT / "assets" / "ui" / "skills"
 SIZE = 32
 
 OUTLINE = require_opaque_color((16, 10, 14, 255))
 RIM_LIT = require_opaque_color((196, 176, 140, 255))
 
-STEEL_LT = require_opaque_color((232, 240, 248, 255))
+STEEL_LIGHT = require_opaque_color((232, 240, 248, 255))
 STEEL = require_opaque_color((168, 180, 194, 255))
-STEEL_DK = require_opaque_color((74, 86, 98, 255))
+STEEL_DARK = require_opaque_color((74, 86, 98, 255))
 
 CYAN = require_opaque_color((57, 214, 255, 255))
-CYAN_DK = require_opaque_color((18, 104, 128, 255))
+CYAN_DARK = require_opaque_color((18, 104, 128, 255))
 
 PURPLE = require_opaque_color((214, 75, 255, 255))
-PURPLE_DK = require_opaque_color((122, 34, 176, 255))
+PURPLE_DARK = require_opaque_color((122, 34, 176, 255))
 
-BRASS_LT = require_opaque_color((244, 214, 140, 255))
+BRASS_LIGHT = require_opaque_color((244, 214, 140, 255))
 BRASS = require_opaque_color((198, 158, 84, 255))
-BRASS_DK = require_opaque_color((122, 88, 40, 255))
+BRASS_DARK = require_opaque_color((122, 88, 40, 255))
 
-LEATHER_LT = require_opaque_color((196, 138, 82, 255))
+LEATHER_LIGHT = require_opaque_color((196, 138, 82, 255))
 LEATHER = require_opaque_color((122, 78, 48, 255))
-LEATHER_DK = require_opaque_color((74, 44, 24, 255))
+LEATHER_DARK = require_opaque_color((74, 44, 24, 255))
 SOLE = require_opaque_color((36, 28, 26, 255))
 
-IRON_LT = require_opaque_color((158, 152, 144, 255))
+IRON_LIGHT = require_opaque_color((158, 152, 144, 255))
 IRON = require_opaque_color((96, 92, 88, 255))
-IRON_DK = require_opaque_color((52, 48, 46, 255))
+IRON_DARK = require_opaque_color((52, 48, 46, 255))
 
-ORTHO = ((0, -1), (0, 1), (-1, 0), (1, 0))
+ORTHOGONAL_OFFSETS = ((0, -1), (0, 1), (-1, 0), (1, 0))
 
-IRON_TONES = {IRON_LT, IRON, IRON_DK}
-BRASS_TONES = {BRASS_LT, BRASS, BRASS_DK}
+IRON_TONES = {IRON_LIGHT, IRON, IRON_DARK}
+BRASS_TONES = {BRASS_LIGHT, BRASS, BRASS_DARK}
 
 def main() -> None:
     check = "--check" in sys.argv
@@ -57,16 +57,16 @@ def main() -> None:
 
     for name, image in icons.items():
         verify(image, name)
-        dest = OUT_DIR / name
+        destination = OUTPUT_DIRECTORY / name
         if check:
-            if not dest.is_file():
-                raise SystemExit(f"missing {dest}")
-            existing = Image.open(dest).convert("RGBA")
+            if not destination.is_file():
+                raise SystemExit(f"missing {destination}")
+            existing = Image.open(destination).convert("RGBA")
             verify(existing, name)
             if list(existing.getdata()) != list(image.getdata()):
                 raise SystemExit(f"{name} does not match tools/draw_skill_icons.py")
         else:
-            save_png(image, dest)
+            save_png(image, destination)
         min_x, min_y, max_x, max_y = glyph_box(image)
         print(
             f"{name} glyph {max_x - min_x + 1}x{max_y - min_y + 1} "
@@ -85,39 +85,39 @@ def new_canvas() -> Canvas:
     return rejecting_canvas(SIZE, SIZE)
 
 def paint_sword(canvas: Canvas) -> None:
-    put(canvas, 15, 3, STEEL_LT)
+    put(canvas, 15, 3, STEEL_LIGHT)
     put(canvas, 16, 3, STEEL)
-    put(canvas, 14, 4, STEEL_LT)
+    put(canvas, 14, 4, STEEL_LIGHT)
     put(canvas, 15, 4, STEEL)
-    put(canvas, 16, 4, STEEL_DK)
+    put(canvas, 16, 4, STEEL_DARK)
     put(canvas, 17, 4, STEEL)
     for y in range(5, 18):
-        put(canvas, 13, y, STEEL_LT)
+        put(canvas, 13, y, STEEL_LIGHT)
         put(canvas, 14, y, STEEL)
-        put(canvas, 15, y, STEEL_DK)
+        put(canvas, 15, y, STEEL_DARK)
         put(canvas, 16, y, STEEL)
         put(canvas, 17, y, CYAN if 7 <= y <= 16 else STEEL)
-    put(canvas, 17, 17, STEEL_DK)
+    put(canvas, 17, 17, STEEL_DARK)
 
     for x in range(7, 25):
-        put(canvas, x, 18, BRASS_LT if x < 16 else BRASS)
-        put(canvas, x, 19, BRASS if x < 18 else BRASS_DK)
-        put(canvas, x, 20, BRASS_DK)
+        put(canvas, x, 18, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 19, BRASS if x < 18 else BRASS_DARK)
+        put(canvas, x, 20, BRASS_DARK)
     put(canvas, 15, 19, PURPLE)
-    put(canvas, 16, 19, PURPLE_DK)
-    put(canvas, 14, 19, BRASS_LT)
+    put(canvas, 16, 19, PURPLE_DARK)
+    put(canvas, 14, 19, BRASS_LIGHT)
 
     for y in range(21, 27):
         band = y in (22, 24)
-        put(canvas, 13, y, LEATHER_LT if not band else LEATHER_DK)
-        put(canvas, 14, y, LEATHER_DK if band else LEATHER)
-        put(canvas, 15, y, LEATHER_DK if band else LEATHER)
-        put(canvas, 16, y, LEATHER_DK)
-        put(canvas, 17, y, LEATHER_DK)
+        put(canvas, 13, y, LEATHER_LIGHT if not band else LEATHER_DARK)
+        put(canvas, 14, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 15, y, LEATHER_DARK if band else LEATHER)
+        put(canvas, 16, y, LEATHER_DARK)
+        put(canvas, 17, y, LEATHER_DARK)
 
     for x in range(12, 19):
-        put(canvas, x, 27, BRASS_LT if x < 16 else BRASS)
-        put(canvas, x, 28, BRASS if x < 16 else BRASS_DK)
+        put(canvas, x, 27, BRASS_LIGHT if x < 16 else BRASS)
+        put(canvas, x, 28, BRASS if x < 16 else BRASS_DARK)
     put(canvas, 15, 28, CYAN)
 
 def put(
@@ -148,18 +148,18 @@ def draw_shield() -> Image.Image:
     return to_image(canvas)
 
 def paint_shield(canvas: Canvas) -> None:
-    for y, x0, x1 in shield_spans():
-        for x in range(x0, x1 + 1):
+    for y, start_x, end_x in shield_spans():
+        for x in range(start_x, end_x + 1):
             shade = x + y
             if shade < 22:
-                color = IRON_LT
+                color = IRON_LIGHT
             elif shade > 36:
-                color = IRON_DK
+                color = IRON_DARK
             else:
                 color = IRON
             put(canvas, x, y, color)
 
-    recolor_rim(canvas, BRASS_LT, BRASS, BRASS_DK)
+    recolor_rim(canvas, BRASS_LIGHT, BRASS, BRASS_DARK)
 
     piping: list[tuple[int, int]] = []
     for y in range(SIZE):
@@ -167,7 +167,10 @@ def paint_shield(canvas: Canvas) -> None:
             tone = canvas[y][x]
             if tone not in IRON_TONES:
                 continue
-            if any(neighbor(canvas, x, y, dx, dy) in BRASS_TONES for dx, dy in ORTHO):
+            if any(
+                neighbor(canvas, x, y, offset_x, offset_y) in BRASS_TONES
+                for offset_x, offset_y in ORTHOGONAL_OFFSETS
+            ):
                 piping.append((x, y))
     for x, y in piping:
         above = neighbor(canvas, x, y, 0, -1)
@@ -175,16 +178,16 @@ def paint_shield(canvas: Canvas) -> None:
         if above in BRASS_TONES or left in BRASS_TONES:
             canvas[y][x] = PURPLE
         else:
-            canvas[y][x] = PURPLE_DK
+            canvas[y][x] = PURPLE_DARK
 
     stamp_boss(canvas)
     for x, y in ((11, 11), (20, 11), (12, 16), (19, 18)):
         if canvas[y][x] in IRON_TONES:
-            canvas[y][x] = IRON_DK
+            canvas[y][x] = IRON_DARK
 
     for x, y in ((10, 10), (21, 10)):
-        if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DK}:
-            canvas[y][x] = BRASS_LT
+        if canvas[y][x] in IRON_TONES or canvas[y][x] in {PURPLE, PURPLE_DARK}:
+            canvas[y][x] = BRASS_LIGHT
 
 def shield_spans() -> list[tuple[int, int, int]]:
     spans = [
@@ -233,32 +236,32 @@ def recolor_rim(
             canvas[y][x] = mid
 
 def touches_empty(canvas: Canvas, x: int, y: int) -> bool:
-    return any(neighbor(canvas, x, y, dx, dy) is None for dx, dy in ORTHO)
+    return any(neighbor(canvas, x, y, offset_x, offset_y) is None for offset_x, offset_y in ORTHOGONAL_OFFSETS)
 
 def neighbor(
-    canvas: Canvas, x: int, y: int, dx: int, dy: int
+    canvas: Canvas, x: int, y: int, offset_x: int, offset_y: int
 ) -> tuple[int, int, int, int] | None:
-    nx, ny = x + dx, y + dy
-    if 0 <= nx < SIZE and 0 <= ny < SIZE:
-        return canvas[ny][nx]
+    neighbor_x, neighbor_y = x + offset_x, y + offset_y
+    if 0 <= neighbor_x < SIZE and 0 <= neighbor_y < SIZE:
+        return canvas[neighbor_y][neighbor_x]
     return None
 
 def stamp_boss(canvas: Canvas) -> None:
-    cx, cy = 15, 14
-    for dy in range(-4, 5):
-        for dx in range(-4, 5):
-            x, y = cx + dx, cy + dy
+    center_x, center_y = 15, 14
+    for offset_y in range(-4, 5):
+        for offset_x in range(-4, 5):
+            x, y = center_x + offset_x, center_y + offset_y
             if canvas[y][x] not in IRON_TONES:
                 continue
-            dist2 = dx * dx + dy * dy
-            if dist2 <= 2:
+            distance_squared = offset_x * offset_x + offset_y * offset_y
+            if distance_squared <= 2:
                 canvas[y][x] = CYAN
-            elif dist2 <= 6:
-                canvas[y][x] = CYAN_DK
-    put(canvas, cx - 1, cy - 1, STEEL_LT)
+            elif distance_squared <= 6:
+                canvas[y][x] = CYAN_DARK
+    put(canvas, center_x - 1, center_y - 1, STEEL_LIGHT)
     for y in range(18, 24):
         if canvas[y][16] in IRON_TONES:
-            canvas[y][16] = CYAN_DK
+            canvas[y][16] = CYAN_DARK
         if y % 2 == 0 and canvas[y][15] in IRON_TONES:
             canvas[y][15] = CYAN
 
@@ -271,7 +274,7 @@ def draw_boot() -> Image.Image:
 
 def paint_boot(canvas: Canvas) -> None:
     spans = [
-        (6, 17, 24, LEATHER_LT),
+        (6, 17, 24, LEATHER_LIGHT),
         (7, 16, 25, LEATHER),
         (8, 16, 25, LEATHER),
         (9, 16, 25, LEATHER),
@@ -282,54 +285,54 @@ def paint_boot(canvas: Canvas) -> None:
         (14, 13, 29, LEATHER),
         (15, 12, 29, LEATHER),
         (16, 11, 28, LEATHER),
-        (17, 10, 27, LEATHER_DK),
+        (17, 10, 27, LEATHER_DARK),
         (18, 9, 26, SOLE),
         (19, 9, 17, SOLE),
         (20, 9, 16, SOLE),
         (21, 10, 15, SOLE),
     ]
-    for y, x0, x1, color in spans:
-        fills_span(canvas, y, x0, x1, color)
+    for y, start_x, end_x, color in spans:
+        fills_span(canvas, y, start_x, end_x, color)
     for y in (7, 8):
         fills_span(canvas, y, 19, 22, SOLE)
     for y in range(7, 12):
-        canvas[y][16] = LEATHER_LT
-        canvas[y][25] = LEATHER_DK
+        canvas[y][16] = LEATHER_LIGHT
+        canvas[y][25] = LEATHER_DARK
     for y in range(9, 12):
         for x in range(19, 23):
-            canvas[y][x] = BRASS_LT if y == 9 or x == 19 else BRASS
-    put(canvas, 20, 10, BRASS_DK)
+            canvas[y][x] = BRASS_LIGHT if y == 9 or x == 19 else BRASS
+    put(canvas, 20, 10, BRASS_DARK)
     put(canvas, 21, 10, CYAN)
     for x in (16, 18, 24):
         if canvas[12][x] == LEATHER:
             canvas[12][x] = PURPLE
     for y in range(14, 17):
-        canvas[y][27] = BRASS_LT
+        canvas[y][27] = BRASS_LIGHT
         canvas[y][28] = BRASS
         if y < 16:
-            canvas[y][29] = BRASS_DK
+            canvas[y][29] = BRASS_DARK
 
 def fills_span(
     canvas: Canvas,
     y: int,
-    x0: int,
-    x1: int,
+    start_x: int,
+    end_x: int,
     color: tuple[int, int, int, int],
 ) -> None:
-    for x in range(x0, x1 + 1):
+    for x in range(start_x, end_x + 1):
         put(canvas, x, y, color)
 
 def paint_boot_trail(canvas: Canvas) -> None:
     streaks = (
-        (2, 8, CYAN_DK),
+        (2, 8, CYAN_DARK),
         (3, 8, CYAN),
         (4, 8, CYAN),
         (5, 8, CYAN),
-        (1, 13, PURPLE_DK),
+        (1, 13, PURPLE_DARK),
         (2, 13, PURPLE),
         (3, 13, PURPLE),
         (4, 13, PURPLE),
-        (2, 18, CYAN_DK),
+        (2, 18, CYAN_DARK),
         (3, 18, CYAN),
         (4, 18, CYAN),
         (5, 18, CYAN),
@@ -354,24 +357,24 @@ def paint_wand(canvas: Canvas) -> None:
         10: range(15, 19),
         11: range(16, 18),
     }
-    for y, xs in diamond.items():
-        for x in xs:
+    for y, span_x in diamond.items():
+        for x in span_x:
 
-            color = PURPLE_DK if x + y >= 28 else PURPLE
+            color = PURPLE_DARK if x + y >= 28 else PURPLE
             put(canvas, x, y, color)
-    put(canvas, 15, 7, STEEL_LT)
+    put(canvas, 15, 7, STEEL_LIGHT)
 
     for x in range(14, 19):
-        put(canvas, x, 12, BRASS_LT if x < 17 else BRASS)
-        put(canvas, x, 13, BRASS_DK)
+        put(canvas, x, 12, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 13, BRASS_DARK)
     for y in range(14, 27):
-        put(canvas, 15, y, BRASS_LT)
+        put(canvas, 15, y, BRASS_LIGHT)
         put(canvas, 16, y, BRASS)
-        put(canvas, 17, y, BRASS_DK)
+        put(canvas, 17, y, BRASS_DARK)
     for x in range(14, 19):
-        put(canvas, x, 27, BRASS_LT if x < 17 else BRASS)
-        put(canvas, x, 28, BRASS_DK)
-    put(canvas, 16, 28, CYAN_DK)
+        put(canvas, x, 27, BRASS_LIGHT if x < 17 else BRASS)
+        put(canvas, x, 28, BRASS_DARK)
+    put(canvas, 16, 28, CYAN_DARK)
 
 def paint_wand_orbit(canvas: Canvas) -> None:
     for x, y in circle_pixels(16, 10, 8):
@@ -383,22 +386,22 @@ def paint_wand_orbit(canvas: Canvas) -> None:
         elif x + y < 20:
             color = CYAN
         else:
-            color = CYAN_DK
+            color = CYAN_DARK
         put(canvas, x, y, color)
 
-def circle_pixels(cx: int, cy: int, radius: int) -> list[tuple[int, int]]:
+def circle_pixels(center_x: int, center_y: int, radius: int) -> list[tuple[int, int]]:
     points: set[tuple[int, int]] = set()
     x, y, decision = 0, radius, 3 - 2 * radius
 
-    def plot(px: int, py: int) -> None:
-        points.add((cx + px, cy + py))
-        points.add((cx - px, cy + py))
-        points.add((cx + px, cy - py))
-        points.add((cx - px, cy - py))
-        points.add((cx + py, cy + px))
-        points.add((cx - py, cy + px))
-        points.add((cx + py, cy - px))
-        points.add((cx - py, cy - px))
+    def plot(offset_x: int, offset_y: int) -> None:
+        points.add((center_x + offset_x, center_y + offset_y))
+        points.add((center_x - offset_x, center_y + offset_y))
+        points.add((center_x + offset_x, center_y - offset_y))
+        points.add((center_x - offset_x, center_y - offset_y))
+        points.add((center_x + offset_y, center_y + offset_x))
+        points.add((center_x - offset_y, center_y + offset_x))
+        points.add((center_x + offset_y, center_y - offset_x))
+        points.add((center_x - offset_y, center_y - offset_x))
 
     while x <= y:
         plot(x, y)
@@ -454,23 +457,23 @@ def ascii_preview(image: Image.Image) -> str:
     legend = {
         OUTLINE: "·",
         RIM_LIT: "+",
-        STEEL_LT: "W",
+        STEEL_LIGHT: "W",
         STEEL: "w",
-        STEEL_DK: "x",
+        STEEL_DARK: "x",
         CYAN: "c",
-        CYAN_DK: "C",
+        CYAN_DARK: "C",
         PURPLE: "p",
-        PURPLE_DK: "P",
-        BRASS_LT: "B",
+        PURPLE_DARK: "P",
+        BRASS_LIGHT: "B",
         BRASS: "b",
-        BRASS_DK: "n",
-        LEATHER_LT: "L",
+        BRASS_DARK: "n",
+        LEATHER_LIGHT: "L",
         LEATHER: "l",
-        LEATHER_DK: "r",
+        LEATHER_DARK: "r",
         SOLE: "s",
-        IRON_LT: "H",
+        IRON_LIGHT: "H",
         IRON: "m",
-        IRON_DK: "d",
+        IRON_DARK: "d",
     }
     rows: list[str] = []
     for y in range(SIZE):

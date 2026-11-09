@@ -956,8 +956,12 @@ def test_require_inside_rejects_a_pixel_left_of_the_cell() -> None:
 
 def test_build_run_parts_returns_the_body_legs_and_sword(idle_cell) -> None:
     parts = hunter.build_run_parts(idle_cell)
-    assert tuple(sorted(parts)) == ("body", "chest", "front", "rear", "sword")
-    assert parts["chest"] == 93.5
+    assert isinstance(parts, hunter.RunParts)
+    assert parts.chest == 93.5
+    assert isinstance(parts.body, hunter.Sprite)
+    assert isinstance(parts.rear, hunter.Sprite)
+    assert isinstance(parts.front, hunter.Sprite)
+    assert isinstance(parts.sword, hunter.Sprite)
 
 
 def test_build_run_parts_rejects_an_empty_sprite() -> None:
@@ -1001,20 +1005,20 @@ def test_compose_run_frame_builds_the_first_pose(idle_cell) -> None:
     assert len(frame.pixels) > 9000
 
 
-def test_compose_run_frame_rejects_a_pose_without_a_plant(idle_cell) -> None:
+def test_compose_run_frame_rejects_a_pose_that_is_not_a_run_pose(idle_cell) -> None:
     parts = hunter.build_run_parts(idle_cell)
-    with pytest.raises(KeyError, match="bob"):
+    with pytest.raises(AttributeError, match="bob"):
         hunter.compose_run_frame(parts, {})
 
 
 def test_sheet_image_packs_one_sprite_into_the_hunter_cell() -> None:
     image = hunter.sheet_image([_long_sole()])
-    assert image.size == (hunter.CELL_W, hunter.CELL_H)
+    assert image.size == (hunter.CELL_WIDTH, hunter.CELL_HEIGHT)
     assert image.getpixel((0, 8)) == RED
 
 
 def test_sheet_image_of_no_frames_has_zero_width() -> None:
-    assert hunter.sheet_image([]).size == (0, hunter.CELL_H)
+    assert hunter.sheet_image([]).size == (0, hunter.CELL_HEIGHT)
 
 
 def test_sheet_image_rejects_a_pixel_below_the_cell() -> None:
@@ -1092,7 +1096,7 @@ def test_build_jump_rejects_an_empty_body() -> None:
 def test_hunter_main_writes_the_six_combat_sheets_with_the_locked_hashes(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "combat"
     folder.mkdir()
-    monkeypatch.setattr(hunter, "OUT", folder)
+    monkeypatch.setattr(hunter, "OUTPUT_DIRECTORY", folder)
     hunter.main()
     expected = {
         "knight_idle_side.png": "cc45126200af2c2298ad6ecfac517556939ae4598d81b3f9f58adabf7eb1a37e",
@@ -1205,7 +1209,7 @@ def test_to_image_copies_the_canvas_pixels() -> None:
 def test_paint_sword_stores_the_bright_steel_at_the_tip() -> None:
     canvas = icons.new_canvas()
     icons.paint_sword(canvas)
-    assert canvas.read(15, 3) == icons.STEEL_LT
+    assert canvas.read(15, 3) == icons.STEEL_LIGHT
 
 
 def test_draw_sword_matches_the_locked_icon_pixels() -> None:
@@ -1240,20 +1244,20 @@ def test_paint_shield_rejects_a_canvas_that_is_too_small() -> None:
 
 def test_recolor_rim_leaves_an_empty_canvas_unchanged() -> None:
     canvas = icons.new_canvas()
-    icons.recolor_rim(canvas, icons.BRASS_LT, icons.BRASS, icons.BRASS_DK)
+    icons.recolor_rim(canvas, icons.BRASS_LIGHT, icons.BRASS, icons.BRASS_DARK)
     assert all(pixel == (0, 0, 0, 0) for pixel in canvas.pixels)
 
 
 def test_recolor_rim_lights_the_top_of_a_single_pixel() -> None:
     canvas = icons.new_canvas()
     icons.put(canvas, 4, 4, icons.STEEL)
-    icons.recolor_rim(canvas, icons.BRASS_LT, icons.BRASS, icons.BRASS_DK)
-    assert canvas.read(4, 4) == icons.BRASS_LT
+    icons.recolor_rim(canvas, icons.BRASS_LIGHT, icons.BRASS, icons.BRASS_DARK)
+    assert canvas.read(4, 4) == icons.BRASS_LIGHT
 
 
 def test_recolor_rim_rejects_a_canvas_that_is_not_a_canvas() -> None:
     with pytest.raises(TypeError):
-        icons.recolor_rim(None, icons.BRASS_LT, icons.BRASS, icons.BRASS_DK)
+        icons.recolor_rim(None, icons.BRASS_LIGHT, icons.BRASS, icons.BRASS_DARK)
 
 
 def test_stamp_boss_paints_one_pixel() -> None:
@@ -1337,7 +1341,7 @@ def test_ascii_preview_rejects_an_image_with_no_pixels() -> None:
 def test_skill_main_writes_the_four_icons_with_the_locked_hashes(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "skills"
     folder.mkdir()
-    monkeypatch.setattr(icons, "OUT_DIR", folder)
+    monkeypatch.setattr(icons, "OUTPUT_DIRECTORY", folder)
     monkeypatch.setattr(icons.sys, "argv", ["draw_skill_icons.py"])
     icons.main()
     expected = {
@@ -1436,7 +1440,7 @@ def test_actor_main_writes_a_64_pixel_slime_sheet(tmp_path, monkeypatch) -> None
 def test_skill_main_check_rejects_a_missing_icon(tmp_path, monkeypatch) -> None:
     folder = tmp_path / "skills"
     folder.mkdir()
-    monkeypatch.setattr(icons, "OUT_DIR", folder)
+    monkeypatch.setattr(icons, "OUTPUT_DIRECTORY", folder)
     monkeypatch.setattr(icons.sys, "argv", ["draw_skill_icons.py", "--check"])
     with pytest.raises(SystemExit, match="missing"):
         icons.main()
