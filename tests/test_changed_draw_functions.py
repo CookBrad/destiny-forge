@@ -591,26 +591,27 @@ def test_fish_main_writes_bamboo_fs1_fs3_frames_with_the_locked_hashes(tmp_path,
     fish.main()
     expected = {
         "dwarf_m_rod_bamboo_cast_charge": [
-            "8dc6606f8df1abd2edb8ff7e731a8def295d31a1668fa49308caadc2c6b556e6",
-            "f5a0395d763d05cee28d0ab6818042210a27451558840113626adfeffde9c621",
-            "1286d3711f62f04cf899d06d7acf6309d61865970f22d546ebaa8b86a67a9ee6",
+            "f6147316bcb98d5f94a9f9eefe91ff710f273de3becf52a713a8742bb0fded22",
+            "054a774523606ce6f6c7bf8c0d1ceb72f61312c0d71cf9d4d73a2211a23e0d83",
+            "393d768df2be00775bf9c59b10b1ef8b3ee7d4fe33408a6f9fe0682a76999e0a",
         ],
         "dwarf_m_rod_bamboo_cast_release": [
-            "db0ed36d26cd3165c52a9764bc468067ae4af4afb6ea759f2636dea1ab98adb5",
-            "d3bed767226ede2e9518f77f0c9c73454a0f5b9495f09b680bd5ffa89201079b",
-            "8a9429a4d8bc0247505bdbadcde52f5b7e93f006a094a2ddaa3202034a10a8db",
-            "3162d573c0865a2df8fb6b847ff3a66b3649f8d6dd47df26c03043125a24fc5a",
+            "66d50178e3fdc475235604209e60a12d7c81d67b67082d7283b42922ec339629",
+            "7a52b1fcabc4b635336f0acddcfeddfa9f6dab41b0e2676bbc3a88bd239b0ce2",
+            "5ebc74c7f61827185917c64f8489b78204cb12fbaa44c020fc3b3967c410d4e4",
+            "8bdccb1b9895fd44cbd3f5d1186dc8940a49cc7afa3eca497cdea02a5b4e14da",
         ],
         "dwarf_m_rod_bamboo_wait": [
-            "14696d4e5ddd8fd9546d0ebe4e0b079272668d3c8f7058033fedcfb11f16e907",
-            "545811e21e308b0fdbb0cc894234f0500af16832bcd03f81c570f5c047e32398",
-            "36479bcb36cf5383f854d7c7181038f60301b405d7ad899d129e259df3db275c",
-            "ab66e5a655ba33cc4ac3c22815e1ff080d5308f97c429a91c85024e16f2a893f",
+            "baa1451d78bb13e88e7a0c3bc3b89dac2dea44b521bbfb104c7c72bbf202958d",
+            "68712570f115cd27e941125572beaa5d1abb65d70d37a063015120100a31bb98",
+            "36338253b8c859f9cfccf94c1255babef607071a7b8d62a97db98d10eb801bff",
+            "c03a33af6033308080cc6cbbea8e5193093f2d4b7e7dd765f13ed0a5f5e49bda",
         ],
     }
     for stem, digests in expected.items():
         assert [
-            _file_digest(folder / f"{stem}_f{index}.png") for index in range(len(digests))
+            _image_digest(Image.open(folder / f"{stem}_f{index}.png").convert("RGBA"))
+            for index in range(len(digests))
         ] == digests
 
 
