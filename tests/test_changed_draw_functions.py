@@ -14,6 +14,7 @@ import draw_dwarf_pickaxe_clank as pickaxe_clank
 import draw_dwarf_pickaxe_t2_clank as pickaxe_t2_clank
 import draw_dwarf_hoe_till as hoe
 import draw_dwarf_water_pour as water
+import draw_dwarf_water_empty as water_empty
 import draw_dwarf_fishing_cast as fish
 import draw_dwarf_facing as facing
 import draw_dwarf_axe_chop as axe
@@ -3354,6 +3355,200 @@ def test_water_fist_pixels_rejects_a_missing_grip() -> None:
 def test_draw_water_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
     frame = water.draw_frame(
         {"lean_x": 0, "drop_y": 0, "grip": (1.0, 1.0), "angle": 0.0, "stream": 0.0, "in_front": False}
+    )
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0))[3] > 0
+    assert _image_digest(frame) == "b4db7bfb2738e61555739b7e0b2d1bacfc291d0df25239d13c67a48be2b89309"
+
+
+
+def test_water_empty_outline_around_wraps_a_single_pixel():
+    assert water_empty.outline_around({(1, 1): water_empty.WOOD}) == {
+        (1, 1): (119, 92, 85, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_water_empty_outline_around_of_an_empty_layer_stays_empty():
+    assert water_empty.outline_around({}) == {}
+
+
+def test_water_empty_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        water_empty.outline_around(None)
+
+
+def test_draw_water_empty_frame_shakes_left_on_the_first_pose():
+    frame = water_empty.draw_frame(water_empty.POSES[0])
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "434fa1833b6cde62a529e77515fe585e2f9e546a57cbab4ac8591ebde46f3dba"
+
+
+def test_draw_water_empty_frame_shakes_right_on_the_second_pose():
+    frame = water_empty.draw_frame(water_empty.POSES[1])
+    assert _image_digest(frame) == "23c0a445ffc2ee66375560599221414ffe494dc232e347a45082170d6e0cc1f5"
+    assert _image_digest(frame) != "434fa1833b6cde62a529e77515fe585e2f9e546a57cbab4ac8591ebde46f3dba"
+
+
+def test_draw_water_empty_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        water_empty.draw_frame({})
+
+
+def test_water_empty_main_writes_three_shake_frames_with_the_locked_pixel_digests(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(water_empty, "FOLDER", folder)
+    monkeypatch.setattr(
+        water_empty, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    water_empty.main()
+    expected = ['434fa1833b6cde62a529e77515fe585e2f9e546a57cbab4ac8591ebde46f3dba', '23c0a445ffc2ee66375560599221414ffe494dc232e347a45082170d6e0cc1f5', '43250f786b1102db028d061b0693303208edb2be97e0a60d24ac39f75f1833e6']
+    assert [
+        _image_digest(Image.open(folder / f"dwarf_m_water_empty_f{index}.png").convert("RGBA"))
+        for index in range(3)
+    ] == expected
+
+
+def test_water_empty_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(water_empty, "FOLDER", folder)
+    monkeypatch.setattr(water_empty, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        water_empty.main()
+
+
+def test_water_empty_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert water_empty.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_water_empty_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert water_empty.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_water_empty_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert water_empty.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_water_empty_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        water_empty.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_water_empty_can_pixels_draws_a_tin_can_without_a_stream() -> None:
+    assert water_empty.can_pixels((24.0, 40.0), 0.0) == {(23, 32): (96, 100, 106, 255), (24, 32): (96, 100, 106, 255), (23, 33): (96, 100, 106, 255), (24, 33): (96, 100, 106, 255), (23, 34): (96, 100, 106, 255), (24, 34): (96, 100, 106, 255), (23, 35): (96, 100, 106, 255), (24, 35): (96, 100, 106, 255), (23, 36): (119, 92, 85, 255), (24, 36): (119, 92, 85, 255), (23, 37): (119, 92, 85, 255), (24, 37): (119, 92, 85, 255), (23, 38): (119, 92, 85, 255), (24, 38): (119, 92, 85, 255), (23, 39): (119, 92, 85, 255), (24, 39): (119, 92, 85, 255), (24, 31): (96, 100, 106, 255), (25, 31): (148, 152, 156, 255), (26, 31): (148, 152, 156, 255), (27, 31): (148, 152, 156, 255), (28, 31): (148, 152, 156, 255), (29, 31): (148, 152, 156, 255), (25, 32): (148, 152, 156, 255), (26, 32): (148, 152, 156, 255), (27, 32): (148, 152, 156, 255), (28, 32): (148, 152, 156, 255), (29, 32): (148, 152, 156, 255), (22, 28): (148, 152, 156, 255), (23, 28): (148, 152, 156, 255), (22, 29): (148, 152, 156, 255), (23, 29): (148, 152, 156, 255), (22, 30): (148, 152, 156, 255), (23, 30): (148, 152, 156, 255), (22, 31): (148, 152, 156, 255), (23, 31): (96, 100, 106, 255), (22, 32): (148, 152, 156, 255), (22, 33): (148, 152, 156, 255), (22, 34): (148, 152, 156, 255), (22, 35): (148, 152, 156, 255), (24, 28): (148, 152, 156, 255), (24, 29): (148, 152, 156, 255), (24, 30): (148, 152, 156, 255), (25, 28): (148, 152, 156, 255), (25, 29): (148, 152, 156, 255), (25, 30): (148, 152, 156, 255), (25, 33): (148, 152, 156, 255), (25, 34): (148, 152, 156, 255), (25, 35): (148, 152, 156, 255), (22, 36): (34, 34, 34, 255), (25, 36): (34, 34, 34, 255), (22, 37): (34, 34, 34, 255), (25, 37): (34, 34, 34, 255), (22, 38): (34, 34, 34, 255), (25, 38): (34, 34, 34, 255), (22, 39): (34, 34, 34, 255), (23, 40): (34, 34, 34, 255), (25, 39): (34, 34, 34, 255), (24, 40): (34, 34, 34, 255), (26, 30): (34, 34, 34, 255), (27, 30): (34, 34, 34, 255), (28, 30): (34, 34, 34, 255), (30, 31): (34, 34, 34, 255), (29, 30): (34, 34, 34, 255), (26, 33): (34, 34, 34, 255), (27, 33): (34, 34, 34, 255), (28, 33): (34, 34, 34, 255), (30, 32): (34, 34, 34, 255), (29, 33): (34, 34, 34, 255), (21, 28): (34, 34, 34, 255), (22, 27): (34, 34, 34, 255), (23, 27): (34, 34, 34, 255), (21, 29): (34, 34, 34, 255), (21, 30): (34, 34, 34, 255), (21, 31): (34, 34, 34, 255), (21, 32): (34, 34, 34, 255), (21, 33): (34, 34, 34, 255), (21, 34): (34, 34, 34, 255), (21, 35): (34, 34, 34, 255), (24, 27): (34, 34, 34, 255), (26, 28): (34, 34, 34, 255), (25, 27): (34, 34, 34, 255), (26, 29): (34, 34, 34, 255), (26, 34): (34, 34, 34, 255), (26, 35): (34, 34, 34, 255)}
+
+
+def test_water_empty_can_pixels_clips_an_upward_handle_to_the_canvas() -> None:
+    assert water_empty.can_pixels((1.0, 1.0), 0.0) == {(0, 0): (119, 92, 85, 255), (1, 0): (119, 92, 85, 255), (0, 1): (34, 34, 34, 255), (2, 0): (34, 34, 34, 255), (1, 1): (34, 34, 34, 255)}
+
+
+def test_water_empty_can_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        water_empty.can_pixels(None, 0.0)
+
+
+def test_water_empty_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    water_empty.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_water_empty_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    water_empty.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_water_empty_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        water_empty.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_water_empty_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_water_empty_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_water_empty_dwarf_sheet(sheet)
+    monkeypatch.setattr(water_empty, "DWARF", sheet)
+    assert water_empty.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_water_empty_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_water_empty_dwarf_sheet(sheet)
+    monkeypatch.setattr(water_empty, "DWARF", sheet)
+    assert water_empty.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_water_empty_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_water_empty_dwarf_sheet(sheet)
+    monkeypatch.setattr(water_empty, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        water_empty.dwarf_pixels({})
+
+
+def test_water_empty_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert water_empty.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_water_empty_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert water_empty.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_water_empty_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        water_empty.fist_pixels(None)
+
+
+def test_draw_water_empty_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
+    frame = water_empty.draw_frame(
+        {"lean_x": 0, "drop_y": 0, "grip": (1.0, 1.0), "angle": 0.0, "in_front": False}
     )
     assert frame.size == (48, 60)
     assert frame.getpixel((0, 0))[3] > 0
