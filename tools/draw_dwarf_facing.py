@@ -93,6 +93,13 @@ BACK_IDLE_BASE = [
 ]
 
 
+def main():
+    for stem, builder in SETS:
+        for index, pattern in enumerate(builder()):
+            require_pattern_size(pattern)
+            draw_frame(pattern).save(FOLDER / f"{stem}_f{index}.png")
+
+
 def idle_front_frames():
     breathe = [
         FRONT_IDLE_BASE,
@@ -121,6 +128,13 @@ def walk_back_frames():
     ]
 
 
+SETS = (
+    ("dwarf_m_idle_front", idle_front_frames),
+    ("dwarf_m_walk_front", walk_front_frames),
+    ("dwarf_m_walk_back", walk_back_frames),
+)
+
+
 def with_boots(base, row23, row24, row25):
     rows = list(base)
     rows[23] = row23
@@ -129,18 +143,12 @@ def with_boots(base, row23, row24, row25):
     return rows
 
 
-SETS = (
-    ("dwarf_m_idle_front", idle_front_frames),
-    ("dwarf_m_walk_front", walk_front_frames),
-    ("dwarf_m_walk_back", walk_back_frames),
-)
-
-
-def main():
-    for stem, builder in SETS:
-        for index, pattern in enumerate(builder()):
-            require_pattern_size(pattern)
-            draw_frame(pattern).save(FOLDER / f"{stem}_f{index}.png")
+def require_pattern_size(pattern):
+    if len(pattern) != CANVAS_HEIGHT:
+        raise ValueError(f"pattern height {len(pattern)} != {CANVAS_HEIGHT}")
+    for line in pattern:
+        if len(line) != CANVAS_WIDTH:
+            raise ValueError(f"pattern width {len(line)} != {CANVAS_WIDTH}")
 
 
 def draw_frame(pattern):
@@ -156,14 +164,6 @@ def stamp_pattern(pattern):
                 continue
             layer[(column_index, row_index)] = PALETTE[key]
     return layer
-
-
-def require_pattern_size(pattern):
-    if len(pattern) != CANVAS_HEIGHT:
-        raise ValueError(f"pattern height {len(pattern)} != {CANVAS_HEIGHT}")
-    for line in pattern:
-        if len(line) != CANVAS_WIDTH:
-            raise ValueError(f"pattern width {len(line)} != {CANVAS_WIDTH}")
 
 
 if __name__ == "__main__":

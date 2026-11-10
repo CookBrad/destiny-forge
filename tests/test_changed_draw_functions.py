@@ -972,13 +972,34 @@ def test_facing_idle_front_frames_returns_four_patterns() -> None:
 
 
 def test_facing_walk_builders_return_four_boot_variants() -> None:
-    assert len(facing.walk_front_frames()) == 4
-    assert len(facing.walk_back_frames()) == 4
-    assert facing.walk_front_frames()[0][23] != facing.FRONT_IDLE_BASE[23]
+    front_boots = [
+        ("...abba..bba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "....aba.aba.....", "....aa...aa....."),
+        ("...bba..abba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "...aba...aba....", "...aa.....aa...."),
+    ]
+    back_boots = [
+        ("...abba..bba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "....aba.aba.....", "....aa...aa....."),
+        ("...bba..abba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "...aba...aba....", "...aa.....aa...."),
+    ]
+    front_frames = facing.walk_front_frames()
+    back_frames = facing.walk_back_frames()
+    assert len(front_frames) == 4
+    assert len(back_frames) == 4
+    for frame, (row23, row24, row25) in zip(front_frames, front_boots, strict=True):
+        assert frame[23] == row23
+        assert frame[24] == row24
+        assert frame[25] == row25
+    for frame, (row23, row24, row25) in zip(back_frames, back_boots, strict=True):
+        assert frame[23] == row23
+        assert frame[24] == row24
+        assert frame[25] == row25
 
 
-def test_facing_walk_builders_reject_nothing_when_called() -> None:
-    assert facing.walk_back_frames()[0][10].count("r") > 0
+def test_facing_back_walk_frames_show_hair_on_the_back_of_the_head() -> None:
+    assert facing.walk_back_frames()[0][10] == "..arrrrrrrrrra.."
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
