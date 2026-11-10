@@ -10,6 +10,7 @@ import draw_dungeon_actors as actors
 import draw_dungeon_environment as environment
 import draw_dwarf_pickaxe_swing as pickaxe
 import draw_dwarf_pickaxe_t2_swing as pickaxe_t2
+import draw_dwarf_pickaxe_clank as pickaxe_clank
 import draw_dwarf_pickaxe_t2_clank as pickaxe_t2_clank
 import draw_dwarf_hoe_till as hoe
 import draw_dwarf_fishing_cast as fish
@@ -762,6 +763,212 @@ def test_pickaxe_t2_frames_differ_from_pickaxe_t1_pixel_digests() -> None:
 
 
 
+def test_pickaxe_clank_outline_around_wraps_a_single_pixel():
+    assert pickaxe_clank.outline_around({(1, 1): pickaxe_clank.WOOD}) == {
+        (1, 1): (119, 92, 85, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_pickaxe_clank_outline_around_of_an_empty_layer_stays_empty():
+    assert pickaxe_clank.outline_around({}) == {}
+
+
+def test_pickaxe_clank_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        pickaxe_clank.outline_around(None)
+
+
+def test_draw_pickaxe_clank_frame_jolts_back_on_the_second_pose():
+    frame = pickaxe_clank.draw_frame(pickaxe_clank.POSES[1])
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "a337e269e7f7646de79f3ca5e991a458a4f7243540bdb2041ce70d81e06c8dc4"
+
+
+def test_draw_pickaxe_clank_frame_starts_from_the_blocked_hit_pose():
+    frame = pickaxe_clank.draw_frame(pickaxe_clank.POSES[0])
+    assert _image_digest(frame) == "7e379dd945403404da5316e90dc609ee9afac8d87cc123466f16d7023a3a5423"
+    assert _image_digest(frame) != "a337e269e7f7646de79f3ca5e991a458a4f7243540bdb2041ce70d81e06c8dc4"
+
+
+def test_draw_pickaxe_clank_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        pickaxe_clank.draw_frame({})
+
+
+def test_pickaxe_clank_main_writes_three_recoil_frames_with_the_locked_pixel_digests(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(pickaxe_clank, "FOLDER", folder)
+    monkeypatch.setattr(
+        pickaxe_clank, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    pickaxe_clank.main()
+    expected = [
+        "7e379dd945403404da5316e90dc609ee9afac8d87cc123466f16d7023a3a5423",
+        "a337e269e7f7646de79f3ca5e991a458a4f7243540bdb2041ce70d81e06c8dc4",
+        "261ffafa9a05cc84e0dfa61b46c6579445aa121a7b24feabe5ccbb3b344602d2",
+    ]
+    assert [
+        _image_digest(Image.open(folder / f"dwarf_m_pickaxe_clank_f{index}.png").convert("RGBA"))
+        for index in range(3)
+    ] == expected
+
+
+def test_pickaxe_clank_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(pickaxe_clank, "FOLDER", folder)
+    monkeypatch.setattr(pickaxe_clank, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        pickaxe_clank.main()
+
+
+def test_pickaxe_clank_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert pickaxe_clank.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_pickaxe_clank_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert pickaxe_clank.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_pickaxe_clank_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert pickaxe_clank.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_pickaxe_clank_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        pickaxe_clank.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_pickaxe_clank_pixels_draws_a_steel_head_from_the_grip() -> None:
+    assert pickaxe_clank.pickaxe_pixels((24.0, 40.0), 0.0) == {(23, 27): (123, 137, 148, 255), (24, 27): (123, 137, 148, 255), (23, 28): (119, 92, 85, 255), (24, 28): (119, 92, 85, 255), (23, 29): (119, 92, 85, 255), (24, 29): (119, 92, 85, 255), (23, 30): (119, 92, 85, 255), (24, 30): (119, 92, 85, 255), (23, 31): (119, 92, 85, 255), (24, 31): (119, 92, 85, 255), (23, 32): (119, 92, 85, 255), (24, 32): (119, 92, 85, 255), (23, 33): (119, 92, 85, 255), (24, 33): (119, 92, 85, 255), (23, 34): (119, 92, 85, 255), (24, 34): (119, 92, 85, 255), (23, 35): (119, 92, 85, 255), (24, 35): (119, 92, 85, 255), (23, 36): (119, 92, 85, 255), (24, 36): (119, 92, 85, 255), (23, 37): (119, 92, 85, 255), (24, 37): (119, 92, 85, 255), (23, 38): (119, 92, 85, 255), (24, 38): (119, 92, 85, 255), (23, 39): (119, 92, 85, 255), (24, 39): (119, 92, 85, 255), (23, 26): (123, 137, 148, 255), (24, 26): (123, 137, 148, 255), (20, 27): (123, 137, 148, 255), (21, 27): (123, 137, 148, 255), (22, 27): (123, 137, 148, 255), (25, 27): (123, 137, 148, 255), (26, 27): (123, 137, 148, 255), (27, 27): (123, 137, 148, 255), (18, 28): (123, 137, 148, 255), (19, 28): (123, 137, 148, 255), (20, 28): (123, 137, 148, 255), (21, 28): (123, 137, 148, 255), (26, 28): (123, 137, 148, 255), (27, 28): (123, 137, 148, 255), (28, 28): (123, 137, 148, 255), (29, 28): (123, 137, 148, 255), (22, 28): (34, 34, 34, 255), (25, 28): (34, 34, 34, 255), (22, 29): (34, 34, 34, 255), (25, 29): (34, 34, 34, 255), (22, 30): (34, 34, 34, 255), (25, 30): (34, 34, 34, 255), (22, 31): (34, 34, 34, 255), (25, 31): (34, 34, 34, 255), (22, 32): (34, 34, 34, 255), (25, 32): (34, 34, 34, 255), (22, 33): (34, 34, 34, 255), (25, 33): (34, 34, 34, 255), (22, 34): (34, 34, 34, 255), (25, 34): (34, 34, 34, 255), (22, 35): (34, 34, 34, 255), (25, 35): (34, 34, 34, 255), (22, 36): (34, 34, 34, 255), (25, 36): (34, 34, 34, 255), (22, 37): (34, 34, 34, 255), (25, 37): (34, 34, 34, 255), (22, 38): (34, 34, 34, 255), (25, 38): (34, 34, 34, 255), (22, 39): (34, 34, 34, 255), (23, 40): (34, 34, 34, 255), (25, 39): (34, 34, 34, 255), (24, 40): (34, 34, 34, 255), (22, 26): (34, 34, 34, 255), (23, 25): (34, 34, 34, 255), (25, 26): (34, 34, 34, 255), (24, 25): (34, 34, 34, 255), (19, 27): (34, 34, 34, 255), (20, 26): (34, 34, 34, 255), (21, 26): (34, 34, 34, 255), (26, 26): (34, 34, 34, 255), (28, 27): (34, 34, 34, 255), (27, 26): (34, 34, 34, 255), (17, 28): (34, 34, 34, 255), (18, 29): (34, 34, 34, 255), (18, 27): (34, 34, 34, 255), (19, 29): (34, 34, 34, 255), (20, 29): (34, 34, 34, 255), (21, 29): (34, 34, 34, 255), (26, 29): (34, 34, 34, 255), (27, 29): (34, 34, 34, 255), (28, 29): (34, 34, 34, 255), (30, 28): (34, 34, 34, 255), (29, 29): (34, 34, 34, 255), (29, 27): (34, 34, 34, 255)}
+
+
+def test_pickaxe_clank_pixels_clips_an_upward_handle_to_the_canvas() -> None:
+    assert pickaxe_clank.pickaxe_pixels((1.0, 1.0), 0.0) == {(0, 0): (119, 92, 85, 255), (1, 0): (119, 92, 85, 255), (0, 1): (34, 34, 34, 255), (2, 0): (34, 34, 34, 255), (1, 1): (34, 34, 34, 255)}
+
+
+def test_pickaxe_clank_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        pickaxe_clank.pickaxe_pixels(None, 0.0)
+
+
+def test_pickaxe_clank_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    pickaxe_clank.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_pickaxe_clank_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    pickaxe_clank.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_pickaxe_clank_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        pickaxe_clank.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_pickaxe_clank_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_pickaxe_clank_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_pickaxe_clank_dwarf_sheet(sheet)
+    monkeypatch.setattr(pickaxe_clank, "DWARF", sheet)
+    assert pickaxe_clank.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_pickaxe_clank_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_pickaxe_clank_dwarf_sheet(sheet)
+    monkeypatch.setattr(pickaxe_clank, "DWARF", sheet)
+    assert pickaxe_clank.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_pickaxe_clank_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_pickaxe_clank_dwarf_sheet(sheet)
+    monkeypatch.setattr(pickaxe_clank, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        pickaxe_clank.dwarf_pixels({})
+
+
+def test_pickaxe_clank_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert pickaxe_clank.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_pickaxe_clank_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert pickaxe_clank.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_pickaxe_clank_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        pickaxe_clank.fist_pixels(None)
+
+
+def test_draw_pickaxe_clank_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
+    frame = pickaxe_clank.draw_frame(
+        {"lean_x": 0, "drop_y": 0, "grip": (1.0, 1.0), "angle": 0.0, "in_front": False}
+    )
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0))[3] > 0
+    assert _image_digest(frame) == "b4db7bfb2738e61555739b7e0b2d1bacfc291d0df25239d13c67a48be2b89309"
+
+
+def test_pickaxe_clank_frames_differ_from_pickaxe_swing_pixel_digests() -> None:
+    assert [
+        _image_digest(pickaxe_clank.draw_frame(pose)) for pose in pickaxe_clank.POSES
+    ] != [
+        _image_digest(pickaxe.draw_frame(pose)) for pose in pickaxe.POSES[:3]
+    ]
+
+
+
 def test_pickaxe_t2_clank_outline_around_wraps_a_single_pixel():
     assert pickaxe_t2_clank.outline_around({(1, 1): pickaxe_t2_clank.WOOD}) == {
         (1, 1): (119, 92, 85, 255),
@@ -959,12 +1166,10 @@ def test_draw_pickaxe_t2_clank_frame_with_a_corner_grip_stays_on_the_canvas() ->
     assert _image_digest(frame) == "b4db7bfb2738e61555739b7e0b2d1bacfc291d0df25239d13c67a48be2b89309"
 
 
-def test_pickaxe_t2_clank_frames_differ_from_pickaxe_t2_swing_pixel_digests() -> None:
-    assert [
-        _image_digest(pickaxe_t2_clank.draw_frame(pose)) for pose in pickaxe_t2_clank.POSES
-    ] != [
-        _image_digest(pickaxe_t2.draw_frame(pose)) for pose in pickaxe_t2.POSES[:3]
-    ]
+def test_pickaxe_t2_clank_frames_differ_from_pickaxe_t2_swing_and_t1_clank_pixel_digests() -> None:
+    frames = [_image_digest(pickaxe_t2_clank.draw_frame(pose)) for pose in pickaxe_t2_clank.POSES]
+    assert frames != [_image_digest(pickaxe_t2.draw_frame(pose)) for pose in pickaxe_t2.POSES[:3]]
+    assert frames != [_image_digest(pickaxe_clank.draw_frame(pose)) for pose in pickaxe_clank.POSES]
 
 
 def test_hoe_outline_around_wraps_a_single_pixel():
