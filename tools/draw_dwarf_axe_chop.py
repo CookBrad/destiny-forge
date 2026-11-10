@@ -17,7 +17,7 @@ DWARF_X = 16
 DWARF_Y = 16
 HEAD_LAST_ROW = 21
 HANDLE_LENGTH = 14.0
-BLADE_HALF = 5.5
+BLADE_HALF_WIDTH = 5.5
 BLADE_DEPTH = 2.2
 
 OUTLINE = require_opaque_color((34, 34, 34, 255))
@@ -56,20 +56,20 @@ def axe_pixels(grip, angle_degrees):
         grip_y + along[1] * HANDLE_LENGTH,
     )
     blade_left = (
-        tip[0] - across[0] * BLADE_HALF - along[0] * BLADE_DEPTH,
-        tip[1] - across[1] * BLADE_HALF - along[1] * BLADE_DEPTH,
+        tip[0] - across[0] * BLADE_HALF_WIDTH - along[0] * BLADE_DEPTH,
+        tip[1] - across[1] * BLADE_HALF_WIDTH - along[1] * BLADE_DEPTH,
     )
     blade_right = (
-        tip[0] + across[0] * BLADE_HALF - along[0] * BLADE_DEPTH,
-        tip[1] + across[1] * BLADE_HALF - along[1] * BLADE_DEPTH,
+        tip[0] + across[0] * BLADE_HALF_WIDTH - along[0] * BLADE_DEPTH,
+        tip[1] + across[1] * BLADE_HALF_WIDTH - along[1] * BLADE_DEPTH,
     )
     edge_left = (
-        tip[0] - across[0] * BLADE_HALF + along[0] * 0.6,
-        tip[1] - across[1] * BLADE_HALF + along[1] * 0.6,
+        tip[0] - across[0] * BLADE_HALF_WIDTH + along[0] * 0.6,
+        tip[1] - across[1] * BLADE_HALF_WIDTH + along[1] * 0.6,
     )
     edge_right = (
-        tip[0] + across[0] * BLADE_HALF + along[0] * 0.6,
-        tip[1] + across[1] * BLADE_HALF + along[1] * 0.6,
+        tip[0] + across[0] * BLADE_HALF_WIDTH + along[0] * 0.6,
+        tip[1] + across[1] * BLADE_HALF_WIDTH + along[1] * 0.6,
     )
     layer = {}
     stroke(layer, [(grip, tip)], 0.55, WOOD)
