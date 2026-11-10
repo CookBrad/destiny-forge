@@ -10,6 +10,7 @@ import draw_dungeon_actors as actors
 import draw_dungeon_environment as environment
 import draw_dwarf_pickaxe_swing as pickaxe
 import draw_dwarf_hoe_till as hoe
+import draw_dwarf_fishing_cast as fish
 import draw_homestead_eat_frames as eat
 import draw_hunter_frames as hunter
 import draw_skill_icons as icons
@@ -844,6 +845,326 @@ def test_draw_hoe_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
     assert frame.size == (48, 60)
     assert frame.getpixel((0, 0))[3] > 0
     assert _image_digest(frame) == "b4db7bfb2738e61555739b7e0b2d1bacfc291d0df25239d13c67a48be2b89309"
+
+
+def test_fish_outline_around_wraps_a_single_pixel():
+    assert fish.outline_around({(1, 1): fish.BAMBOO}) == {
+        (1, 1): (166, 140, 72, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_fish_outline_around_of_an_empty_layer_stays_empty():
+    assert fish.outline_around({}) == {}
+
+
+def test_fish_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        fish.outline_around(None)
+
+
+def test_draw_frame_puts_the_rod_behind_the_dwarf_on_cast_charge():
+    frame = fish.draw_frame(fish.CAST_CHARGE[0])
+    assert frame.size == (64, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "f6147316bcb98d5f94a9f9eefe91ff710f273de3becf52a713a8742bb0fded22"
+
+
+def test_draw_frame_puts_the_rod_in_front_on_cast_release_hit():
+    frame = fish.draw_frame(fish.CAST_RELEASE[2])
+    assert _image_digest(frame) == "5ebc74c7f61827185917c64f8489b78204cb12fbaa44c020fc3b3967c410d4e4"
+    assert _image_digest(frame) != "f6147316bcb98d5f94a9f9eefe91ff710f273de3becf52a713a8742bb0fded22"
+
+
+def test_draw_fish_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        fish.draw_frame({})
+
+
+def test_fish_main_writes_bamboo_fs1_fs3_frames_with_the_locked_hashes(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(fish, "FOLDER", folder)
+    monkeypatch.setattr(
+        fish, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    fish.main()
+    expected = {
+        "dwarf_m_rod_bamboo_cast_charge": [
+            "f6147316bcb98d5f94a9f9eefe91ff710f273de3becf52a713a8742bb0fded22",
+            "054a774523606ce6f6c7bf8c0d1ceb72f61312c0d71cf9d4d73a2211a23e0d83",
+            "393d768df2be00775bf9c59b10b1ef8b3ee7d4fe33408a6f9fe0682a76999e0a",
+        ],
+        "dwarf_m_rod_bamboo_cast_release": [
+            "66d50178e3fdc475235604209e60a12d7c81d67b67082d7283b42922ec339629",
+            "7a52b1fcabc4b635336f0acddcfeddfa9f6dab41b0e2676bbc3a88bd239b0ce2",
+            "5ebc74c7f61827185917c64f8489b78204cb12fbaa44c020fc3b3967c410d4e4",
+            "8bdccb1b9895fd44cbd3f5d1186dc8940a49cc7afa3eca497cdea02a5b4e14da",
+        ],
+        "dwarf_m_rod_bamboo_wait": [
+            "baa1451d78bb13e88e7a0c3bc3b89dac2dea44b521bbfb104c7c72bbf202958d",
+            "68712570f115cd27e941125572beaa5d1abb65d70d37a063015120100a31bb98",
+            "36338253b8c859f9cfccf94c1255babef607071a7b8d62a97db98d10eb801bff",
+            "c03a33af6033308080cc6cbbea8e5193093f2d4b7e7dd765f13ed0a5f5e49bda",
+        ],
+    }
+    for stem, digests in expected.items():
+        assert [
+            _image_digest(Image.open(folder / f"{stem}_f{index}.png").convert("RGBA"))
+            for index in range(len(digests))
+        ] == digests
+
+
+def test_fish_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(fish, "FOLDER", folder)
+    monkeypatch.setattr(fish, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        fish.main()
+
+
+def test_fish_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert fish.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_fish_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert fish.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_fish_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert fish.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_fish_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        fish.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_rod_pixels_draws_an_upright_bamboo_shaft_from_the_grip() -> None:
+    bamboo = (166, 140, 72, 255)
+    outline = (34, 34, 34, 255)
+    assert fish.rod_pixels({"grip": (24.0, 40.0), "angle": 0.0, "line": False}) == {
+        (22, 18): outline,
+        (22, 19): outline,
+        (22, 20): outline,
+        (22, 21): outline,
+        (22, 22): outline,
+        (22, 23): outline,
+        (22, 24): outline,
+        (22, 25): outline,
+        (22, 26): outline,
+        (22, 27): outline,
+        (22, 28): outline,
+        (22, 29): outline,
+        (22, 30): outline,
+        (22, 31): outline,
+        (22, 32): outline,
+        (22, 33): outline,
+        (22, 34): outline,
+        (22, 35): outline,
+        (22, 36): outline,
+        (22, 37): outline,
+        (22, 38): outline,
+        (22, 39): outline,
+        (23, 17): outline,
+        (23, 18): bamboo,
+        (23, 19): bamboo,
+        (23, 20): bamboo,
+        (23, 21): bamboo,
+        (23, 22): bamboo,
+        (23, 23): bamboo,
+        (23, 24): bamboo,
+        (23, 25): bamboo,
+        (23, 26): bamboo,
+        (23, 27): bamboo,
+        (23, 28): bamboo,
+        (23, 29): bamboo,
+        (23, 30): bamboo,
+        (23, 31): bamboo,
+        (23, 32): bamboo,
+        (23, 33): bamboo,
+        (23, 34): bamboo,
+        (23, 35): bamboo,
+        (23, 36): bamboo,
+        (23, 37): bamboo,
+        (23, 38): bamboo,
+        (23, 39): bamboo,
+        (23, 40): outline,
+        (24, 17): outline,
+        (24, 18): bamboo,
+        (24, 19): bamboo,
+        (24, 20): bamboo,
+        (24, 21): bamboo,
+        (24, 22): bamboo,
+        (24, 23): bamboo,
+        (24, 24): bamboo,
+        (24, 25): bamboo,
+        (24, 26): bamboo,
+        (24, 27): bamboo,
+        (24, 28): bamboo,
+        (24, 29): bamboo,
+        (24, 30): bamboo,
+        (24, 31): bamboo,
+        (24, 32): bamboo,
+        (24, 33): bamboo,
+        (24, 34): bamboo,
+        (24, 35): bamboo,
+        (24, 36): bamboo,
+        (24, 37): bamboo,
+        (24, 38): bamboo,
+        (24, 39): bamboo,
+        (24, 40): outline,
+        (25, 18): outline,
+        (25, 19): outline,
+        (25, 20): outline,
+        (25, 21): outline,
+        (25, 22): outline,
+        (25, 23): outline,
+        (25, 24): outline,
+        (25, 25): outline,
+        (25, 26): outline,
+        (25, 27): outline,
+        (25, 28): outline,
+        (25, 29): outline,
+        (25, 30): outline,
+        (25, 31): outline,
+        (25, 32): outline,
+        (25, 33): outline,
+        (25, 34): outline,
+        (25, 35): outline,
+        (25, 36): outline,
+        (25, 37): outline,
+        (25, 38): outline,
+        (25, 39): outline,
+    }
+
+
+def test_rod_pixels_clips_an_upward_shaft_to_the_canvas() -> None:
+    assert fish.rod_pixels({"grip": (1.0, 1.0), "angle": 0.0, "line": False}) == {
+        (0, 0): (166, 140, 72, 255),
+        (1, 0): (166, 140, 72, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 1): (34, 34, 34, 255),
+        (2, 0): (34, 34, 34, 255),
+    }
+
+
+def test_rod_pixels_rejects_a_pose_without_a_grip() -> None:
+    with pytest.raises(KeyError, match="grip"):
+        fish.rod_pixels({})
+
+
+def test_fish_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    fish.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_fish_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    fish.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_fish_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        fish.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_fish_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_fish_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_fish_dwarf_sheet(sheet)
+    monkeypatch.setattr(fish, "DWARF", sheet)
+    assert fish.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_fish_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_fish_dwarf_sheet(sheet)
+    monkeypatch.setattr(fish, "DWARF", sheet)
+    assert fish.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_fish_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_fish_dwarf_sheet(sheet)
+    monkeypatch.setattr(fish, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        fish.dwarf_pixels({})
+
+
+def test_fish_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert fish.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_fish_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert fish.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_fish_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        fish.fist_pixels(None)
+
+
+def test_draw_fish_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
+    frame = fish.draw_frame(
+        {
+            "lean_x": 0,
+            "drop_y": 0,
+            "grip": (1.0, 1.0),
+            "angle": 0.0,
+            "in_front": False,
+            "line": False,
+        }
+    )
+    assert frame.size == (64, 60)
+    assert frame.getpixel((0, 0))[3] > 0
+    assert _image_digest(frame) == "237ff3117b956a412ed8006338f5b597943e7cb35732e41c21821d315365332c"
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
