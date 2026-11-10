@@ -9,6 +9,7 @@ from PIL import Image
 import draw_dungeon_actors as actors
 import draw_dungeon_environment as environment
 import draw_dwarf_pickaxe_swing as pickaxe
+import draw_dwarf_hoe_till as hoe
 import draw_homestead_eat_frames as eat
 import draw_hunter_frames as hunter
 import draw_skill_icons as icons
@@ -541,6 +542,69 @@ def test_pickaxe_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
     monkeypatch.setattr(pickaxe, "DWARF", folder / "missing.png")
     with pytest.raises(FileNotFoundError):
         pickaxe.main()
+
+
+def test_hoe_outline_around_wraps_a_single_pixel():
+    assert hoe.outline_around({(1, 1): hoe.WOOD}) == {
+        (1, 1): (119, 92, 85, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_hoe_outline_around_of_an_empty_layer_stays_empty():
+    assert hoe.outline_around({}) == {}
+
+
+def test_hoe_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        hoe.outline_around(None)
+
+
+def test_draw_frame_puts_the_hoe_behind_the_dwarf_on_the_first_pose():
+    frame = hoe.draw_frame(hoe.POSES[0])
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "c19e0ef0d03a56f1affb35e6eed00a48920d51d4f095adacbaa8a77e3f2d4aab"
+
+
+def test_draw_frame_puts_the_hoe_in_front_on_the_third_pose():
+    frame = hoe.draw_frame(hoe.POSES[2])
+    assert _image_digest(frame) == "1416b9358c85391279aabf0d6361de66e539578191b9a06fc5567185c23899cb"
+    assert _image_digest(frame) != "c19e0ef0d03a56f1affb35e6eed00a48920d51d4f095adacbaa8a77e3f2d4aab"
+
+
+def test_draw_hoe_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        hoe.draw_frame({})
+
+
+def test_hoe_main_writes_four_till_frames_with_the_locked_hashes(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(hoe, "FOLDER", folder)
+    monkeypatch.setattr(
+        hoe, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    hoe.main()
+    expected = [
+        "3402c5ce57a776dddd9461f1ffd30652a49a4d9b79f17f96e4feafb1496e88cf",
+        "959258744f0b12d8acc960f3833f951cbe412c5ce382c3681b6a94b461519e6a",
+        "e3eabac304dbacdc377751c8b8ec579c42c40de508e169a8c7b0ffc40705f635",
+        "c441f24bcf46183106aa60be63651ab5512fcdce236048d369773b3949383ebb",
+    ]
+    assert [_file_digest(folder / f"dwarf_m_hoe_t1_f{index}.png") for index in range(4)] == expected
+
+
+def test_hoe_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(hoe, "FOLDER", folder)
+    monkeypatch.setattr(hoe, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        hoe.main()
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
