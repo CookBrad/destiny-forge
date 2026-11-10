@@ -11,6 +11,7 @@ import draw_dungeon_environment as environment
 import draw_dwarf_pickaxe_swing as pickaxe
 import draw_dwarf_hoe_till as hoe
 import draw_dwarf_fishing_cast as fish
+import draw_dwarf_facing as facing
 import draw_homestead_eat_frames as eat
 import draw_hunter_frames as hunter
 import draw_skill_icons as icons
@@ -1165,6 +1166,143 @@ def test_draw_fish_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
     assert frame.size == (64, 60)
     assert frame.getpixel((0, 0))[3] > 0
     assert _image_digest(frame) == "237ff3117b956a412ed8006338f5b597943e7cb35732e41c21821d315365332c"
+
+
+
+def test_facing_stamp_pattern_paints_palette_keys() -> None:
+    assert facing.stamp_pattern(["a..............."] + ["." * 16] * 27) == {
+        (0, 0): (34, 34, 34, 255)
+    }
+
+
+def test_facing_stamp_pattern_of_an_empty_grid_stays_empty() -> None:
+    assert facing.stamp_pattern(["." * 16] * 28) == {}
+
+
+def test_facing_stamp_pattern_rejects_a_missing_pattern() -> None:
+    with pytest.raises(TypeError):
+        facing.stamp_pattern(None)
+
+
+def test_facing_require_pattern_size_accepts_a_full_canvas() -> None:
+    facing.require_pattern_size(facing.FRONT_IDLE_BASE)
+
+
+def test_facing_require_pattern_size_rejects_a_short_pattern() -> None:
+    with pytest.raises(ValueError, match="height"):
+        facing.require_pattern_size(["." * 16])
+
+
+def test_facing_require_pattern_size_rejects_a_narrow_row() -> None:
+    with pytest.raises(ValueError, match="width"):
+        facing.require_pattern_size(["." * 15] + ["." * 16] * 27)
+
+
+def test_facing_with_boots_replaces_the_boot_rows() -> None:
+    rows = facing.with_boots(facing.FRONT_IDLE_BASE, "A" * 16, "B" * 16, "C" * 16)
+    assert rows[23] == "A" * 16
+    assert rows[24] == "B" * 16
+    assert rows[25] == "C" * 16
+    assert rows[0] == facing.FRONT_IDLE_BASE[0]
+
+
+def test_facing_with_boots_on_a_blank_canvas_keeps_other_rows() -> None:
+    blank = ["." * 16] * 28
+    rows = facing.with_boots(blank, "b" * 16, "b" * 16, "a" * 16)
+    assert rows[22] == "." * 16
+    assert rows[23] == "b" * 16
+
+
+def test_facing_with_boots_rejects_a_missing_base() -> None:
+    with pytest.raises(TypeError):
+        facing.with_boots(None, "." * 16, "." * 16, "." * 16)
+
+
+def test_facing_draw_frame_matches_the_locked_front_idle_digest() -> None:
+    frame = facing.draw_frame(facing.FRONT_IDLE_BASE)
+    assert frame.size == (16, 28)
+    assert _image_digest(frame) == "4156e79d3c292ff8e87ecbf33160aeec033a4e790903755a80e2f2fc6a4de909"
+
+
+def test_facing_draw_frame_with_a_single_outline_pixel() -> None:
+    pattern = ["a..............."] + ["." * 16] * 27
+    frame = facing.draw_frame(pattern)
+    assert frame.getpixel((0, 0)) == (34, 34, 34, 255)
+    assert _image_digest(frame) == "e4ee68e2c8e4ad0fd3243a294e0252b32c1b255a609704420fb238569037e0bb"
+
+
+def test_facing_draw_frame_rejects_an_empty_pattern() -> None:
+    with pytest.raises(ValueError, match="height"):
+        facing.draw_frame([])
+
+
+def test_facing_main_writes_ap1_sets_with_the_locked_pixel_digests(tmp_path, monkeypatch) -> None:
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(facing, "FOLDER", folder)
+    facing.main()
+    expected = {
+        "dwarf_m_idle_front": [
+            "4156e79d3c292ff8e87ecbf33160aeec033a4e790903755a80e2f2fc6a4de909",
+            "e3c3f8802111c17d7cfdf58ccfe8bcf16b55f5969fe61a0feb8a5a439fc77752",
+            "4156e79d3c292ff8e87ecbf33160aeec033a4e790903755a80e2f2fc6a4de909",
+            "372dd7f0979183cdbdbe104e3764104a7a82682e6bdd09976ec27a64cc6908b8",
+        ],
+        "dwarf_m_walk_front": [
+            "03d4043cd8f06ad15727f99258a257db0a841f3f193dfcd2835a83c6d2b4b510",
+            "372dd7f0979183cdbdbe104e3764104a7a82682e6bdd09976ec27a64cc6908b8",
+            "c11ac07dadb54627a6c84fc0a4bc2c0e5833161438c75ccc3146ea2f2fedb9ac",
+            "8b0023cde9b738a6c3b44dcaee4b6144b7ad540e73e00a166a27fe731b8a30fc",
+        ],
+        "dwarf_m_walk_back": [
+            "9c9e138a07909ff11c8fa6105817ac607531bd9aa01551445a390dc1333c8c77",
+            "633a1b4825c9ad3c56c79e317f12a7333881510988a72940f0a16afdc4b0bed7",
+            "e8a6c3bc04caabedbe4aea10f75d6060540e43380f9e3a29116b7543eaf14f84",
+            "e7a87c2522c8ebc18d53e5d93e91a1a8bf122a23b26162e7e76e1acbba32ba92",
+        ],
+    }
+    for stem, digests in expected.items():
+        assert [
+            _image_digest(Image.open(folder / f"{stem}_f{index}.png").convert("RGBA"))
+            for index in range(4)
+        ] == digests
+
+
+def test_facing_idle_front_frames_returns_four_patterns() -> None:
+    frames = facing.idle_front_frames()
+    assert len(frames) == 4
+    assert frames[0] == facing.FRONT_IDLE_BASE
+
+
+def test_facing_walk_builders_return_four_boot_variants() -> None:
+    front_boots = [
+        ("...abba..bba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "....aba.aba.....", "....aa...aa....."),
+        ("...bba..abba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "...aba...aba....", "...aa.....aa...."),
+    ]
+    back_boots = [
+        ("...abba..bba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "....aba.aba.....", "....aa...aa....."),
+        ("...bba..abba....", "...aba...aba....", "...aa.....aa...."),
+        ("....abbaabba....", "...aba...aba....", "...aa.....aa...."),
+    ]
+    front_frames = facing.walk_front_frames()
+    back_frames = facing.walk_back_frames()
+    assert len(front_frames) == 4
+    assert len(back_frames) == 4
+    for frame, (row23, row24, row25) in zip(front_frames, front_boots, strict=True):
+        assert frame[23] == row23
+        assert frame[24] == row24
+        assert frame[25] == row25
+    for frame, (row23, row24, row25) in zip(back_frames, back_boots, strict=True):
+        assert frame[23] == row23
+        assert frame[24] == row24
+        assert frame[25] == row25
+
+
+def test_facing_back_walk_frames_show_hair_on_the_back_of_the_head() -> None:
+    assert facing.walk_back_frames()[0][10] == "..arrrrrrrrrra.."
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
