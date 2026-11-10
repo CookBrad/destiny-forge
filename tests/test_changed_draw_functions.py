@@ -20,6 +20,7 @@ import draw_dwarf_hoe_t5 as hoe_t5
 import draw_dwarf_hoe_charge_t2 as hoe_charge_t2
 import draw_dwarf_hoe_charge_t3 as hoe_charge_t3
 import draw_dwarf_hoe_charge_t4 as hoe_charge_t4
+import draw_dwarf_hoe_charge_t5 as hoe_charge_t5
 import draw_dwarf_water_pour as water
 import draw_dwarf_water_empty as water_empty
 import draw_dwarf_fishing_cast as fish
@@ -2913,6 +2914,270 @@ def test_hoe_charge_t4_frames_differ_from_the_t2_and_t3_charge_sets() -> None:
     ]
     assert brass_frames != [
         _image_digest(hoe_t4.draw_frame(pose)) for pose in hoe_t4.POSES[:3]
+    ]
+
+
+def test_hoe_charge_t5_outline_around_wraps_a_single_pixel():
+    assert hoe_charge_t5.outline_around({(1, 1): hoe_charge_t5.WOOD}) == {
+        (1, 1): (119, 92, 85, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_hoe_charge_t5_outline_around_of_an_empty_layer_stays_empty():
+    assert hoe_charge_t5.outline_around({}) == {}
+
+
+def test_hoe_charge_t5_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        hoe_charge_t5.outline_around(None)
+
+
+def test_draw_hoe_charge_t5_frame_raises_the_hoe_behind_the_dwarf_on_the_first_pose():
+    frame = hoe_charge_t5.draw_frame(hoe_charge_t5.POSES[0])
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "3c455fd3454c9b69f17440eac2ab6eca27990fbff46ed7ab0948f01b1f144e43"
+
+
+def test_draw_hoe_charge_t5_frame_lifts_on_the_second_pose():
+    frame = hoe_charge_t5.draw_frame(hoe_charge_t5.POSES[1])
+    assert frame.size == (48, 60)
+    assert _image_digest(frame) == "68f08606a92454086f09123716fdd90140613eeffb0354e2ca0263ce42cf95fa"
+
+
+def test_draw_hoe_charge_t5_frame_peaks_on_the_third_pose():
+    frame = hoe_charge_t5.draw_frame(hoe_charge_t5.POSES[2])
+    assert _image_digest(frame) == "231ae714ad7baec6352f592cab9ef3cf2288373d24300b26487e06f5038e3471"
+    assert _image_digest(frame) != "3c455fd3454c9b69f17440eac2ab6eca27990fbff46ed7ab0948f01b1f144e43"
+
+
+def test_draw_hoe_charge_t5_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        hoe_charge_t5.draw_frame({})
+
+
+def test_hoe_charge_t5_main_writes_three_charge_frames_with_the_locked_pixel_digests(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(hoe_charge_t5, "FOLDER", folder)
+    monkeypatch.setattr(
+        hoe_charge_t5, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    hoe_charge_t5.main()
+    expected = [
+        "3c455fd3454c9b69f17440eac2ab6eca27990fbff46ed7ab0948f01b1f144e43",
+        "68f08606a92454086f09123716fdd90140613eeffb0354e2ca0263ce42cf95fa",
+        "231ae714ad7baec6352f592cab9ef3cf2288373d24300b26487e06f5038e3471",
+    ]
+    assert [
+        _image_digest(Image.open(folder / f"dwarf_m_hoe_charge_t5_f{index}.png").convert("RGBA"))
+        for index in range(3)
+    ] == expected
+    assert sorted(path.name for path in folder.iterdir()) == [
+        "dwarf_m_hoe_charge_t5_f0.png",
+        "dwarf_m_hoe_charge_t5_f1.png",
+        "dwarf_m_hoe_charge_t5_f2.png",
+    ]
+
+
+def test_hoe_charge_t5_main_with_no_poses_writes_nothing(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(hoe_charge_t5, "FOLDER", folder)
+    monkeypatch.setattr(hoe_charge_t5, "POSES", [])
+    hoe_charge_t5.main()
+    assert list(folder.iterdir()) == []
+
+
+def test_hoe_charge_t5_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(hoe_charge_t5, "FOLDER", folder)
+    monkeypatch.setattr(hoe_charge_t5, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        hoe_charge_t5.main()
+
+
+def test_hoe_charge_t5_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert hoe_charge_t5.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_hoe_charge_t5_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert hoe_charge_t5.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_hoe_charge_t5_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert hoe_charge_t5.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_hoe_charge_t5_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        hoe_charge_t5.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_hoe_charge_t5_pixels_draws_an_aethersteel_blade_with_a_charge_level_mark() -> None:
+    assert hoe_charge_t5.hoe_pixels((24.0, 40.0), 0.0) == {(23, 26): (148, 176, 212, 255), (24, 26): (148, 176, 212, 255), (23, 27): (148, 176, 212, 255), (24, 27): (148, 176, 212, 255), (23, 28): (119, 92, 85, 255), (24, 28): (119, 92, 85, 255), (23, 29): (119, 92, 85, 255), (24, 29): (119, 92, 85, 255), (23, 30): (119, 92, 85, 255), (24, 30): (119, 92, 85, 255), (23, 31): (119, 92, 85, 255), (24, 31): (119, 92, 85, 255), (23, 32): (119, 92, 85, 255), (24, 32): (119, 92, 85, 255), (23, 33): (119, 92, 85, 255), (24, 33): (119, 92, 85, 255), (23, 34): (119, 92, 85, 255), (24, 34): (119, 92, 85, 255), (23, 35): (119, 92, 85, 255), (24, 35): (119, 92, 85, 255), (23, 36): (119, 92, 85, 255), (24, 36): (119, 92, 85, 255), (23, 37): (119, 92, 85, 255), (24, 37): (119, 92, 85, 255), (23, 38): (119, 92, 85, 255), (24, 38): (119, 92, 85, 255), (23, 39): (119, 92, 85, 255), (24, 39): (119, 92, 85, 255), (23, 24): (148, 176, 212, 255), (24, 24): (148, 176, 212, 255), (25, 24): (148, 176, 212, 255), (26, 24): (148, 176, 212, 255), (27, 24): (148, 176, 212, 255), (28, 24): (148, 176, 212, 255), (29, 24): (148, 176, 212, 255), (30, 24): (148, 176, 212, 255), (31, 24): (72, 108, 168, 255), (21, 25): (148, 176, 212, 255), (22, 25): (148, 176, 212, 255), (23, 25): (148, 176, 212, 255), (24, 25): (148, 176, 212, 255), (25, 25): (148, 176, 212, 255), (26, 25): (148, 176, 212, 255), (27, 25): (148, 176, 212, 255), (28, 25): (148, 176, 212, 255), (29, 25): (148, 176, 212, 255), (30, 25): (148, 176, 212, 255), (31, 25): (72, 108, 168, 255), (32, 25): (72, 108, 168, 255), (21, 26): (148, 176, 212, 255), (22, 26): (148, 176, 212, 255), (25, 26): (148, 176, 212, 255), (26, 26): (148, 176, 212, 255), (27, 26): (148, 176, 212, 255), (28, 26): (148, 176, 212, 255), (29, 26): (148, 176, 212, 255), (30, 26): (148, 176, 212, 255), (31, 26): (72, 108, 168, 255), (32, 26): (72, 108, 168, 255), (25, 27): (148, 176, 212, 255), (26, 27): (148, 176, 212, 255), (27, 27): (148, 176, 212, 255), (28, 27): (148, 176, 212, 255), (29, 27): (148, 176, 212, 255), (30, 27): (148, 176, 212, 255), (31, 27): (148, 176, 212, 255), (32, 24): (210, 236, 255, 255), (32, 23): (72, 108, 168, 255), (22, 27): (34, 34, 34, 255), (22, 28): (34, 34, 34, 255), (25, 28): (34, 34, 34, 255), (22, 29): (34, 34, 34, 255), (25, 29): (34, 34, 34, 255), (22, 30): (34, 34, 34, 255), (25, 30): (34, 34, 34, 255), (22, 31): (34, 34, 34, 255), (25, 31): (34, 34, 34, 255), (22, 32): (34, 34, 34, 255), (25, 32): (34, 34, 34, 255), (22, 33): (34, 34, 34, 255), (25, 33): (34, 34, 34, 255), (22, 34): (34, 34, 34, 255), (25, 34): (34, 34, 34, 255), (22, 35): (34, 34, 34, 255), (25, 35): (34, 34, 34, 255), (22, 36): (34, 34, 34, 255), (25, 36): (34, 34, 34, 255), (22, 37): (34, 34, 34, 255), (25, 37): (34, 34, 34, 255), (22, 38): (34, 34, 34, 255), (25, 38): (34, 34, 34, 255), (22, 39): (34, 34, 34, 255), (23, 40): (34, 34, 34, 255), (25, 39): (34, 34, 34, 255), (24, 40): (34, 34, 34, 255), (22, 24): (34, 34, 34, 255), (23, 23): (34, 34, 34, 255), (24, 23): (34, 34, 34, 255), (25, 23): (34, 34, 34, 255), (26, 23): (34, 34, 34, 255), (27, 23): (34, 34, 34, 255), (28, 23): (34, 34, 34, 255), (29, 23): (34, 34, 34, 255), (30, 23): (34, 34, 34, 255), (31, 23): (34, 34, 34, 255), (20, 25): (34, 34, 34, 255), (21, 24): (34, 34, 34, 255), (33, 25): (34, 34, 34, 255), (20, 26): (34, 34, 34, 255), (21, 27): (34, 34, 34, 255), (33, 26): (34, 34, 34, 255), (32, 27): (34, 34, 34, 255), (26, 28): (34, 34, 34, 255), (27, 28): (34, 34, 34, 255), (28, 28): (34, 34, 34, 255), (29, 28): (34, 34, 34, 255), (30, 28): (34, 34, 34, 255), (31, 28): (34, 34, 34, 255), (33, 24): (34, 34, 34, 255), (33, 23): (34, 34, 34, 255), (32, 22): (34, 34, 34, 255)}
+
+
+def test_hoe_charge_t5_pixels_clips_an_upward_handle_to_the_canvas() -> None:
+    assert hoe_charge_t5.hoe_pixels((1.0, 1.0), 0.0) == {(0, 0): (119, 92, 85, 255), (1, 0): (119, 92, 85, 255), (9, -15): (210, 236, 255, 255), (9, -16): (72, 108, 168, 255), (0, 1): (34, 34, 34, 255), (2, 0): (34, 34, 34, 255), (1, 1): (34, 34, 34, 255)}
+
+
+def test_hoe_charge_t5_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        hoe_charge_t5.hoe_pixels(None, 0.0)
+
+
+def test_hoe_charge_t5_place_charge_level_mark_paints_the_aethersteel_mark_above_the_blade_tip() -> None:
+    layer = {}
+    hoe_charge_t5.place_charge_level_mark(layer, (30.2, 26.2))
+    assert layer == {
+        (30, 24): (210, 236, 255, 255),
+        (30, 23): (72, 108, 168, 255),
+    }
+
+
+def test_hoe_charge_t5_place_charge_level_mark_replaces_a_pixel_above_a_fractional_tip() -> None:
+    layer = {(2, -1): (1, 2, 3, 255)}
+    hoe_charge_t5.place_charge_level_mark(layer, (1.6, 1.4))
+    assert layer == {
+        (2, -1): (210, 236, 255, 255),
+        (2, -2): (72, 108, 168, 255),
+    }
+
+
+def test_hoe_charge_t5_place_charge_level_mark_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        hoe_charge_t5.place_charge_level_mark(None, (1.0, 1.0))
+
+
+def test_hoe_charge_t5_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    hoe_charge_t5.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_hoe_charge_t5_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    hoe_charge_t5.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_hoe_charge_t5_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        hoe_charge_t5.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_hoe_charge_t5_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_hoe_charge_t5_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_charge_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_charge_t5, "DWARF", sheet)
+    assert hoe_charge_t5.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_hoe_charge_t5_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_charge_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_charge_t5, "DWARF", sheet)
+    assert hoe_charge_t5.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_hoe_charge_t5_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_charge_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_charge_t5, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        hoe_charge_t5.dwarf_pixels({})
+
+
+def test_hoe_charge_t5_dwarf_pixels_rejects_a_missing_sheet(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(hoe_charge_t5, "DWARF", tmp_path / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        hoe_charge_t5.dwarf_pixels({"lean_x": 0, "drop_y": 0})
+
+
+def test_hoe_charge_t5_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert hoe_charge_t5.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_hoe_charge_t5_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert hoe_charge_t5.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_hoe_charge_t5_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        hoe_charge_t5.fist_pixels(None)
+
+
+def test_draw_hoe_charge_t5_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
+    frame = hoe_charge_t5.draw_frame(
+        {"lean_x": 0, "drop_y": 0, "grip": (1.0, 1.0), "angle": 0.0, "in_front": False}
+    )
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0))[3] > 0
+    assert _image_digest(frame) == "1d30f48e2ec679240bdd7daa9aa0159cef3ead2fc53e11847fd0d2ac13d4322b"
+
+
+def test_hoe_charge_t5_frames_differ_from_the_t2_t3_and_t4_charge_sets() -> None:
+    aethersteel_frames = [
+        _image_digest(hoe_charge_t5.draw_frame(pose)) for pose in hoe_charge_t5.POSES
+    ]
+    assert aethersteel_frames != [
+        _image_digest(hoe_charge_t2.draw_frame(pose)) for pose in hoe_charge_t2.POSES
+    ]
+    assert aethersteel_frames != [
+        _image_digest(hoe_charge_t3.draw_frame(pose)) for pose in hoe_charge_t3.POSES
+    ]
+    assert aethersteel_frames != [
+        _image_digest(hoe_charge_t4.draw_frame(pose)) for pose in hoe_charge_t4.POSES
+    ]
+    assert aethersteel_frames != [
+        _image_digest(hoe_t5.draw_frame(pose)) for pose in hoe_t5.POSES[:3]
     ]
 
 
