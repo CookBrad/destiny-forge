@@ -17,7 +17,7 @@ use crate::ui::forge_window::{
 use crate::ui::interaction_prompt::{best_prompt, InteractionPrompt, PromptKind};
 use crate::ui::inventory_window::InventoryWindowOpen;
 
-use super::layout::{homestead_forest_transition, Bed, HomesteadZone, OverworldLayout};
+use super::layout::{northern_forest_trail_entry_rect, SleepBed, HomesteadZone, OverworldLayout};
 use super::movement::{MapTransitionCooldown, OverworldPlayer, OverworldVelocity};
 
 const ZONE_INTERACT_RANGE: f32 = INTERACT_DISTANCE * 2.0;
@@ -91,7 +91,7 @@ pub fn overworld_interaction(
         }
     }
 
-    if cooldown.0.finished() && homestead_forest_transition().contains(position) && velocity.y > 1.0
+    if cooldown.0.finished() && northern_forest_trail_entry_rect().contains(position) && velocity.y > 1.0
     {
         next_state.set(GameState::Forest);
     }
@@ -120,7 +120,7 @@ pub fn try_sleep_at_bed(
     inventory: Res<InventoryWindowOpen>,
     forge: Res<ForgeWindowOpen>,
     player: Query<&Transform, With<OverworldPlayer>>,
-    beds: Query<&Transform, With<Bed>>,
+    beds: Query<&Transform, With<SleepBed>>,
     sleep: SleepAtBed,
 ) {
     let SleepAtBed {
@@ -176,7 +176,7 @@ pub fn update_overworld_interaction_prompt(
     forge: Res<ForgeWindowOpen>,
     layout: Res<OverworldLayout>,
     player: Query<&Transform, With<OverworldPlayer>>,
-    beds: Query<&Transform, With<Bed>>,
+    beds: Query<&Transform, With<SleepBed>>,
     mut prompt: ResMut<InteractionPrompt>,
 ) {
     if inventory.0 || forge.0 {
@@ -196,7 +196,7 @@ pub fn update_overworld_interaction_prompt(
 fn overworld_prompt_candidates(
     position: Vec2,
     layout: &OverworldLayout,
-    beds: &Query<&Transform, With<Bed>>,
+    beds: &Query<&Transform, With<SleepBed>>,
 ) -> Vec<PromptKind> {
     let mut candidates = Vec::with_capacity(3);
 
@@ -210,6 +210,7 @@ fn overworld_prompt_candidates(
                 HomesteadZone::Forge => candidates.push(PromptKind::OpenForge),
                 HomesteadZone::DungeonGate => candidates.push(PromptKind::EnterDungeon),
                 HomesteadZone::MineEntrance => candidates.push(PromptKind::EnterMine),
+                HomesteadZone::FishingDock => candidates.push(PromptKind::FishingComingSoon),
                 _ => {}
             }
         }
@@ -218,7 +219,7 @@ fn overworld_prompt_candidates(
     candidates
 }
 
-fn near_any_bed(position: Vec2, beds: &Query<&Transform, With<Bed>>) -> bool {
+fn near_any_bed(position: Vec2, beds: &Query<&Transform, With<SleepBed>>) -> bool {
     beds.iter()
         .any(|bed| position.distance(bed.translation.truncate()) <= BED_INTERACT_RANGE)
 }
@@ -258,7 +259,7 @@ mod tests {
         .init_resource::<ClearColor>();
         app.world_mut()
             .spawn((OverworldPlayer, Transform::default()));
-        app.world_mut().spawn((Bed, Transform::default()));
+        app.world_mut().spawn((SleepBed, Transform::default()));
 
         app.world_mut().run_system_once(try_sleep_at_bed).unwrap();
 
@@ -298,7 +299,7 @@ mod tests {
             CalendarDate::from_calendar_day(last_day, &rules).season;
         app.world_mut()
             .spawn((OverworldPlayer, Transform::default()));
-        app.world_mut().spawn((Bed, Transform::default()));
+        app.world_mut().spawn((SleepBed, Transform::default()));
 
         app.world_mut().run_system_once(try_sleep_at_bed).unwrap();
 
@@ -318,5 +319,29 @@ mod tests {
         );
         assert_eq!(rollover.calendar_day, last_day + 1);
         assert_eq!(*app.world().resource::<Season>(), Season::Spring);
+    }
+
+    #[test]
+    fn fishing_dock_prompt_says_coming_soon() {
+        let mut app = App::new();
+        app.insert_resource(OverworldLayout::homestead())
+            .init_resource::<InventoryWindowOpen>()
+            .init_resource::<ForgeWindowOpen>()
+            .init_resource::<InteractionPrompt>()
+            .add_systems(Update, update_overworld_interaction_prompt);
+        let dock = crate::overworld::layout::fishing_dock_rect().center();
+        app.world_mut().spawn((
+            OverworldPlayer,
+            Transform::from_translation(dock.extend(0.0)),
+        ));
+        app.update();
+        assert_eq!(
+            app.world().resource::<InteractionPrompt>().kind,
+            Some(PromptKind::FishingComingSoon)
+        );
+        assert_eq!(
+            PromptKind::FishingComingSoon.label(),
+            "E — Fishing (coming soon)"
+        );
     }
 }

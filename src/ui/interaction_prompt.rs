@@ -15,6 +15,7 @@ pub enum PromptKind {
     MineCopper,
     MineIron,
     NeedIronPickaxe,
+    FishingComingSoon,
 }
 
 impl PromptKind {
@@ -30,6 +31,7 @@ impl PromptKind {
             Self::MineCopper => "Space — Mine copper",
             Self::MineIron => "Space — Mine iron",
             Self::NeedIronPickaxe => "Iron needs an Iron Pickaxe (forge)",
+            Self::FishingComingSoon => "E — Fishing (coming soon)",
         }
     }
 
@@ -43,6 +45,7 @@ impl PromptKind {
             Self::EnterMine => 10,
             Self::MineCopper | Self::MineIron | Self::NeedIronPickaxe => 25,
             Self::LeaveMine => 15,
+            Self::FishingComingSoon => 10,
         }
     }
 }
