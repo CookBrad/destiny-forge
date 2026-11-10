@@ -25,13 +25,11 @@ SKIN = require_opaque_color((216, 165, 125, 255))
 WOOD = require_opaque_color((119, 92, 85, 255))
 TIN = require_opaque_color((148, 152, 156, 255))
 TIN_EDGE = require_opaque_color((96, 100, 106, 255))
-WATER = require_opaque_color((88, 148, 212, 255))
-WATER_FOAM = require_opaque_color((176, 208, 236, 255))
 
 POSES = [
-    {"lean_x": -1, "drop_y": 0, "grip": (21.5, 28.5), "angle": -35.0, "stream": 0.0, "in_front": True},
-    {"lean_x": 1, "drop_y": 0, "grip": (25.5, 28.5), "angle": 35.0, "stream": 0.0, "in_front": True},
-    {"lean_x": -1, "drop_y": 0, "grip": (22.5, 29.5), "angle": -25.0, "stream": 0.0, "in_front": True},
+    {"lean_x": -1, "drop_y": 0, "grip": (21.5, 28.5), "angle": -35.0, "in_front": True},
+    {"lean_x": 1, "drop_y": 0, "grip": (25.5, 28.5), "angle": 35.0, "in_front": True},
+    {"lean_x": -1, "drop_y": 0, "grip": (22.5, 29.5), "angle": -25.0, "in_front": True},
 ]
 
 
@@ -41,13 +39,13 @@ def main():
 
 
 def draw_frame(pose):
-    can = can_pixels(pose["grip"], pose["angle"], pose["stream"])
+    can = can_pixels(pose["grip"], pose["angle"])
     layers = [dwarf_pixels(pose), can] if pose["in_front"] else [can, dwarf_pixels(pose)]
     layers.append(fist_pixels(pose["grip"]))
     return composite_layers(CANVAS_WIDTH, CANVAS_HEIGHT, layers)
 
 
-def can_pixels(grip, angle_degrees, stream_length):
+def can_pixels(grip, angle_degrees):
     radians = math.radians(angle_degrees)
     along = (math.sin(radians), -math.cos(radians))
     across = (along[1] * -1, along[0])
@@ -68,13 +66,6 @@ def can_pixels(grip, angle_degrees, stream_length):
         ring_end = (body[0] + across[0] * offset + along[0] * CAN_RADIUS, body[1] + across[1] * offset + along[1] * CAN_RADIUS)
         stroke(layer, [(ring_start, ring_end)], 1.1, TIN)
     stroke(layer, [(body, (body[0] - along[0] * CAN_RADIUS, body[1] - along[1] * CAN_RADIUS))], 0.9, TIN_EDGE)
-    if stream_length > 0:
-        stream_end = (
-            spout[0] + across[0] * stream_length + along[0] * stream_length * 0.35,
-            spout[1] + across[1] * stream_length + along[1] * stream_length * 0.35,
-        )
-        stroke(layer, [(spout, stream_end)], 0.7, WATER)
-        stroke(layer, [(stream_end, (stream_end[0] + across[0] * 1.2, stream_end[1] + across[1] * 1.2))], 0.9, WATER_FOAM)
     return outline_around(layer)
 
 
