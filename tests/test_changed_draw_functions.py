@@ -2030,6 +2030,122 @@ def test_hoe_t5_pixels_rejects_a_missing_grip() -> None:
         hoe_t5.hoe_pixels(None, 0.0)
 
 
+def test_hoe_t5_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert hoe_t5.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_hoe_t5_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert hoe_t5.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_hoe_t5_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert hoe_t5.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_hoe_t5_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        hoe_t5.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_hoe_t5_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    hoe_t5.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_hoe_t5_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    hoe_t5.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_hoe_t5_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        hoe_t5.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_hoe_t5_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_hoe_t5_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_t5, "DWARF", sheet)
+    assert hoe_t5.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_hoe_t5_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_t5, "DWARF", sheet)
+    assert hoe_t5.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_hoe_t5_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_hoe_t5_dwarf_sheet(sheet)
+    monkeypatch.setattr(hoe_t5, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        hoe_t5.dwarf_pixels({})
+
+
+def test_hoe_t5_dwarf_pixels_rejects_a_missing_sheet(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(hoe_t5, "DWARF", tmp_path / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        hoe_t5.dwarf_pixels({"lean_x": 0, "drop_y": 0})
+
+
+def test_hoe_t5_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert hoe_t5.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_hoe_t5_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert hoe_t5.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_hoe_t5_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        hoe_t5.fist_pixels(None)
+
+
 def test_hoe_t5_frames_differ_from_lower_tier_pixel_digests() -> None:
     frames = [_image_digest(hoe_t5.draw_frame(pose)) for pose in hoe_t5.POSES]
     assert frames != [_image_digest(hoe.draw_frame(pose)) for pose in hoe.POSES]
