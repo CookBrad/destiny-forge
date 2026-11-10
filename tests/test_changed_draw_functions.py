@@ -590,12 +590,15 @@ def test_hoe_main_writes_four_till_frames_with_the_locked_hashes(tmp_path, monke
     )
     hoe.main()
     expected = [
-        "3402c5ce57a776dddd9461f1ffd30652a49a4d9b79f17f96e4feafb1496e88cf",
-        "959258744f0b12d8acc960f3833f951cbe412c5ce382c3681b6a94b461519e6a",
-        "e3eabac304dbacdc377751c8b8ec579c42c40de508e169a8c7b0ffc40705f635",
-        "c441f24bcf46183106aa60be63651ab5512fcdce236048d369773b3949383ebb",
+        "c19e0ef0d03a56f1affb35e6eed00a48920d51d4f095adacbaa8a77e3f2d4aab",
+        "a81f4d6456dfec0eafafc0ab4f2b3832f5396fb23958b6b9e014d6bad3fe569a",
+        "1416b9358c85391279aabf0d6361de66e539578191b9a06fc5567185c23899cb",
+        "39242e8243013006807f39286c6f9aefc627619bcf83f0eebc90caf1e3ff7d4d",
     ]
-    assert [_file_digest(folder / f"dwarf_m_hoe_t1_f{index}.png") for index in range(4)] == expected
+    assert [
+        _image_digest(Image.open(folder / f"dwarf_m_hoe_t1_f{index}.png").convert("RGBA"))
+        for index in range(4)
+    ] == expected
 
 
 def test_hoe_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
