@@ -2120,10 +2120,10 @@ def test_draw_axe_t4_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
 
 
 def test_axe_t4_frames_differ_from_lower_tier_pixel_digests() -> None:
-    t = [_image_digest(axe_t4.draw_frame(pose)) for pose in axe_t4.POSES]
-    assert t != [_image_digest(axe.draw_frame(pose)) for pose in axe.POSES]
-    assert t != [_image_digest(axe_t2.draw_frame(pose)) for pose in axe_t2.POSES]
-    assert t != [_image_digest(axe_t3.draw_frame(pose)) for pose in axe_t3.POSES]
+    brass_frame_digests = [_image_digest(axe_t4.draw_frame(pose)) for pose in axe_t4.POSES]
+    assert brass_frame_digests != [_image_digest(axe.draw_frame(pose)) for pose in axe.POSES]
+    assert brass_frame_digests != [_image_digest(axe_t2.draw_frame(pose)) for pose in axe_t2.POSES]
+    assert brass_frame_digests != [_image_digest(axe_t3.draw_frame(pose)) for pose in axe_t3.POSES]
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
