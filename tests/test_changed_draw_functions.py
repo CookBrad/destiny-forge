@@ -14,6 +14,7 @@ import draw_dwarf_fishing_cast as fish
 import draw_dwarf_facing as facing
 import draw_dwarf_axe_chop as axe
 import draw_dwarf_axe_chop_t2 as axe_t2
+import draw_dwarf_axe_chop_t3 as axe_t3
 import draw_homestead_eat_frames as eat
 import draw_hunter_frames as hunter
 import draw_skill_icons as icons
@@ -1711,6 +1712,211 @@ def test_axe_t2_frames_differ_from_axe_t1_pixel_digests() -> None:
     ] != [
         _image_digest(axe.draw_frame(pose)) for pose in axe.POSES
     ]
+
+
+
+def test_axe_t3_outline_around_wraps_a_single_pixel():
+    assert axe_t3.outline_around({(1, 1): axe_t3.WOOD}) == {
+        (1, 1): (119, 92, 85, 255),
+        (2, 1): (34, 34, 34, 255),
+        (0, 1): (34, 34, 34, 255),
+        (1, 2): (34, 34, 34, 255),
+        (1, 0): (34, 34, 34, 255),
+    }
+
+
+def test_axe_t3_outline_around_of_an_empty_layer_stays_empty():
+    assert axe_t3.outline_around({}) == {}
+
+
+def test_axe_t3_outline_around_rejects_a_missing_layer():
+    with pytest.raises(TypeError):
+        axe_t3.outline_around(None)
+
+
+def test_draw_axe_t3_frame_puts_the_axe_behind_the_dwarf_on_the_first_pose():
+    frame = axe_t3.draw_frame(axe_t3.POSES[0])
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0)) == (0, 0, 0, 0)
+    assert _image_digest(frame) == "fee55701f442b44f875c3f992b27d1983bff77ffa568a48ce083293504d4e8b4"
+
+
+def test_draw_axe_t3_frame_puts_the_axe_in_front_on_the_third_pose():
+    frame = axe_t3.draw_frame(axe_t3.POSES[2])
+    assert _image_digest(frame) == "1670adc135981f0520b0c913d64d397c71020360c1620030d225c216d1131855"
+    assert _image_digest(frame) != "fee55701f442b44f875c3f992b27d1983bff77ffa568a48ce083293504d4e8b4"
+
+
+def test_draw_axe_t3_frame_rejects_a_pose_without_a_grip():
+    with pytest.raises(KeyError, match="grip"):
+        axe_t3.draw_frame({})
+
+
+def test_axe_t3_main_writes_four_chop_frames_with_the_locked_pixel_digests(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(axe_t3, "FOLDER", folder)
+    monkeypatch.setattr(
+        axe_t3, "DWARF", ROOT / "assets" / "player" / "non-combat" / "dwarf_m_idle_anim_f0.png"
+    )
+    axe_t3.main()
+    expected = [
+        "fee55701f442b44f875c3f992b27d1983bff77ffa568a48ce083293504d4e8b4",
+        "3bfa2bf414737415d0082698b791a6a4e404c1da451cccea6e0ce5acaaeb2c32",
+        "1670adc135981f0520b0c913d64d397c71020360c1620030d225c216d1131855",
+        "8cd9b2abeff684dde2ef9be212794339c394d80a3f9bc8c470918b4de86ce6e2",
+    ]
+    assert [
+        _image_digest(Image.open(folder / f"dwarf_m_axe_t3_f{index}.png").convert("RGBA"))
+        for index in range(4)
+    ] == expected
+
+
+def test_axe_t3_main_rejects_a_missing_dwarf_sheet(tmp_path, monkeypatch):
+    folder = tmp_path / "frames"
+    folder.mkdir()
+    monkeypatch.setattr(axe_t3, "FOLDER", folder)
+    monkeypatch.setattr(axe_t3, "DWARF", folder / "missing.png")
+    with pytest.raises(FileNotFoundError):
+        axe_t3.main()
+
+
+def test_axe_t3_distance_to_segment_is_zero_on_the_segment_end() -> None:
+    assert axe_t3.distance_to_segment(3, 4, 0, 0, 3, 4) == 0
+
+
+def test_axe_t3_distance_to_segment_measures_a_point_beside_a_horizontal_segment() -> None:
+    assert axe_t3.distance_to_segment(1, 2, 0, 0, 2, 0) == 2
+
+
+def test_axe_t3_distance_to_segment_of_a_zero_length_segment_is_the_point_distance() -> None:
+    assert axe_t3.distance_to_segment(5, 5, 2, 2, 2, 2) == (3**2 + 3**2) ** 0.5
+
+
+def test_axe_t3_distance_to_segment_rejects_a_missing_coordinate() -> None:
+    with pytest.raises(TypeError):
+        axe_t3.distance_to_segment(None, 0, 0, 0, 1, 0)
+
+
+def test_axe_t3_pixels_draws_an_iron_blade_from_the_grip() -> None:
+    assert axe_t3.axe_pixels((24.0, 40.0), 0.0) == {(23, 25): (132, 140, 148, 255), (24, 25): (132, 140, 148, 255), (23, 26): (132, 140, 148, 255), (24, 26): (132, 140, 148, 255), (23, 27): (132, 140, 148, 255), (24, 27): (132, 140, 148, 255), (23, 28): (180, 188, 196, 255), (24, 28): (180, 188, 196, 255), (23, 29): (132, 140, 148, 255), (24, 29): (132, 140, 148, 255), (23, 30): (119, 92, 85, 255), (24, 30): (119, 92, 85, 255), (23, 31): (119, 92, 85, 255), (24, 31): (119, 92, 85, 255), (23, 32): (119, 92, 85, 255), (24, 32): (119, 92, 85, 255), (23, 33): (119, 92, 85, 255), (24, 33): (119, 92, 85, 255), (23, 34): (119, 92, 85, 255), (24, 34): (119, 92, 85, 255), (23, 35): (119, 92, 85, 255), (24, 35): (119, 92, 85, 255), (23, 36): (119, 92, 85, 255), (24, 36): (119, 92, 85, 255), (23, 37): (119, 92, 85, 255), (24, 37): (119, 92, 85, 255), (23, 38): (119, 92, 85, 255), (24, 38): (119, 92, 85, 255), (23, 39): (119, 92, 85, 255), (24, 39): (119, 92, 85, 255), (21, 25): (132, 140, 148, 255), (22, 25): (132, 140, 148, 255), (25, 25): (132, 140, 148, 255), (26, 25): (132, 140, 148, 255), (19, 26): (132, 140, 148, 255), (20, 26): (132, 140, 148, 255), (21, 26): (132, 140, 148, 255), (22, 26): (132, 140, 148, 255), (25, 26): (132, 140, 148, 255), (26, 26): (132, 140, 148, 255), (27, 26): (132, 140, 148, 255), (28, 26): (132, 140, 148, 255), (17, 27): (132, 140, 148, 255), (18, 27): (132, 140, 148, 255), (19, 27): (132, 140, 148, 255), (20, 27): (132, 140, 148, 255), (21, 27): (132, 140, 148, 255), (22, 27): (132, 140, 148, 255), (25, 27): (132, 140, 148, 255), (26, 27): (132, 140, 148, 255), (27, 27): (132, 140, 148, 255), (28, 27): (132, 140, 148, 255), (29, 27): (132, 140, 148, 255), (30, 27): (132, 140, 148, 255), (16, 28): (132, 140, 148, 255), (17, 28): (180, 188, 196, 255), (18, 28): (180, 188, 196, 255), (19, 28): (180, 188, 196, 255), (20, 28): (180, 188, 196, 255), (21, 28): (180, 188, 196, 255), (22, 28): (180, 188, 196, 255), (25, 28): (180, 188, 196, 255), (26, 28): (180, 188, 196, 255), (27, 28): (180, 188, 196, 255), (28, 28): (180, 188, 196, 255), (29, 28): (180, 188, 196, 255), (30, 28): (180, 188, 196, 255), (31, 28): (132, 140, 148, 255), (17, 29): (132, 140, 148, 255), (18, 29): (132, 140, 148, 255), (19, 29): (132, 140, 148, 255), (20, 29): (132, 140, 148, 255), (21, 29): (132, 140, 148, 255), (22, 29): (132, 140, 148, 255), (25, 29): (132, 140, 148, 255), (26, 29): (132, 140, 148, 255), (27, 29): (132, 140, 148, 255), (28, 29): (132, 140, 148, 255), (29, 29): (132, 140, 148, 255), (30, 29): (132, 140, 148, 255), (17, 24): (72, 78, 86, 255), (18, 24): (72, 78, 86, 255), (19, 24): (72, 78, 86, 255), (20, 24): (72, 78, 86, 255), (21, 24): (72, 78, 86, 255), (22, 24): (72, 78, 86, 255), (23, 24): (72, 78, 86, 255), (24, 24): (72, 78, 86, 255), (25, 24): (72, 78, 86, 255), (26, 24): (72, 78, 86, 255), (27, 24): (72, 78, 86, 255), (28, 24): (72, 78, 86, 255), (29, 24): (72, 78, 86, 255), (30, 24): (72, 78, 86, 255), (22, 30): (34, 34, 34, 255), (25, 30): (34, 34, 34, 255), (22, 31): (34, 34, 34, 255), (25, 31): (34, 34, 34, 255), (22, 32): (34, 34, 34, 255), (25, 32): (34, 34, 34, 255), (22, 33): (34, 34, 34, 255), (25, 33): (34, 34, 34, 255), (22, 34): (34, 34, 34, 255), (25, 34): (34, 34, 34, 255), (22, 35): (34, 34, 34, 255), (25, 35): (34, 34, 34, 255), (22, 36): (34, 34, 34, 255), (25, 36): (34, 34, 34, 255), (22, 37): (34, 34, 34, 255), (25, 37): (34, 34, 34, 255), (22, 38): (34, 34, 34, 255), (25, 38): (34, 34, 34, 255), (22, 39): (34, 34, 34, 255), (23, 40): (34, 34, 34, 255), (25, 39): (34, 34, 34, 255), (24, 40): (34, 34, 34, 255), (20, 25): (34, 34, 34, 255), (27, 25): (34, 34, 34, 255), (18, 26): (34, 34, 34, 255), (19, 25): (34, 34, 34, 255), (29, 26): (34, 34, 34, 255), (28, 25): (34, 34, 34, 255), (16, 27): (34, 34, 34, 255), (17, 26): (34, 34, 34, 255), (31, 27): (34, 34, 34, 255), (30, 26): (34, 34, 34, 255), (15, 28): (34, 34, 34, 255), (16, 29): (34, 34, 34, 255), (32, 28): (34, 34, 34, 255), (31, 29): (34, 34, 34, 255), (17, 30): (34, 34, 34, 255), (18, 30): (34, 34, 34, 255), (19, 30): (34, 34, 34, 255), (20, 30): (34, 34, 34, 255), (21, 30): (34, 34, 34, 255), (26, 30): (34, 34, 34, 255), (27, 30): (34, 34, 34, 255), (28, 30): (34, 34, 34, 255), (29, 30): (34, 34, 34, 255), (30, 30): (34, 34, 34, 255), (16, 24): (34, 34, 34, 255), (17, 25): (34, 34, 34, 255), (17, 23): (34, 34, 34, 255), (18, 25): (34, 34, 34, 255), (18, 23): (34, 34, 34, 255), (19, 23): (34, 34, 34, 255), (20, 23): (34, 34, 34, 255), (21, 23): (34, 34, 34, 255), (22, 23): (34, 34, 34, 255), (23, 23): (34, 34, 34, 255), (24, 23): (34, 34, 34, 255), (25, 23): (34, 34, 34, 255), (26, 23): (34, 34, 34, 255), (27, 23): (34, 34, 34, 255), (28, 23): (34, 34, 34, 255), (29, 25): (34, 34, 34, 255), (29, 23): (34, 34, 34, 255), (31, 24): (34, 34, 34, 255), (30, 25): (34, 34, 34, 255), (30, 23): (34, 34, 34, 255)}
+
+
+def test_axe_t3_pixels_clips_an_upward_handle_to_the_canvas() -> None:
+    assert axe_t3.axe_pixels((1.0, 1.0), 0.0) == {(0, 0): (119, 92, 85, 255), (1, 0): (119, 92, 85, 255), (0, 1): (34, 34, 34, 255), (2, 0): (34, 34, 34, 255), (1, 1): (34, 34, 34, 255)}
+
+
+def test_axe_t3_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        axe_t3.axe_pixels(None, 0.0)
+
+
+def test_axe_t3_stroke_paints_pixels_whose_centers_fall_inside_the_radius() -> None:
+    layer = {}
+    axe_t3.stroke(layer, [((1, 1), (3, 1))], 0.5, RED)
+    assert layer == {(1, 0): RED, (1, 1): RED, (2, 0): RED, (2, 1): RED}
+
+
+def test_axe_t3_stroke_with_a_zero_radius_paints_centers_on_the_segment() -> None:
+    layer = {}
+    axe_t3.stroke(layer, [((0.5, 0.5), (2.5, 0.5))], 0.0, BLUE)
+    assert layer == {(0, 0): BLUE, (1, 0): BLUE, (2, 0): BLUE}
+
+
+def test_axe_t3_stroke_rejects_a_missing_layer() -> None:
+    with pytest.raises(TypeError):
+        axe_t3.stroke(None, [((1, 1), (3, 1))], 0.5, RED)
+
+
+def _write_axe_t3_dwarf_sheet(path: Path) -> None:
+    image = Image.new("RGBA", (2, 23), (0, 0, 0, 0))
+    image.putpixel((0, 21), BLUE)
+    image.putpixel((0, 22), RED)
+    image.putpixel((1, 22), GREEN)
+    image.save(path)
+
+
+def test_axe_t3_dwarf_pixels_moves_the_head_while_the_body_stays_put(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_axe_t3_dwarf_sheet(sheet)
+    monkeypatch.setattr(axe_t3, "DWARF", sheet)
+    assert axe_t3.dwarf_pixels({"lean_x": 3, "drop_y": -1}) == {
+        (19, 36): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_axe_t3_dwarf_pixels_omits_a_fully_transparent_pixel(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_axe_t3_dwarf_sheet(sheet)
+    monkeypatch.setattr(axe_t3, "DWARF", sheet)
+    assert axe_t3.dwarf_pixels({"lean_x": 0, "drop_y": 0}) == {
+        (16, 37): BLUE,
+        (16, 38): RED,
+        (17, 38): GREEN,
+    }
+
+
+def test_axe_t3_dwarf_pixels_rejects_a_pose_without_a_lean(tmp_path, monkeypatch) -> None:
+    sheet = tmp_path / "dwarf.png"
+    _write_axe_t3_dwarf_sheet(sheet)
+    monkeypatch.setattr(axe_t3, "DWARF", sheet)
+    with pytest.raises(KeyError, match="lean_x"):
+        axe_t3.dwarf_pixels({})
+
+
+def test_axe_t3_fist_pixels_paints_a_skin_block_around_the_grip() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert axe_t3.fist_pixels((20.5, 27.5)) == {
+        (18, 27): outline,
+        (18, 28): outline,
+        (19, 26): outline,
+        (19, 27): skin,
+        (19, 28): skin,
+        (19, 29): outline,
+        (20, 26): outline,
+        (20, 27): skin,
+        (20, 28): skin,
+        (20, 29): outline,
+        (21, 27): outline,
+        (21, 28): outline,
+    }
+
+
+def test_axe_t3_fist_pixels_keeps_skin_past_the_left_edge() -> None:
+    skin = (216, 165, 125, 255)
+    outline = (34, 34, 34, 255)
+    assert axe_t3.fist_pixels((0.2, 0.2)) == {
+        (-1, 0): skin,
+        (-1, 1): skin,
+        (0, 0): skin,
+        (0, 1): skin,
+        (0, 2): outline,
+        (1, 0): outline,
+        (1, 1): outline,
+    }
+
+
+def test_axe_t3_fist_pixels_rejects_a_missing_grip() -> None:
+    with pytest.raises(TypeError):
+        axe_t3.fist_pixels(None)
+
+
+def test_draw_axe_t3_frame_with_a_corner_grip_stays_on_the_canvas() -> None:
+    frame = axe_t3.draw_frame(
+        {"lean_x": 0, "drop_y": 0, "grip": (1.0, 1.0), "angle": 0.0, "in_front": False}
+    )
+    assert frame.size == (48, 60)
+    assert frame.getpixel((0, 0))[3] > 0
+    assert _image_digest(frame) == "b4db7bfb2738e61555739b7e0b2d1bacfc291d0df25239d13c67a48be2b89309"
+
+
+def test_axe_t3_frames_differ_from_axe_t1_and_t2_pixel_digests() -> None:
+    t3 = [_image_digest(axe_t3.draw_frame(pose)) for pose in axe_t3.POSES]
+    assert t3 != [_image_digest(axe.draw_frame(pose)) for pose in axe.POSES]
+    assert t3 != [_image_digest(axe_t2.draw_frame(pose)) for pose in axe_t2.POSES]
 
 
 def test_dip_head_moves_the_head_down_by_the_requested_rows():
