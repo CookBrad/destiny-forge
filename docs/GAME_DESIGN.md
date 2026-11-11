@@ -561,7 +561,7 @@ Status reflects the repo at v1.0 doc time. Combat priority overrides lifestyle w
 
 ## Art Direction
 
-The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference is the north star. Taste signed the hunter attack pair 2026-08-28. The signed cells stay byte-for-byte once the matte is gone: idle, the run lean, the attack chamber, and the attack thrust. A 2026-09-26 decision allowed two further edits on `assets/player/combat/knight_*_side.png`. The opaque black background may be removed. New in-house frames may be added beside those signed cells: a played run cycle, an attack in-between, an attack recover, and jump, fall, and death poses. An added frame does not redraw a signed cell.
+The cozy warm-earthy-green look is **superseded** for the world and characters. It does not apply to the UI. Taste signed the hunter attack pair 2026-08-28. The signed cells stay byte-for-byte once the matte is gone: idle, the run lean, the attack chamber, and the attack thrust. A 2026-09-26 decision allowed two further edits on `assets/player/combat/knight_*_side.png`. The opaque black background may be removed. New in-house frames may be added beside those signed cells: a played run cycle, an attack in-between, an attack recover, and jump, fall, and death poses. An added frame does not redraw a signed cell.
 
 | Spec | Value |
 | ---- | ----- |
@@ -583,7 +583,7 @@ The GDD cozy Stardew / warm-earthy-green look is **superseded**. User reference 
 | Palette | Weathered browns, dark grays, neon purple piping, electric-blue circuitry, brass |
 | Player | Distressed leather duster, brass mechanical gauntlet (LEFT, purple cable), techno-energy sword in the glove (RIGHT), Rust-language **R** on the chest |
 | Homestead forge | Top-down pad-view landmark. Dual perspective stays. Not a side-view sheet. |
-| UI | Dark chrome with purple/cyan highlights |
+| UI | Warm wood frames, parchment panels, and a red-orange selection highlight |
 | Combat VFX | Readable silhouettes; wind-ups readable at a glance. Hurtbox is the body; reach is the blade. |
 | Redraw | All art redrawn in-house at the target size in this section. Never upscale the old 16px art. Signed hunter pixels stay (matte excepted). |
 
