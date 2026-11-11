@@ -119,7 +119,6 @@ mod tests {
     use super::{cycle_action_bar_slot_from_mouse_wheel, select_action_bar_slot_from_number_keys};
     use crate::core::GameState;
     use crate::farming::action_bar::ActionBar;
-    use crate::farming::select_tool::select_homestead_tool;
     use crate::farming::tools::{EquippedTool, HomesteadTool};
     use crate::input::InputPlugin;
     use crate::ui::forge_window::{forge_closed, ForgeWindowOpen};
@@ -287,7 +286,6 @@ mod tests {
                 Update,
                 (
                     select_action_bar_slot_from_number_keys,
-                    select_homestead_tool,
                     cycle_action_bar_slot_from_mouse_wheel,
                 )
                     .chain()

@@ -6,7 +6,6 @@ mod persist;
 mod plots;
 mod plugin;
 mod select_action_bar_slot;
-mod select_tool;
 mod tools;
 mod use_tool;
 

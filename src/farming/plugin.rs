@@ -10,7 +10,6 @@ use super::plots::sync_plot_visuals;
 use super::select_action_bar_slot::{
     cycle_action_bar_slot_from_mouse_wheel, select_action_bar_slot_from_number_keys,
 };
-use super::select_tool::select_homestead_tool;
 use super::tools::EquippedTool;
 use super::use_tool::{
     capture_crop_plots_on_exit, ensure_starter_kit, update_player_facing, use_homestead_tool,
@@ -38,7 +37,6 @@ impl Plugin for FarmingPlugin {
                 Update,
                 (
                     select_action_bar_slot_from_number_keys,
-                    select_homestead_tool,
                     cycle_action_bar_slot_from_mouse_wheel,
                     update_player_facing,
                     use_homestead_tool,
