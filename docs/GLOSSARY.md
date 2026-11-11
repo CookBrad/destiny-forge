@@ -138,8 +138,7 @@ Code uses these exact words for domain concepts, spelled as shown, with no abbre
 | Seed bag | `SeedBag` | The tool that sows seeds. |
 | Charge level | `charge_level` | How long a tool or weapon use is held, which widens its effect. |
 | Tool tier | `ToolTier` | The upgrade step of a tool. |
-| Action bar | `ActionBar` | The 8-slot bar of selectable tools. It is one row at the bottom of the screen and moves to the top when the player stands near the bottom. It is a view of inventory slots, filled by click or drag from the inventory window, and selected with keys 1–8, the mouse wheel, or a click. |
-| Toolbar | `Toolbar` | The action bar. |
+| Toolbar | `Toolbar` | The 8-slot bar of selectable tools. |
 | Essence | `Essence` | An extracted crop product used as an infusion. |
 | Potion | `Potion` | A brewed consumable from the farm chain. |
 | Coating | `Coating` | An arrow treatment brewed from crops. |

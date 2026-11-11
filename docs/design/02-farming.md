@@ -69,7 +69,7 @@ All upgrades are crafted at the Destiny Forge (04) and need a Forge level. Each 
 
 Upgrade recipes (data, 04): T2 = tool + 5 Copper Bar; T3 = 5 Iron Bar; T4 = 5 Brass Bar + 2 Gear Spring; T5 = 5 Aethersteel Bar + 1 Monster Core (Tidal/Briar boss part) + Forge Lv3. This is the "rare monster part → forge upgrade → better farm tools" chain.
 
-Action bar: today tools are keys 1–4 with no drag-in bar. Adding Axe/Scythe/Fertilizer needs the 8-slot action bar (FRM-05: keys 1–8 and the mouse wheel, plus drag-in from the inventory window).
+Hotbar: today tools are keys 1–4 with no drag hotbar. Adding Axe/Scythe/Fertilizer needs a real tool bar (FRM-05: keys 1–8 + mouse wheel cycling).
 
 ## 5. ANIMATIONS (most detailed section)
 
@@ -110,8 +110,8 @@ Character total: **~24 sets, ~170 frames.**
 
 | # | Set | Frames | Size | Notes |
 | --- | --- | --- | --- | --- |
-| FT1 | Tool icons per tier: Hoe ×5, Can ×5, Axe ×5, Scythe ×2, Seed Bag, Sowing Drill, Spreader | 1 each = 20 | 16×16 | inventory + action bar |
-| FT2 | Water meter overlay on the can icon | 5 fill states | 16×16 | action bar |
+| FT1 | Tool icons per tier: Hoe ×5, Can ×5, Axe ×5, Scythe ×2, Seed Bag, Sowing Drill, Spreader | 1 each = 20 | 16×16 | inventory + toolbar |
+| FT2 | Water meter overlay on the can icon | 5 fill states | 16×16 | toolbar |
 | FT3 | Watering can water droplet splash | 4 | 16×16 | 0.05 ×4 at the F4 hit tile |
 
 ### 5.3 Entity / world sprites
@@ -165,7 +165,7 @@ Character total: **~24 sets, ~170 frames.**
 - Artisan goods (§7): ~45 icons (juices, oils, jams, pickles, flour, dried goods, essences ×6, potions ×10, coatings ×6, fertilizers ×6, seed packets via the Seed Maker reuse).
 - Wood, Hardwood, Fiber, Sap, Mixed Seeds: 5.
 - Machines (as placeable items): 12 icons.
-- HUD: water meter, season badge (4), fertilizer cursor, action bar frame and slots (8 slots, in-house art).
+- HUD: water meter, season badge (4), fertilizer cursor, tool toolbar frames (8 slots).
 
 ## 6. Crops (data in `assets/data/crops.ron`)
 
@@ -288,7 +288,7 @@ Start: Hoe T1, Can T1, Seeds, Hand, 15 Turnip seeds, 6×4 field. Day 3: Axe T1 (
 
 ## 13. UI
 
-- **Action bar** (8 slots) replaces the 4-key tool select HUD and keeps those bindings. Keys 1–8 and the mouse wheel change the selected slot; clicking a slot selects it. The bar is one row, centered at the bottom of the screen, and moves to the top when the player stands near the bottom. The frame is a warm brown wooden bevel with light parchment slot backgrounds, a red-orange highlight on the selected slot, slot numbers in the top-left of each slot, stack counts in the bottom-right for seeds, and a tooltip that names the hovered item. Frame and slot art are drawn in-house and wired in the same pull request. In the inventory window, click or drag to pick an item up and drop it into a bar slot, swapping if that slot is already full. The bar is a view of inventory slots, so items are not duplicated. Using the selected slot on the tile in front of the player uses that slot's item; seeds plant from it. The bar shows the water meter and the selected tool's tier icon.
+- **Toolbar** (8 slots, keys 1–8, wheel cycle) replaces the 4-key tool select HUD; shows the water meter and tier icons.
 - **Tile cursor** shows the area of effect (charge preview) as a drawn grid sprite.
 - **Plot inspector** (hover): crop, days left, watered, fertilizer, season-valid.
 - **Machine UI**: insert by using the item on the machine. The status bubble shows the output icon. Hover shows time left.
@@ -336,7 +336,7 @@ Art first for the existing actions (they currently have no frames):
 - **FRM-02 [GAME]** Play F1 on Hoe use (hit on f2), swap tilled/watered visuals to FE1/FE2. deps: FRM-01.
 - **FRM-03 [ART]** Watering T1 frames F4 + empty shake F7 + refill F8 + splash FT3. deps: none.
 - **FRM-04 [GAME]** Play F4 on water, can capacity 40 + refill at well/pond + water meter. deps: FRM-03, FRM-05 (soft).
-- **FRM-05 [UI]** 8-slot action bar (keys 1–8 + wheel, drag-in from the inventory window, in-house frame and slot art), replacing the 4-key HUD and keeping existing bindings. deps: none.
+- **FRM-05 [UI]** 8-slot tool toolbar (keys 1–8 + wheel), replacing the 4-key HUD and keeping existing bindings. deps: none.
 - **FRM-06 [ART]** Sow frames F9 + harvest pull F11 + hold-up F12 + harvest pop FE8. deps: none.
 - **FRM-07 [GAME]** Wire sow/harvest/hold-up animations to existing Seeds/Hand actions. deps: FRM-06.
 - **FRM-08 [SAVE]** `ItemQuality` on inventory slots + profile migration (all existing = Normal) + split stacks by quality. deps: none.
