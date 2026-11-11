@@ -7,17 +7,21 @@ use crate::ui::inventory_window::inventory_closed;
 
 use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
-use super::select_tool::select_homestead_tool;
+use super::select_action_bar_slot::{
+    cycle_action_bar_slot_from_mouse_wheel, select_action_bar_slot_from_number_keys,
+};
 use super::tools::EquippedTool;
 use super::use_tool::{
     capture_crop_plots_on_exit, ensure_starter_kit, update_player_facing, use_homestead_tool,
 };
+use super::ActionBar;
 
 pub struct FarmingPlugin;
 
 impl Plugin for FarmingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EquippedTool>()
+            .init_resource::<ActionBar>()
             .add_systems(
                 OnEnter(GameState::Overworld),
                 (ensure_starter_kit, setup_tool_hud).after(setup_overworld),
@@ -32,7 +36,8 @@ impl Plugin for FarmingPlugin {
             .add_systems(
                 Update,
                 (
-                    select_homestead_tool,
+                    select_action_bar_slot_from_number_keys,
+                    cycle_action_bar_slot_from_mouse_wheel,
                     update_player_facing,
                     use_homestead_tool,
                     sync_plot_visuals,

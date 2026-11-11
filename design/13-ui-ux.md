@@ -33,7 +33,7 @@ Global overlay layer in all states. Screens: Title, Pause hub (tabs), Inventory,
 ## 4. Screens (requirements)
 
 ### 4.1 Inventory
-- 32 slots (exists) + 8-slot toolbar (02 FRM-05) + separate pouches: Hunt Items (05, 24), Ore Satchel (01), Decorations (04), Key Items, Gear Stash (04).
+- 32 slots (exists) + 8-slot action bar (02 FRM-05) + separate pouches: Hunt Items (05, 24), Ore Satchel (01), Decorations (04), Key Items, Gear Stash (04). From the inventory window, click or drag to pick an item up and drop it into an action bar slot, swapping if that slot is already full. The action bar is a view of inventory slots, so items are not duplicated.
 - Icons (PNG), quality stars, stack counts, category filter tabs, sort (exists), drag/drop + keyboard move, split stack, trash (confirm), quick-stack to nearby chest (storage chests: new craftable, Workbench).
 - Tooltip with **sources** and **uses** ("Used in: Iron Sword, Steam Sprinkler…").
 
@@ -70,7 +70,8 @@ Global overlay layer in all states. Screens: Title, Pause hub (tabs), Inventory,
 | Hold-E durations (carve, sleep) → tap-toggle | | off |
 
 ### 4.7 HUD
-Homestead: clock/season/weather (11), energy, gold, toolbar, quest tracker (pinned), buff chips. Hunt: HP, stamina, sharpness, weapon gauge, status icons, pouch quick-bar (cycle with a scroll/bumpers), faints, timer, track gauge, minimap. Toasts: item gained, part broken, level up, heart up, quest updated (drawn frames, queued, max 3).
+Homestead: clock/season/weather (11), energy, gold, action bar, quest tracker (pinned), buff chips. Hunt: HP, stamina, sharpness, weapon gauge, status icons, pouch quick-bar (cycle with a scroll/bumpers), faints, timer, track gauge, minimap. Toasts: item gained, part broken, level up, heart up, quest updated (drawn frames, queued, max 3).
+- The action bar is 8 slots in one row, centered at the bottom of the screen, and moves to the top when the player stands near the bottom. It has a warm brown wooden beveled frame, light parchment slot backgrounds, a red-orange highlight on the selected slot, slot numbers in the top-left of each slot, stack counts in the bottom-right for seeds, and a tooltip that names the hovered item. Keys 1–8, the mouse wheel, and a click on a slot change the selection. Using the selected slot on the tile in front of the player uses that slot's item; seeds plant from it. Frame and slot art are drawn in-house and wired in the same pull request.
 
 ## 5. ANIMATIONS (most detailed section)
 

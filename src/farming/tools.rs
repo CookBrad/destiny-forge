@@ -3,7 +3,6 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::input::Action;
 use crate::items::MaterialId;
 
 use super::crops::CropKind;
@@ -45,16 +44,6 @@ impl HomesteadTool {
             Self::WateringCan => 3.0,
             Self::Seeds => 1.0,
             Self::Hand => 0.0,
-        }
-    }
-
-    pub fn from_action(action: Action) -> Option<Self> {
-        match action {
-            Action::EquipHoe => Some(Self::Hoe),
-            Action::EquipWateringCan => Some(Self::WateringCan),
-            Action::EquipSeeds => Some(Self::Seeds),
-            Action::EquipHand => Some(Self::Hand),
-            _ => None,
         }
     }
 }
