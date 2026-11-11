@@ -136,6 +136,8 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 
 10.13. A file's tests live in that file's own `#[cfg(test)]` module, so they ship in the same pull request as the code they test (see rule 11.6).
 
+10.14. A test checks that every PNG under `assets/player` and `assets/ui` is referenced by the code or a data file.
+
 ---
 
 ## 11. Pull requests
@@ -155,6 +157,8 @@ All code in this project follows a strict reading of *Clean Code* (Robert C. Mar
 11.7. A rename that touches `.ron` data files in the repository updates those files in the same pull request, and the game must still load in a real `cargo run`.
 
 11.8. Every pull request gets a real `cargo run` before review, except docs-only pull requests, meaning pull requests that touch only `.md` files.
+
+11.9. An asset pull request is complete only when a real `cargo run` loads and displays the asset. Wiring and tests ship in the same pull request as the art.
 
 ---
 
