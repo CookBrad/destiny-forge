@@ -3,12 +3,15 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
+from PIL import Image
+
 from art_common import rejecting_canvas, require_opaque_color
 
 FOLDER = Path(__file__).resolve().parents[1] / "assets" / "ui" / "action_bar"
 FRAME_WIDTH = 166
 FRAME_HEIGHT = 26
 SLOT_SIZE = 18
+DESIGN_PIXEL_BLOCK_SIZE = 3
 SLOT_NUMBERS = (1, 2, 3, 4, 5, 6, 7, 8)
 BEVEL_THICKNESS = 2
 HIGHLIGHT_THICKNESS = 1
@@ -68,7 +71,7 @@ def draw_frame():
     require_canvas_can_hold(FRAME_WIDTH, FRAME_HEIGHT, MINIMUM_FRAME_SPAN)
     canvas = rejecting_canvas(FRAME_WIDTH, FRAME_HEIGHT)
     paint_wooden_bevel(canvas)
-    return canvas.image()
+    return enlarge_each_design_pixel(canvas.image())
 
 
 def require_canvas_can_hold(width, height, minimum_span) -> None:
@@ -136,11 +139,38 @@ def grain_row(column, base, phase):
     return round(base + wave)
 
 
+def enlarge_each_design_pixel(design_image):
+    enlarged = Image.new(
+        "RGBA",
+        (
+            design_image.width * DESIGN_PIXEL_BLOCK_SIZE,
+            design_image.height * DESIGN_PIXEL_BLOCK_SIZE,
+        ),
+    )
+    for design_row in range(design_image.height):
+        for design_column in range(design_image.width):
+            paint_design_pixel_block(
+                enlarged,
+                design_column,
+                design_row,
+                design_image.getpixel((design_column, design_row)),
+            )
+    return enlarged
+
+
+def paint_design_pixel_block(enlarged, design_column, design_row, color) -> None:
+    left = design_column * DESIGN_PIXEL_BLOCK_SIZE
+    top = design_row * DESIGN_PIXEL_BLOCK_SIZE
+    for row_offset in range(DESIGN_PIXEL_BLOCK_SIZE):
+        for column_offset in range(DESIGN_PIXEL_BLOCK_SIZE):
+            enlarged.putpixel((left + column_offset, top + row_offset), color)
+
+
 def draw_highlight():
     require_canvas_can_hold(SLOT_SIZE, SLOT_SIZE, MINIMUM_HIGHLIGHT_SPAN)
     canvas = rejecting_canvas(SLOT_SIZE, SLOT_SIZE)
     paint_highlight_border(canvas)
-    return canvas.image()
+    return enlarge_each_design_pixel(canvas.image())
 
 
 def paint_highlight_border(canvas) -> None:
@@ -190,7 +220,7 @@ def draw_slot(slot_number):
     canvas = rejecting_canvas(SLOT_SIZE, SLOT_SIZE)
     paint_parchment_slot(canvas)
     paint_slot_number(canvas, valid_slot_number)
-    return canvas.image()
+    return enlarge_each_design_pixel(canvas.image())
 
 
 def paint_parchment_slot(canvas) -> None:

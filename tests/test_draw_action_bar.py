@@ -8,18 +8,21 @@ from PIL import Image
 import draw_action_bar as action_bar
 from art_common import rejecting_canvas
 
-FRAME_PIXEL_DIGEST = "c187816c8178d422e6acf44f32fed1c7833d492547acd1e92eefcdbcaf659ad6"
-HIGHLIGHT_PIXEL_DIGEST = "eef548ed001eb649e2c365d3bc7c5ab397acd5efdb97ce55bacaf4af9d8cff9a"
+FRAME_PIXEL_DIGEST = "1fa1f8ca61803de010d06dcb05c197588b67500ec3d9d08ee59b44aba6cbdf9e"
+HIGHLIGHT_PIXEL_DIGEST = "3fff2e88ecbcc29c3ab880ee2d56c505730ad1bb940f0405decd459853fb15ad"
 SLOT_PIXEL_DIGESTS = (
-    "2d3102e37bb5d83d5fbd5de04a492660262273f69312fdc21797dd44d7c9fdef",
-    "0497ae692cd920ab2ff71e77eb897314a13e84570b0a3380e1d8225d4e1e4028",
-    "874f5140687f6f48f214503af840db5972724d049f18694460aeb229e1a29af1",
-    "1ec8e573e67dc32d5dae7f558947421ad72ae3dcd99f5e1d99aff4ba4c5bfdc5",
-    "d858bb5f47b4dd84da4345ae46cdb353aa223c44fbad911e07087197dfd9bf71",
-    "9e2b3b3b6852b4f8987a7abe527189259e5787cdf6e9fa6322d84cea7b770155",
-    "6e652be774b07cef87a8193a5ab058a732b76552389ce3d56c09bea132c1585f",
-    "06891eb0de2752ab23d729dd40f6ea8a3429a3e31a589e25788c3696309efc7a",
+    "22953aa4f257320a3d974186fe4d4bbba595973051057741effdf75bdccbc5cb",
+    "00afd48e82f6619a063a57b8998ea71b607cdd920103f0d0d7a71a26df92f9fb",
+    "9795deaa5eee390117da5227218246b48a4681746eb46ea80f7cd9accab230d5",
+    "804b8c8db8a65916c3a45de074f9dd258a7d9886c8be302d1d56dcfd1aadb110",
+    "bcfeb6806390d50fdfa853a4d28df7ac6b1cfe068090eb72f1b64b57b7ecaebb",
+    "bc17f8faf33880584b3585865341e612a45cb479422247c95b94781a265ad473",
+    "900e0f6df080ddc0b6efa0df8e4a6483923e0487fccc7ea91f5c2f2b524484c0",
+    "58257ba3323ac90797dae9ad55270c63d454ec4940954c2956d6851865d655ca",
 )
+DESIGN_FRAME_PIXEL_DIGEST = "c187816c8178d422e6acf44f32fed1c7833d492547acd1e92eefcdbcaf659ad6"
+DESIGN_HIGHLIGHT_PIXEL_DIGEST = "eef548ed001eb649e2c365d3bc7c5ab397acd5efdb97ce55bacaf4af9d8cff9a"
+DESIGN_SLOT_EIGHT_PIXEL_DIGEST = "06891eb0de2752ab23d729dd40f6ea8a3429a3e31a589e25788c3696309efc7a"
 PARCHMENT_PIXEL_DIGEST = "b60630afa139a05f77f1f1a93653b79011dd86cfc035c514f5359a93ab82feb5"
 SLOT_ONE_INK_PIXEL_DIGEST = "7bcedf36cb9c2aee5f1d44e7afc050e2d26bbcbf0bfc2cbd0abdb31545bb7956"
 SLOT_EIGHT_INK_PIXEL_DIGEST = "0fb2f5c45523ee25822d435b976f8164106c10c0d49667c5f104b8d5a2ae1d54"
@@ -123,15 +126,15 @@ def test_main_writes_the_action_bar_images_with_the_locked_pixel_digests(tmp_pat
         Image.open(tmp_path / f"slot_{slot_number}.png").convert("RGBA")
         for slot_number in action_bar.SLOT_NUMBERS
     ]
-    assert frame.size == (166, 26)
+    assert frame.size == (498, 78)
     assert frame.mode == "RGBA"
-    assert highlight.size == (18, 18)
+    assert highlight.size == (54, 54)
     assert highlight.mode == "RGBA"
     assert _image_digest(frame) == FRAME_PIXEL_DIGEST
     assert _image_digest(highlight) == HIGHLIGHT_PIXEL_DIGEST
     assert [_image_digest(slot) for slot in slots] == list(SLOT_PIXEL_DIGESTS)
     for slot in slots:
-        assert slot.size == (18, 18)
+        assert slot.size == (54, 54)
         assert slot.mode == "RGBA"
     pixel_digests = [
         _image_digest(frame),
@@ -177,10 +180,10 @@ def test_action_bar_images_returns_the_frame_the_highlight_and_eight_slots() -> 
     assert file_names == list(ACTION_BAR_FILE_NAMES)
     assert pixel_digests == [FRAME_PIXEL_DIGEST, HIGHLIGHT_PIXEL_DIGEST, *SLOT_PIXEL_DIGESTS]
     assert len(set(pixel_digests)) == 10
-    assert images[0].size == (166, 26)
-    assert images[1].size == (18, 18)
+    assert images[0].size == (498, 78)
+    assert images[1].size == (54, 54)
     for image in images[2:]:
-        assert image.size == (18, 18)
+        assert image.size == (54, 54)
         assert image.mode == "RGBA"
 
 
@@ -209,7 +212,7 @@ def test_the_action_bar_images_differ_from_each_other() -> None:
     for left in range(len(images)):
         for right in range(left + 1, len(images)):
             assert images[left].tobytes() != images[right].tobytes()
-    assert images[0].size == (166, 26)
+    assert images[0].size == (498, 78)
     for image in images:
         assert image.mode == "RGBA"
         raw_pixels = image.tobytes()
@@ -237,7 +240,7 @@ def test_slot_images_returns_eight_slots_with_the_locked_pixel_digests() -> None
     assert pixel_digests == list(SLOT_PIXEL_DIGESTS)
     assert len(set(pixel_digests)) == 8
     for _file_name, image in named_images:
-        assert image.size == (18, 18)
+        assert image.size == (54, 54)
         assert image.mode == "RGBA"
         assert _colors(image) == {PARCHMENT, PARCHMENT_SHADOW, INK}
 
@@ -302,15 +305,15 @@ def test_draw_frame_paints_the_locked_wooden_bevel() -> None:
     frame = action_bar.draw_frame()
     assert action_bar.FRAME_WIDTH == 166
     assert action_bar.FRAME_HEIGHT == 26
-    assert frame.size == (166, 26)
+    assert frame.size == (498, 78)
     assert frame.mode == "RGBA"
-    assert frame.getpixel((0, 0)) == WOOD_LIGHT
-    assert frame.getpixel((2, 2)) == WOOD
-    assert frame.getpixel((82, 12)) == WOOD
-    assert frame.getpixel((2, 4)) == GRAIN_DARK
-    assert frame.getpixel((150, 2)) == KNOT
-    assert frame.getpixel((164, 1)) == WOOD_DARK
-    assert frame.getpixel((165, 25)) == WOOD_DARK
+    assert frame.getpixel((0 * 3, 0 * 3)) == WOOD_LIGHT
+    assert frame.getpixel((2 * 3, 2 * 3)) == WOOD
+    assert frame.getpixel((82 * 3, 12 * 3)) == WOOD
+    assert frame.getpixel((2 * 3, 4 * 3)) == GRAIN_DARK
+    assert frame.getpixel((150 * 3, 2 * 3)) == KNOT
+    assert frame.getpixel((164 * 3, 1 * 3)) == WOOD_DARK
+    assert frame.getpixel((165 * 3, 25 * 3)) == WOOD_DARK
     assert action_bar.WOOD == WOOD
     assert action_bar.WOOD_LIGHT == WOOD_LIGHT
     assert action_bar.WOOD_DARK == WOOD_DARK
@@ -324,13 +327,13 @@ def test_draw_frame_paints_the_locked_wooden_bevel() -> None:
 
 def test_draw_frame_leaves_the_outer_wood_corners_outside_the_bevel() -> None:
     frame = action_bar.draw_frame()
-    assert frame.getpixel((165, 0)) == WOOD
-    assert frame.getpixel((0, 25)) == WOOD
-    assert frame.getpixel((164, 0)) == WOOD_LIGHT
-    assert frame.getpixel((0, 24)) == WOOD_LIGHT
-    assert frame.getpixel((1, 24)) == WOOD_DARK
-    assert frame.getpixel((1, 25)) == WOOD_DARK
-    assert frame.getpixel((163, 23)) == WOOD
+    assert frame.getpixel((165 * 3, 0 * 3)) == WOOD
+    assert frame.getpixel((0 * 3, 25 * 3)) == WOOD
+    assert frame.getpixel((164 * 3, 0 * 3)) == WOOD_LIGHT
+    assert frame.getpixel((0 * 3, 24 * 3)) == WOOD_LIGHT
+    assert frame.getpixel((1 * 3, 24 * 3)) == WOOD_DARK
+    assert frame.getpixel((1 * 3, 25 * 3)) == WOOD_DARK
+    assert frame.getpixel((163 * 3, 23 * 3)) == WOOD
     assert _image_digest(frame) == FRAME_PIXEL_DIGEST
 
 
@@ -399,7 +402,7 @@ def test_paint_wooden_bevel_paints_the_light_top_and_the_dark_bottom() -> None:
     assert canvas.read(164, 12) == WOOD_DARK
     assert canvas.read(165, 25) == WOOD_DARK
     assert _colors(image) == FRAME_COLORS
-    assert _image_digest(image) == FRAME_PIXEL_DIGEST
+    assert _image_digest(image) == DESIGN_FRAME_PIXEL_DIGEST
 
 
 def test_paint_wooden_bevel_on_the_minimum_frame_keeps_two_wood_corners() -> None:
@@ -644,16 +647,16 @@ def test_paint_knot_rejects_a_missing_canvas() -> None:
 def test_draw_highlight_paints_the_locked_red_orange_border() -> None:
     highlight = action_bar.draw_highlight()
     assert action_bar.SLOT_SIZE == 18
-    assert highlight.size == (18, 18)
+    assert highlight.size == (54, 54)
     assert highlight.mode == "RGBA"
-    assert highlight.getpixel((0, 0)) == HIGHLIGHT
-    assert highlight.getpixel((17, 0)) == HIGHLIGHT
-    assert highlight.getpixel((0, 17)) == HIGHLIGHT
-    assert highlight.getpixel((17, 17)) == HIGHLIGHT
-    assert highlight.getpixel((8, 0)) == HIGHLIGHT
-    assert highlight.getpixel((1, 1)) == CLEAR
-    assert highlight.getpixel((8, 8)) == CLEAR
-    assert highlight.getpixel((16, 16)) == CLEAR
+    assert highlight.getpixel((0 * 3, 0 * 3)) == HIGHLIGHT
+    assert highlight.getpixel((17 * 3, 0 * 3)) == HIGHLIGHT
+    assert highlight.getpixel((0 * 3, 17 * 3)) == HIGHLIGHT
+    assert highlight.getpixel((17 * 3, 17 * 3)) == HIGHLIGHT
+    assert highlight.getpixel((8 * 3, 0 * 3)) == HIGHLIGHT
+    assert highlight.getpixel((1 * 3, 1 * 3)) == CLEAR
+    assert highlight.getpixel((8 * 3, 8 * 3)) == CLEAR
+    assert highlight.getpixel((16 * 3, 16 * 3)) == CLEAR
     assert action_bar.HIGHLIGHT == HIGHLIGHT
     assert _colors(highlight) == {CLEAR, HIGHLIGHT}
     assert _image_digest(highlight) == HIGHLIGHT_PIXEL_DIGEST
@@ -661,15 +664,21 @@ def test_draw_highlight_paints_the_locked_red_orange_border() -> None:
 
 def test_draw_highlight_leaves_the_inner_square_clear() -> None:
     highlight = action_bar.draw_highlight()
-    for row in range(1, 17):
-        for column in range(1, 17):
+    block_size = action_bar.DESIGN_PIXEL_BLOCK_SIZE
+    border = action_bar.HIGHLIGHT_THICKNESS * block_size
+    size = action_bar.SLOT_SIZE * block_size
+    inner_end = size - border
+    for row in range(border, inner_end):
+        for column in range(border, inner_end):
             assert highlight.getpixel((column, row)) == CLEAR
-    for column in range(18):
-        assert highlight.getpixel((column, 0)) == HIGHLIGHT
-        assert highlight.getpixel((column, 17)) == HIGHLIGHT
-    for row in range(18):
-        assert highlight.getpixel((0, row)) == HIGHLIGHT
-        assert highlight.getpixel((17, row)) == HIGHLIGHT
+    for column in range(size):
+        for edge in range(border):
+            assert highlight.getpixel((column, edge)) == HIGHLIGHT
+            assert highlight.getpixel((column, inner_end + edge)) == HIGHLIGHT
+    for row in range(size):
+        for edge in range(border):
+            assert highlight.getpixel((edge, row)) == HIGHLIGHT
+            assert highlight.getpixel((inner_end + edge, row)) == HIGHLIGHT
 
 
 def test_draw_highlight_rejects_a_canvas_that_is_too_small(monkeypatch) -> None:
@@ -687,7 +696,7 @@ def test_paint_highlight_border_paints_the_locked_red_orange_edge() -> None:
     assert canvas.read(1, 1) is None
     assert canvas.read(16, 16) is None
     assert action_bar.HIGHLIGHT == HIGHLIGHT
-    assert _image_digest(canvas.image()) == HIGHLIGHT_PIXEL_DIGEST
+    assert _image_digest(canvas.image()) == DESIGN_HIGHLIGHT_PIXEL_DIGEST
 
 
 def test_paint_highlight_border_covers_a_two_by_two_canvas() -> None:
@@ -711,16 +720,16 @@ def test_paint_highlight_border_rejects_a_missing_canvas() -> None:
 
 def test_draw_slot_paints_the_locked_digit_one() -> None:
     slot = action_bar.draw_slot(1)
-    assert slot.size == (18, 18)
+    assert slot.size == (54, 54)
     assert slot.mode == "RGBA"
-    assert slot.getpixel((0, 0)) == PARCHMENT
-    assert slot.getpixel((16, 16)) == PARCHMENT
-    assert slot.getpixel((17, 0)) == PARCHMENT_SHADOW
-    assert slot.getpixel((0, 17)) == PARCHMENT_SHADOW
-    assert slot.getpixel((17, 17)) == PARCHMENT_SHADOW
-    assert slot.getpixel((3, 2)) == INK
-    assert slot.getpixel((2, 2)) == PARCHMENT
-    assert slot.getpixel((5, 8)) == INK
+    assert slot.getpixel((0 * 3, 0 * 3)) == PARCHMENT
+    assert slot.getpixel((16 * 3, 16 * 3)) == PARCHMENT
+    assert slot.getpixel((17 * 3, 0 * 3)) == PARCHMENT_SHADOW
+    assert slot.getpixel((0 * 3, 17 * 3)) == PARCHMENT_SHADOW
+    assert slot.getpixel((17 * 3, 17 * 3)) == PARCHMENT_SHADOW
+    assert slot.getpixel((3 * 3, 2 * 3)) == INK
+    assert slot.getpixel((2 * 3, 2 * 3)) == PARCHMENT
+    assert slot.getpixel((5 * 3, 8 * 3)) == INK
     assert action_bar.PARCHMENT == PARCHMENT
     assert action_bar.PARCHMENT_SHADOW == PARCHMENT_SHADOW
     assert action_bar.INK == INK
@@ -731,14 +740,14 @@ def test_draw_slot_paints_the_locked_digit_one() -> None:
 def test_draw_slot_keeps_the_first_digit_different_from_the_last() -> None:
     first = action_bar.draw_slot(1)
     last = action_bar.draw_slot(8)
-    assert first.size == (18, 18)
-    assert last.size == (18, 18)
-    assert first.getpixel((4, 2)) == PARCHMENT
-    assert last.getpixel((4, 2)) == INK
-    assert first.getpixel((2, 4)) == PARCHMENT
-    assert last.getpixel((2, 4)) == INK
-    assert first.getpixel((0, 0)) == PARCHMENT
-    assert last.getpixel((17, 17)) == PARCHMENT_SHADOW
+    assert first.size == (54, 54)
+    assert last.size == (54, 54)
+    assert first.getpixel((4 * 3, 2 * 3)) == PARCHMENT
+    assert last.getpixel((4 * 3, 2 * 3)) == INK
+    assert first.getpixel((2 * 3, 4 * 3)) == PARCHMENT
+    assert last.getpixel((2 * 3, 4 * 3)) == INK
+    assert first.getpixel((0 * 3, 0 * 3)) == PARCHMENT
+    assert last.getpixel((17 * 3, 17 * 3)) == PARCHMENT_SHADOW
     assert _image_digest(first) == SLOT_PIXEL_DIGESTS[0]
     assert _image_digest(last) == SLOT_PIXEL_DIGESTS[7]
     assert first.tobytes() != last.tobytes()
@@ -834,7 +843,7 @@ def test_paint_slot_number_stamps_the_digit_eight_without_covering_the_shadow() 
     assert canvas.read(17, 0) == PARCHMENT_SHADOW
     assert canvas.read(0, 17) == PARCHMENT_SHADOW
     assert canvas.read(9, 9) == PARCHMENT
-    assert _image_digest(canvas.image()) == SLOT_PIXEL_DIGESTS[7]
+    assert _image_digest(canvas.image()) == DESIGN_SLOT_EIGHT_PIXEL_DIGEST
 
 
 def test_paint_slot_number_rejects_zero_nine_bools_and_a_missing_canvas() -> None:
