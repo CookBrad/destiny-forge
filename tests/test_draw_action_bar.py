@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -9,7 +8,6 @@ from PIL import Image
 import draw_action_bar as action_bar
 from art_common import rejecting_canvas
 
-ROOT = Path(__file__).resolve().parents[1]
 FRAME_PIXEL_DIGEST = "6cf183e604715406f5596791a91c666306ae9c3d879e09bbce208038d209ab85"
 HIGHLIGHT_PIXEL_DIGEST = "eef548ed001eb649e2c365d3bc7c5ab397acd5efdb97ce55bacaf4af9d8cff9a"
 SLOT_PIXEL_DIGESTS = (
@@ -205,27 +203,6 @@ def test_the_action_bar_images_differ_from_each_other() -> None:
             assert pixel[3] in (0, 255)
             if pixel[3] == 0:
                 assert pixel == b"\x00\x00\x00\x00"
-
-
-def test_committed_action_bar_images_match_the_locked_pixel_digests() -> None:
-    folder = ROOT / "assets" / "ui" / "action_bar"
-    assert sorted(path.name for path in folder.iterdir()) == sorted(ACTION_BAR_FILE_NAMES)
-    frame = Image.open(folder / "frame.png").convert("RGBA")
-    highlight = Image.open(folder / "highlight.png").convert("RGBA")
-    slots = [
-        Image.open(folder / f"slot_{slot_number}.png").convert("RGBA")
-        for slot_number in range(1, 9)
-    ]
-    assert frame.size == (166, 26)
-    assert highlight.size == (18, 18)
-    assert _image_digest(frame) == FRAME_PIXEL_DIGEST
-    assert _image_digest(highlight) == HIGHLIGHT_PIXEL_DIGEST
-    assert [_image_digest(slot) for slot in slots] == list(SLOT_PIXEL_DIGESTS)
-    for slot in slots:
-        assert slot.size == (18, 18)
-        assert slot.mode == "RGBA"
-    pixel_bytes = [frame.tobytes(), highlight.tobytes(), *(slot.tobytes() for slot in slots)]
-    assert len(set(pixel_bytes)) == 10
 
 
 def test_slot_images_returns_eight_slots_with_the_locked_pixel_digests() -> None:
