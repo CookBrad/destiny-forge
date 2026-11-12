@@ -8,7 +8,7 @@ from PIL import Image
 import draw_action_bar as action_bar
 from art_common import rejecting_canvas
 
-FRAME_PIXEL_DIGEST = "6cf183e604715406f5596791a91c666306ae9c3d879e09bbce208038d209ab85"
+FRAME_PIXEL_DIGEST = "c187816c8178d422e6acf44f32fed1c7833d492547acd1e92eefcdbcaf659ad6"
 HIGHLIGHT_PIXEL_DIGEST = "eef548ed001eb649e2c365d3bc7c5ab397acd5efdb97ce55bacaf4af9d8cff9a"
 SLOT_PIXEL_DIGESTS = (
     "2d3102e37bb5d83d5fbd5de04a492660262273f69312fdc21797dd44d7c9fdef",
@@ -56,6 +56,11 @@ SLOT_EIGHT_INK = (
 WOOD = (139, 90, 48, 255)
 WOOD_LIGHT = (186, 132, 78, 255)
 WOOD_DARK = (86, 52, 28, 255)
+GRAIN_DARK = (112, 70, 36, 255)
+GRAIN_MID = (124, 80, 42, 255)
+GRAIN_LIGHT = (154, 102, 56, 255)
+KNOT = (96, 58, 30, 255)
+FRAME_COLORS = {WOOD, WOOD_LIGHT, WOOD_DARK, GRAIN_DARK, GRAIN_MID, GRAIN_LIGHT, KNOT}
 PARCHMENT = (244, 232, 206, 255)
 PARCHMENT_SHADOW = (214, 196, 164, 255)
 HIGHLIGHT = (220, 78, 36, 255)
@@ -84,6 +89,17 @@ def _colors(image: Image.Image) -> set:
         for row in range(height)
         for column in range(width)
     }
+
+
+def _read_that_rejects_pixels_off_the_canvas(canvas):
+    original_read = canvas.read
+
+    def read(column, row):
+        if column < 0 or row < 0 or column >= canvas.width or row >= canvas.height:
+            raise AssertionError("read off the canvas")
+        return original_read(column, row)
+
+    return read
 
 
 def _placed_ink(ink_pixels) -> dict:
@@ -291,12 +307,18 @@ def test_draw_frame_paints_the_locked_wooden_bevel() -> None:
     assert frame.getpixel((0, 0)) == WOOD_LIGHT
     assert frame.getpixel((2, 2)) == WOOD
     assert frame.getpixel((82, 12)) == WOOD
+    assert frame.getpixel((2, 4)) == GRAIN_DARK
+    assert frame.getpixel((150, 2)) == KNOT
     assert frame.getpixel((164, 1)) == WOOD_DARK
     assert frame.getpixel((165, 25)) == WOOD_DARK
     assert action_bar.WOOD == WOOD
     assert action_bar.WOOD_LIGHT == WOOD_LIGHT
     assert action_bar.WOOD_DARK == WOOD_DARK
-    assert _colors(frame) == {WOOD, WOOD_LIGHT, WOOD_DARK}
+    assert action_bar.GRAIN_DARK == GRAIN_DARK
+    assert action_bar.GRAIN_MID == GRAIN_MID
+    assert action_bar.GRAIN_LIGHT == GRAIN_LIGHT
+    assert action_bar.KNOT == KNOT
+    assert _colors(frame) == FRAME_COLORS
     assert _image_digest(frame) == FRAME_PIXEL_DIGEST
 
 
@@ -372,9 +394,11 @@ def test_paint_wooden_bevel_paints_the_light_top_and_the_dark_bottom() -> None:
     assert canvas.read(1, 0) == WOOD_LIGHT
     assert canvas.read(2, 2) == WOOD
     assert canvas.read(82, 12) == WOOD
+    assert canvas.read(2, 4) == GRAIN_DARK
+    assert canvas.read(150, 2) == KNOT
     assert canvas.read(164, 12) == WOOD_DARK
     assert canvas.read(165, 25) == WOOD_DARK
-    assert _colors(image) == {WOOD, WOOD_LIGHT, WOOD_DARK}
+    assert _colors(image) == FRAME_COLORS
     assert _image_digest(image) == FRAME_PIXEL_DIGEST
 
 
@@ -404,6 +428,217 @@ def test_paint_wooden_bevel_on_the_minimum_frame_keeps_two_wood_corners() -> Non
 def test_paint_wooden_bevel_rejects_a_missing_canvas() -> None:
     with pytest.raises(AttributeError):
         action_bar.paint_wooden_bevel(None)
+
+
+def test_paint_wood_grain_paints_a_grain_pixel_and_the_knot() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    action_bar.paint_wood_grain(canvas)
+    assert canvas.read(2, 4) == GRAIN_DARK
+    assert canvas.read(150, 2) == KNOT
+    assert canvas.read(149, 2) == GRAIN_DARK
+    assert canvas.read(151, 2) == GRAIN_DARK
+    assert canvas.read(150, 3) == GRAIN_DARK
+    assert canvas.read(2, 2) == WOOD
+    assert canvas.read(82, 12) == WOOD
+
+
+def test_paint_wood_grain_leaves_bevel_pixels_unpainted() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    action_bar.paint_wood_grain(canvas)
+    assert canvas.read(150, 1) == WOOD
+    assert canvas.read(30, 1) == WOOD
+    assert canvas.read(38, 1) == WOOD
+    assert canvas.read(0, 0) == WOOD
+    canvas_four = rejecting_canvas(action_bar.MINIMUM_FRAME_SPAN, action_bar.MINIMUM_FRAME_SPAN)
+    action_bar.paint_wooden_bevel(canvas_four)
+    assert _opaque(canvas_four) == {
+        (0, 0): WOOD_LIGHT,
+        (1, 0): WOOD_LIGHT,
+        (2, 0): WOOD_LIGHT,
+        (3, 0): WOOD,
+        (0, 1): WOOD_LIGHT,
+        (1, 1): WOOD_LIGHT,
+        (2, 1): WOOD_DARK,
+        (3, 1): WOOD_DARK,
+        (0, 2): WOOD_LIGHT,
+        (1, 2): WOOD_DARK,
+        (2, 2): WOOD_DARK,
+        (3, 2): WOOD_DARK,
+        (0, 3): WOOD,
+        (1, 3): WOOD_DARK,
+        (2, 3): WOOD_DARK,
+        (3, 3): WOOD_DARK,
+    }
+
+
+def test_paint_wood_grain_rejects_a_missing_canvas() -> None:
+    with pytest.raises(AttributeError):
+        action_bar.paint_wood_grain(None)
+
+
+def test_paint_grain_line_paints_the_dark_line_on_wood() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    action_bar.paint_grain_line(canvas, 3, 0.0, GRAIN_DARK)
+    assert canvas.read(2, 4) == GRAIN_DARK
+    assert canvas.read(4, 4) == GRAIN_DARK
+    assert canvas.read(2, 2) == WOOD
+
+
+def test_paint_grain_line_skips_a_bevel_row_and_a_row_off_the_canvas() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    canvas.read = _read_that_rejects_pixels_off_the_canvas(canvas)
+    action_bar.paint_grain_line(canvas, 3, 0.0, GRAIN_DARK)
+    assert canvas.read(3, 4) == GRAIN_DARK
+    assert canvas.read(38, 1) == WOOD
+    assert canvas.read(0, 3) == WOOD
+    action_bar.paint_grain_line(canvas, 24, 2.78, GRAIN_DARK)
+    assert canvas.read(12, 23) == GRAIN_DARK
+    assert canvas.read(99, 25) == WOOD
+    small = rejecting_canvas(action_bar.MINIMUM_FRAME_SPAN, action_bar.MINIMUM_FRAME_SPAN)
+    small.fill_rect(0, 0, small.width, small.height, WOOD)
+    small.read = _read_that_rejects_pixels_off_the_canvas(small)
+    action_bar.paint_grain_line(small, 3, 0.0, GRAIN_DARK)
+    action_bar.paint_grain_line(small, 24, 2.78, GRAIN_DARK)
+    assert _opaque(small) == {
+        (column, row): WOOD
+        for row in range(action_bar.MINIMUM_FRAME_SPAN)
+        for column in range(action_bar.MINIMUM_FRAME_SPAN)
+    }
+
+
+def test_paint_grain_line_rejects_a_missing_canvas() -> None:
+    with pytest.raises(AttributeError):
+        action_bar.paint_grain_line(None, 3, 0.0, GRAIN_DARK)
+
+
+def test_grain_row_follows_the_dark_line_near_the_left_edge() -> None:
+    assert action_bar.grain_row(2, 3, 0.0) == 4
+    assert action_bar.grain_row(4, 3, 0.0) == 4
+    assert action_bar.grain_row(18, 3, 0.0) == 3
+
+
+def test_grain_row_reaches_the_bevel_row_on_the_dark_line() -> None:
+    assert action_bar.grain_row(38, 3, 0.0) == 1
+    assert action_bar.grain_row(0, 3, 0.0) == 3
+    assert action_bar.grain_row(150, 3, 0.0) == 2
+
+
+def test_grain_row_rejects_a_missing_column() -> None:
+    with pytest.raises(TypeError):
+        action_bar.grain_row(None, 3, 0.0)
+
+
+def test_paint_on_wood_body_paints_an_interior_pixel() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    action_bar.paint_on_wood_body(canvas, 2, 4, GRAIN_DARK)
+    assert canvas.read(2, 4) == GRAIN_DARK
+    assert canvas.read(2, 2) == WOOD
+
+
+def test_paint_on_wood_body_leaves_bevel_pixels_unpainted() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    canvas.put(4, 4, GRAIN_LIGHT)
+    canvas.read = _read_that_rejects_pixels_off_the_canvas(canvas)
+    action_bar.paint_on_wood_body(canvas, 0, 0, GRAIN_DARK)
+    action_bar.paint_on_wood_body(canvas, 150, 1, GRAIN_DARK)
+    action_bar.paint_on_wood_body(canvas, 165, 0, GRAIN_DARK)
+    action_bar.paint_on_wood_body(canvas, -1, 2, GRAIN_DARK)
+    action_bar.paint_on_wood_body(canvas, 4, canvas.height, GRAIN_DARK)
+    action_bar.paint_on_wood_body(canvas, 4, 4, GRAIN_DARK)
+    assert canvas.read(0, 0) == WOOD
+    assert canvas.read(150, 1) == WOOD
+    assert canvas.read(165, 0) == WOOD
+    assert canvas.read(4, 4) == GRAIN_LIGHT
+    small = rejecting_canvas(action_bar.MINIMUM_FRAME_SPAN, action_bar.MINIMUM_FRAME_SPAN)
+    small.fill_rect(0, 0, small.width, small.height, WOOD)
+    small.read = _read_that_rejects_pixels_off_the_canvas(small)
+    action_bar.paint_on_wood_body(small, 1, 1, GRAIN_DARK)
+    assert small.read(1, 1) == WOOD
+    assert _opaque(small) == {
+        (column, row): WOOD
+        for row in range(action_bar.MINIMUM_FRAME_SPAN)
+        for column in range(action_bar.MINIMUM_FRAME_SPAN)
+    }
+
+
+def test_pixel_is_still_on_the_wood_body_accepts_an_interior_wood_pixel() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    assert action_bar.pixel_is_still_on_the_wood_body(canvas, 2, 4)
+    assert action_bar.pixel_is_still_on_the_wood_body(canvas, 82, 12)
+    assert action_bar.pixel_is_still_on_the_wood_body(canvas, 163, 23)
+
+
+def test_pixel_is_still_on_the_wood_body_rejects_bevel_grain_and_off_canvas_pixels() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    canvas.put(4, 4, GRAIN_LIGHT)
+    canvas.read = _read_that_rejects_pixels_off_the_canvas(canvas)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, 0, 0)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, 150, 1)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, 165, 25)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, 4, 4)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, -1, 2)
+    assert not action_bar.pixel_is_still_on_the_wood_body(canvas, 99, canvas.height)
+    small = rejecting_canvas(action_bar.MINIMUM_FRAME_SPAN, action_bar.MINIMUM_FRAME_SPAN)
+    small.fill_rect(0, 0, small.width, small.height, WOOD)
+    small.read = _read_that_rejects_pixels_off_the_canvas(small)
+    assert not action_bar.pixel_is_still_on_the_wood_body(small, 1, 1)
+
+
+def test_pixel_is_still_on_the_wood_body_rejects_a_missing_canvas() -> None:
+    with pytest.raises(AttributeError):
+        action_bar.pixel_is_still_on_the_wood_body(None, 2, 4)
+
+
+def test_paint_on_wood_body_rejects_a_missing_canvas() -> None:
+    with pytest.raises(AttributeError):
+        action_bar.paint_on_wood_body(None, 2, 4, GRAIN_DARK)
+
+
+def test_paint_knot_paints_the_center_and_the_plus() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    action_bar.paint_knot(canvas, 150, 2)
+    assert canvas.read(150, 2) == KNOT
+    assert canvas.read(149, 2) == GRAIN_DARK
+    assert canvas.read(151, 2) == GRAIN_DARK
+    assert canvas.read(150, 3) == GRAIN_DARK
+    assert canvas.read(148, 2) == WOOD
+    assert canvas.read(152, 2) == WOOD
+
+
+def test_paint_knot_skips_bevel_neighbors() -> None:
+    canvas = rejecting_canvas(action_bar.FRAME_WIDTH, action_bar.FRAME_HEIGHT)
+    canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    canvas.read = _read_that_rejects_pixels_off_the_canvas(canvas)
+    action_bar.paint_knot(canvas, 150, 2)
+    assert canvas.read(150, 1) == WOOD
+    action_bar.paint_knot(canvas, 30, 1)
+    assert canvas.read(30, 1) == WOOD
+    assert canvas.read(30, 2) == GRAIN_DARK
+    action_bar.paint_knot(canvas, 0, 0)
+    assert canvas.read(0, 0) == WOOD
+    assert canvas.read(1, 0) == WOOD
+    small = rejecting_canvas(action_bar.MINIMUM_FRAME_SPAN, action_bar.MINIMUM_FRAME_SPAN)
+    small.fill_rect(0, 0, small.width, small.height, WOOD)
+    action_bar.paint_knot(small, 1, 1)
+    assert _opaque(small) == {
+        (column, row): WOOD
+        for row in range(action_bar.MINIMUM_FRAME_SPAN)
+        for column in range(action_bar.MINIMUM_FRAME_SPAN)
+    }
+
+
+def test_paint_knot_rejects_a_missing_canvas() -> None:
+    with pytest.raises(AttributeError):
+        action_bar.paint_knot(None, 150, 2)
 
 
 def test_draw_highlight_paints_the_locked_red_orange_border() -> None:
