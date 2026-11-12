@@ -3,24 +3,31 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PIL import Image
-
 from art_common import rejecting_canvas, require_opaque_color
 
 FOLDER = Path(__file__).resolve().parents[1] / "assets" / "ui" / "action_bar"
-FRAME_WIDTH = 166
-FRAME_HEIGHT = 26
-SLOT_SIZE = 18
-DESIGN_PIXEL_BLOCK_SIZE = 3
+FRAME_WIDTH = 498
+FRAME_HEIGHT = 78
+SLOT_SIZE = 54
 SLOT_NUMBERS = (1, 2, 3, 4, 5, 6, 7, 8)
-BEVEL_THICKNESS = 2
-HIGHLIGHT_THICKNESS = 1
-PARCHMENT_SHADOW_THICKNESS = 1
-MINIMUM_FRAME_SPAN = 4
-MINIMUM_HIGHLIGHT_SPAN = 2
-SLOT_NUMBER_LEFT = 2
-SLOT_NUMBER_TOP = 2
-INK_MARK = "#"
+BEVEL_THICKNESS = 6
+HIGHLIGHT_THICKNESS = 3
+PARCHMENT_SHADOW_THICKNESS = 3
+MINIMUM_FRAME_SPAN = 12
+MINIMUM_HIGHLIGHT_SPAN = 6
+SLOT_NUMBER_LEFT = 6
+SLOT_NUMBER_TOP = 6
+STROKE_THICKNESS = 3
+DIGIT_WIDTH = 15
+DIGIT_HEIGHT = 21
+MIDDLE_ROW = 9
+BOTTOM_ROW = 18
+RIGHT_COLUMN = 12
+KNOT_RADIUS = 2
+GRAIN_LONG_WAVELENGTH = 18
+GRAIN_SHORT_WAVELENGTH = 8
+GRAIN_LONG_AMPLITUDE = 3.0
+GRAIN_SHORT_AMPLITUDE = 1.5
 WOOD = require_opaque_color((139, 90, 48, 255))
 WOOD_LIGHT = require_opaque_color((186, 132, 78, 255))
 WOOD_DARK = require_opaque_color((86, 52, 28, 255))
@@ -32,26 +39,36 @@ PARCHMENT = require_opaque_color((244, 232, 206, 255))
 PARCHMENT_SHADOW = require_opaque_color((214, 196, 164, 255))
 HIGHLIGHT = require_opaque_color((220, 78, 36, 255))
 INK = require_opaque_color((62, 38, 24, 255))
-SLOT_NUMBER_ROWS = {
-    1: (".#...", "##...", ".#...", ".#...", ".#...", ".#...", ".###."),
-    2: (".###.", "#...#", "....#", "..##.", ".#...", "#....", ".###."),
-    3: (".###.", "#...#", "....#", "..##.", "....#", "#...#", ".###."),
-    4: ("#...#", "#...#", "#...#", ".###.", "....#", "....#", "....#"),
-    5: (".###.", "#....", "#....", ".###.", "....#", "....#", ".###."),
-    6: (".##..", "#....", "#....", ".###.", "#...#", "#...#", ".###."),
-    7: (".###.", "#...#", "....#", "...#.", "..#..", ".#...", ".#..."),
-    8: (".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."),
+TOP_BAR = (0, 0, DIGIT_WIDTH, STROKE_THICKNESS)
+MIDDLE_BAR = (0, MIDDLE_ROW, DIGIT_WIDTH, MIDDLE_ROW + STROKE_THICKNESS)
+BOTTOM_BAR = (0, BOTTOM_ROW, DIGIT_WIDTH, DIGIT_HEIGHT)
+UPPER_LEFT_BAR = (0, 0, STROKE_THICKNESS, MIDDLE_ROW + STROKE_THICKNESS)
+UPPER_RIGHT_BAR = (RIGHT_COLUMN, 0, DIGIT_WIDTH, MIDDLE_ROW + STROKE_THICKNESS)
+LOWER_LEFT_BAR = (0, MIDDLE_ROW, STROKE_THICKNESS, DIGIT_HEIGHT)
+LOWER_RIGHT_BAR = (RIGHT_COLUMN, MIDDLE_ROW, DIGIT_WIDTH, DIGIT_HEIGHT)
+ONE_STEM = (6, 0, 9, BOTTOM_ROW)
+ONE_SERIF = (3, 0, 6, STROKE_THICKNESS)
+ONE_BASE = (3, BOTTOM_ROW, RIGHT_COLUMN, DIGIT_HEIGHT)
+SLOT_NUMBER_STROKES = {
+    1: (ONE_STEM, ONE_SERIF, ONE_BASE),
+    2: (TOP_BAR, UPPER_RIGHT_BAR, MIDDLE_BAR, LOWER_LEFT_BAR, BOTTOM_BAR),
+    3: (TOP_BAR, UPPER_RIGHT_BAR, MIDDLE_BAR, LOWER_RIGHT_BAR, BOTTOM_BAR),
+    4: (UPPER_LEFT_BAR, UPPER_RIGHT_BAR, MIDDLE_BAR, LOWER_RIGHT_BAR),
+    5: (TOP_BAR, UPPER_LEFT_BAR, MIDDLE_BAR, LOWER_RIGHT_BAR, BOTTOM_BAR),
+    6: (TOP_BAR, UPPER_LEFT_BAR, MIDDLE_BAR, LOWER_LEFT_BAR, LOWER_RIGHT_BAR, BOTTOM_BAR),
+    7: (TOP_BAR, UPPER_RIGHT_BAR, LOWER_RIGHT_BAR),
+    8: (TOP_BAR, UPPER_LEFT_BAR, UPPER_RIGHT_BAR, MIDDLE_BAR, LOWER_LEFT_BAR, LOWER_RIGHT_BAR, BOTTOM_BAR),
 }
 GRAIN_LINES = (
-    (3, 0.0, GRAIN_DARK),
-    (9, 1.3, GRAIN_MID),
-    (14, 2.1, GRAIN_DARK),
-    (20, 0.7, GRAIN_MID),
-    (24, 2.78, GRAIN_DARK),
-    (6, 3.5, GRAIN_LIGHT),
-    (17, 4.4, GRAIN_LIGHT),
+    (9, 0.0, GRAIN_DARK),
+    (27, 1.3, GRAIN_MID),
+    (42, 2.1, GRAIN_DARK),
+    (60, 0.7, GRAIN_MID),
+    (72, 2.78, GRAIN_DARK),
+    (18, 3.5, GRAIN_LIGHT),
+    (51, 4.4, GRAIN_LIGHT),
 )
-KNOT_CENTERS = ((150, 2), (30, 1), (97, 24))
+KNOT_CENTERS = ((450, 8), (90, 8), (291, 69))
 
 
 def main() -> None:
@@ -71,7 +88,7 @@ def draw_frame():
     require_canvas_can_hold(FRAME_WIDTH, FRAME_HEIGHT, MINIMUM_FRAME_SPAN)
     canvas = rejecting_canvas(FRAME_WIDTH, FRAME_HEIGHT)
     paint_wooden_bevel(canvas)
-    return enlarge_each_design_pixel(canvas.image())
+    return canvas.image()
 
 
 def require_canvas_can_hold(width, height, minimum_span) -> None:
@@ -108,10 +125,11 @@ def paint_wood_grain(canvas) -> None:
 
 
 def paint_knot(canvas, column, row) -> None:
-    paint_on_wood_body(canvas, column + 1, row, GRAIN_DARK)
-    paint_on_wood_body(canvas, column - 1, row, GRAIN_DARK)
-    paint_on_wood_body(canvas, column, row + 1, GRAIN_DARK)
-    paint_on_wood_body(canvas, column, row - 1, GRAIN_DARK)
+    for offset in range(1, KNOT_RADIUS + 1):
+        paint_on_wood_body(canvas, column + offset, row, GRAIN_DARK)
+        paint_on_wood_body(canvas, column - offset, row, GRAIN_DARK)
+        paint_on_wood_body(canvas, column, row + offset, GRAIN_DARK)
+        paint_on_wood_body(canvas, column, row - offset, GRAIN_DARK)
     paint_on_wood_body(canvas, column, row, KNOT)
 
 
@@ -132,45 +150,20 @@ def paint_grain_line(canvas, base, phase, color) -> None:
     for column in range(canvas.width):
         row = grain_row(column, base, phase)
         paint_on_wood_body(canvas, column, row, color)
+        paint_on_wood_body(canvas, column, row + 1, color)
 
 
 def grain_row(column, base, phase):
-    wave = 1.2 * math.sin(column / 9 + phase) + 0.6 * math.sin(column / 3.7 + 2 * phase)
-    return round(base + wave)
-
-
-def enlarge_each_design_pixel(design_image):
-    enlarged = Image.new(
-        "RGBA",
-        (
-            design_image.width * DESIGN_PIXEL_BLOCK_SIZE,
-            design_image.height * DESIGN_PIXEL_BLOCK_SIZE,
-        ),
-    )
-    for design_row in range(design_image.height):
-        for design_column in range(design_image.width):
-            paint_design_pixel_block(
-                enlarged,
-                design_column,
-                design_row,
-                design_image.getpixel((design_column, design_row)),
-            )
-    return enlarged
-
-
-def paint_design_pixel_block(enlarged, design_column, design_row, color) -> None:
-    left = design_column * DESIGN_PIXEL_BLOCK_SIZE
-    top = design_row * DESIGN_PIXEL_BLOCK_SIZE
-    for row_offset in range(DESIGN_PIXEL_BLOCK_SIZE):
-        for column_offset in range(DESIGN_PIXEL_BLOCK_SIZE):
-            enlarged.putpixel((left + column_offset, top + row_offset), color)
+    long_wave = GRAIN_LONG_AMPLITUDE * math.sin(column / GRAIN_LONG_WAVELENGTH + phase)
+    short_wave = GRAIN_SHORT_AMPLITUDE * math.sin(column / GRAIN_SHORT_WAVELENGTH + 2 * phase)
+    return round(base + long_wave + short_wave)
 
 
 def draw_highlight():
     require_canvas_can_hold(SLOT_SIZE, SLOT_SIZE, MINIMUM_HIGHLIGHT_SPAN)
     canvas = rejecting_canvas(SLOT_SIZE, SLOT_SIZE)
     paint_highlight_border(canvas)
-    return enlarge_each_design_pixel(canvas.image())
+    return canvas.image()
 
 
 def paint_highlight_border(canvas) -> None:
@@ -209,7 +202,7 @@ def require_slot_number(slot_number):
         isinstance(slot_number, bool)
         or not isinstance(slot_number, int)
         or slot_number not in SLOT_NUMBERS
-        or slot_number not in SLOT_NUMBER_ROWS
+        or slot_number not in SLOT_NUMBER_STROKES
     ):
         raise ValueError("action bar slot number must be 1 through 8")
     return slot_number
@@ -220,7 +213,7 @@ def draw_slot(slot_number):
     canvas = rejecting_canvas(SLOT_SIZE, SLOT_SIZE)
     paint_parchment_slot(canvas)
     paint_slot_number(canvas, valid_slot_number)
-    return enlarge_each_design_pixel(canvas.image())
+    return canvas.image()
 
 
 def paint_parchment_slot(canvas) -> None:
@@ -242,24 +235,15 @@ def paint_parchment_slot(canvas) -> None:
 
 
 def paint_slot_number(canvas, slot_number) -> None:
-    for column, row in slot_number_ink(slot_number):
-        canvas.put(SLOT_NUMBER_LEFT + column, SLOT_NUMBER_TOP + row, INK)
-
-
-def slot_number_ink(slot_number):
     valid_slot_number = require_slot_number(slot_number)
-    pixels = []
-    for row_index, pattern in enumerate(SLOT_NUMBER_ROWS[valid_slot_number]):
-        pixels.extend(ink_pixels_in_row(row_index, pattern))
-    return pixels
-
-
-def ink_pixels_in_row(row_index, pattern):
-    return [
-        (column_index, row_index)
-        for column_index, mark in enumerate(pattern)
-        if mark == INK_MARK
-    ]
+    for left, top, right, bottom in SLOT_NUMBER_STROKES[valid_slot_number]:
+        canvas.fill_rect(
+            SLOT_NUMBER_LEFT + left,
+            SLOT_NUMBER_TOP + top,
+            SLOT_NUMBER_LEFT + right,
+            SLOT_NUMBER_TOP + bottom,
+            INK,
+        )
 
 
 def require_unique_action_bar_images(named_images) -> None:
