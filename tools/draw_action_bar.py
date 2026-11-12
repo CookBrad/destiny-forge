@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from art_common import rejecting_canvas, require_opaque_color
@@ -20,6 +21,10 @@ INK_MARK = "#"
 WOOD = require_opaque_color((139, 90, 48, 255))
 WOOD_LIGHT = require_opaque_color((186, 132, 78, 255))
 WOOD_DARK = require_opaque_color((86, 52, 28, 255))
+GRAIN_DARK = require_opaque_color((112, 70, 36, 255))
+GRAIN_MID = require_opaque_color((124, 80, 42, 255))
+GRAIN_LIGHT = require_opaque_color((154, 102, 56, 255))
+KNOT = require_opaque_color((96, 58, 30, 255))
 PARCHMENT = require_opaque_color((244, 232, 206, 255))
 PARCHMENT_SHADOW = require_opaque_color((214, 196, 164, 255))
 HIGHLIGHT = require_opaque_color((220, 78, 36, 255))
@@ -34,6 +39,16 @@ SLOT_NUMBER_ROWS = {
     7: (".###.", "#...#", "....#", "...#.", "..#..", ".#...", ".#..."),
     8: (".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."),
 }
+GRAIN_LINES = (
+    (3, 0.0, GRAIN_DARK),
+    (9, 1.3, GRAIN_MID),
+    (14, 2.1, GRAIN_DARK),
+    (20, 0.7, GRAIN_MID),
+    (24, 2.78, GRAIN_DARK),
+    (6, 3.5, GRAIN_LIGHT),
+    (17, 4.4, GRAIN_LIGHT),
+)
+KNOT_CENTERS = ((150, 2), (30, 1), (97, 24))
 
 
 def main() -> None:
@@ -63,6 +78,7 @@ def require_canvas_can_hold(width, height, minimum_span) -> None:
 
 def paint_wooden_bevel(canvas) -> None:
     canvas.fill_rect(0, 0, canvas.width, canvas.height, WOOD)
+    paint_wood_grain(canvas)
     canvas.fill_rect(0, 0, canvas.width - 1, BEVEL_THICKNESS, WOOD_LIGHT)
     canvas.fill_rect(0, 0, BEVEL_THICKNESS, canvas.height - 1, WOOD_LIGHT)
     canvas.fill_rect(
@@ -79,6 +95,45 @@ def paint_wooden_bevel(canvas) -> None:
         canvas.height,
         WOOD_DARK,
     )
+
+
+def paint_wood_grain(canvas) -> None:
+    for column, row in KNOT_CENTERS:
+        paint_knot(canvas, column, row)
+    for base, phase, color in GRAIN_LINES:
+        paint_grain_line(canvas, base, phase, color)
+
+
+def paint_knot(canvas, column, row) -> None:
+    paint_on_wood_body(canvas, column + 1, row, GRAIN_DARK)
+    paint_on_wood_body(canvas, column - 1, row, GRAIN_DARK)
+    paint_on_wood_body(canvas, column, row + 1, GRAIN_DARK)
+    paint_on_wood_body(canvas, column, row - 1, GRAIN_DARK)
+    paint_on_wood_body(canvas, column, row, KNOT)
+
+
+def paint_on_wood_body(canvas, column, row, color) -> None:
+    if pixel_is_still_on_the_wood_body(canvas, column, row):
+        canvas.put(column, row, color)
+
+
+def pixel_is_still_on_the_wood_body(canvas, column, row) -> bool:
+    if column < BEVEL_THICKNESS or column >= canvas.width - BEVEL_THICKNESS:
+        return False
+    if row < BEVEL_THICKNESS or row >= canvas.height - BEVEL_THICKNESS:
+        return False
+    return canvas.read(column, row) == WOOD
+
+
+def paint_grain_line(canvas, base, phase, color) -> None:
+    for column in range(canvas.width):
+        row = grain_row(column, base, phase)
+        paint_on_wood_body(canvas, column, row, color)
+
+
+def grain_row(column, base, phase):
+    wave = 1.2 * math.sin(column / 9 + phase) + 0.6 * math.sin(column / 3.7 + 2 * phase)
+    return round(base + wave)
 
 
 def draw_highlight():
