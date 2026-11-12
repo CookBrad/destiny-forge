@@ -5,6 +5,7 @@ use crate::overworld::setup::{cleanup_overworld, setup_overworld};
 use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::inventory_closed;
 
+use super::action_bar_art::{cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud};
 use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
 use super::select_action_bar_slot::{
@@ -24,13 +25,21 @@ impl Plugin for FarmingPlugin {
             .init_resource::<ActionBar>()
             .add_systems(
                 OnEnter(GameState::Overworld),
-                (ensure_starter_kit, setup_tool_hud).after(setup_overworld),
+                (
+                    ensure_starter_kit,
+                    load_action_bar_art,
+                    setup_action_bar_hud,
+                    setup_tool_hud,
+                )
+                    .chain()
+                    .after(setup_overworld),
             )
             .add_systems(
                 OnExit(GameState::Overworld),
                 (
                     capture_crop_plots_on_exit.before(cleanup_overworld),
                     cleanup_tool_hud,
+                    cleanup_action_bar_hud,
                 ),
             )
             .add_systems(
