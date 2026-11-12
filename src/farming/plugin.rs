@@ -5,7 +5,9 @@ use crate::overworld::setup::{cleanup_overworld, setup_overworld};
 use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::inventory_closed;
 
-use super::action_bar_art::{cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud};
+use super::action_bar_art::{
+    cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud, sync_action_bar_highlight,
+};
 use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
 use super::select_action_bar_slot::{
@@ -47,6 +49,7 @@ impl Plugin for FarmingPlugin {
                 (
                     select_action_bar_slot_from_number_keys,
                     cycle_action_bar_slot_from_mouse_wheel,
+                    sync_action_bar_highlight,
                     update_player_facing,
                     use_homestead_tool,
                     sync_plot_visuals,
