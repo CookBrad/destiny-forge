@@ -2,6 +2,8 @@ use bevy::hierarchy::ChildBuilder;
 use bevy::prelude::*;
 use bevy::ui::widget::{ImageNode, NodeImageMode};
 
+use crate::items::{Inventory, MaterialId};
+
 use super::action_bar::ACTION_BAR_SLOT_COUNT;
 use super::ActionBar;
 
@@ -30,6 +32,7 @@ pub(super) fn load_action_bar_art(mut commands: Commands, asset_server: Res<Asse
         frame: asset_server.load(FRAME_IMAGE_PATH),
         highlight: asset_server.load(HIGHLIGHT_IMAGE_PATH),
         slots: load_slot_images(&asset_server),
+        hoe_icon: asset_server.load("ui/tools/hoe_t1.png"),
     });
 }
 
@@ -41,11 +44,13 @@ pub(super) fn setup_action_bar_hud(
     mut commands: Commands,
     art: Res<ActionBarArt>,
     action_bar: Res<ActionBar>,
+    inventory: Res<Inventory>,
 ) {
     let selected_slot = action_bar.selected_slot();
     commands.spawn(action_bar_root()).with_children(|root| {
-        root.spawn(action_bar_frame(&art))
-            .with_children(|frame| fill_action_bar_frame(frame, &art, selected_slot));
+        root.spawn(action_bar_frame(&art)).with_children(|frame| {
+            fill_action_bar_frame(frame, &art, &action_bar, &inventory, selected_slot);
+        });
     });
 }
 
@@ -81,23 +86,118 @@ fn stretched_image(image: Handle<Image>) -> ImageNode {
     ImageNode::new(image).with_mode(NodeImageMode::Stretch)
 }
 
-fn fill_action_bar_frame(frame: &mut ChildBuilder<'_>, art: &ActionBarArt, selected_slot: usize) {
-    spawn_action_bar_slots(frame, art);
+fn fill_action_bar_frame(
+    frame: &mut ChildBuilder<'_>,
+    art: &ActionBarArt,
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    selected_slot: usize,
+) {
+    spawn_action_bar_slots(frame, art, action_bar, inventory);
     frame.spawn(action_bar_highlight(art, selected_slot));
 }
 
-fn spawn_action_bar_slots(frame: &mut ChildBuilder<'_>, art: &ActionBarArt) {
+fn spawn_action_bar_slots(
+    frame: &mut ChildBuilder<'_>,
+    art: &ActionBarArt,
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+) {
     for slot_index in 0..ACTION_BAR_SLOT_COUNT {
-        frame.spawn(action_bar_slot(art, slot_index));
+        let (material, count) = held_material(action_bar, inventory, slot_index);
+        frame
+            .spawn(action_bar_slot(art, slot_index))
+            .with_children(|slot| {
+                slot.spawn(hoe_icon(art, hoe_visibility(material, count)));
+                slot.spawn(stack_count_label(stack_count_text(material, count)));
+            });
     }
+}
+
+fn held_material(
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    slot_index: usize,
+) -> (Option<MaterialId>, u32) {
+    let Ok(Some(inventory_index)) = action_bar.held_inventory_slot(slot_index) else {
+        return (None, 0);
+    };
+    let Some(stack) = inventory.slots.get(inventory_index) else {
+        return (None, 0);
+    };
+    (stack.material, stack.count)
 }
 
 fn action_bar_slot(
     art: &ActionBarArt,
     slot_index: usize,
-) -> (ActionBarSlotImage, ImageNode, Node, BackgroundColor) {
+) -> (
+    ActionBarSlotImage,
+    ActionBarSlotIndex,
+    ImageNode,
+    Node,
+    BackgroundColor,
+) {
     let (image, node, background) = action_bar_piece(art.slots[slot_index].clone(), slot_index);
-    (ActionBarSlotImage, image, node, background)
+    (
+        ActionBarSlotImage,
+        ActionBarSlotIndex(slot_index),
+        image,
+        node,
+        background,
+    )
+}
+
+fn hoe_icon(
+    art: &ActionBarArt,
+    visibility: Visibility,
+) -> (ActionBarSlotIcon, ImageNode, Node, Visibility) {
+    (
+        ActionBarSlotIcon,
+        ImageNode::new(art.hoe_icon.clone()),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(19.0),
+            top: Val::Px(19.0),
+            width: Val::Px(16.0),
+            height: Val::Px(16.0),
+            ..default()
+        },
+        visibility,
+    )
+}
+
+fn hoe_visibility(material: Option<MaterialId>, count: u32) -> Visibility {
+    if material == Some(MaterialId::Hoe) && count > 0 {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    }
+}
+
+fn stack_count_label(text: String) -> (ActionBarSlotCount, Text, TextFont, TextColor, Node) {
+    (
+        ActionBarSlotCount,
+        Text::new(text),
+        TextFont {
+            font_size: 11.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.98, 0.98, 1.0)),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(3.0),
+            bottom: Val::Px(1.0),
+            ..default()
+        },
+    )
+}
+
+fn stack_count_text(material: Option<MaterialId>, count: u32) -> String {
+    match material {
+        Some(MaterialId::TurnipSeed | MaterialId::PotatoSeed) if count > 1 => count.to_string(),
+        _ => String::new(),
+    }
 }
 
 fn action_bar_highlight(
@@ -150,6 +250,29 @@ pub(super) fn sync_action_bar_highlight(
     }
 }
 
+pub(super) fn sync_action_bar_slot_contents(
+    action_bar: Res<ActionBar>,
+    inventory: Res<Inventory>,
+    slots: Query<(&ActionBarSlotIndex, &Children)>,
+    mut icons: Query<&mut Visibility, With<ActionBarSlotIcon>>,
+    mut counts: Query<&mut Text, With<ActionBarSlotCount>>,
+) {
+    if !action_bar.is_changed() && !inventory.is_changed() {
+        return;
+    }
+    for (slot_index, children) in &slots {
+        let (material, count) = held_material(&action_bar, &inventory, slot_index.0);
+        for child in children.iter() {
+            if let Ok(mut visibility) = icons.get_mut(*child) {
+                *visibility = hoe_visibility(material, count);
+            }
+            if let Ok(mut text) = counts.get_mut(*child) {
+                text.0 = stack_count_text(material, count);
+            }
+        }
+    }
+}
+
 pub(super) fn cleanup_action_bar_hud(
     mut commands: Commands,
     roots: Query<Entity, With<ActionBarHud>>,
@@ -164,6 +287,7 @@ pub(super) struct ActionBarArt {
     frame: Handle<Image>,
     highlight: Handle<Image>,
     slots: [Handle<Image>; ACTION_BAR_SLOT_COUNT],
+    hoe_icon: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -174,6 +298,15 @@ struct ActionBarFrame;
 
 #[derive(Component)]
 struct ActionBarSlotImage;
+
+#[derive(Component, Clone, Copy)]
+pub(super) struct ActionBarSlotIndex(usize);
+
+#[derive(Component)]
+pub(super) struct ActionBarSlotIcon;
+
+#[derive(Component)]
+pub(super) struct ActionBarSlotCount;
 
 #[derive(Component)]
 pub(super) struct ActionBarHighlight;
@@ -186,10 +319,11 @@ mod tests {
     use bevy::ui::widget::NodeImageMode;
 
     use super::{
-        ActionBarArt, ActionBarFrame, ActionBarHighlight, ActionBarHud, ActionBarSlotImage,
-        ACTION_BAR_SLOT_COUNT,
+        ActionBarArt, ActionBarFrame, ActionBarHighlight, ActionBarHud, ActionBarSlotCount,
+        ActionBarSlotIcon, ActionBarSlotImage, ActionBarSlotIndex, ACTION_BAR_SLOT_COUNT,
     };
     use crate::farming::{ActionBar, ActionBarSlotOutOfRange};
+    use crate::items::{Inventory, MaterialId};
 
     const FRAME_IMAGE_PATH: &str = "ui/action_bar/frame.png";
     const HIGHLIGHT_IMAGE_PATH: &str = "ui/action_bar/highlight.png";
@@ -324,6 +458,148 @@ mod tests {
         enter_overworld(&mut app);
         assert_eight_slots_at_native_offsets(&mut app);
         assert_highlight_on_slot(&mut app, 5);
+    }
+
+    #[test]
+    fn the_title_screen_shows_no_slot_icons_stack_labels_or_the_old_tool_list() {
+        let mut app = app_ready_for_the_overworld();
+        app.update();
+        assert_eq!(slot_icon_count(&mut app), 0);
+        assert_eq!(slot_count_label_count(&mut app), 0);
+        assert!(!any_text_contains(&mut app, "Watering Can"));
+        assert!(!any_text_contains(&mut app, "[1 Hoe]"));
+    }
+
+    #[test]
+    fn the_overworld_starts_with_every_slot_icon_hidden_and_every_stack_label_empty() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
+        assert_eq!(visible_slot_icon_count(&mut app), 0);
+        for slot_index in 0..ACTION_BAR_SLOT_COUNT {
+            assert_eq!(
+                icon_on_slot(&mut app, slot_index).visibility,
+                Visibility::Hidden
+            );
+            assert_eq!(count_label_on_slot(&mut app, slot_index).text, "");
+        }
+        assert_highlight_on_slot(&mut app, 0);
+    }
+
+    #[test]
+    fn a_slot_that_holds_a_hoe_shows_the_hoe_icon_centered_at_its_native_size() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
+        put_stack(&mut app, 10, MaterialId::Hoe, 1);
+        assign_held_slot(&mut app, 6, 10);
+
+        let icon = icon_on_slot(&mut app, 6);
+        let hoe = app.world().resource::<ActionBarArt>().hoe_icon.clone();
+        assert_eq!(icon.visibility, Visibility::Visible);
+        assert_eq!(icon.image.image, hoe);
+        assert_eq!(image_path(&icon.image.image), "ui/tools/hoe_t1.png");
+        assert!(matches!(icon.image.image_mode, NodeImageMode::Auto));
+        assert_eq!(icon.node.position_type, PositionType::Absolute);
+        assert_eq!(icon.node.left, Val::Px(19.0));
+        assert_eq!(icon.node.top, Val::Px(19.0));
+        assert_eq!(icon.node.width, Val::Px(16.0));
+        assert_eq!(icon.node.height, Val::Px(16.0));
+        assert_eq!(icon.parent, slot_entity(&mut app, 6));
+        assert_ne!(icon.parent, frame_entity(&mut app));
+        assert_eq!(count_label_on_slot(&mut app, 6).text, "");
+        for slot_index in 0..ACTION_BAR_SLOT_COUNT {
+            if slot_index == 6 {
+                continue;
+            }
+            assert_eq!(
+                icon_on_slot(&mut app, slot_index).visibility,
+                Visibility::Hidden
+            );
+        }
+
+        app.update();
+        assert_eq!(icon_on_slot(&mut app, 6).visibility, Visibility::Visible);
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(6),
+            Ok(Some(10))
+        );
+
+        clear_held_slot(&mut app, 6);
+        assert_eq!(icon_on_slot(&mut app, 6).visibility, Visibility::Hidden);
+    }
+
+    #[test]
+    fn a_watering_can_or_seed_stack_shows_no_icon() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
+        put_stack(&mut app, 11, MaterialId::WateringCan, 1);
+        put_stack(&mut app, 12, MaterialId::TurnipSeed, 8);
+        put_stack(&mut app, 13, MaterialId::PotatoSeed, 4);
+        assign_held_slot(&mut app, 2, 11);
+        assign_held_slot(&mut app, 3, 12);
+        assign_held_slot(&mut app, 4, 13);
+
+        assert_eq!(icon_on_slot(&mut app, 2).visibility, Visibility::Hidden);
+        assert_eq!(icon_on_slot(&mut app, 3).visibility, Visibility::Hidden);
+        assert_eq!(icon_on_slot(&mut app, 4).visibility, Visibility::Hidden);
+    }
+
+    #[test]
+    fn a_seed_stack_shows_its_count_only_when_the_count_is_greater_than_one() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
+        put_stack(&mut app, 12, MaterialId::TurnipSeed, 8);
+        assign_held_slot(&mut app, 3, 12);
+        let label = count_label_on_slot(&mut app, 3);
+        assert_eq!(label.text, "8");
+        assert_eq!(label.font.font_size, 11.0);
+        assert_eq!(label.color.0, Color::srgb(0.98, 0.98, 1.0));
+        assert_eq!(label.node.position_type, PositionType::Absolute);
+        assert_eq!(label.node.right, Val::Px(3.0));
+        assert_eq!(label.node.bottom, Val::Px(1.0));
+
+        put_stack(&mut app, 12, MaterialId::TurnipSeed, 1);
+        app.update();
+        assert_eq!(count_label_on_slot(&mut app, 3).text, "");
+
+        put_stack(&mut app, 12, MaterialId::TurnipSeed, 0);
+        app.update();
+        assert_eq!(count_label_on_slot(&mut app, 3).text, "");
+
+        clear_held_slot(&mut app, 3);
+        assert_eq!(count_label_on_slot(&mut app, 3).text, "");
+
+        put_stack(&mut app, 10, MaterialId::Hoe, 1);
+        assign_held_slot(&mut app, 6, 10);
+        assert_eq!(count_label_on_slot(&mut app, 6).text, "");
+
+        put_stack(&mut app, 13, MaterialId::PotatoSeed, 4);
+        assign_held_slot(&mut app, 4, 13);
+        assert_eq!(count_label_on_slot(&mut app, 4).text, "4");
+    }
+
+    #[test]
+    fn leaving_the_overworld_despawns_slot_icons_and_labels_and_entering_again_shows_them() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
+        put_stack(&mut app, 10, MaterialId::Hoe, 1);
+        assign_held_slot(&mut app, 5, 10);
+        assert_eq!(icon_on_slot(&mut app, 5).visibility, Visibility::Visible);
+
+        leave_overworld(&mut app);
+        assert_eq!(slot_icon_count(&mut app), 0);
+        assert_eq!(slot_count_label_count(&mut app), 0);
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(5),
+            Ok(Some(10))
+        );
+
+        enter_overworld(&mut app);
+        let icon = icon_on_slot(&mut app, 5);
+        assert_eq!(icon.visibility, Visibility::Visible);
+        assert_eq!(image_path(&icon.image.image), "ui/tools/hoe_t1.png");
+        assert_eq!(icon.node.width, Val::Px(16.0));
+        assert_eq!(icon.node.height, Val::Px(16.0));
+        assert_eq!(count_label_on_slot(&mut app, 5).text, "");
     }
 
     fn app_ready_for_the_overworld() -> App {
@@ -607,5 +883,119 @@ mod tests {
         node: Node,
         background: Color,
         parent: Entity,
+    }
+
+    struct ShownIcon {
+        visibility: Visibility,
+        image: ImageNode,
+        node: Node,
+        parent: Entity,
+    }
+
+    struct ShownCount {
+        text: String,
+        font: TextFont,
+        color: TextColor,
+        node: Node,
+    }
+
+    fn put_stack(app: &mut App, inventory_index: usize, material: MaterialId, count: u32) {
+        let mut inventory = app.world_mut().resource_mut::<Inventory>();
+        inventory.slots[inventory_index].material = Some(material);
+        inventory.slots[inventory_index].count = count;
+    }
+
+    fn assign_held_slot(app: &mut App, slot_index: usize, inventory_index: usize) {
+        let assigned = app
+            .world_mut()
+            .resource_mut::<ActionBar>()
+            .assign_held_inventory_slot(slot_index, inventory_index);
+        assert_eq!(assigned, Ok(()));
+        app.update();
+    }
+
+    fn clear_held_slot(app: &mut App, slot_index: usize) {
+        let cleared = app
+            .world_mut()
+            .resource_mut::<ActionBar>()
+            .clear_held_inventory_slot(slot_index);
+        assert_eq!(cleared, Ok(()));
+        app.update();
+    }
+
+    fn icon_on_slot(app: &mut App, slot_index: usize) -> ShownIcon {
+        let slot = slot_entity(app, slot_index);
+        let mut icons = app
+            .world_mut()
+            .query_filtered::<(&Visibility, &ImageNode, &Node, &Parent), With<ActionBarSlotIcon>>();
+        let (visibility, image, node, parent) = icons
+            .iter(app.world())
+            .find(|(_, _, _, parent)| parent.get() == slot)
+            .expect("slot icon");
+        ShownIcon {
+            visibility: *visibility,
+            image: image.clone(),
+            node: node.clone(),
+            parent: parent.get(),
+        }
+    }
+
+    fn count_label_on_slot(app: &mut App, slot_index: usize) -> ShownCount {
+        let slot = slot_entity(app, slot_index);
+        let mut labels = app.world_mut().query_filtered::<(
+            &Text,
+            &TextFont,
+            &TextColor,
+            &Node,
+            &Parent,
+        ), With<ActionBarSlotCount>>();
+        let (text, font, color, node, _) = labels
+            .iter(app.world())
+            .find(|(_, _, _, _, parent)| parent.get() == slot)
+            .expect("stack count");
+        ShownCount {
+            text: text.0.clone(),
+            font: font.clone(),
+            color: *color,
+            node: node.clone(),
+        }
+    }
+
+    fn slot_entity(app: &mut App, slot_index: usize) -> Entity {
+        let mut slots = app.world_mut().query::<(Entity, &ActionBarSlotIndex)>();
+        slots
+            .iter(app.world())
+            .find(|(_, index)| index.0 == slot_index)
+            .map(|(entity, _)| entity)
+            .expect("action bar slot")
+    }
+
+    fn slot_icon_count(app: &mut App) -> usize {
+        app.world_mut()
+            .query::<&ActionBarSlotIcon>()
+            .iter(app.world())
+            .count()
+    }
+
+    fn slot_count_label_count(app: &mut App) -> usize {
+        app.world_mut()
+            .query::<&ActionBarSlotCount>()
+            .iter(app.world())
+            .count()
+    }
+
+    fn visible_slot_icon_count(app: &mut App) -> usize {
+        app.world_mut()
+            .query_filtered::<&Visibility, With<ActionBarSlotIcon>>()
+            .iter(app.world())
+            .filter(|visibility| **visibility == Visibility::Visible)
+            .count()
+    }
+
+    fn any_text_contains(app: &mut App, needle: &str) -> bool {
+        app.world_mut()
+            .query::<&Text>()
+            .iter(app.world())
+            .any(|text| text.0.contains(needle))
     }
 }

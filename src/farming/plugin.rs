@@ -7,6 +7,7 @@ use crate::ui::inventory_window::inventory_closed;
 
 use super::action_bar_art::{
     cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud, sync_action_bar_highlight,
+    sync_action_bar_slot_contents,
 };
 use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
@@ -50,6 +51,7 @@ impl Plugin for FarmingPlugin {
                     select_action_bar_slot_from_number_keys,
                     cycle_action_bar_slot_from_mouse_wheel,
                     sync_action_bar_highlight,
+                    sync_action_bar_slot_contents,
                     update_player_facing,
                     use_homestead_tool,
                     sync_plot_visuals,
