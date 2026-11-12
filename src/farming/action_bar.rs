@@ -47,6 +47,7 @@ impl ActionBar {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn clear_held_inventory_slot(
         &mut self,
         slot_index: usize,
@@ -66,6 +67,7 @@ fn slot_index_is_out_of_range(slot_index: usize) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActionBarSlotOutOfRange;
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActionBarHeldSlotOutOfRange;
 

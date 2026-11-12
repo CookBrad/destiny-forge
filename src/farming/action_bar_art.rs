@@ -114,6 +114,20 @@ fn spawn_action_bar_slots(
     }
 }
 
+fn held_material(
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    slot_index: usize,
+) -> (Option<MaterialId>, u32) {
+    let Ok(Some(inventory_index)) = action_bar.held_inventory_slot(slot_index) else {
+        return (None, 0);
+    };
+    let Some(stack) = inventory.slots.get(inventory_index) else {
+        return (None, 0);
+    };
+    (stack.material, stack.count)
+}
+
 fn action_bar_slot(
     art: &ActionBarArt,
     slot_index: usize,
@@ -132,6 +146,58 @@ fn action_bar_slot(
         node,
         background,
     )
+}
+
+fn hoe_icon(
+    art: &ActionBarArt,
+    visibility: Visibility,
+) -> (ActionBarSlotIcon, ImageNode, Node, Visibility) {
+    (
+        ActionBarSlotIcon,
+        ImageNode::new(art.hoe_icon.clone()),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(19.0),
+            top: Val::Px(19.0),
+            width: Val::Px(16.0),
+            height: Val::Px(16.0),
+            ..default()
+        },
+        visibility,
+    )
+}
+
+fn hoe_visibility(material: Option<MaterialId>, count: u32) -> Visibility {
+    if material == Some(MaterialId::Hoe) && count > 0 {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    }
+}
+
+fn stack_count_label(text: String) -> (ActionBarSlotCount, Text, TextFont, TextColor, Node) {
+    (
+        ActionBarSlotCount,
+        Text::new(text),
+        TextFont {
+            font_size: 11.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.98, 0.98, 1.0)),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(3.0),
+            bottom: Val::Px(1.0),
+            ..default()
+        },
+    )
+}
+
+fn stack_count_text(material: Option<MaterialId>, count: u32) -> String {
+    match material {
+        Some(MaterialId::TurnipSeed | MaterialId::PotatoSeed) if count > 1 => count.to_string(),
+        _ => String::new(),
+    }
 }
 
 fn action_bar_highlight(
@@ -185,7 +251,7 @@ pub(super) fn sync_action_bar_highlight(
 }
 
 pub(super) fn sync_action_bar_slot_contents(
-    mut action_bar: ResMut<ActionBar>,
+    action_bar: Res<ActionBar>,
     inventory: Res<Inventory>,
     slots: Query<(&ActionBarSlotIndex, &Children)>,
     mut icons: Query<&mut Visibility, With<ActionBarSlotIcon>>,
@@ -196,9 +262,6 @@ pub(super) fn sync_action_bar_slot_contents(
     }
     for (slot_index, children) in &slots {
         let (material, count) = held_material(&action_bar, &inventory, slot_index.0);
-        if count == 0 && matches!(action_bar.held_inventory_slot(slot_index.0), Ok(Some(_))) {
-            let _ = action_bar.clear_held_inventory_slot(slot_index.0);
-        }
         for child in children.iter() {
             if let Ok(mut visibility) = icons.get_mut(*child) {
                 *visibility = hoe_visibility(material, count);
@@ -207,72 +270,6 @@ pub(super) fn sync_action_bar_slot_contents(
                 text.0 = stack_count_text(material, count);
             }
         }
-    }
-}
-
-fn hoe_icon(
-    art: &ActionBarArt,
-    visibility: Visibility,
-) -> (ActionBarSlotIcon, ImageNode, Node, Visibility) {
-    (
-        ActionBarSlotIcon,
-        ImageNode::new(art.hoe_icon.clone()),
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(19.0),
-            top: Val::Px(19.0),
-            width: Val::Px(16.0),
-            height: Val::Px(16.0),
-            ..default()
-        },
-        visibility,
-    )
-}
-
-fn hoe_visibility(material: Option<MaterialId>, count: u32) -> Visibility {
-    if material == Some(MaterialId::Hoe) && count > 0 {
-        Visibility::Visible
-    } else {
-        Visibility::Hidden
-    }
-}
-
-fn stack_count_label(text: String) -> (ActionBarSlotCount, Text, TextFont, TextColor, Node) {
-    (
-        ActionBarSlotCount,
-        Text::new(text),
-        TextFont {
-            font_size: 11.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.98, 0.98, 1.0)),
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(3.0),
-            bottom: Val::Px(1.0),
-            ..default()
-        },
-    )
-}
-
-fn held_material(
-    action_bar: &ActionBar,
-    inventory: &Inventory,
-    slot_index: usize,
-) -> (Option<MaterialId>, u32) {
-    let Ok(Some(inventory_index)) = action_bar.held_inventory_slot(slot_index) else {
-        return (None, 0);
-    };
-    let Some(stack) = inventory.slots.get(inventory_index) else {
-        return (None, 0);
-    };
-    (stack.material, stack.count)
-}
-
-fn stack_count_text(material: Option<MaterialId>, count: u32) -> String {
-    match material {
-        Some(MaterialId::TurnipSeed | MaterialId::PotatoSeed) if count > 1 => count.to_string(),
-        _ => String::new(),
     }
 }
 
