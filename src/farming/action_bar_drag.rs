@@ -76,12 +76,6 @@ pub(super) fn update_action_bar_drag_ghost(
     place_action_bar_drag_ghost(&mut commands, &mut drag, &mut ghosts, color, label, cursor);
 }
 
-fn despawn_action_bar_drag_ghost(commands: &mut Commands, drag: &mut ActionBarDrag) {
-    if let Some(entity) = drag.ghost.take() {
-        commands.entity(entity).try_despawn_recursive();
-    }
-}
-
 fn primary_cursor(windows: &Query<&Window, With<PrimaryWindow>>) -> Option<Vec2> {
     windows.iter().next()?.cursor_position()
 }
@@ -152,6 +146,12 @@ fn spawn_action_bar_drag_ghost(
 pub(super) fn clear_action_bar_drag(mut commands: Commands, mut drag: ResMut<ActionBarDrag>) {
     drag.from_inventory_slot = None;
     despawn_action_bar_drag_ghost(&mut commands, &mut drag);
+}
+
+fn despawn_action_bar_drag_ghost(commands: &mut Commands, drag: &mut ActionBarDrag) {
+    if let Some(entity) = drag.ghost.take() {
+        commands.entity(entity).try_despawn_recursive();
+    }
 }
 
 #[cfg(test)]
