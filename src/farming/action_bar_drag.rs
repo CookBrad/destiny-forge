@@ -65,9 +65,6 @@ pub(super) fn update_action_bar_drag_ghost(
     mut ghosts: Query<&mut Node, With<ActionBarDragGhost>>,
 ) {
     let Some(inventory_index) = drag.from_inventory_slot else {
-        if drag.ghost.is_some() {
-            despawn_action_bar_drag_ghost(&mut commands, &mut drag);
-        }
         return;
     };
     let Some(cursor) = primary_cursor(&windows) else {
@@ -170,8 +167,8 @@ mod tests {
     use crate::ui::inventory_window::{inventory_closed, InventorySlot, InventoryWindowOpen};
 
     use super::{
-        clear_action_bar_drag, start_action_bar_drag, update_action_bar_drag_ghost, ActionBarDrag,
-        ActionBarDragGhost, GHOST_SIZE,
+        clear_action_bar_drag, drag_source_from_slot, start_action_bar_drag,
+        update_action_bar_drag_ghost, ActionBarDrag, ActionBarDragGhost, GHOST_SIZE,
     };
 
     #[test]
@@ -258,6 +255,93 @@ mod tests {
             app.world().resource::<ActionBarDrag>().from_inventory_slot,
             None
         );
+    }
+
+    #[test]
+    fn pressing_an_occupied_hovered_slot_does_not_start_a_drag() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        spawn_slot(&mut app, 3, Interaction::Hovered);
+        press_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+    }
+
+    #[test]
+    fn pressing_an_occupied_slot_with_no_interaction_does_not_start_a_drag() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        spawn_slot(&mut app, 3, Interaction::None);
+        press_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+    }
+
+    #[test]
+    fn a_slot_index_past_the_inventory_returns_none_without_panicking() {
+        let inventory = Inventory::default();
+        assert_eq!(
+            drag_source_from_slot(&inventory, inventory.slots.len(), &Interaction::Pressed),
+            None
+        );
+        assert_eq!(
+            drag_source_from_slot(&inventory, usize::MAX, &Interaction::Pressed),
+            None
+        );
+    }
+
+    #[test]
+    fn a_second_press_on_another_slot_keeps_the_original_drag() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        put_stack(&mut app, 0, MaterialId::TurnipSeed, 8);
+        spawn_pressed_slot(&mut app, 3);
+        press_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            Some(3)
+        );
+        release_primary(&mut app);
+        spawn_pressed_slot(&mut app, 0);
+        press_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn emptying_a_stack_mid_drag_leaves_the_ghost_in_place() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        spawn_pressed_slot(&mut app, 3);
+        spawn_primary_window(&mut app, Vec2::new(100.0, 80.0));
+        press_primary(&mut app);
+        app.update();
+        assert_eq!(
+            ghost_origin(&mut app),
+            Some(ghost_origin_for(Vec2::new(100.0, 80.0)))
+        );
+        release_primary(&mut app);
+        put_stack(&mut app, 3, MaterialId::Hoe, 0);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            Some(3)
+        );
+        assert_eq!(
+            ghost_origin(&mut app),
+            Some(ghost_origin_for(Vec2::new(100.0, 80.0)))
+        );
+        assert_eq!(ghost_count(&mut app), 1);
     }
 
     #[test]
@@ -391,12 +475,16 @@ mod tests {
     }
 
     fn spawn_pressed_slot(app: &mut App, inventory_index: usize) {
+        spawn_slot(app, inventory_index, Interaction::Pressed);
+    }
+
+    fn spawn_slot(app: &mut App, inventory_index: usize, interaction: Interaction) {
         app.world_mut().spawn((
             Button,
             InventorySlot {
                 index: inventory_index,
             },
-            Interaction::Pressed,
+            interaction,
         ));
     }
 
