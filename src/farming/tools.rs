@@ -1,5 +1,3 @@
-//! Homestead tools and energy costs.
-
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +10,6 @@ pub enum HomesteadTool {
     #[default]
     Hoe,
     WateringCan,
-    /// Plant first available seed type in inventory (turnip, then potato).
     Seeds,
     Hand,
 }
@@ -37,11 +34,9 @@ impl HomesteadTool {
     }
 }
 
-/// Currently equipped homestead tool (overworld only).
 #[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct EquippedTool(pub HomesteadTool);
 
-/// Prefer turnip seeds, then potato.
 pub fn first_available_seed_crop(has: impl Fn(MaterialId) -> bool) -> Option<CropKind> {
     if has(MaterialId::TurnipSeed) {
         Some(CropKind::Turnip)
