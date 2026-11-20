@@ -1,5 +1,6 @@
 mod action_bar;
 mod action_bar_art;
+mod action_bar_drag;
 mod actions;
 mod crops;
 mod hud;

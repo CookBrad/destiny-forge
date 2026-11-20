@@ -822,7 +822,7 @@ fn slot_visuals(inventory: &Inventory, index: usize) -> (Color, String, String) 
     }
 }
 
-fn material_visual(material: MaterialId) -> (Color, &'static str) {
+pub(crate) fn material_visual(material: MaterialId) -> (Color, &'static str) {
     match material {
         MaterialId::SlimeGel => (Color::srgb(0.2, 0.45, 0.82), "Gel"),
         MaterialId::SlimeCore => (Color::srgb(0.28, 0.72, 0.34), "Core"),
