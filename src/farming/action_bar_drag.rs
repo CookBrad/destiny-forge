@@ -5,8 +5,17 @@ use crate::input::{Action, ActionState};
 use crate::items::Inventory;
 use crate::ui::inventory_window::{material_visual, InventorySlot};
 
+use super::action_bar::{ActionBar, ActionBarHeldSlotOutOfRange, ACTION_BAR_SLOT_COUNT};
+
 const GHOST_SIZE: f32 = 40.0;
 const GHOST_LAYER: i32 = 400;
+const FRAME_WIDTH: f32 = 498.0;
+const FRAME_HEIGHT: f32 = 78.0;
+const SLOT_SIZE: f32 = 54.0;
+const SLOT_ORIGIN_LEFT: f32 = 12.0;
+const SLOT_ORIGIN_TOP: f32 = 12.0;
+const SLOT_STRIDE: f32 = 60.0;
+const BAR_BOTTOM: f32 = 14.0;
 
 #[derive(Resource, Default)]
 pub(super) struct ActionBarDrag {
@@ -143,15 +152,66 @@ fn spawn_action_bar_drag_ghost(
         .id()
 }
 
-pub(super) fn clear_action_bar_drag(mut commands: Commands, mut drag: ResMut<ActionBarDrag>) {
+pub(super) fn release_action_bar_drag(
+    actions: Res<ActionState>,
+    mut action_bar: ResMut<ActionBar>,
+    mut commands: Commands,
+    mut drag: ResMut<ActionBarDrag>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+) {
+    if !actions.just_released(Action::PrimaryButton) {
+        return;
+    }
+    let Some(inventory_index) = drag.from_inventory_slot else {
+        return;
+    };
+    if let Some(slot_index) = drop_slot_from_cursor(&windows) {
+        match action_bar.assign_held_inventory_slot(slot_index, inventory_index) {
+            Ok(()) => {}
+            Err(ActionBarHeldSlotOutOfRange) => {}
+        }
+    }
     drag.from_inventory_slot = None;
     despawn_action_bar_drag_ghost(&mut commands, &mut drag);
+}
+
+fn drop_slot_from_cursor(windows: &Query<&Window, With<PrimaryWindow>>) -> Option<usize> {
+    let window = windows.iter().next()?;
+    let cursor = window.cursor_position()?;
+    action_bar_slot_at_cursor(cursor, window.width(), window.height())
+}
+
+fn action_bar_slot_at_cursor(cursor: Vec2, window_width: f32, window_height: f32) -> Option<usize> {
+    if !cursor.x.is_finite()
+        || !cursor.y.is_finite()
+        || !window_width.is_finite()
+        || !window_height.is_finite()
+    {
+        return None;
+    }
+    let frame_left = (window_width - FRAME_WIDTH) * 0.5;
+    let slot_top = window_height - BAR_BOTTOM - FRAME_HEIGHT + SLOT_ORIGIN_TOP;
+    if cursor.y < slot_top || cursor.y >= slot_top + SLOT_SIZE {
+        return None;
+    }
+    for index in 0..ACTION_BAR_SLOT_COUNT {
+        let slot_left = frame_left + SLOT_ORIGIN_LEFT + index as f32 * SLOT_STRIDE;
+        if cursor.x >= slot_left && cursor.x < slot_left + SLOT_SIZE {
+            return Some(index);
+        }
+    }
+    None
 }
 
 fn despawn_action_bar_drag_ghost(commands: &mut Commands, drag: &mut ActionBarDrag) {
     if let Some(entity) = drag.ghost.take() {
         commands.entity(entity).try_despawn_recursive();
     }
+}
+
+pub(super) fn clear_action_bar_drag(mut commands: Commands, mut drag: ResMut<ActionBarDrag>) {
+    drag.from_inventory_slot = None;
+    despawn_action_bar_drag_ghost(&mut commands, &mut drag);
 }
 
 #[cfg(test)]
@@ -162,13 +222,16 @@ mod tests {
     use bevy::window::{PrimaryWindow, WindowResolution};
 
     use crate::core::GameState;
-    use crate::input::action_state_after_pressing;
+    use crate::farming::ActionBar;
+    use crate::input::{action_state_after_pressing, ActionState, InputMap};
     use crate::items::{Inventory, MaterialId};
     use crate::ui::inventory_window::{inventory_closed, InventorySlot, InventoryWindowOpen};
 
     use super::{
-        clear_action_bar_drag, drag_source_from_slot, start_action_bar_drag,
-        update_action_bar_drag_ghost, ActionBarDrag, ActionBarDragGhost, GHOST_SIZE,
+        action_bar_slot_at_cursor, clear_action_bar_drag, drag_source_from_slot,
+        release_action_bar_drag, start_action_bar_drag, update_action_bar_drag_ghost,
+        ActionBarDrag, ActionBarDragGhost, BAR_BOTTOM, FRAME_HEIGHT, FRAME_WIDTH, GHOST_SIZE,
+        SLOT_ORIGIN_LEFT, SLOT_ORIGIN_TOP, SLOT_SIZE, SLOT_STRIDE,
     };
 
     #[test]
@@ -443,10 +506,205 @@ mod tests {
         );
     }
 
+    #[test]
+    fn releasing_over_slot_zero_assigns_the_dragged_inventory_index() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::TurnipSeed, 4);
+        let window = start_drag(&mut app, 3, slot_center(0));
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(Some(3))
+        );
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+        assert_eq!(ghost_count(&mut app), 0);
+        let _ = window;
+    }
+
+    #[test]
+    fn a_seed_can_drop_in_slot_zero_and_a_hoe_can_drop_in_slot_seven() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 1, MaterialId::TurnipSeed, 8);
+        let window = start_drag(&mut app, 1, slot_center(0));
+        just_release_primary(&mut app);
+        app.update();
+        clear_slot_interactions(&mut app);
+        put_stack(&mut app, 10, MaterialId::Hoe, 1);
+        set_cursor(&mut app, window, Some(slot_center(7)));
+        spawn_pressed_slot(&mut app, 10);
+        press_primary(&mut app);
+        app.update();
+        set_cursor(&mut app, window, Some(slot_center(7)));
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(Some(1))
+        );
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(7),
+            Ok(Some(10))
+        );
+    }
+
+    #[test]
+    fn releasing_over_a_filled_slot_replaces_the_held_inventory_index() {
+        let mut app = app_with_open_inventory();
+        app.world_mut()
+            .resource_mut::<ActionBar>()
+            .assign_held_inventory_slot(0, 5)
+            .expect("valid assignment");
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        start_drag(&mut app, 3, slot_center(0));
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(Some(3))
+        );
+    }
+
+    #[test]
+    fn releasing_off_the_bar_cancels_the_drag_and_leaves_the_bar_unchanged() {
+        let mut app = app_with_open_inventory();
+        app.world_mut()
+            .resource_mut::<ActionBar>()
+            .assign_held_inventory_slot(2, 4)
+            .expect("valid assignment");
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        start_drag(&mut app, 3, Vec2::new(100.0, 80.0));
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(2),
+            Ok(Some(4))
+        );
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(None)
+        );
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+        assert_eq!(ghost_count(&mut app), 0);
+    }
+
+    #[test]
+    fn a_cursor_in_the_gap_between_slots_does_not_assign_a_slot() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        start_drag(&mut app, 3, gap_between(0, 1));
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(None)
+        );
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(1),
+            Ok(None)
+        );
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+    }
+
+    #[test]
+    fn slot_hit_tests_are_inclusive_on_the_left_and_top_and_exclusive_on_the_right_and_bottom() {
+        let (left, top, right, bottom) = slot_edges(0);
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(left, top + 1.0), 1280.0, 720.0),
+            Some(0)
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(left + 1.0, top), 1280.0, 720.0),
+            Some(0)
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(right, top + 1.0), 1280.0, 720.0),
+            None
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(left + 1.0, bottom), 1280.0, 720.0),
+            None
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(gap_between(0, 1), 1280.0, 720.0),
+            None
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(slot_center(7), 1280.0, 720.0),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn a_non_finite_cursor_or_window_size_does_not_hit_a_slot() {
+        let cursor = slot_center(0);
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(f32::NAN, cursor.y), 1280.0, 720.0),
+            None
+        );
+        assert_eq!(
+            action_bar_slot_at_cursor(Vec2::new(cursor.x, f32::INFINITY), 1280.0, 720.0),
+            None
+        );
+        assert_eq!(action_bar_slot_at_cursor(cursor, f32::NAN, 720.0), None);
+        assert_eq!(
+            action_bar_slot_at_cursor(cursor, 1280.0, f32::NEG_INFINITY),
+            None
+        );
+    }
+
+    #[test]
+    fn releasing_without_a_primary_window_cancels_the_drag_and_does_not_panic() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        spawn_pressed_slot(&mut app, 3);
+        press_primary(&mut app);
+        app.update();
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn releasing_without_a_cursor_cancels_the_drag_and_leaves_the_bar_unchanged() {
+        let mut app = app_with_open_inventory();
+        put_stack(&mut app, 3, MaterialId::Hoe, 1);
+        let window = start_drag(&mut app, 3, slot_center(0));
+        set_cursor(&mut app, window, None);
+        just_release_primary(&mut app);
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionBarDrag>().from_inventory_slot,
+            None
+        );
+        assert_eq!(
+            app.world().resource::<ActionBar>().held_inventory_slot(0),
+            Ok(None)
+        );
+        assert_eq!(ghost_count(&mut app), 0);
+    }
+
     fn app_with_open_inventory() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .init_resource::<ActionBarDrag>()
+            .init_resource::<ActionBar>()
             .init_resource::<Inventory>()
             .insert_resource(InventoryWindowOpen(true))
             .insert_resource(action_state_after_pressing(&[], &[]))
@@ -455,6 +713,7 @@ mod tests {
                 (
                     start_action_bar_drag,
                     update_action_bar_drag_ghost.after(start_action_bar_drag),
+                    release_action_bar_drag.after(update_action_bar_drag_ghost),
                     clear_action_bar_drag.run_if(inventory_closed),
                 ),
             );
@@ -512,6 +771,57 @@ mod tests {
     fn release_primary(app: &mut App) {
         app.world_mut()
             .insert_resource(action_state_after_pressing(&[], &[]));
+    }
+
+    fn just_release_primary(app: &mut App) {
+        let mut mouse = ButtonInput::<MouseButton>::default();
+        mouse.press(MouseButton::Left);
+        mouse.clear();
+        mouse.release(MouseButton::Left);
+        app.world_mut().insert_resource(ActionState::from_devices(
+            &InputMap::default(),
+            &ButtonInput::<KeyCode>::default(),
+            &mouse,
+        ));
+    }
+
+    fn clear_slot_interactions(app: &mut App) {
+        let mut interactions = app.world_mut().query::<&mut Interaction>();
+        for mut interaction in interactions.iter_mut(app.world_mut()) {
+            *interaction = Interaction::None;
+        }
+    }
+
+    fn start_drag(app: &mut App, inventory_index: usize, cursor: Vec2) -> Entity {
+        spawn_pressed_slot(app, inventory_index);
+        let window = spawn_primary_window(app, cursor);
+        press_primary(app);
+        app.update();
+        release_primary(app);
+        window
+    }
+
+    fn slot_center(slot_index: usize) -> Vec2 {
+        let (left, top, right, bottom) = slot_edges(slot_index);
+        Vec2::new((left + right) * 0.5, (top + bottom) * 0.5)
+    }
+
+    fn gap_between(left_slot: usize, right_slot: usize) -> Vec2 {
+        let (_, top, right, bottom) = slot_edges(left_slot);
+        let (next_left, _, _, _) = slot_edges(right_slot);
+        Vec2::new((right + next_left) * 0.5, (top + bottom) * 0.5)
+    }
+
+    fn slot_edges(slot_index: usize) -> (f32, f32, f32, f32) {
+        let frame_left = (1280.0 - FRAME_WIDTH) * 0.5;
+        let slot_top = 720.0 - BAR_BOTTOM - FRAME_HEIGHT + SLOT_ORIGIN_TOP;
+        let slot_left = frame_left + SLOT_ORIGIN_LEFT + slot_index as f32 * SLOT_STRIDE;
+        (
+            slot_left,
+            slot_top,
+            slot_left + SLOT_SIZE,
+            slot_top + SLOT_SIZE,
+        )
     }
 
     fn ghost_origin_for(cursor: Vec2) -> (f32, f32) {

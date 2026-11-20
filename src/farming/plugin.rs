@@ -10,7 +10,8 @@ use super::action_bar_art::{
     sync_action_bar_slot_contents,
 };
 use super::action_bar_drag::{
-    clear_action_bar_drag, start_action_bar_drag, update_action_bar_drag_ghost, ActionBarDrag,
+    clear_action_bar_drag, release_action_bar_drag, start_action_bar_drag,
+    update_action_bar_drag_ghost, ActionBarDrag,
 };
 use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
@@ -72,6 +73,8 @@ impl Plugin for FarmingPlugin {
                 (
                     start_action_bar_drag,
                     update_action_bar_drag_ghost.after(start_action_bar_drag),
+                    release_action_bar_drag.after(update_action_bar_drag_ghost),
+                    sync_action_bar_slot_contents.after(release_action_bar_drag),
                 )
                     .run_if(in_state(GameState::Overworld))
                     .run_if(inventory_window_open),

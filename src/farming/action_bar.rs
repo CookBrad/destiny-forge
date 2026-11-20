@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-#[cfg(test)]
 use crate::items::INVENTORY_SLOT_COUNT;
 
 pub(super) const ACTION_BAR_SLOT_COUNT: usize = 8;
@@ -34,7 +33,6 @@ impl ActionBar {
             .ok_or(ActionBarSlotOutOfRange)
     }
 
-    #[cfg(test)]
     pub fn assign_held_inventory_slot(
         &mut self,
         slot_index: usize,
@@ -67,7 +65,6 @@ fn slot_index_is_out_of_range(slot_index: usize) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActionBarSlotOutOfRange;
 
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActionBarHeldSlotOutOfRange;
 
