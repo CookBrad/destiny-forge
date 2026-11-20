@@ -1,19 +1,22 @@
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 
+use crate::items::{Inventory, MaterialId};
+
 use super::action_bar::ACTION_BAR_SLOT_COUNT;
 use super::tools::{EquippedTool, HomesteadTool};
 use super::{ActionBar, ActionBarSlotOutOfRange};
 
 pub(super) fn select_action_bar_slot_from_number_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
+    inventory: Res<Inventory>,
     mut action_bar: ResMut<ActionBar>,
     mut equipped_tool: ResMut<EquippedTool>,
 ) {
     let Some(slot_index) = just_pressed_number_key_slot(&keyboard) else {
         return;
     };
-    select_action_bar_slot(&mut action_bar, &mut equipped_tool, slot_index);
+    select_action_bar_slot(&mut action_bar, &inventory, &mut equipped_tool, slot_index);
 }
 
 fn just_pressed_number_key_slot(keyboard: &ButtonInput<KeyCode>) -> Option<usize> {
@@ -46,13 +49,14 @@ fn number_key_slots() -> [(KeyCode, usize); 16] {
 
 fn select_action_bar_slot(
     action_bar: &mut ActionBar,
+    inventory: &Inventory,
     equipped_tool: &mut EquippedTool,
     slot_index: usize,
 ) {
     if try_store_selected_slot(action_bar, slot_index).is_err() {
         return;
     }
-    equip_tool_for_slot(equipped_tool, slot_index);
+    equip_tool_for_slot(equipped_tool, action_bar, inventory, slot_index);
 }
 
 fn try_store_selected_slot(
@@ -62,8 +66,13 @@ fn try_store_selected_slot(
     action_bar.select_slot(slot_index)
 }
 
-fn equip_tool_for_slot(equipped_tool: &mut EquippedTool, slot_index: usize) {
-    let Some(tool) = homestead_tool_for_slot(slot_index) else {
+fn equip_tool_for_slot(
+    equipped_tool: &mut EquippedTool,
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    slot_index: usize,
+) {
+    let Some(tool) = homestead_tool_for_held_stack(action_bar, inventory, slot_index) else {
         return;
     };
     if equipped_tool.0 == tool {
@@ -73,12 +82,31 @@ fn equip_tool_for_slot(equipped_tool: &mut EquippedTool, slot_index: usize) {
     info!("Equipped {}.", tool.label());
 }
 
-fn homestead_tool_for_slot(slot_index: usize) -> Option<HomesteadTool> {
-    HomesteadTool::ALL.get(slot_index).copied()
+fn homestead_tool_for_held_stack(
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    slot_index: usize,
+) -> Option<HomesteadTool> {
+    let inventory_index = action_bar.held_inventory_slot(slot_index).ok()??;
+    let stack = inventory.slots.get(inventory_index)?;
+    if stack.count == 0 {
+        return None;
+    }
+    homestead_tool_for_material(stack.material?)
+}
+
+fn homestead_tool_for_material(material: MaterialId) -> Option<HomesteadTool> {
+    match material {
+        MaterialId::Hoe => Some(HomesteadTool::Hoe),
+        MaterialId::WateringCan => Some(HomesteadTool::WateringCan),
+        MaterialId::TurnipSeed | MaterialId::PotatoSeed => Some(HomesteadTool::Seeds),
+        _ => None,
+    }
 }
 
 pub(super) fn cycle_action_bar_slot_from_mouse_wheel(
     mut mouse_wheels: EventReader<MouseWheel>,
+    inventory: Res<Inventory>,
     mut action_bar: ResMut<ActionBar>,
     mut equipped_tool: ResMut<EquippedTool>,
 ) {
@@ -87,7 +115,7 @@ pub(super) fn cycle_action_bar_slot_from_mouse_wheel(
         return;
     }
     let slot_index = slot_index_after_steps(action_bar.selected_slot(), slots_moved);
-    select_action_bar_slot(&mut action_bar, &mut equipped_tool, slot_index);
+    select_action_bar_slot(&mut action_bar, &inventory, &mut equipped_tool, slot_index);
 }
 
 fn slots_moved_by_mouse_wheel<'a>(mouse_wheels: impl Iterator<Item = &'a MouseWheel>) -> i32 {
@@ -121,6 +149,7 @@ mod tests {
     use crate::farming::action_bar::ActionBar;
     use crate::farming::tools::{EquippedTool, HomesteadTool};
     use crate::input::InputPlugin;
+    use crate::items::{Inventory, MaterialId};
     use crate::ui::forge_window::{forge_closed, ForgeWindowOpen};
     use crate::ui::inventory_window::{inventory_closed, InventoryWindowOpen};
 
@@ -138,91 +167,117 @@ mod tests {
     }
 
     #[test]
-    fn number_keys_one_through_four_equip_the_same_tools() {
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hand, KeyCode::Digit1),
-            HomesteadTool::Hoe
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hand, KeyCode::Numpad1),
-            HomesteadTool::Hoe
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hoe, KeyCode::Digit2),
-            HomesteadTool::WateringCan
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hoe, KeyCode::Numpad2),
-            HomesteadTool::WateringCan
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hoe, KeyCode::Digit3),
-            HomesteadTool::Seeds
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Hoe, KeyCode::Numpad3),
-            HomesteadTool::Seeds
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Seeds, KeyCode::Digit4),
-            HomesteadTool::Hand
-        );
-        assert_eq!(
-            tool_after_pressing(HomesteadTool::Seeds, KeyCode::Numpad4),
-            HomesteadTool::Hand
-        );
+    fn selecting_a_slot_equips_the_tool_held_in_that_slot() {
+        let mut app = overworld_selection_app();
+        set_equipped_tool(&mut app, HomesteadTool::Hand);
+        put_stack(&mut app, 2, MaterialId::Hoe, 1);
+        put_stack(&mut app, 5, MaterialId::WateringCan, 1);
+        put_stack(&mut app, 8, MaterialId::TurnipSeed, 8);
+        put_stack(&mut app, 9, MaterialId::PotatoSeed, 4);
+        assign_held_slot(&mut app, 0, 2);
+        assign_held_slot(&mut app, 6, 5);
+        assign_held_slot(&mut app, 3, 8);
+        assign_held_slot(&mut app, 7, 9);
+
+        press_key(&mut app, KeyCode::Digit1);
+        assert_eq!(selected_slot(&app), 0);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+
+        press_key(&mut app, KeyCode::Numpad7);
+        assert_eq!(selected_slot(&app), 6);
+        assert_eq!(equipped_tool(&app), HomesteadTool::WateringCan);
+
+        press_key(&mut app, KeyCode::Digit4);
+        assert_eq!(selected_slot(&app), 3);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
+
+        press_key(&mut app, KeyCode::Numpad8);
+        assert_eq!(selected_slot(&app), 7);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
     }
 
     #[test]
     fn an_earlier_digit_key_wins_over_the_numpad() {
         let mut app = overworld_selection_app();
         set_equipped_tool(&mut app, HomesteadTool::Hand);
+        put_stack(&mut app, 0, MaterialId::Hoe, 1);
+        put_stack(&mut app, 1, MaterialId::WateringCan, 1);
+        assign_held_slot(&mut app, 0, 0);
+        assign_held_slot(&mut app, 1, 1);
         press_keys(&mut app, &[KeyCode::Numpad1, KeyCode::Digit2]);
         assert_eq!(selected_slot(&app), 1);
         assert_eq!(equipped_tool(&app), HomesteadTool::WateringCan);
     }
 
     #[test]
-    fn selecting_slots_four_through_seven_leaves_the_equipped_tool() {
-        for (slot_index, key) in empty_digit_keys().into_iter().enumerate() {
+    fn selecting_an_empty_slot_leaves_the_equipped_tool() {
+        for (slot_index, key) in digit_keys().into_iter().enumerate() {
             let mut app = overworld_selection_app();
             set_equipped_tool(&mut app, HomesteadTool::Seeds);
             press_key(&mut app, key);
-            assert_eq!(selected_slot(&app), slot_index + 4);
+            assert_eq!(selected_slot(&app), slot_index);
             assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
         }
-        for (slot_index, key) in empty_numpad_keys().into_iter().enumerate() {
+        for (slot_index, key) in numpad_keys().into_iter().enumerate() {
             let mut app = overworld_selection_app();
             set_equipped_tool(&mut app, HomesteadTool::Seeds);
             press_key(&mut app, key);
-            assert_eq!(selected_slot(&app), slot_index + 4);
+            assert_eq!(selected_slot(&app), slot_index);
             assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
         }
+    }
+
+    #[test]
+    fn selecting_a_slot_with_a_non_tool_item_or_a_zero_count_stack_leaves_the_equipped_tool() {
+        let mut app = overworld_selection_app();
+        set_equipped_tool(&mut app, HomesteadTool::Hoe);
+        put_stack(&mut app, 4, MaterialId::Turnip, 2);
+        put_stack(&mut app, 5, MaterialId::PickaxeTier1, 1);
+        put_stack(&mut app, 6, MaterialId::Hoe, 0);
+        assign_held_slot(&mut app, 2, 4);
+        assign_held_slot(&mut app, 4, 5);
+        assign_held_slot(&mut app, 7, 6);
+
+        press_key(&mut app, KeyCode::Digit3);
+        assert_eq!(selected_slot(&app), 2);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+
+        press_key(&mut app, KeyCode::Digit5);
+        assert_eq!(selected_slot(&app), 4);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+
+        press_key(&mut app, KeyCode::Digit8);
+        assert_eq!(selected_slot(&app), 7);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
     }
 
     #[test]
     fn the_mouse_wheel_wraps_from_the_last_slot_to_the_first_and_back() {
         let mut app = overworld_selection_app();
         set_equipped_tool(&mut app, HomesteadTool::Hand);
+        put_stack(&mut app, 1, MaterialId::WateringCan, 1);
+        assign_held_slot(&mut app, 0, 1);
         select_slot_directly(&mut app, 7);
         scroll_mouse_wheel_down(&mut app);
         assert_eq!(selected_slot(&app), 0);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+        assert_eq!(equipped_tool(&app), HomesteadTool::WateringCan);
 
         scroll_mouse_wheel_up(&mut app);
         assert_eq!(selected_slot(&app), 7);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+        assert_eq!(equipped_tool(&app), HomesteadTool::WateringCan);
     }
 
     #[test]
-    fn the_mouse_wheel_equips_the_tool_when_it_lands_on_slots_zero_through_three() {
+    fn the_mouse_wheel_equips_the_tool_when_it_lands_on_a_filled_slot() {
         let mut app = overworld_selection_app();
         set_equipped_tool(&mut app, HomesteadTool::Seeds);
-        select_slot_directly(&mut app, 4);
-
-        scroll_mouse_wheel_up(&mut app);
-        assert_eq!(selected_slot(&app), 3);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
+        put_stack(&mut app, 10, MaterialId::Hoe, 1);
+        put_stack(&mut app, 11, MaterialId::WateringCan, 1);
+        put_stack(&mut app, 12, MaterialId::TurnipSeed, 8);
+        assign_held_slot(&mut app, 0, 10);
+        assign_held_slot(&mut app, 1, 11);
+        assign_held_slot(&mut app, 2, 12);
+        select_slot_directly(&mut app, 3);
 
         scroll_mouse_wheel_up(&mut app);
         assert_eq!(selected_slot(&app), 2);
@@ -281,6 +336,7 @@ mod tests {
             .init_resource::<ForgeWindowOpen>()
             .init_resource::<ActionBar>()
             .init_resource::<EquippedTool>()
+            .init_resource::<Inventory>()
             .add_event::<MouseWheel>()
             .add_systems(
                 Update,
@@ -335,29 +391,18 @@ mod tests {
         ]
     }
 
-    fn empty_digit_keys() -> [KeyCode; 4] {
-        [
-            KeyCode::Digit5,
-            KeyCode::Digit6,
-            KeyCode::Digit7,
-            KeyCode::Digit8,
-        ]
+    fn put_stack(app: &mut App, inventory_index: usize, material: MaterialId, count: u32) {
+        let mut inventory = app.world_mut().resource_mut::<Inventory>();
+        inventory.slots[inventory_index].material = Some(material);
+        inventory.slots[inventory_index].count = count;
     }
 
-    fn empty_numpad_keys() -> [KeyCode; 4] {
-        [
-            KeyCode::Numpad5,
-            KeyCode::Numpad6,
-            KeyCode::Numpad7,
-            KeyCode::Numpad8,
-        ]
-    }
-
-    fn tool_after_pressing(start: HomesteadTool, key: KeyCode) -> HomesteadTool {
-        let mut app = overworld_selection_app();
-        set_equipped_tool(&mut app, start);
-        press_key(&mut app, key);
-        equipped_tool(&app)
+    fn assign_held_slot(app: &mut App, slot_index: usize, inventory_index: usize) {
+        let assigned = app
+            .world_mut()
+            .resource_mut::<ActionBar>()
+            .assign_held_inventory_slot(slot_index, inventory_index);
+        assert_eq!(assigned, Ok(()));
     }
 
     fn press_key(app: &mut App, key: KeyCode) {
