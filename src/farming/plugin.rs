@@ -5,6 +5,7 @@ use crate::overworld::setup::{cleanup_overworld, setup_overworld};
 use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::{inventory_closed, inventory_window_open};
 
+use super::action_bar::clear_emptied_action_bar_slots;
 use super::action_bar_art::{
     cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud, sync_action_bar_highlight,
     sync_action_bar_slot_contents,
@@ -22,6 +23,9 @@ use super::use_tool::{
     capture_crop_plots_on_exit, ensure_starter_kit, update_player_facing, use_homestead_tool,
 };
 use super::ActionBar;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ActionBarSlotContentsSync;
 
 pub struct FarmingPlugin;
 
@@ -54,9 +58,9 @@ impl Plugin for FarmingPlugin {
                     select_action_bar_slot_from_number_keys,
                     cycle_action_bar_slot_from_mouse_wheel,
                     sync_action_bar_highlight,
-                    sync_action_bar_slot_contents,
                     update_player_facing,
                     use_homestead_tool,
+                    sync_action_bar_slot_contents.in_set(ActionBarSlotContentsSync),
                     sync_plot_visuals,
                 )
                     .chain()
@@ -70,10 +74,19 @@ impl Plugin for FarmingPlugin {
                     start_action_bar_drag,
                     update_action_bar_drag_ghost.after(start_action_bar_drag),
                     release_action_bar_drag.after(update_action_bar_drag_ghost),
-                    sync_action_bar_slot_contents.after(release_action_bar_drag),
+                    sync_action_bar_slot_contents
+                        .after(release_action_bar_drag)
+                        .in_set(ActionBarSlotContentsSync),
                 )
                     .run_if(in_state(GameState::Overworld))
                     .run_if(inventory_window_open),
+            )
+            .add_systems(
+                Update,
+                clear_emptied_action_bar_slots
+                    .after(use_homestead_tool)
+                    .before(ActionBarSlotContentsSync)
+                    .run_if(in_state(GameState::Overworld)),
             )
             .add_systems(
                 Update,
