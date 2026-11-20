@@ -335,7 +335,6 @@ mod tests {
         assert!(app.world().get_resource::<ActionBarArt>().is_none());
         assert_eq!(action_bar_root_count(&mut app), 0);
         assert_eq!(action_bar_frame_count(&mut app), 0);
-        assert_eq!(text_tool_root_count(&mut app), 0);
     }
 
     #[test]
@@ -348,7 +347,6 @@ mod tests {
         assert_eq!(action_bar_root_count(&mut app), 1);
         assert_eq!(action_bar_frame_count(&mut app), 1);
         assert_eq!(root_child_count(&mut app), 1);
-        assert_eq!(text_tool_root_count(&mut app), 1);
 
         let root = action_bar_root_node(&mut app);
         assert_eq!(root.position_type, PositionType::Absolute);
@@ -379,13 +377,11 @@ mod tests {
         leave_overworld(&mut app);
         assert_eq!(action_bar_root_count(&mut app), 0);
         assert_eq!(action_bar_frame_count(&mut app), 0);
-        assert_eq!(text_tool_root_count(&mut app), 0);
 
         enter_overworld(&mut app);
         assert_eq!(action_bar_root_count(&mut app), 1);
         assert_eq!(action_bar_frame_count(&mut app), 1);
         assert_eq!(root_child_count(&mut app), 1);
-        assert_eq!(text_tool_root_count(&mut app), 1);
         let image = action_bar_frame_image(&mut app);
         assert_eq!(image.image, app.world().resource::<ActionBarArt>().frame);
         assert_eq!(image_path(&image.image), FRAME_IMAGE_PATH);
@@ -466,6 +462,14 @@ mod tests {
         app.update();
         assert_eq!(slot_icon_count(&mut app), 0);
         assert_eq!(slot_count_label_count(&mut app), 0);
+        assert!(!any_text_contains(&mut app, "Watering Can"));
+        assert!(!any_text_contains(&mut app, "[1 Hoe]"));
+    }
+
+    #[test]
+    fn the_overworld_does_not_show_the_old_tool_list() {
+        let mut app = app_ready_for_the_overworld();
+        enter_overworld(&mut app);
         assert!(!any_text_contains(&mut app, "Watering Can"));
         assert!(!any_text_contains(&mut app, "[1 Hoe]"));
     }
@@ -672,13 +676,6 @@ mod tests {
     fn action_bar_frame_count(app: &mut App) -> usize {
         app.world_mut()
             .query::<&ActionBarFrame>()
-            .iter(app.world())
-            .count()
-    }
-
-    fn text_tool_root_count(app: &mut App) -> usize {
-        app.world_mut()
-            .query::<&crate::farming::hud::ToolHudRoot>()
             .iter(app.world())
             .count()
     }

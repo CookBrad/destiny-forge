@@ -1,4 +1,4 @@
-//! Homestead tools and energy costs. Equip with keys 1–4 (not a drag hotbar).
+//! Homestead tools and energy costs.
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -18,23 +18,12 @@ pub enum HomesteadTool {
 }
 
 impl HomesteadTool {
-    pub const ALL: [Self; 4] = [Self::Hoe, Self::WateringCan, Self::Seeds, Self::Hand];
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Hoe => "Hoe",
             Self::WateringCan => "Watering Can",
             Self::Seeds => "Seeds",
             Self::Hand => "Hand",
-        }
-    }
-
-    pub fn hotkey(self) -> &'static str {
-        match self {
-            Self::Hoe => "1",
-            Self::WateringCan => "2",
-            Self::Seeds => "3",
-            Self::Hand => "4",
         }
     }
 
