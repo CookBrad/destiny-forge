@@ -187,6 +187,54 @@ mod tests {
         inventory.slots[inventory_index].count = count;
     }
 
+    fn icon_visibility(app: &mut App, slot_index: usize) -> Visibility {
+        icon(app, slot_index).0
+    }
+
+    fn icon(app: &mut App, slot_index: usize) -> (Visibility, Handle<Image>) {
+        let slot = slot_entity(app, slot_index);
+        let mut icons = app
+            .world_mut()
+            .query_filtered::<(&Visibility, &ImageNode, &Parent), With<ActionBarSlotIcon>>();
+        let (visibility, image, _) = icons
+            .iter(app.world())
+            .find(|(_, _, parent)| parent.get() == slot)
+            .expect("slot icon");
+        (*visibility, image.image.clone())
+    }
+
+    fn slot_entity(app: &mut App, slot_index: usize) -> Entity {
+        let expected_left = Val::Px(SLOT_ORIGIN_LEFT + slot_index as f32 * SLOT_STRIDE);
+        let expected_top = Val::Px(SLOT_ORIGIN_TOP);
+        let mut slots = app
+            .world_mut()
+            .query_filtered::<(Entity, &Node), With<ActionBarSlotIndex>>();
+        slots
+            .iter(app.world())
+            .find_map(|(entity, node)| {
+                (node.left == expected_left && node.top == expected_top).then_some(entity)
+            })
+            .expect("action bar slot")
+    }
+
+    fn count_label(app: &mut App, slot_index: usize) -> String {
+        let slot = slot_entity(app, slot_index);
+        let mut labels = app
+            .world_mut()
+            .query_filtered::<(&Text, &Parent), With<ActionBarSlotCount>>();
+        labels
+            .iter(app.world())
+            .find_map(|(text, parent)| (parent.get() == slot).then(|| text.0.clone()))
+            .expect("slot count")
+    }
+
+    fn slot_center(slot_index: usize) -> Vec2 {
+        let frame_left = (WINDOW_WIDTH - FRAME_WIDTH) * 0.5;
+        let slot_top = WINDOW_HEIGHT - BAR_BOTTOM - FRAME_HEIGHT + SLOT_ORIGIN_TOP;
+        let slot_left = frame_left + SLOT_ORIGIN_LEFT + slot_index as f32 * SLOT_STRIDE;
+        Vec2::new(slot_left + SLOT_SIZE * 0.5, slot_top + SLOT_SIZE * 0.5)
+    }
+
     fn start_drag(app: &mut App, inventory_index: usize, cursor: Vec2) -> Entity {
         app.world_mut().spawn((
             Button,
@@ -211,13 +259,6 @@ mod tests {
         app.world_mut().spawn((window, PrimaryWindow)).id()
     }
 
-    fn set_cursor(app: &mut App, window: Entity, cursor: Option<Vec2>) {
-        app.world_mut()
-            .get_mut::<Window>(window)
-            .expect("primary window")
-            .set_cursor_position(cursor);
-    }
-
     fn press_primary(app: &mut App) {
         let mut mouse = ButtonInput::<MouseButton>::default();
         mouse.press(MouseButton::Left);
@@ -229,37 +270,19 @@ mod tests {
             .insert_resource(ButtonInput::<MouseButton>::default());
     }
 
+    fn set_cursor(app: &mut App, window: Entity, cursor: Option<Vec2>) {
+        app.world_mut()
+            .get_mut::<Window>(window)
+            .expect("primary window")
+            .set_cursor_position(cursor);
+    }
+
     fn just_release_primary(app: &mut App) {
         let mut mouse = ButtonInput::<MouseButton>::default();
         mouse.press(MouseButton::Left);
         mouse.clear();
         mouse.release(MouseButton::Left);
         app.world_mut().insert_resource(mouse);
-    }
-
-    fn slot_center(slot_index: usize) -> Vec2 {
-        let frame_left = (WINDOW_WIDTH - FRAME_WIDTH) * 0.5;
-        let slot_top = WINDOW_HEIGHT - BAR_BOTTOM - FRAME_HEIGHT + SLOT_ORIGIN_TOP;
-        let slot_left = frame_left + SLOT_ORIGIN_LEFT + slot_index as f32 * SLOT_STRIDE;
-        Vec2::new(slot_left + SLOT_SIZE * 0.5, slot_top + SLOT_SIZE * 0.5)
-    }
-
-    fn slot_entity(app: &mut App, slot_index: usize) -> Entity {
-        let expected_left = Val::Px(SLOT_ORIGIN_LEFT + slot_index as f32 * SLOT_STRIDE);
-        let expected_top = Val::Px(SLOT_ORIGIN_TOP);
-        let mut slots = app
-            .world_mut()
-            .query_filtered::<(Entity, &Node), With<ActionBarSlotIndex>>();
-        slots
-            .iter(app.world())
-            .find_map(|(entity, node)| {
-                (node.left == expected_left && node.top == expected_top).then_some(entity)
-            })
-            .expect("action bar slot")
-    }
-
-    fn icon_visibility(app: &mut App, slot_index: usize) -> Visibility {
-        icon(app, slot_index).0
     }
 
     fn icon_image_path(app: &mut App, slot_index: usize) -> String {
@@ -270,28 +293,5 @@ mod tests {
             .path()
             .to_string_lossy()
             .into_owned()
-    }
-
-    fn icon(app: &mut App, slot_index: usize) -> (Visibility, Handle<Image>) {
-        let slot = slot_entity(app, slot_index);
-        let mut icons = app
-            .world_mut()
-            .query_filtered::<(&Visibility, &ImageNode, &Parent), With<ActionBarSlotIcon>>();
-        let (visibility, image, _) = icons
-            .iter(app.world())
-            .find(|(_, _, parent)| parent.get() == slot)
-            .expect("slot icon");
-        (*visibility, image.image.clone())
-    }
-
-    fn count_label(app: &mut App, slot_index: usize) -> String {
-        let slot = slot_entity(app, slot_index);
-        let mut labels = app
-            .world_mut()
-            .query_filtered::<(&Text, &Parent), With<ActionBarSlotCount>>();
-        labels
-            .iter(app.world())
-            .find_map(|(text, parent)| (parent.get() == slot).then(|| text.0.clone()))
-            .expect("slot count")
     }
 }
