@@ -13,7 +13,6 @@ use super::action_bar_drag::{
     clear_action_bar_drag, release_action_bar_drag, start_action_bar_drag,
     update_action_bar_drag_ghost, ActionBarDrag,
 };
-use super::hud::{cleanup_tool_hud, setup_tool_hud, sync_tool_hud};
 use super::plots::sync_plot_visuals;
 use super::select_action_bar_slot::{
     cycle_action_bar_slot_from_mouse_wheel, select_action_bar_slot_from_number_keys,
@@ -37,7 +36,6 @@ impl Plugin for FarmingPlugin {
                     ensure_starter_kit,
                     load_action_bar_art,
                     setup_action_bar_hud,
-                    setup_tool_hud,
                 )
                     .chain()
                     .after(setup_overworld),
@@ -47,7 +45,6 @@ impl Plugin for FarmingPlugin {
                 (
                     clear_action_bar_drag,
                     capture_crop_plots_on_exit.before(cleanup_overworld),
-                    cleanup_tool_hud,
                     cleanup_action_bar_hud,
                 ),
             )
@@ -61,7 +58,6 @@ impl Plugin for FarmingPlugin {
                     update_player_facing,
                     use_homestead_tool,
                     sync_plot_visuals,
-                    sync_tool_hud,
                 )
                     .chain()
                     .run_if(in_state(GameState::Overworld))

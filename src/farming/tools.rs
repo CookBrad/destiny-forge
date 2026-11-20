@@ -1,5 +1,3 @@
-//! Homestead tools and energy costs. Equip with keys 1–4 (not a drag hotbar).
-
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -12,29 +10,17 @@ pub enum HomesteadTool {
     #[default]
     Hoe,
     WateringCan,
-    /// Plant first available seed type in inventory (turnip, then potato).
     Seeds,
     Hand,
 }
 
 impl HomesteadTool {
-    pub const ALL: [Self; 4] = [Self::Hoe, Self::WateringCan, Self::Seeds, Self::Hand];
-
     pub fn label(self) -> &'static str {
         match self {
             Self::Hoe => "Hoe",
             Self::WateringCan => "Watering Can",
             Self::Seeds => "Seeds",
             Self::Hand => "Hand",
-        }
-    }
-
-    pub fn hotkey(self) -> &'static str {
-        match self {
-            Self::Hoe => "1",
-            Self::WateringCan => "2",
-            Self::Seeds => "3",
-            Self::Hand => "4",
         }
     }
 
@@ -48,11 +34,9 @@ impl HomesteadTool {
     }
 }
 
-/// Currently equipped homestead tool (overworld only).
 #[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct EquippedTool(pub HomesteadTool);
 
-/// Prefer turnip seeds, then potato.
 pub fn first_available_seed_crop(has: impl Fn(MaterialId) -> bool) -> Option<CropKind> {
     if has(MaterialId::TurnipSeed) {
         Some(CropKind::Turnip)
