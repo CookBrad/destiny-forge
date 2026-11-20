@@ -72,9 +72,8 @@ fn equip_tool_for_slot(
     inventory: &Inventory,
     slot_index: usize,
 ) {
-    let Some(tool) = homestead_tool_for_held_stack(action_bar, inventory, slot_index) else {
-        return;
-    };
+    let tool = homestead_tool_for_held_stack(action_bar, inventory, slot_index)
+        .unwrap_or(HomesteadTool::Hand);
     if equipped_tool.0 == tool {
         return;
     }
@@ -144,12 +143,21 @@ mod tests {
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
 
-    use super::{cycle_action_bar_slot_from_mouse_wheel, select_action_bar_slot_from_number_keys};
-    use crate::core::GameState;
+    use super::super::action_bar::ACTION_BAR_SLOT_COUNT;
+    use super::{
+        cycle_action_bar_slot_from_mouse_wheel, homestead_tool_for_held_stack,
+        homestead_tool_for_material, select_action_bar_slot_from_number_keys,
+    };
+    use crate::core::{GameState, PlayerProfile, ProfileDirty, ToolEnergy};
     use crate::farming::action_bar::ActionBar;
+    use crate::farming::crops::{CropKind, PlotStage};
+    use crate::farming::plots::{CropPlot, PlayerFacing};
     use crate::farming::tools::{EquippedTool, HomesteadTool};
+    use crate::farming::use_tool::use_homestead_tool;
+    use crate::graphics::TILE;
     use crate::input::InputPlugin;
     use crate::items::{Inventory, MaterialId};
+    use crate::overworld::movement::OverworldPlayer;
     use crate::ui::forge_window::{forge_closed, ForgeWindowOpen};
     use crate::ui::inventory_window::{inventory_closed, InventoryWindowOpen};
 
@@ -210,25 +218,25 @@ mod tests {
     }
 
     #[test]
-    fn selecting_an_empty_slot_leaves_the_equipped_tool() {
+    fn selecting_an_empty_slot_equips_the_hand() {
         for (slot_index, key) in digit_keys().into_iter().enumerate() {
             let mut app = overworld_selection_app();
             set_equipped_tool(&mut app, HomesteadTool::Seeds);
             press_key(&mut app, key);
             assert_eq!(selected_slot(&app), slot_index);
-            assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
+            assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
         }
         for (slot_index, key) in numpad_keys().into_iter().enumerate() {
             let mut app = overworld_selection_app();
             set_equipped_tool(&mut app, HomesteadTool::Seeds);
             press_key(&mut app, key);
             assert_eq!(selected_slot(&app), slot_index);
-            assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
+            assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
         }
     }
 
     #[test]
-    fn selecting_a_slot_with_a_non_tool_item_or_a_zero_count_stack_leaves_the_equipped_tool() {
+    fn selecting_a_slot_with_a_non_tool_item_or_a_zero_count_stack_equips_the_hand() {
         let mut app = overworld_selection_app();
         set_equipped_tool(&mut app, HomesteadTool::Hoe);
         put_stack(&mut app, 4, MaterialId::Turnip, 2);
@@ -240,15 +248,15 @@ mod tests {
 
         press_key(&mut app, KeyCode::Digit3);
         assert_eq!(selected_slot(&app), 2);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
 
         press_key(&mut app, KeyCode::Digit5);
         assert_eq!(selected_slot(&app), 4);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
 
         press_key(&mut app, KeyCode::Digit8);
         assert_eq!(selected_slot(&app), 7);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
     }
 
     #[test]
@@ -264,7 +272,7 @@ mod tests {
 
         scroll_mouse_wheel_up(&mut app);
         assert_eq!(selected_slot(&app), 7);
-        assert_eq!(equipped_tool(&app), HomesteadTool::WateringCan);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
     }
 
     #[test]
@@ -293,13 +301,13 @@ mod tests {
     }
 
     #[test]
-    fn the_mouse_wheel_leaves_the_equipped_tool_on_an_empty_slot() {
+    fn the_mouse_wheel_equips_the_hand_on_an_empty_slot() {
         let mut app = overworld_selection_app();
         set_equipped_tool(&mut app, HomesteadTool::Seeds);
         select_slot_directly(&mut app, 3);
         scroll_mouse_wheel_down(&mut app);
         assert_eq!(selected_slot(&app), 4);
-        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
     }
 
     #[test]
@@ -326,6 +334,130 @@ mod tests {
         press_key(&mut app, KeyCode::Digit3);
         assert_eq!(selected_slot(&app), 0);
         assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+    }
+
+    #[test]
+    fn a_hoe_or_watering_can_material_maps_to_that_tool() {
+        assert_eq!(
+            homestead_tool_for_material(MaterialId::Hoe),
+            Some(HomesteadTool::Hoe)
+        );
+        assert_eq!(
+            homestead_tool_for_material(MaterialId::WateringCan),
+            Some(HomesteadTool::WateringCan)
+        );
+    }
+
+    #[test]
+    fn a_turnip_or_potato_seed_material_maps_to_seeds() {
+        assert_eq!(
+            homestead_tool_for_material(MaterialId::TurnipSeed),
+            Some(HomesteadTool::Seeds)
+        );
+        assert_eq!(
+            homestead_tool_for_material(MaterialId::PotatoSeed),
+            Some(HomesteadTool::Seeds)
+        );
+    }
+
+    #[test]
+    fn a_non_tool_material_does_not_map_to_a_homestead_tool() {
+        assert_eq!(homestead_tool_for_material(MaterialId::Turnip), None);
+        assert_eq!(homestead_tool_for_material(MaterialId::PickaxeTier1), None);
+    }
+
+    #[test]
+    fn a_held_hoe_watering_can_or_seed_stack_maps_to_that_tool() {
+        let mut inventory = Inventory::default();
+        inventory.slots[1].material = Some(MaterialId::Hoe);
+        inventory.slots[1].count = 1;
+        inventory.slots[2].material = Some(MaterialId::WateringCan);
+        inventory.slots[2].count = 1;
+        inventory.slots[3].material = Some(MaterialId::TurnipSeed);
+        inventory.slots[3].count = 8;
+        inventory.slots[4].material = Some(MaterialId::PotatoSeed);
+        inventory.slots[4].count = 4;
+        let mut action_bar = ActionBar::default();
+        assert_eq!(action_bar.assign_held_inventory_slot(0, 1), Ok(()));
+        assert_eq!(action_bar.assign_held_inventory_slot(5, 2), Ok(()));
+        assert_eq!(action_bar.assign_held_inventory_slot(3, 3), Ok(()));
+        assert_eq!(action_bar.assign_held_inventory_slot(7, 4), Ok(()));
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 0),
+            Some(HomesteadTool::Hoe)
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 5),
+            Some(HomesteadTool::WateringCan)
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 3),
+            Some(HomesteadTool::Seeds)
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 7),
+            Some(HomesteadTool::Seeds)
+        );
+    }
+
+    #[test]
+    fn a_zero_count_or_material_less_held_stack_does_not_map_to_a_tool() {
+        let mut inventory = Inventory::default();
+        inventory.slots[0].material = Some(MaterialId::Hoe);
+        inventory.slots[0].count = 0;
+        inventory.slots[1].material = None;
+        inventory.slots[1].count = 1;
+        let mut action_bar = ActionBar::default();
+        assert_eq!(action_bar.assign_held_inventory_slot(0, 0), Ok(()));
+        assert_eq!(action_bar.assign_held_inventory_slot(1, 1), Ok(()));
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 0),
+            None
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 1),
+            None
+        );
+    }
+
+    #[test]
+    fn an_empty_or_out_of_range_action_bar_slot_does_not_map_to_a_tool() {
+        let inventory = Inventory::default();
+        let action_bar = ActionBar::default();
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, 0),
+            None
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, ACTION_BAR_SLOT_COUNT),
+            None
+        );
+        assert_eq!(
+            homestead_tool_for_held_stack(&action_bar, &inventory, usize::MAX),
+            None
+        );
+    }
+
+    #[test]
+    fn the_player_can_harvest_by_hand_after_selecting_the_hoe_and_then_an_empty_slot() {
+        let mut app = overworld_harvest_app();
+        put_stack(&mut app, 0, MaterialId::Hoe, 1);
+        assign_held_slot(&mut app, 0, 0);
+        press_key(&mut app, KeyCode::Digit1);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+
+        press_key(&mut app, KeyCode::Digit2);
+        assert_eq!(selected_slot(&app), 1);
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
+
+        press_use_tool(&mut app);
+        assert_eq!(plot_stage(&mut app), PlotStage::Soil);
+        assert_eq!(
+            app.world()
+                .resource::<Inventory>()
+                .count(MaterialId::Turnip),
+            1
+        );
     }
 
     fn title_selection_app() -> App {
@@ -363,6 +495,42 @@ mod tests {
             &GameState::Overworld
         );
         app
+    }
+
+    fn overworld_harvest_app() -> App {
+        let mut app = overworld_selection_app();
+        app.init_resource::<ToolEnergy>()
+            .insert_resource(ProfileDirty(false))
+            .init_resource::<PlayerProfile>()
+            .add_systems(Update, use_homestead_tool);
+        let tile_x = 4_u32;
+        let tile_y = 2_u32;
+        let center = Vec2::new(
+            tile_x as f32 * TILE + TILE * 0.5,
+            tile_y as f32 * TILE + TILE * 0.5,
+        );
+        app.world_mut().spawn((
+            OverworldPlayer,
+            Transform::from_translation(center.extend(0.0)),
+            PlayerFacing::default(),
+        ));
+        app.world_mut().spawn(CropPlot {
+            tile_x,
+            tile_y,
+            stage: PlotStage::Ready {
+                crop: CropKind::Turnip,
+            },
+        });
+        app
+    }
+
+    fn press_use_tool(app: &mut App) {
+        press_key(app, KeyCode::Space);
+    }
+
+    fn plot_stage(app: &mut App) -> PlotStage {
+        let mut plots = app.world_mut().query::<&CropPlot>();
+        plots.single(app.world()).stage
     }
 
     fn digit_keys() -> [KeyCode; 8] {
