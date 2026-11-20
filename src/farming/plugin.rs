@@ -5,7 +5,9 @@ use crate::overworld::setup::{cleanup_overworld, setup_overworld};
 use crate::ui::forge_window::forge_closed;
 use crate::ui::inventory_window::{inventory_closed, inventory_window_open};
 
-use super::action_bar::clear_emptied_action_bar_slots;
+use super::action_bar::{
+    clear_emptied_action_bar_slots, equip_hand_when_selected_action_bar_slot_clears,
+};
 use super::action_bar_art::{
     cleanup_action_bar_hud, load_action_bar_art, setup_action_bar_hud, sync_action_bar_highlight,
     sync_action_bar_slot_contents,
@@ -83,9 +85,14 @@ impl Plugin for FarmingPlugin {
             )
             .add_systems(
                 Update,
-                clear_emptied_action_bar_slots
-                    .after(use_homestead_tool)
-                    .before(ActionBarSlotContentsSync)
+                (
+                    clear_emptied_action_bar_slots
+                        .after(use_homestead_tool)
+                        .before(ActionBarSlotContentsSync),
+                    equip_hand_when_selected_action_bar_slot_clears
+                        .after(clear_emptied_action_bar_slots)
+                        .before(ActionBarSlotContentsSync),
+                )
                     .run_if(in_state(GameState::Overworld)),
             )
             .add_systems(

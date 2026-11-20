@@ -6,6 +6,59 @@ use super::tools::{EquippedTool, HomesteadTool};
 
 pub(super) const ACTION_BAR_SLOT_COUNT: usize = 8;
 
+pub(super) fn clear_emptied_action_bar_slots(
+    inventory: Res<Inventory>,
+    mut action_bar: ResMut<ActionBar>,
+) {
+    for slot_index in 0..ACTION_BAR_SLOT_COUNT {
+        if !held_stack_was_emptied(&action_bar, &inventory, slot_index) {
+            continue;
+        }
+        match action_bar.clear_held_inventory_slot(slot_index) {
+            Ok(()) => {}
+            Err(ActionBarHeldSlotOutOfRange) => {}
+        }
+    }
+}
+
+pub(super) fn equip_hand_when_selected_action_bar_slot_clears(
+    action_bar: Res<ActionBar>,
+    mut equipped_tool: ResMut<EquippedTool>,
+    mut previously_held_inventory_slot: Local<Option<Option<usize>>>,
+) {
+    let Ok(held_inventory_slot) = action_bar.held_inventory_slot(action_bar.selected_slot()) else {
+        return;
+    };
+    let Some(previous_held_inventory_slot) = *previously_held_inventory_slot else {
+        *previously_held_inventory_slot = Some(held_inventory_slot);
+        return;
+    };
+    *previously_held_inventory_slot = Some(held_inventory_slot);
+    if previous_held_inventory_slot.is_some() && held_inventory_slot.is_none() {
+        equip_hand_if_needed(&mut equipped_tool);
+    }
+}
+
+fn held_stack_was_emptied(
+    action_bar: &ActionBar,
+    inventory: &Inventory,
+    slot_index: usize,
+) -> bool {
+    let Ok(Some(inventory_index)) = action_bar.held_inventory_slot(slot_index) else {
+        return false;
+    };
+    let stack = inventory.slots[inventory_index];
+    stack.material.is_none() || stack.count == 0
+}
+
+fn equip_hand_if_needed(equipped_tool: &mut EquippedTool) {
+    if equipped_tool.0 == HomesteadTool::Hand {
+        return;
+    }
+    equipped_tool.0 = HomesteadTool::Hand;
+    info!("Equipped {}.", HomesteadTool::Hand.label());
+}
+
 #[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ActionBar {
     selected_slot: usize,
@@ -69,59 +122,13 @@ pub struct ActionBarSlotOutOfRange;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ActionBarHeldSlotOutOfRange;
 
-pub(super) fn clear_emptied_action_bar_slots(
-    inventory: Res<Inventory>,
-    mut action_bar: ResMut<ActionBar>,
-    mut equipped_tool: ResMut<EquippedTool>,
-) {
-    let selected_slot = action_bar.selected_slot();
-    let mut selected_slot_cleared = false;
-    for slot_index in 0..ACTION_BAR_SLOT_COUNT {
-        if !held_stack_was_emptied(&action_bar, &inventory, slot_index) {
-            continue;
-        }
-        match action_bar.clear_held_inventory_slot(slot_index) {
-            Ok(()) => {}
-            Err(ActionBarHeldSlotOutOfRange) => {}
-        }
-        if slot_index == selected_slot {
-            selected_slot_cleared = true;
-        }
-    }
-    if selected_slot_cleared {
-        equip_hand_if_needed(&mut equipped_tool);
-    }
-}
-
-fn held_stack_was_emptied(
-    action_bar: &ActionBar,
-    inventory: &Inventory,
-    slot_index: usize,
-) -> bool {
-    let Ok(Some(inventory_index)) = action_bar.held_inventory_slot(slot_index) else {
-        return false;
-    };
-    let Some(stack) = inventory.slots.get(inventory_index) else {
-        return true;
-    };
-    stack.material.is_none() || stack.count == 0
-}
-
-fn equip_hand_if_needed(equipped_tool: &mut EquippedTool) {
-    if equipped_tool.0 == HomesteadTool::Hand {
-        return;
-    }
-    equipped_tool.0 = HomesteadTool::Hand;
-    info!("Equipped {}.", HomesteadTool::Hand.label());
-}
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
 
     use super::{
-        clear_emptied_action_bar_slots, ActionBar, ActionBarHeldSlotOutOfRange,
-        ActionBarSlotOutOfRange, ACTION_BAR_SLOT_COUNT,
+        clear_emptied_action_bar_slots, equip_hand_when_selected_action_bar_slot_clears, ActionBar,
+        ActionBarHeldSlotOutOfRange, ActionBarSlotOutOfRange, ACTION_BAR_SLOT_COUNT,
     };
     use crate::farming::actions::apply_tool;
     use crate::farming::crops::{CropKind, PlotStage};
@@ -294,11 +301,14 @@ mod tests {
 
     #[test]
     fn emptying_the_selected_slot_equips_the_hand() {
-        let mut app = clear_emptied_slots_app();
+        let mut app = clear_emptied_slots_and_equip_hand_app();
         set_equipped_tool(&mut app, HomesteadTool::Seeds);
         put_stack(&mut app, 3, MaterialId::TurnipSeed, 1);
         assign_held_slot(&mut app, 0, 3);
         assert_eq!(app.world().resource::<ActionBar>().selected_slot(), 0);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(Some(3)));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
         assert!(app
             .world_mut()
             .resource_mut::<Inventory>()
@@ -310,12 +320,15 @@ mod tests {
 
     #[test]
     fn emptying_a_non_selected_slot_leaves_the_equipped_tool() {
-        let mut app = clear_emptied_slots_app();
+        let mut app = clear_emptied_slots_and_equip_hand_app();
         set_equipped_tool(&mut app, HomesteadTool::Hoe);
         put_stack(&mut app, 3, MaterialId::TurnipSeed, 1);
         put_stack(&mut app, 5, MaterialId::Hoe, 1);
         assign_held_slot(&mut app, 0, 5);
         assign_held_slot(&mut app, 2, 3);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(Some(5)));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
         assert!(app
             .world_mut()
             .resource_mut::<Inventory>()
@@ -341,10 +354,13 @@ mod tests {
 
     #[test]
     fn planting_the_last_seed_clears_that_action_bar_slot() {
-        let mut app = clear_emptied_slots_app();
+        let mut app = clear_emptied_slots_and_equip_hand_app();
         set_equipped_tool(&mut app, HomesteadTool::Seeds);
         put_stack(&mut app, 3, MaterialId::TurnipSeed, 1);
         assign_held_slot(&mut app, 0, 3);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(Some(3)));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
         let planted = apply_tool(
             HomesteadTool::Seeds,
             PlotStage::Tilled,
@@ -369,6 +385,51 @@ mod tests {
         );
     }
 
+    #[test]
+    fn emptying_the_selected_slot_while_the_hand_is_equipped_leaves_the_hand_equipped() {
+        let mut app = clear_emptied_slots_and_equip_hand_app();
+        set_equipped_tool(&mut app, HomesteadTool::Hand);
+        put_stack(&mut app, 3, MaterialId::TurnipSeed, 1);
+        assign_held_slot(&mut app, 0, 3);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(Some(3)));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
+        assert!(app
+            .world_mut()
+            .resource_mut::<Inventory>()
+            .try_remove(MaterialId::TurnipSeed, 1));
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(None));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
+    }
+
+    #[test]
+    fn clearing_the_selected_held_slot_equips_the_hand() {
+        let mut app = equip_hand_when_selected_slot_clears_app();
+        set_equipped_tool(&mut app, HomesteadTool::Seeds);
+        assign_held_slot(&mut app, 0, 3);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(Some(3)));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Seeds);
+        let cleared = app
+            .world_mut()
+            .resource_mut::<ActionBar>()
+            .clear_held_inventory_slot(0);
+        assert_eq!(cleared, Ok(()));
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(None));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hand);
+    }
+
+    #[test]
+    fn an_already_empty_selected_slot_leaves_the_equipped_tool() {
+        let mut app = equip_hand_when_selected_slot_clears_app();
+        set_equipped_tool(&mut app, HomesteadTool::Hoe);
+        app.update();
+        assert_eq!(held_slot(&app, 0), Ok(None));
+        assert_eq!(equipped_tool(&app), HomesteadTool::Hoe);
+    }
+
     fn assert_every_held_slot_empty(action_bar: &ActionBar) {
         for slot_index in 0..ACTION_BAR_SLOT_COUNT {
             assert_eq!(action_bar.held_inventory_slot(slot_index), Ok(None));
@@ -386,8 +447,25 @@ mod tests {
         app.add_plugins(MinimalPlugins)
             .init_resource::<Inventory>()
             .init_resource::<ActionBar>()
-            .init_resource::<EquippedTool>()
             .add_systems(Update, clear_emptied_action_bar_slots);
+        app
+    }
+
+    fn clear_emptied_slots_and_equip_hand_app() -> App {
+        let mut app = clear_emptied_slots_app();
+        app.init_resource::<EquippedTool>().add_systems(
+            Update,
+            equip_hand_when_selected_action_bar_slot_clears.after(clear_emptied_action_bar_slots),
+        );
+        app
+    }
+
+    fn equip_hand_when_selected_slot_clears_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<ActionBar>()
+            .init_resource::<EquippedTool>()
+            .add_systems(Update, equip_hand_when_selected_action_bar_slot_clears);
         app
     }
 
